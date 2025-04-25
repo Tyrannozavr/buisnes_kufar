@@ -4,12 +4,12 @@
       <!-- Logo and Site Name -->
       <div class="flex items-center space-x-4">
         <NuxtImg 
-          src="/images/logo.png"
+          src="/images/logo-sm.png"
           alt="БизнесТорг" 
-          class="h-8 w-auto"
+          class="h-12 w-auto"
           loading="eager"
         />
-        <h1 class="text-xl font-semibold text-gray-900">БизнесТорг</h1>
+<!--        <h1 class="text-xl font-semibold text-gray-900">БизнесТорг</h1>-->
       </div>
 
       <!-- Cart Link -->
@@ -28,7 +28,7 @@
       <!-- Login/Register Button -->
       <div>
         <UButton
-          to="/auth"
+          to="/auth/login"
           color="primary"
           variant="solid"
         >

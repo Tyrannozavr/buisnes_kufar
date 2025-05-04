@@ -2,6 +2,11 @@
 import {useUserStore} from '~/stores/user'
 
 const userStore = useUserStore()
+
+const handleLogout = () => {
+  userStore.logout()
+  navigateTo('/auth/login')
+}
 </script>
 <template>
   <UContainer>
@@ -33,7 +38,7 @@ const userStore = useUserStore()
         </UButton>
       </div>
 
-      <!-- Login/Register Button or Profile Button -->
+      <!-- Login/Register Button or Profile Button with Dropdown -->
       <div>
         <UButton
             v-if="!userStore.isAuthenticated"
@@ -44,23 +49,41 @@ const userStore = useUserStore()
           Вход/Регистрация
         </UButton>
 
-        <UButton
+        <UDropdownMenu
+            class="cursor-pointer"
             v-else
-            to="/profile"
-            color="primary"
-            variant="ghost"
-            class="flex items-center space-x-2"
+            :items="[
+              [
+                {
+                  label: 'Профиль',
+                  icon: 'i-heroicons-user-circle',
+                  to: '/profile'
+                },
+                {
+                  label: 'Выйти',
+                  icon: 'i-heroicons-arrow-right-on-rectangle',
+                  onSelect: handleLogout
+                }
+              ]
+            ]"
         >
-          <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full">
-            <NuxtImg
-                :src="userStore.companyLogo"
-                :alt="userStore.companyName"
-                class="h-full w-full object-cover"
-            />
-          </div>
-          <UIcon v-else name="i-heroicons-user-circle" class="h-8 w-8"/>
-          <span>{{ userStore.companyName || 'Профиль' }}</span>
-        </UButton>
+          <UButton
+              color="primary"
+              variant="ghost"
+              class="flex items-center space-x-2"
+          >
+            <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full">
+              <NuxtImg
+                  :src="userStore.companyLogo"
+                  :alt="userStore.companyName"
+                  class="h-full w-full object-cover"
+              />
+            </div>
+            <UIcon v-else name="i-heroicons-user-circle" class="h-8 w-8"/>
+            <span>{{ userStore.companyName || 'Профиль' }}</span>
+            <UIcon name="i-heroicons-chevron-down" class="h-4 w-4"/>
+          </UButton>
+        </UDropdownMenu>
       </div>
     </div>
   </UContainer>

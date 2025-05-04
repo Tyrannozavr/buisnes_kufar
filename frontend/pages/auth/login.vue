@@ -115,8 +115,8 @@ const handleSubmit = async () => {
 
     // Mock response - replace with actual API response
     const mockResponse = {
-      companyName: 'Пасека',
-      companyLogo: 'https://clipart-library.com/2023/29-298049_honey-bee-beehive-clip-art-honey-bee-clipart-png.png'
+      companyName: 'КосмоПорт',
+      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
     }
 
     // Update the store with user data

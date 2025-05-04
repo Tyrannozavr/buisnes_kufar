@@ -66,12 +66,15 @@
 </template>
 
 <script setup lang="ts">
+import { useUserStore } from '~/stores/user'
+
 const form = ref({
   inn: '',
   password: ''
 })
 
 const isLoading = ref(false)
+const userStore = useUserStore()
 
 const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
@@ -107,8 +110,18 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    // TODO: Implement login logic here
+    // TODO: Replace with actual API call
     await new Promise(resolve => setTimeout(resolve, 1000)) // Simulated API call
+
+    // Mock response - replace with actual API response
+    const mockResponse = {
+      companyName: 'Пасека',
+      companyLogo: 'https://clipart-library.com/2023/29-298049_honey-bee-beehive-clip-art-honey-bee-clipart-png.png'
+    }
+
+    // Update the store with user data
+    userStore.login(mockResponse.companyName, mockResponse.companyLogo)
+
     navigateTo('/')
   } catch (error) {
     console.error('Login error:', error)

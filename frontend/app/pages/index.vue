@@ -1,3 +1,39 @@
+<script setup lang="ts">
+import type { Company, Announcement } from '~/types'
+
+// Fetch announcements from API - using our simplified useApi composable
+const { data: announcements, error: announcementsError } = await useApi<Announcement[]>('/announcements', {
+  transform: (data) =>
+    data
+      .filter(a => a.isPublished)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+})
+
+// Fetch companies from API - using our simplified useApi composable
+const { data: companies, error: companiesError } = await useApi<Company[]>('/companies', {
+  transform: (data) =>
+    data
+      .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
+      .slice(0, 5)
+})
+
+// Simple helper function to get company name
+const getCompanyName = (companyId: string) => {
+  const company = companies.value?.find(c => c.id === companyId)
+  return company?.name || 'Неизвестная компания'
+}
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+</script>
+
 <template>
   <div class="space-y-8">
     <!-- Hero Section -->
@@ -30,143 +66,64 @@
     <!-- Announcements and News Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Announcements -->
-      <section>
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-semibold">Объявления</h2>
-          <UButton
-            to="/announcements"
-            color="primary"
-            variant="ghost"
-          >
-            Смотреть все
-          </UButton>
+      <section class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">Последние объявления</h2>
+
+        <div v-if="announcementsError" class="text-red-500 mb-4">
+          Не удалось загрузить объявления
         </div>
-        <div class="space-y-4">
-          <UCard
-            v-for="announcement in announcements"
-            :key="announcement.id"
-            class="hover:shadow-lg transition-shadow"
-          >
-            <template #header>
-              <div class="flex items-center space-x-4">
-                <img 
-                  :src="getCompanyLogo(announcement.companyId)"
-                  :alt="getCompanyName(announcement.companyId)"
-                  class="w-10 h-10 object-contain"
-                />
-                <div>
-                  <h3 class="font-semibold">{{ announcement.title }}</h3>
-                  <p class="text-sm text-gray-500">
-                    {{ getCompanyName(announcement.companyId) }}
-                  </p>
+
+        <div v-else-if="!announcements || announcements.length === 0" class="text-gray-500 mb-4">
+          Нет доступных объявлений
+        </div>
+
+        <div v-else class="space-y-4">
+          <div v-for="announcement in announcements" :key="announcement.id" class="border-b pb-4 last:border-0">
+            <div class="flex items-start">
+              <div v-if="announcement.images && announcement.images.length" class="flex-shrink-0 mr-4">
+                <img :src="announcement.images[0]" alt="" class="w-16 h-16 object-cover rounded">
+              </div>
+              <div>
+                <h3 class="font-medium">{{ announcement.title }}</h3>
+                <p class="text-sm text-gray-600 mt-1">{{ announcement.content.substring(0, 100) }}...</p>
+                <div class="flex items-center mt-2 text-xs text-gray-500">
+                  <span>{{ getCompanyName(announcement.companyId) }}</span>
+                  <span class="mx-2">•</span>
+                  <span>{{ formatDate(announcement.createdAt) }}</span>
                 </div>
               </div>
-            </template>
-            <p class="text-gray-600">{{ announcement.content }}</p>
-            <template #footer>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-500">
-                  {{ formatDate(announcement.createdAt) }}
-                </span>
-                <UButton
-                  color="primary"
-                  variant="ghost"
-                  :to="`/announcements/${announcement.id}`"
-                >
-                  Подробнее
-                </UButton>
-              </div>
-            </template>
-          </UCard>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- News -->
-      <section>
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-semibold">Новости</h2>
-          <UButton
-            to="/news"
-            color="primary"
-            variant="ghost"
-          >
-            Смотреть все
-          </UButton>
+      <!-- New Companies -->
+      <section class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">Новые компании</h2>
+
+        <div v-if="companiesError" class="text-red-500 mb-4">
+          Не удалось загрузить компании
         </div>
-        <div class="space-y-4">
-          <UCard
-            v-for="company in newCompanies"
-            :key="company.id"
-            class="hover:shadow-lg transition-shadow"
-          >
-            <template #header>
-              <div class="flex items-center space-x-4">
-                <img 
-                  :src="company.logo"
-                  :alt="company.name"
-                  class="w-10 h-10 object-contain"
-                />
-                <div>
-                  <h3 class="font-semibold">Новая компания</h3>
-                  <p class="text-sm text-gray-500">{{ company.name }}</p>
-                </div>
+
+        <div v-else-if="!companies || companies.length === 0" class="text-gray-500 mb-4">
+          Нет новых компаний
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-for="company in companies" :key="company.id" class="border rounded p-4">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 mr-3">
+                <img :src="company.logo" alt="" class="w-12 h-12 object-cover rounded">
               </div>
-            </template>
-            <p class="text-gray-600">{{ company.description }}</p>
-            <template #footer>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-500">
-                  {{ formatDate(company.registrationDate) }}
-                </span>
-                <UButton
-                  color="primary"
-                  variant="ghost"
-                  :to="`/companies/${company.id}`"
-                >
-                  Подробнее
-                </UButton>
+              <div>
+                <h3 class="font-medium">{{ company.name }}</h3>
+                <p class="text-xs text-gray-600">{{ company.activity }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ formatDate(company.registrationDate) }}</p>
               </div>
-            </template>
-          </UCard>
+            </div>
+          </div>
         </div>
       </section>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { mockAnnouncements, mockCompanies } from '~/utils/mockData'
-
-// Get latest announcements
-const announcements = computed(() => 
-  mockAnnouncements
-    .filter(a => a.isPublished)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
-)
-
-// Get latest companies (as news)
-const newCompanies = computed(() => 
-  mockCompanies
-    .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
-    .slice(0, 5)
-)
-
-const getCompanyName = (companyId: string) => {
-  const company = mockCompanies.find(c => c.id === companyId)
-  return company?.name || 'Неизвестная компания'
-}
-
-const getCompanyLogo = (companyId: string) => {
-  const company = mockCompanies.find(c => c.id === companyId)
-  return company?.logo || '/images/default-company.png'
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-</script>

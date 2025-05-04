@@ -2,7 +2,7 @@ export interface Company {
   id: string
   name: string
   logo: string
-  type: 'manufacturer' | 'service' | 'both'
+  type: string
   activity: string
   description: string
   country: string
@@ -24,13 +24,10 @@ export interface Product {
   id: string
   companyId: string
   name: string
-  type: 'product' | 'service'
+  type: string
   price: number
   images: string[]
-  characteristics: {
-    name: string
-    value: string
-  }[]
+  characteristics: { name: string; value: string }[]
   isHidden: boolean
   isDeleted: boolean
 }
@@ -63,7 +60,6 @@ export interface Deal {
   buyerId: string
   sellerId: string
   productId: string
-  status: 'open' | 'completed'
+  status: string
   createdAt: string
-  completedAt?: string
-} 
+}

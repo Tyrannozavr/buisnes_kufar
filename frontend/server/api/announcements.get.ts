@@ -1,0 +1,87 @@
+import { defineEventHandler } from 'h3'
+import type { Announcement } from '~/types'
+
+// Mock data for announcements
+const announcements: Announcement[] = [
+  {
+    id: '1',
+    companyId: '1',
+    title: 'Новая линейка станков ЧПУ',
+    content: 'Представляем новую линейку станков с ЧПУ с улучшенными характеристиками. Наши инженеры разработали инновационную систему управления, которая повышает точность обработки на 30% и снижает энергопотребление. Станки уже доступны для заказа с доставкой по всей России.',
+    images: ['/images/announcements/cnc-new.jpg'],
+    createdAt: '2024-04-20T10:00:00Z',
+    isPublished: true,
+    notifyPartners: true,
+    notifySuppliers: false,
+    notifyBuyers: true
+  },
+  {
+    id: '2',
+    companyId: '2',
+    title: 'Специальное предложение на строительство',
+    content: 'Действует специальное предложение на строительство коттеджей. При заказе строительства до конца месяца, вы получаете проект ландшафтного дизайна в подарок. Наши специалисты используют только качественные материалы и современные технологии строительства.',
+    images: ['/images/announcements/cottage-special.jpg'],
+    createdAt: '2024-04-19T15:30:00Z',
+    isPublished: true,
+    notifyPartners: true,
+    notifySuppliers: false,
+    notifyBuyers: true
+  },
+  {
+    id: '3',
+    companyId: '3',
+    title: 'Запуск новой системы автоматизации',
+    content: 'Компания ИнноТех представляет новую систему автоматизации производственных процессов. Система позволяет сократить затраты на производство до 25% и увеличить производительность. Приглашаем на демонстрацию системы в нашем офисе.',
+    images: ['/images/announcements/automation-system.jpg'],
+    createdAt: '2024-04-18T09:45:00Z',
+    isPublished: true,
+    notifyPartners: true,
+    notifySuppliers: true,
+    notifyBuyers: true
+  },
+  {
+    id: '4',
+    companyId: '1',
+    title: 'Расширение производственных мощностей',
+    content: 'ООО "ТехноПром" сообщает о расширении производственных мощностей. Мы открыли новый цех площадью 5000 кв.м., что позволит увеличить объем производства на 40%. Это позволит нам сократить сроки выполнения заказов и расширить ассортимент продукции.',
+    images: ['/images/announcements/factory-expansion.jpg'],
+    createdAt: '2024-04-15T14:20:00Z',
+    isPublished: true,
+    notifyPartners: true,
+    notifySuppliers: true,
+    notifyBuyers: false
+  },
+  {
+    id: '5',
+    companyId: '2',
+    title: 'Новые технологии в строительстве',
+    content: 'СтройСервис внедряет новые технологии в строительстве. Мы начали использовать инновационные материалы, которые повышают энергоэффективность зданий и сокращают сроки строительства. Приглашаем посетить наш демонстрационный объект.',
+    images: ['/images/announcements/construction-tech.jpg'],
+    createdAt: '2024-04-12T11:10:00Z',
+    isPublished: true,
+    notifyPartners: false,
+    notifySuppliers: false,
+    notifyBuyers: true
+  },
+  {
+    id: '6',
+    companyId: '3',
+    title: 'Участие в международной выставке',
+    content: 'ИнноТех примет участие в международной выставке электроники и автоматизации. Мы представим наши последние разработки и инновационные решения. Приглашаем посетить наш стенд №B42 в павильоне 3.',
+    images: ['/images/announcements/exhibition.jpg'],
+    createdAt: '2024-04-10T16:30:00Z',
+    isPublished: false, // This one is not published
+    notifyPartners: true,
+    notifySuppliers: true,
+    notifyBuyers: true
+  }
+]
+
+export default defineEventHandler(() => {
+  // Simulate a slight delay to mimic real API behavior
+  return new Promise<Announcement[]>((resolve) => {
+    setTimeout(() => {
+      resolve(announcements)
+    }, 300)
+  })
+})

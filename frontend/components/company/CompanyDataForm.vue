@@ -13,7 +13,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['save'])
+const emits = defineEmits(['save'])
 
 const formState = ref<Company>({...props.company})
 
@@ -54,10 +54,16 @@ const federalDistrictOptions = [
 
 const regionOptions = [
   // TODO: Add actual regions based on selected federal district
+    "Алматы",
+    "Астана",
+    "Балаканы",
+    "Костанай",
+    "Кызылорда",
+    "Мангистау",
 ].map(region => ({label: region, value: region}))
 
 const handleSave = () => {
-  emit('save', formState.value)
+  emits('save', formState.value)
 }
 
 const handleLogoUpload = () => {
@@ -73,6 +79,7 @@ const handleLogoUpload = () => {
         <UButton
             color="primary"
             :loading="loading"
+            class="cursor-pointer"
             @click="handleSave"
         >
           Сохранить
@@ -84,169 +91,190 @@ const handleLogoUpload = () => {
         :state="formState"
         @submit="handleSave"
     >
-      <div class="space-y-6">
-        <!-- Logo Upload -->
-        <div class="flex items-center gap-4">
-          <UAvatar
-              :src="formState.logo"
-              size="xl"
-              :alt="formState.name"
-          />
-          <UButton
-              color="secondary"
-              variant="soft"
-              icon="i-heroicons-photo"
-              @click="handleLogoUpload"
-          >
-            Загрузить логотип
-          </UButton>
-          <UTooltip
-              text="Выберите изображение для Вашей компании. Логотип компании будет отображаться на основных страницах сайта, улучшать наглядность и повышать узнаваемость компании">
-            <UIcon name="i-heroicons-question-mark-circle" class="text-gray-400"/>
-          </UTooltip>
+      <div class="space-y-8">
+        <!-- 1. Логотип компании -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
+          <div class="flex items-center gap-4">
+            <UAvatar
+                :src="formState.logo"
+                size="xl"
+                :alt="formState.name"
+            />
+            <UButton
+                color="secondary"
+                variant="soft"
+                icon="i-heroicons-photo"
+                @click="handleLogoUpload"
+            >
+              Загрузить логотип
+            </UButton>
+            <UTooltip
+                text="Выберите изображение для Вашей компании. Логотип компании будет отображаться на основных страницах сайта, улучшать наглядность и повышать узнаваемость компании">
+              <UIcon name="i-heroicons-question-mark-circle" class="text-gray-400"/>
+            </UTooltip>
+          </div>
         </div>
 
-        <!-- Company Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UFormGroup label="Торговая деятельность" required>
-            <USelect
-                v-model="formState.tradeActivity"
-                :options="tradeActivityOptions"
-            />
-          </UFormGroup>
+        <!-- 2. Информация о компании -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Информация о компании</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Торговая деятельность" required help="Выберите тип торговой деятельности вашей компании">
+              <USelect
+                  v-model="formState.tradeActivity"
+                  :items="tradeActivityOptions"
+              />
+            </UFormField>
 
-          <UFormGroup label="Род деятельности" required>
-            <USelect
-                v-model="formState.businessType"
-                :options="businessTypeOptions"
-            />
-          </UFormGroup>
+            <UFormField label="Род деятельности" required help="Определяет в каком разделе будет отображаться ваша компания">
+              <USelect
+                  v-model="formState.businessType"
+                  :items="businessTypeOptions"
+              />
+            </UFormField>
 
-          <UFormGroup label="Название организации" required>
-            <UInput
-                v-model="formState.name"
-                placeholder="Краткое название организации"
-            />
-          </UFormGroup>
+            <UFormField label="Название организации" required help="Краткое название организации для визитной карточки">
+              <UInput
+                  v-model="formState.name"
+                  placeholder="Краткое название организации"
+              />
+            </UFormField>
 
-          <UFormGroup label="Вид деятельности" required>
-            <UInput
-                v-model="formState.activityType"
-                placeholder="Например: Производство обуви"
-            />
-          </UFormGroup>
+            <UFormField label="Вид деятельности" required help="Основное направление деятельности компании. Например: «Производство обуви», «Строительство каркасных домов»">
+              <UInput
+                  v-model="formState.activityType"
+                  placeholder="Например: Производство обуви"
+              />
+            </UFormField>
 
-          <UFormGroup label="Описание организации" required>
-            <UTextarea
-                v-model="formState.description"
-                placeholder="Опишите деятельность компании и ее основные достоинства"
-            />
-          </UFormGroup>
+            <UFormField label="Описание организации" required help="Опишите деятельность компании и ее основные достоинства" class="md:col-span-2">
+              <UTextarea
+                  v-model="formState.description"
+                  placeholder="Опишите деятельность компании и ее основные достоинства"
+                  rows="4"
+              />
+            </UFormField>
+
+            <UFormField label="Страна" required>
+              <USelect
+                  v-model="formState.country"
+                  :items="countryOptions"
+              />
+            </UFormField>
+
+            <UFormField label="Федеральный округ" required>
+              <USelect
+                  v-model="formState.federalDistrict"
+                  :items="federalDistrictOptions"
+                  :disabled="formState.country !== 'Россия'"
+              />
+            </UFormField>
+
+            <UFormField label="Регион" required>
+              <USelect
+                  v-model="formState.region"
+                  :items="regionOptions"
+              />
+            </UFormField>
+
+            <UFormField label="Город" required>
+              <UInput
+                  v-model="formState.city"
+              />
+            </UFormField>
+          </div>
         </div>
 
-        <!-- Location -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UFormGroup label="Страна" required>
-            <USelect
-                v-model="formState.country"
-                :options="countryOptions"
-            />
-          </UFormGroup>
+        <!-- 3. Реквизиты компании -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Реквизиты компании</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Полное название организации" required>
+              <UInput
+                  v-model="formState.fullName"
+              />
+            </UFormField>
 
-          <UFormGroup label="Федеральный округ" required>
-            <USelect
-                v-model="formState.federalDistrict"
-                :options="federalDistrictOptions"
-                :disabled="formState.country !== 'Россия'"
-            />
-          </UFormGroup>
+            <UFormField label="ИНН" required>
+              <UInput
+                  v-model="formState.inn"
+                  type="number"
+              />
+            </UFormField>
 
-          <UFormGroup label="Регион" required>
-            <USelect
-                v-model="formState.region"
-                :options="regionOptions"
-            />
-          </UFormGroup>
+            <UFormField label="ОГРН" required>
+              <UInput
+                  v-model="formState.ogrn"
+                  type="number"
+              />
+            </UFormField>
 
-          <UFormGroup label="Город" required>
-            <UInput
-                v-model="formState.city"
-            />
-          </UFormGroup>
+            <UFormField label="КПП" required>
+              <UInput
+                  v-model="formState.kpp"
+                  type="number"
+              />
+            </UFormField>
+
+            <UFormField label="Дата регистрации ОГРН" required>
+              <UInput
+                  v-model="formState.registrationDate"
+                  type="date"
+              />
+            </UFormField>
+          </div>
         </div>
 
-        <!-- Company Details -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UFormGroup label="Полное название организации" required>
-            <UInput
-                v-model="formState.fullName"
-            />
-          </UFormGroup>
+        <!-- 4. Контактные данные -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Контактные данные</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Юридический адрес" required>
+              <UInput
+                  v-model="formState.legalAddress"
+              />
+            </UFormField>
 
-          <UFormGroup label="ИНН" required>
-            <UInput
-                v-model="formState.inn"
-                type="number"
-            />
-          </UFormGroup>
+            <UFormField label="Адрес производства" required>
+              <UInput
+                  v-model="formState.productionAddress"
+              />
+            </UFormField>
 
-          <UFormGroup label="ОГРН" required>
-            <UInput
-                v-model="formState.ogrn"
-                type="number"
-            />
-          </UFormGroup>
+            <UFormField label="Телефон" required>
+              <UInput
+                  v-model="formState.phone"
+                  type="tel"
+              />
+            </UFormField>
 
-          <UFormGroup label="КПП" required>
-            <UInput
-                v-model="formState.kpp"
-                type="number"
-            />
-          </UFormGroup>
+            <UFormField label="Электронная почта" required>
+              <UInput
+                  v-model="formState.email"
+                  type="email"
+              />
+            </UFormField>
 
-          <UFormGroup label="Дата регистрации ОГРН" required>
-            <UInput
-                v-model="formState.registrationDate"
-                type="date"
-            />
-          </UFormGroup>
+            <UFormField label="Официальный сайт компании">
+              <UInput
+                  v-model="formState.website"
+                  type="url"
+                  placeholder="https://example.com"
+              />
+            </UFormField>
+          </div>
         </div>
-
-        <!-- Contact Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UFormGroup label="Юридический адрес" required>
-            <UInput
-                v-model="formState.legalAddress"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Адрес производства" required>
-            <UInput
-                v-model="formState.productionAddress"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Телефон" required>
-            <UInput
-                v-model="formState.phone"
-                type="tel"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Электронная почта" required>
-            <UInput
-                v-model="formState.email"
-                type="email"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Официальный сайт компании">
-            <UInput
-                v-model="formState.website"
-                type="url"
-            />
-          </UFormGroup>
-        </div>
+      </div>
+      <div class="flex">
+        <UButton
+            color="primary"
+            :loading="loading"
+            class="w-full mt-3 cursor-pointer"
+            @click="handleSave"
+        >
+          Сохранить
+        </UButton>
       </div>
     </UForm>
   </UCard>

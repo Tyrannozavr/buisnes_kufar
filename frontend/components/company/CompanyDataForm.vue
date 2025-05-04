@@ -29,38 +29,27 @@ const businessTypeOptions = [
   {label: 'Производство товаров и оказание услуг', value: 'Производство товаров и оказание услуг'}
 ]
 
-const countryOptions = [
-  'Азербайджан',
-  'Армения',
-  'Беларусь',
-  'Казахстан',
-  'Кыргызстан',
-  'Молдова',
-  'Россия',
-  'Таджикистан',
-  'Узбекистан'
-].map(country => ({label: country, value: country}))
+// Fetch countries from API
+const { data: countryOptions, error: countriesError } = await useApi('/locations/countries')
 
-const federalDistrictOptions = [
-  'Центральный',
-  'Северо-Западный',
-  'Южный',
-  'Северо-Кавказский',
-  'Приволжский',
-  'Уральский',
-  'Сибирский',
-  'Дальневосточный'
-].map(district => ({label: district, value: district}))
+// Fetch federal districts from API
+const { data: federalDistrictOptions, error: federalDistrictsError } = await useApi('/locations/federal-districts')
 
-const regionOptions = [
-  // TODO: Add actual regions based on selected federal district
-    "Алматы",
-    "Астана",
-    "Балаканы",
-    "Костанай",
-    "Кызылорда",
-    "Мангистау",
-].map(region => ({label: region, value: region}))
+// Reactive query for regions based on selected country and federal district
+const regionsQuery = computed(() => ({
+  country: formState.value.country,
+  federalDistrict: formState.value.federalDistrict
+}))
+
+// Fetch regions based on selected country and federal district
+const { data: regionOptions, error: regionsError, refresh: refreshRegions } = await useApi('/locations/regions', {
+  query: regionsQuery
+})
+
+// Watch for changes in country or federal district to refresh regions
+watch([() => formState.value.country, () => formState.value.federalDistrict], () => {
+  refreshRegions()
+})
 
 const handleSave = () => {
   emits('save', formState.value)
@@ -159,23 +148,37 @@ const handleLogoUpload = () => {
             <UFormField label="Страна" required>
               <USelect
                   v-model="formState.country"
-                  :items="countryOptions"
+                  :items="countryOptions || []"
+                  :loading="!countryOptions && !countriesError"
+                  :disabled="!countryOptions || !!countriesError"
               />
+              <p v-if="countriesError" class="text-red-500 text-sm mt-1">
+                Ошибка загрузки списка стран
+              </p>
             </UFormField>
 
             <UFormField label="Федеральный округ" required>
               <USelect
                   v-model="formState.federalDistrict"
-                  :items="federalDistrictOptions"
-                  :disabled="formState.country !== 'Россия'"
+                  :items="federalDistrictOptions || []"
+                  :loading="!federalDistrictOptions && !federalDistrictsError"
+                  :disabled="formState.country !== 'Россия' || !federalDistrictOptions || !!federalDistrictsError"
               />
+              <p v-if="federalDistrictsError" class="text-red-500 text-sm mt-1">
+                Ошибка загрузки списка федеральных округов
+              </p>
             </UFormField>
 
             <UFormField label="Регион" required>
               <USelect
                   v-model="formState.region"
-                  :items="regionOptions"
+                  :items="regionOptions || []"
+                  :loading="!regionOptions && !regionsError"
+                  :disabled="!regionOptions || !!regionsError"
               />
+              <p v-if="regionsError" class="text-red-500 text-sm mt-1">
+                Ошибка загрузки списка регионов
+              </p>
             </UFormField>
 
             <UFormField label="Город" required>

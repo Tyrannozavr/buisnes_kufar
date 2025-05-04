@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import type {Company} from '~/types/company'
+import type { Company } from '~/types/company'
+import type { PropType } from 'vue'
 
-const props = defineProps<{
-  company: Company
-  loading: boolean
-}>()
+const props = defineProps({
+  company: {
+    type: Object as PropType<Company>,
+    required: true
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
+})
 
-const emit = defineEmits<{
-  (e: 'save', data: Partial<Company>): void
-}>()
+defineEmits(['save'])
 
 const formState = ref<Company>({...props.company})
 

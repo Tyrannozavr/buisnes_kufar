@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
-import type { NavigationMenuItem } from '@nuxt/ui'
+import {ref, watch} from 'vue'
+import type {Company} from '~/types/company'
+import type {NavigationMenuItem} from '~/types/navigation'
 import PageLoader from "~/components/ui/PageLoader.vue";
 
-const { company, loading, error, fetchCompany, updateCompany } = useCompany()
+// Fetch company data using useApi composable
+const { data: company, error: companyError, pending: loading, refresh: refreshCompany } = await useApi<Company>('/company/me')
+
 const saving = ref(false)
 const activeSection = ref('company')
 
@@ -138,7 +141,15 @@ const getSectionTitle = (section: string) => {
 const handleSaveCompany = async (data: Partial<Company>) => {
   saving.value = true
   try {
-    await updateCompany(data)
+    // Update company data using useApi
+    await useApi('/company/me', {
+      method: 'PUT',
+      body: { ...company.value, ...data }
+    })
+
+    // Refresh company data
+    await refreshCompany()
+
     useToast().add({
       title: 'Успешно',
       description: 'Данные компании обновлены',
@@ -154,41 +165,31 @@ const handleSaveCompany = async (data: Partial<Company>) => {
     saving.value = false
   }
 }
-
-// Fetch company data on page load
-onMounted(() => {
-  fetchCompany()
-})
 </script>
 
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="flex flex-col md:flex-row gap-8">
-      <!-- Navigation Menu -->
-      <div class="w-full md:w-64 flex-shrink-0">
-        <UCard>
-          <UNavigationMenu
-            orientation="vertical"
-            :items="navigationItems"
-            class="data-[orientation=vertical]:w-full"
-          />
-        </UCard>
-      </div>
-
       <!-- Main Content -->
       <div class="flex-1">
         <template v-if="loading">
-          <PageLoader
-            size="lg"
-            text="Загрузка данных компании..."
+          <PageLoader />
+        </template>
+
+        <template v-else-if="companyError">
+          <UAlert
+              color="error"
+              :title="companyError"
+              icon="i-heroicons-exclamation-circle"
           />
         </template>
 
-        <template v-else-if="error">
+        <template v-else-if="!company">
           <UAlert
-              color="error"
-              :title="error"
-              icon="i-heroicons-exclamation-circle"
+              color="warning"
+              title="Данные компании не найдены"
+              description="Не удалось загрузить данные компании. Пожалуйста, попробуйте позже."
+              icon="i-heroicons-exclamation-triangle"
           />
         </template>
 
@@ -216,6 +217,16 @@ onMounted(() => {
             </UCard>
           </template>
         </template>
+      </div>
+      <!-- Navigation Menu -->
+      <div class="w-full md:w-64 flex-shrink-0">
+        <UCard>
+          <UNavigationMenu
+              orientation="vertical"
+              :items="navigationItems"
+              class="data-[orientation=vertical]:w-full"
+          />
+        </UCard>
       </div>
     </div>
   </div>

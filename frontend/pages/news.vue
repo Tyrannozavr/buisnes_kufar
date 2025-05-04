@@ -1,3 +1,63 @@
+<script setup lang="ts">
+import type { Company } from '~/types'
+
+// Fetch companies data using the useApi composable
+const { data: companies, error: companiesError, pending: companiesPending } = await useApi<Company[]>('/companies')
+
+// Countries and activity types could be derived from the API data
+const countries = computed(() => {
+  if (!companies.value) return []
+  // Cast companies.value to Company[] to ensure TypeScript recognizes array methods
+  return [...new Set((companies.value as Company[]).map(company => company.country))].sort()
+})
+
+const activityTypes = computed(() => {
+  if (!companies.value) return []
+  // Cast companies.value to Company[] to ensure TypeScript recognizes array methods
+  return [...new Set((companies.value as Company[]).map(company => company.activity))].sort()
+})
+
+// Search state
+const search = ref({
+  query: '',
+  country: '',
+  activity: ''
+})
+
+// Filtered companies
+const filteredCompanies = computed(() => {
+  if (!companies.value) return []
+
+  // Cast companies.value to Company[] to ensure TypeScript recognizes array methods
+  return (companies.value as Company[])
+      .filter((company: Company) => {
+        const matchesQuery = !search.value.query ||
+            company.name.toLowerCase().includes(search.value.query.toLowerCase()) ||
+            company.activity.toLowerCase().includes(search.value.query.toLowerCase())
+
+        const matchesCountry = !search.value.country ||
+            company.country === search.value.country
+
+        const matchesActivity = !search.value.activity ||
+            company.activity === search.value.activity
+
+        return matchesQuery && matchesCountry && matchesActivity
+      })
+      .sort((a: Company, b: Company) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
+})
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+defineEmits<{
+  'send-message': [company: Company]
+}>()
+</script>
 <template>
   <div class="space-y-8">
     <!-- Search and Filters -->
@@ -28,8 +88,28 @@
       </div>
     </section>
 
+    <!-- Loading state -->
+    <section v-if="companiesPending" class="bg-white rounded-lg p-6 shadow-sm">
+      <ULoader class="mx-auto" />
+      <p class="text-center mt-4 text-gray-500">Загрузка данных о компаниях...</p>
+    </section>
+
+    <!-- Error state -->
+    <section v-else-if="companiesError" class="bg-white rounded-lg p-6 shadow-sm">
+      <p class="text-red-500 text-center">
+        Произошла ошибка при загрузке данных. Пожалуйста, попробуйте позже.
+      </p>
+    </section>
+
+    <!-- Empty state -->
+    <section v-else-if="filteredCompanies.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
+      <p class="text-center text-gray-500">
+        {{ companies && companies.length > 0 ? 'Нет компаний, соответствующих критериям поиска' : 'Нет доступных компаний' }}
+      </p>
+    </section>
+
     <!-- News List -->
-    <section>
+    <section v-else>
       <div class="space-y-4">
         <UCard
           v-for="company in filteredCompanies"
@@ -38,7 +118,7 @@
         >
           <template #header>
             <div class="flex items-center space-x-4">
-              <img 
+              <img
                 :src="company.logo"
                 :alt="company.name"
                 class="w-16 h-16 object-contain"
@@ -53,7 +133,7 @@
 
           <div class="space-y-4">
             <p class="text-gray-600">{{ company.description }}</p>
-            
+
             <div class="flex flex-wrap gap-2">
               <UBadge color="primary" variant="soft">
                 {{ company.country }}
@@ -109,65 +189,3 @@
     </section>
   </div>
 </template>
-
-<script setup lang="ts">
-import type { Company } from '~/types'
-import { mockCompanies } from '~/utils/mockData'
-
-// Mock data for filters
-const countries = [
-  'Россия',
-  'Азербайджан',
-  'Армения',
-  'Беларусь',
-  'Казахстан',
-  'Кыргызстан',
-  'Молдова',
-  'Таджикистан',
-  'Узбекистан'
-]
-
-const activityTypes = [
-  'Производство товаров',
-  'Оказание услуг',
-  'Производство товаров и оказание услуг'
-]
-
-// Search state
-const search = ref({
-  query: '',
-  country: '',
-  activity: ''
-})
-
-// Filtered companies
-const filteredCompanies = computed(() => {
-  return mockCompanies
-    .filter(company => {
-      const matchesQuery = !search.value.query || 
-        company.name.toLowerCase().includes(search.value.query.toLowerCase()) ||
-        company.activity.toLowerCase().includes(search.value.query.toLowerCase())
-      
-      const matchesCountry = !search.value.country || 
-        company.country === search.value.country
-      
-      const matchesActivity = !search.value.activity || 
-        company.activity === search.value.activity
-
-      return matchesQuery && matchesCountry && matchesActivity
-    })
-    .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
-})
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-defineEmits<{
-  'send-message': [company: Company]
-}>()
-</script> 

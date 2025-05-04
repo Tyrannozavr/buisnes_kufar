@@ -6,7 +6,7 @@ const companies: Company[] = [
   {
     id: '1',
     name: 'ООО "ТехноПром"',
-    logo: '/images/companies/techprom.png',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'manufacturer',
     activity: 'Производство промышленного оборудования',
     description: 'Ведущий производитель промышленного оборудования в России',
@@ -27,7 +27,7 @@ const companies: Company[] = [
   {
     id: '2',
     name: 'СтройСервис',
-    logo: '/images/companies/stroyservice.png',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'service',
     activity: 'Строительные услуги',
     description: 'Комплексные строительные услуги под ключ',
@@ -48,7 +48,7 @@ const companies: Company[] = [
   {
     id: '3',
     name: 'ИнноТех',
-    logo: '/images/companies/innotech.png',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'manufacturer',
     activity: 'Разработка и производство электроники',
     description: 'Инновационные решения в области электроники и автоматизации',

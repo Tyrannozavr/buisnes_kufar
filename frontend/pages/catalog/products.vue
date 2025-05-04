@@ -1,0 +1,134 @@
+<script setup lang="ts">
+import type { Product, Company } from '~/types'
+
+// Fetch products and companies data using the useApi composable
+const { data: products, error: productsError, pending: productsPending } = await useApi<Product[]>('/products')
+const { data: companies, error: companiesError, pending: companiesPending } = await useApi<Company[]>('/companies')
+
+// Derive countries, regions, and cities from the API data
+const countries = computed(() => {
+  if (!companies.value) return []
+  return [...new Set((companies.value as Company[]).map(company => company.country))].sort()
+})
+
+const regions = computed(() => {
+  if (!companies.value) return []
+  return [...new Set((companies.value as Company[]).map(company => company.region))].sort()
+})
+
+const cities = computed(() => {
+  if (!companies.value) return []
+  return [...new Set((companies.value as Company[]).map(company => company.city))].sort()
+})
+
+// Search state
+const search = ref({
+  name: '',
+  country: '',
+  region: '',
+  city: ''
+})
+
+// Filtered products
+const filteredProducts = computed(() => {
+  if (!products.value || !companies.value) return []
+
+  return (products.value as Product[]).filter(product => {
+    const company = (companies.value as Company[]).find(c => c.id === product.companyId)
+    if (!company) return false
+
+    const matchesName = !search.value.name ||
+        product.name.toLowerCase().includes(search.value.name.toLowerCase())
+
+    const matchesCountry = !search.value.country ||
+        company.country === search.value.country
+
+    const matchesRegion = !search.value.region ||
+        company.region === search.value.region
+
+    const matchesCity = !search.value.city ||
+        company.city === search.value.city
+
+    return matchesName && matchesCountry && matchesRegion && matchesCity
+  })
+})
+
+// Handle add to cart
+const handleAddToCart = (product: Product) => {
+  // TODO: Implement cart functionality
+  console.log('Added to cart:', product)
+}
+</script>
+
+<template>
+  <div class="space-y-8">
+    <!-- Search and Filters -->
+    <section class="bg-white rounded-lg p-6 shadow-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <UFormGroup label="Название">
+          <UInput
+              v-model="search.name"
+              placeholder="Поиск по названию"
+          />
+        </UFormGroup>
+
+        <UFormGroup label="Страна">
+          <USelect
+              v-model="search.country"
+              :options="countries"
+              placeholder="Выберите страну"
+          />
+        </UFormGroup>
+
+        <UFormGroup label="Федеральный округ">
+          <USelect
+              v-model="search.region"
+              :options="regions"
+              placeholder="Выберите округ"
+              :disabled="!search.country || search.country !== 'Россия'"
+          />
+        </UFormGroup>
+
+        <UFormGroup label="Регион">
+          <USelect
+              v-model="search.city"
+              :options="cities"
+              placeholder="Выберите регион"
+          />
+        </UFormGroup>
+      </div>
+    </section>
+
+    <!-- Loading state -->
+    <section v-if="productsPending || companiesPending" class="bg-white rounded-lg p-6 shadow-sm">
+      <ULoader class="mx-auto" />
+      <p class="text-center mt-4 text-gray-500">Загрузка товаров...</p>
+    </section>
+
+    <!-- Error state -->
+    <section v-else-if="productsError || companiesError" class="bg-white rounded-lg p-6 shadow-sm">
+      <p class="text-red-500 text-center">
+        Произошла ошибка при загрузке данных. Пожалуйста, попробуйте позже.
+      </p>
+    </section>
+
+    <!-- Empty state -->
+    <section v-else-if="filteredProducts.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
+      <p class="text-center text-gray-500">
+        {{ products && products.length > 0 ? 'Нет товаров, соответствующих критериям поиска' : 'Нет доступных товаров' }}
+      </p>
+    </section>
+
+    <!-- Products Grid -->
+    <section v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6">
+        <ProductCard
+            v-for="product in filteredProducts"
+            :key="product.id"
+            :product="product"
+            @add-to-cart="handleAddToCart"
+        />
+      </div>
+    </section>
+  </div>
+</template>

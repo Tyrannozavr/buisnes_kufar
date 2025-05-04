@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Company } from '~/types'
+import type { Company } from '~/types/company'
 
 // Fetch companies data using the useApi composable
 const { data: companies, error: companiesError, pending: companiesPending } = await useApi<Company[]>('/companies')

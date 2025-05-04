@@ -1,5 +1,5 @@
 import { defineEventHandler } from 'h3'
-import type { Announcement } from '~/types'
+import type { Announcement } from '~/types/announcement'
 
 // Mock data for announcements
 const announcements: Announcement[] = [
@@ -77,11 +77,8 @@ const announcements: Announcement[] = [
   }
 ]
 
-export default defineEventHandler(() => {
-  // Simulate a slight delay to mimic real API behavior
-  return new Promise<Announcement[]>((resolve) => {
-    setTimeout(() => {
-      resolve(announcements)
-    }, 300)
-  })
+export default defineEventHandler(async (event) => {
+  // TODO: Implement proper authentication
+  // For now, we'll just return mock data
+  return announcements
 })

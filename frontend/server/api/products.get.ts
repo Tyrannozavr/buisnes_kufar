@@ -1,5 +1,5 @@
 import { defineEventHandler } from 'h3'
-import type { Product } from '~/types'
+import type { Product } from '~/types/product'
 
 // Mock data for products
 const products: Product[] = [
@@ -50,11 +50,8 @@ const products: Product[] = [
   }
 ]
 
-export default defineEventHandler(() => {
-  // Simulate a slight delay to mimic real API behavior
-  return new Promise<Product[]>((resolve) => {
-    setTimeout(() => {
-      resolve(products)
-    }, 300)
-  })
+export default defineEventHandler(async (event) => {
+  // TODO: Implement proper authentication
+  // For now, we'll just return mock data
+  return products
 })

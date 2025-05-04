@@ -27,5 +27,6 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000/api'
     }
   },
-  compatibilityDate: '2024-11-27'
+  compatibilityDate: '2024-11-27',
+  ssr: true
 })

@@ -1,16 +1,19 @@
 import { defineEventHandler } from 'h3'
-import type { Company } from '~/types'
+import type { Company } from '~/types/company'
 
 // Mock data for companies
 const companies: Company[] = [
   {
-    id: '1',
+    id: 1,
     name: 'ООО "ТехноПром"',
     logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'manufacturer',
-    activity: 'Производство промышленного оборудования',
+    tradeActivity: 'Продавец',
+    businessType: 'Производство товаров',
+    activityType: 'Производство промышленного оборудования',
     description: 'Ведущий производитель промышленного оборудования в России',
     country: 'Россия',
+    federalDistrict: 'Центральный',
     region: 'Московская область',
     city: 'Москва',
     fullName: 'Общество с ограниченной ответственностью "ТехноПром"',
@@ -25,13 +28,16 @@ const companies: Company[] = [
     website: 'www.techprom.ru'
   },
   {
-    id: '2',
+    id: 2,
     name: 'СтройСервис',
     logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'service',
-    activity: 'Строительные услуги',
+    tradeActivity: 'Покупатель и продавец',
+    businessType: 'Оказание услуг',
+    activityType: 'Строительные услуги',
     description: 'Комплексные строительные услуги под ключ',
     country: 'Россия',
+    federalDistrict: 'Северо-Западный',
     region: 'Санкт-Петербург',
     city: 'Санкт-Петербург',
     fullName: 'ООО "СтройСервис"',
@@ -46,13 +52,16 @@ const companies: Company[] = [
     website: 'www.stroyservice.ru'
   },
   {
-    id: '3',
+    id: 3,
     name: 'ИнноТех',
     logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'manufacturer',
-    activity: 'Разработка и производство электроники',
+    tradeActivity: 'Покупатель и продавец',
+    businessType: 'Производство товаров и оказание услуг',
+    activityType: 'Разработка и производство электроники',
     description: 'Инновационные решения в области электроники и автоматизации',
     country: 'Россия',
+    federalDistrict: 'Сибирский',
     region: 'Новосибирская область',
     city: 'Новосибирск',
     fullName: 'ООО "ИнноТех"',

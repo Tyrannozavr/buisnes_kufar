@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Company, Announcement } from '~/types'
+import type { Company } from '~/types/company'
+import type { Announcement } from '~/types/announcement'
 
 // Fetch announcements from API - using our simplified useApi composable
 const { data: announcements, error: announcementsError } = await useApi<Announcement[]>('/announcements', {

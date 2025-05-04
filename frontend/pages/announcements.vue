@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Announcement, Company } from '~/types'
+import type { Announcement } from '~/types/announcement'
+import type { Company } from '~/types/company'
 import { useApi } from '~/composables/useApi'
 
 // Fetch data using the useApi composable

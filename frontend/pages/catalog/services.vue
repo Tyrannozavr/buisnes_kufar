@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Product, Company } from '~/types'
+import type { Product } from '~/types/product'
+import type { Company } from '~/types/company'
 
 // Fetch products and companies data using the useApi composable
 const { data: products, error: productsError, pending: productsPending } = await useApi<Product[]>('/products')

@@ -2,13 +2,29 @@
 import {ref, watch} from 'vue'
 import type {Company} from '~/types/company'
 import type {NavigationMenuItem} from '~/types/navigation'
+import type {Announcement} from '~/types/announcement'
 import PageLoader from "~/components/ui/PageLoader.vue";
+import CompanyProducts from "~/components/company/CompanyProducts.vue";
+import AnnouncementList from '~/components/company/AnnouncementList.vue'
 
 // Fetch company data using useApi composable
-const { data: company, error: companyError, pending: loading, refresh: refreshCompany } = await useApi<Company>('/company/me')
+const {
+  data: company,
+  error: companyError,
+  pending: loading,
+  refresh: refreshCompany
+} = await useApi<Company>('/company/me')
+
+// Fetch company announcements
+const {
+  data: announcements,
+  pending: loadingAnnouncements,
+  refresh: refreshAnnouncements
+} = await useApi<Announcement[]>('/announcements/company')
 
 const saving = ref(false)
 const activeSection = ref('company')
+const showNewAnnouncementModal = ref(false)
 
 // Define navigation items using the NavigationMenuItem type
 const navigationItems = ref<NavigationMenuItem[][]>([
@@ -20,23 +36,23 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Данные компании',
       icon: 'i-heroicons-building-office',
-      to: 'company',
       active: activeSection.value === 'company',
-      click: () => activeSection.value = 'company'
+      class: "cursor-pointer",
+      onSelect: () => activeSection.value = 'company',
     },
     {
       label: 'Продукция',
       icon: 'i-heroicons-cube',
-      to: 'products',
       active: activeSection.value === 'products',
-      click: () => activeSection.value = 'products'
+      class: "cursor-pointer",
+      onSelect: () => activeSection.value = 'products'
     },
     {
       label: 'Объявления',
       icon: 'i-heroicons-megaphone',
-      to: 'announcements',
       active: activeSection.value === 'announcements',
-      click: () => activeSection.value = 'announcements'
+      class: "cursor-pointer",
+      onSelect: () => activeSection.value = 'announcements'
     }
   ],
   [
@@ -49,21 +65,21 @@ const navigationItems = ref<NavigationMenuItem[][]>([
       icon: 'i-heroicons-user-group',
       to: 'partners',
       active: activeSection.value === 'partners',
-      click: () => activeSection.value = 'partners'
+      onSelect: () => activeSection.value = 'partners'
     },
     {
       label: 'Поставщики',
       icon: 'i-heroicons-truck',
       to: 'suppliers',
       active: activeSection.value === 'suppliers',
-      click: () => activeSection.value = 'suppliers'
+      onSelect: () => activeSection.value = 'suppliers'
     },
     {
       label: 'Покупатели',
       icon: 'i-heroicons-shopping-cart',
       to: 'buyers',
       active: activeSection.value === 'buyers',
-      click: () => activeSection.value = 'buyers'
+      onSelect: () => activeSection.value = 'buyers'
     }
   ],
   [
@@ -76,21 +92,21 @@ const navigationItems = ref<NavigationMenuItem[][]>([
       icon: 'i-heroicons-document-text',
       to: 'contracts',
       active: activeSection.value === 'contracts',
-      click: () => activeSection.value = 'contracts'
+      onSelect: () => activeSection.value = 'contracts'
     },
     {
       label: 'Продажи',
       icon: 'i-heroicons-currency-dollar',
       to: 'sales',
       active: activeSection.value === 'sales',
-      click: () => activeSection.value = 'sales'
+      onSelect: () => activeSection.value = 'sales'
     },
     {
       label: 'Закупки',
       icon: 'i-heroicons-shopping-bag',
       to: 'purchases',
       active: activeSection.value === 'purchases',
-      click: () => activeSection.value = 'purchases'
+      onSelect: () => activeSection.value = 'purchases'
     }
   ],
   [
@@ -103,14 +119,14 @@ const navigationItems = ref<NavigationMenuItem[][]>([
       icon: 'i-heroicons-chat-bubble-left-right',
       to: 'messages',
       active: activeSection.value === 'messages',
-      click: () => activeSection.value = 'messages'
+      onSelect: () => activeSection.value = 'messages'
     },
     {
       label: 'Авторизация',
       icon: 'i-heroicons-key',
       to: 'auth',
       active: activeSection.value === 'auth',
-      click: () => activeSection.value = 'auth'
+      onSelect: () => activeSection.value = 'auth'
     }
   ]
 ])
@@ -119,8 +135,11 @@ const navigationItems = ref<NavigationMenuItem[][]>([
 watch(activeSection, (newValue) => {
   navigationItems.value.forEach(group => {
     group.forEach(item => {
-      if (item.to) {
-        item.active = item.to === newValue
+      if (item.type !== 'label') {
+        item.active = (item.to === newValue) ||
+            (item.label === 'Данные компании' && newValue === 'company') ||
+            (item.label === 'Продукция' && newValue === 'products') ||
+            (item.label === 'Объявления' && newValue === 'announcements')
       }
     })
   })
@@ -130,12 +149,26 @@ const getSectionTitle = (section: string) => {
   // Find the section in the navigation items
   for (const group of navigationItems.value) {
     for (const item of group) {
-      if (item.to === section) {
+      if ((item.to === section) ||
+          (item.label === 'Данные компании' && section === 'company') ||
+          (item.label === 'Продукция' && section === 'products') ||
+          (item.label === 'Объявления' && section === 'announcements')) {
         return item.label
       }
     }
   }
   return section
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
 }
 
 const handleSaveCompany = async (data: Partial<Company>) => {
@@ -144,7 +177,7 @@ const handleSaveCompany = async (data: Partial<Company>) => {
     // Update company data using useApi
     await useApi('/company/me', {
       method: 'PUT',
-      body: { ...company.value, ...data }
+      body: {...company.value, ...data}
     })
 
     // Refresh company data
@@ -165,6 +198,32 @@ const handleSaveCompany = async (data: Partial<Company>) => {
     saving.value = false
   }
 }
+
+const navigateToCreateAnnouncement = () => {
+  navigateTo('/profile/announcements/create')
+}
+
+const publishAnnouncement = async (id: string) => {
+  try {
+    await useApi(`/announcements/${id}/publish`, {
+      method: 'PUT'
+    })
+
+    await refreshAnnouncements()
+
+    useToast().add({
+      title: 'Успешно',
+      description: 'Объявление опубликовано',
+      color: 'primary'
+    })
+  } catch (e) {
+    useToast().add({
+      title: 'Ошибка',
+      description: e instanceof Error ? e.message : 'Не удалось опубликовать объявление',
+      color: 'error'
+    })
+  }
+}
 </script>
 
 <template>
@@ -173,13 +232,13 @@ const handleSaveCompany = async (data: Partial<Company>) => {
       <!-- Main Content -->
       <div class="flex-1">
         <template v-if="loading">
-          <PageLoader />
+          <PageLoader/>
         </template>
 
         <template v-else-if="companyError">
           <UAlert
               color="error"
-              :title="companyError"
+              :title="companyError.toString()"
               icon="i-heroicons-exclamation-circle"
           />
         </template>
@@ -203,6 +262,20 @@ const handleSaveCompany = async (data: Partial<Company>) => {
             />
           </template>
 
+          <!-- Products Section -->
+          <template v-else-if="activeSection === 'products'">
+            <CompanyProducts/>
+          </template>
+
+          <!-- Announcements Section -->
+          <template v-else-if="activeSection === 'announcements'">
+            <AnnouncementList
+                :announcements="announcements"
+                :loading="loadingAnnouncements"
+                @publish="publishAnnouncement"
+            />
+          </template>
+
           <!-- Other sections will be added here -->
           <template v-else>
             <UCard>
@@ -218,7 +291,7 @@ const handleSaveCompany = async (data: Partial<Company>) => {
           </template>
         </template>
       </div>
-      <!-- Navigation Menu -->
+      <!-- Navigation Sidebar -->
       <div class="w-full md:w-64 flex-shrink-0">
         <UCard>
           <UNavigationMenu

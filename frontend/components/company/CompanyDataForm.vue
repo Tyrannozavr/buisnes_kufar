@@ -86,7 +86,7 @@ const handleLogoUpload = () => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo"
+                :src="formState.logo || undefined"
                 size="xl"
                 :alt="formState.name"
             />
@@ -113,6 +113,7 @@ const handleLogoUpload = () => {
               <USelect
                   v-model="formState.tradeActivity"
                   :items="tradeActivityOptions"
+                  class="min-w-1/2"
               />
             </UFormField>
 
@@ -120,6 +121,8 @@ const handleLogoUpload = () => {
               <USelect
                   v-model="formState.businessType"
                   :items="businessTypeOptions"
+                  class="min-w-1/2"
+
               />
             </UFormField>
 
@@ -127,6 +130,7 @@ const handleLogoUpload = () => {
               <UInput
                   v-model="formState.name"
                   placeholder="Краткое название организации"
+                  class="min-w-1/2"
               />
             </UFormField>
 
@@ -134,6 +138,7 @@ const handleLogoUpload = () => {
               <UInput
                   v-model="formState.activityType"
                   placeholder="Например: Производство обуви"
+                  class="min-w-full"
               />
             </UFormField>
 
@@ -141,7 +146,8 @@ const handleLogoUpload = () => {
               <UTextarea
                   v-model="formState.description"
                   placeholder="Опишите деятельность компании и ее основные достоинства"
-                  rows="4"
+                  :rows="4"
+                  class="min-w-2/5"
               />
             </UFormField>
 
@@ -196,6 +202,7 @@ const handleLogoUpload = () => {
             <UFormField label="Полное название организации" required>
               <UInput
                   v-model="formState.fullName"
+                  class="min-w-4/5"
               />
             </UFormField>
 
@@ -236,12 +243,14 @@ const handleLogoUpload = () => {
             <UFormField label="Юридический адрес" required>
               <UInput
                   v-model="formState.legalAddress"
+                  class="min-w-full"
               />
             </UFormField>
 
             <UFormField label="Адрес производства" required>
               <UInput
                   v-model="formState.productionAddress"
+                  class="min-w-full"
               />
             </UFormField>
 

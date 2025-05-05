@@ -8,6 +8,7 @@ export interface Announcement {
   updatedAt: string;
   category: 'product' | 'service' | 'promotion' | 'partnership' | 'other';
   images: string[];
+  published: boolean;
 }
 
 export interface AnnouncementFormData {

@@ -10,10 +10,7 @@ const announcements: Announcement[] = [
     content: 'Представляем новую линейку станков с ЧПУ с улучшенными характеристиками. Наши инженеры разработали инновационную систему управления, которая повышает точность обработки на 30% и снижает энергопотребление. Станки уже доступны для заказа с доставкой по всей России.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-20T10:00:00Z',
-    isPublished: true,
-    notifyPartners: true,
-    notifySuppliers: false,
-    notifyBuyers: true
+    published: true,
   },
   {
     id: '2',
@@ -22,10 +19,7 @@ const announcements: Announcement[] = [
     content: 'Действует специальное предложение на строительство коттеджей. При заказе строительства до конца месяца, вы получаете проект ландшафтного дизайна в подарок. Наши специалисты используют только качественные материалы и современные технологии строительства.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-19T15:30:00Z',
-    isPublished: true,
-    notifyPartners: true,
-    notifySuppliers: false,
-    notifyBuyers: true
+    published: true,
   },
   {
     id: '3',
@@ -34,10 +28,7 @@ const announcements: Announcement[] = [
     content: 'Компания ИнноТех представляет новую систему автоматизации производственных процессов. Система позволяет сократить затраты на производство до 25% и увеличить производительность. Приглашаем на демонстрацию системы в нашем офисе.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-18T09:45:00Z',
-    isPublished: true,
-    notifyPartners: true,
-    notifySuppliers: true,
-    notifyBuyers: true
+    published: true,
   },
   {
     id: '4',
@@ -46,10 +37,7 @@ const announcements: Announcement[] = [
     content: 'ООО "ТехноПром" сообщает о расширении производственных мощностей. Мы открыли новый цех площадью 5000 кв.м., что позволит увеличить объем производства на 40%. Это позволит нам сократить сроки выполнения заказов и расширить ассортимент продукции.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-15T14:20:00Z',
-    isPublished: true,
-    notifyPartners: true,
-    notifySuppliers: true,
-    notifyBuyers: false
+    published: true,
   },
   {
     id: '5',
@@ -58,10 +46,7 @@ const announcements: Announcement[] = [
     content: 'СтройСервис внедряет новые технологии в строительстве. Мы начали использовать инновационные материалы, которые повышают энергоэффективность зданий и сокращают сроки строительства. Приглашаем посетить наш демонстрационный объект.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-12T11:10:00Z',
-    isPublished: true,
-    notifyPartners: false,
-    notifySuppliers: false,
-    notifyBuyers: true
+    published: true,
   },
   {
     id: '6',
@@ -70,10 +55,7 @@ const announcements: Announcement[] = [
     content: 'ИнноТех примет участие в международной выставке электроники и автоматизации. Мы представим наши последние разработки и инновационные решения. Приглашаем посетить наш стенд №B42 в павильоне 3.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-10T16:30:00Z',
-    isPublished: false, // This one is not published
-    notifyPartners: true,
-    notifySuppliers: true,
-    notifyBuyers: true
+    published: false, // This one is not published
   }
 ]
 

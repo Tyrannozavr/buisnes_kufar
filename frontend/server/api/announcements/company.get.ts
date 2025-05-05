@@ -1,6 +1,81 @@
 import { defineEventHandler } from 'h3'
 import type { Announcement } from '~/types/announcement'
 
+export const announcements: Announcement[] = [
+  {
+    id: '1',
+    companyId: '1',
+    title: 'Новая линейка станков ЧПУ',
+    content: 'Представляем новую линейку станков с ЧПУ с улучшенными характеристиками. Наши инженеры разработали инновационную систему управления, которая повышает точность обработки на 30% и снижает энергопотребление. Станки уже доступны для заказа с доставкой по всей России.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-20T10:00:00Z',
+    updatedAt: '2024-04-20T10:00:00Z',
+    status: 'published',
+    category: 'product',
+    published: false
+  },
+  {
+    id: '2',
+    companyId: '2',
+    title: 'Специальное предложение на строительство',
+    content: 'Действует специальное предложение на строительство коттеджей. При заказе строительства до конца месяца, вы получаете проект ландшафтного дизайна в подарок. Наши специалисты используют только качественные материалы и современные технологии строительства.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-19T15:30:00Z',
+    updatedAt: '2024-04-19T15:30:00Z',
+    status: 'published',
+    category: 'promotion',
+    published: true
+  },
+  {
+    id: '3',
+    companyId: '3',
+    title: 'Запуск новой системы автоматизации',
+    content: 'Компания ИнноТех представляет новую систему автоматизации производственных процессов. Система позволяет сократить затраты на производство до 25% и увеличить производительность. Приглашаем на демонстрацию системы в нашем офисе.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-18T09:45:00Z',
+    updatedAt: '2024-04-18T09:45:00Z',
+    status: 'published',
+    category: 'product',
+    published: false
+  },
+  {
+    id: '4',
+    companyId: '1',
+    title: 'Расширение производственных мощностей',
+    content: 'ООО "ТехноПром" сообщает о расширении производственных мощностей. Мы открыли новый цех площадью 5000 кв.м., что позволит увеличить объем производства на 40%. Это позволит нам сократить сроки выполнения заказов и расширить ассортимент продукции.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-15T14:20:00Z',
+    updatedAt: '2024-04-15T14:20:00Z',
+    status: 'published',
+    category: 'partnership',
+    published: true
+  },
+  {
+    id: '5',
+    companyId: '2',
+    title: 'Новые технологии в строительстве',
+    content: 'СтройСервис внедряет новые технологии в строительстве. Мы начали использовать инновационные материалы, которые повышают энергоэффективность зданий и сокращают сроки строительства. Приглашаем посетить наш демонстрационный объект.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-12T11:10:00Z',
+    updatedAt: '2024-04-12T11:10:00Z',
+    status: 'published',
+    category: 'product',
+    published: true
+  },
+  {
+    id: '6',
+    companyId: '3',
+    title: 'Участие в международной выставке',
+    content: 'ИнноТех примет участие в международной выставке электроники и автоматизации. Мы представим наши последние разработки и инновационные решения. Приглашаем посетить наш стенд №B42 в павильоне 3.',
+    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
+    createdAt: '2024-04-10T16:30:00Z',
+    updatedAt: '2024-04-10T16:30:00Z',
+    status: 'draft',
+    category: 'promotion',
+    published: false
+  }
+]
+
 export default defineEventHandler(async (event) => {
   // In a real application, you would:
   // 1. Get the authenticated user/company from the session
@@ -8,44 +83,10 @@ export default defineEventHandler(async (event) => {
   // 3. Return the results
 
   // For now, we'll return mock data
-  const mockAnnouncements: Announcement[] = [
-    {
-      id: '1',
-      title: 'Новая линейка продукции',
-      content: 'Наша компания запускает новую линейку экологически чистых продуктов.',
-      status: 'published',
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      companyId: '1',
-      category: 'product',
-      images: []
-    },
-    {
-      id: '2',
-      title: 'Скидки на оптовые заказы',
-      content: 'Предлагаем специальные условия для оптовых клиентов. Скидки до 25% при заказе от 100 единиц товара.',
-      status: 'draft',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      companyId: '1',
-      category: 'promotion',
-      images: []
-    },
-    {
-      id: '3',
-      title: 'Ищем дистрибьюторов',
-      content: 'В связи с расширением бизнеса, ищем партнеров для дистрибуции нашей продукции в регионах.',
-      status: 'published',
-      createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      companyId: '1',
-      category: 'partnership',
-      images: []
-    }
-  ]
 
   // Simulate a delay to show loading state
   await new Promise(resolve => setTimeout(resolve, 500))
 
-  return mockAnnouncements
+  return announcements
 })
+

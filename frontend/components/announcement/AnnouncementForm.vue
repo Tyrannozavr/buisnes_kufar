@@ -2,14 +2,32 @@
 import { ref, onBeforeUnmount, computed, watch } from 'vue';
 import type { AnnouncementFormData } from '~/types/announcement';
 
-const router = useRouter();
-const saving = ref(false);
+const props = defineProps({
+  initialData: {
+    type: Object as () => AnnouncementFormData,
+    default: () => ({
+      title: '',
+      content: '',
+      images: []
+    })
+  },
+  isEdit: {
+    type: Boolean,
+    default: false
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
+});
+
+const emit = defineEmits(['save', 'cancel']);
+
+const saving = computed(() => props.loading);
 const formTouched = ref(false);
 
 const form = ref<AnnouncementFormData>({
-  title: '',
-  content: '',
-  images: []
+  ...props.initialData
 });
 
 // Store object URLs to revoke them later
@@ -128,33 +146,7 @@ const handleSave = async (publish = false) => {
     return;
   }
 
-  saving.value = true;
-  try {
-    await useApi('/announcements', {
-      method: 'POST',
-      body: {
-        ...form.value,
-        published: publish
-      }
-    });
-
-    useToast().add({
-      title: 'Успешно',
-      description: publish ? 'Объявление создано и опубликовано' : 'Объявление сохранено как черновик',
-      color: 'success'
-    });
-
-    // Redirect back to announcements list
-    router.push('/profile');
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: error instanceof Error ? error.message : 'Не удалось создать объявление',
-      color: 'error'
-    });
-  } finally {
-    saving.value = false;
-  }
+  emit('save', { ...form.value, publish });
 };
 
 // Improved file upload handler
@@ -211,28 +203,134 @@ const handleImageUpload = (event: Event) => {
 const removeImage = (index: number) => {
   form.value.images = form.value.images.filter((_, i) => i !== index);
 };
-
-const handleCancel = () => {
-  router.push('/profile');
-};
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <UBreadcrumb
-      :items="[
-        { label: 'Профиль', to: '/profile' },
-        { label: 'Объявления', to: '/profile?section=announcements' },
-        { label: 'Создание объявления', to: '' }
-      ]"
-      class="mb-6"
-    />
+  <UCard class="shadow-lg">
+    <template #header>
+      <div class="flex items-center justify-between bg-gray-50 p-4 rounded-t-lg">
+        <h1 class="text-2xl font-bold text-gray-800">
+          {{ isEdit ? 'Редактирование объявления' : 'Создание объявления' }}
+        </h1>
+        <div class="flex gap-2">
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="$emit('cancel')"
+            class="hover:bg-gray-100"
+          >
+            Отмена
+          </UButton>
+        </div>
+      </div>
+    </template>
 
-    <AnnouncementForm
-      :loading="saving"
-      :is-edit="false"
-      @save="handleSave"
-      @cancel="handleCancel"
-    />
-  </div>
+    <div class="space-y-6 p-4 flex flex-col gap-2">
+      <!-- Form validation summary -->
+      <UAlert
+        v-if="formTouched && validationSummary.length > 0"
+        color="warning"
+        title="Пожалуйста, исправьте следующие ошибки:"
+        icon="i-heroicons-exclamation-triangle"
+        class="mb-4"
+      >
+        <ul class="list-disc pl-5 mt-2">
+          <li v-for="(error, index) in validationSummary" :key="index" class="text-sm">
+            {{ error }}
+          </li>
+        </ul>
+      </UAlert>
+
+      <UFormField label="Заголовок объявления" required :error="titleError" class="font-medium">
+        <UInput
+          v-model="form.title"
+          placeholder="Введите заголовок объявления"
+          :color="titleError ? 'error' : undefined"
+          class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
+          @blur="validateTitle"
+        />
+        <template #hint>
+          <div class="flex justify-between gap-0.5">
+            <span>Минимум 5 символов</span>
+            <span :class="{ 'text-red-500': form.title.length > 100 }">
+              {{ form.title.length }}/100
+            </span>
+          </div>
+        </template>
+      </UFormField>
+
+      <UFormField label="Содержание объявления" required :error="contentError" class="font-medium">
+        <UTextarea
+          v-model="form.content"
+          placeholder="Опишите ваше объявление подробно"
+          :rows="8"
+          :color="contentError ? 'error' : undefined"
+          class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
+          @blur="validateContent"
+        />
+        <template #hint>
+          <div class="flex justify-between gap-0.5">
+            <span>Минимум 20 символов</span>
+            <span :class="{ 'text-red-500': form.content.length > 5000 }">
+              {{ form.content.length }}/5000
+            </span>
+          </div>
+        </template>
+      </UFormField>
+
+      <UFormField label="Изображения" class="font-medium" :error="imagesError">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div
+            v-for="(image, index) in form.images"
+            :key="index"
+            class="relative aspect-square rounded-lg border overflow-hidden group shadow-sm hover:shadow-md transition-shadow"
+          >
+            <img :src="image" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all flex items-center justify-center">
+              <UButton
+                color="error"
+                variant="solid"
+                size="xs"
+                icon="i-heroicons-trash"
+                class="opacity-0 group-hover:opacity-100 transform transition-all"
+                @click="removeImage(index)"
+              />
+            </div>
+          </div>
+
+          <div
+            v-if="form.images.length < 10"
+            class="aspect-square rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center
+            cursor-pointer hover:bg-gray-50 transition-colors"
+          >
+            <label for="file-upload" class="w-full h-full flex items-center justify-center cursor-pointer">
+              <div class="text-center">
+                <UIcon name="i-heroicons-plus" class="h-8 w-8 text-gray-400 mx-auto" />
+                <p class="mt-1 text-sm text-gray-500">Добавить изображение</p>
+              </div>
+            </label>
+            <input id="file-upload" type="file" accept="image/*" multiple @change="handleImageUpload" class="hidden" />
+          </div>
+        </div>
+      </UFormField>
+    </div>
+
+    <div class="flex justify-end p-4 bg-gray-50 rounded-b-lg">
+      <UButton
+        color="primary"
+        :disabled="!isFormValid || saving"
+        @click="handleSave"
+        class="mr-2"
+      >
+        Сохранить черновик
+      </UButton>
+      <UButton
+        color="success"
+        :disabled="!isFormValid || saving"
+        @click="handleSave(true)"
+      >
+        Опубликовать
+      </UButton>
+    </div>
+  </UCard>
 </template>

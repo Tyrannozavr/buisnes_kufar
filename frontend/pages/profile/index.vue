@@ -18,12 +18,15 @@ const {
   refresh: refreshCompany
 } = await useApi<Company>('/company/me')
 
+
 // Fetch company announcements
 const {
   data: announcements,
   pending: loadingAnnouncements,
-  refresh: refreshAnnouncements
-} = await useApi<Announcement[]>('/announcements/company')
+  refresh: refreshAnnouncements,
+} = await useApi<Announcement[]>('/announcements/company',
+    {lazy: true}
+)
 
 const saving = ref(false)
 
@@ -164,7 +167,7 @@ watch(() => route.query.section, (newSection) => {
   if (newSection && typeof newSection === 'string') {
     activeSection.value = newSection
   }
-}, { immediate: true })
+}, {immediate: true})
 
 const getSectionTitle = (section: string) => {
   // Find the section in the navigation items
@@ -276,7 +279,7 @@ const publishAnnouncement = async (id: string) => {
           <!-- Announcements Section -->
           <template v-else-if="activeSection === 'announcements'">
             <AnnouncementList
-                :announcements="announcements"
+                :announcements="announcements || []"
                 :loading="loadingAnnouncements"
                 @publish="publishAnnouncement"
             />

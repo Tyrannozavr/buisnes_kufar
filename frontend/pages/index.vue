@@ -6,7 +6,7 @@ import type { Announcement } from '~/types/announcement'
 const { data: announcements, error: announcementsError } = await useApi<Announcement[]>('/announcements', {
   transform: (data) =>
     data
-      .filter(a => a.isPublished)
+      .filter(a => a.published)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
 })

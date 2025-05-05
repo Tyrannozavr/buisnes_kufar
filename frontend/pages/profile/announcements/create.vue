@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue';
+import { ref, onBeforeUnmount, computed, watch } from 'vue';
 import type { AnnouncementFormData } from '~/types/announcement';
 
 const router = useRouter();
 const saving = ref(false);
+const formTouched = ref(false);
 
 const form = ref<AnnouncementFormData>({
   title: '',
@@ -21,8 +22,12 @@ onBeforeUnmount(() => {
 
 const titleError = ref('');
 const contentError = ref('');
+const imagesError = ref('');
 
+// Validate title with detailed feedback
 const validateTitle = () => {
+  formTouched.value = true;
+
   if (!form.value.title) {
     titleError.value = 'Заголовок обязателен';
     return false;
@@ -31,11 +36,18 @@ const validateTitle = () => {
     titleError.value = 'Заголовок должен содержать не менее 5 символов';
     return false;
   }
+  if (form.value.title.length > 100) {
+    titleError.value = 'Заголовок не должен превышать 100 символов';
+    return false;
+  }
   titleError.value = '';
   return true;
 };
 
+// Validate content with detailed feedback
 const validateContent = () => {
+  formTouched.value = true;
+
   if (!form.value.content) {
     contentError.value = 'Содержание объявления обязательно';
     return false;
@@ -44,16 +56,75 @@ const validateContent = () => {
     contentError.value = 'Содержание должно содержать не менее 20 символов';
     return false;
   }
+  if (form.value.content.length > 5000) {
+    contentError.value = 'Содержание не должно превышать 5000 символов';
+    return false;
+  }
   contentError.value = '';
   return true;
 };
 
-const isFormValid = () => {
-  return validateTitle() && validateContent();
+// Validate images
+const validateImages = () => {
+  if (form.value.images.length > 10) {
+    imagesError.value = 'Максимальное количество изображений - 10';
+    return false;
+  }
+  imagesError.value = '';
+  return true;
 };
 
+// Watch for changes to validate in real-time after first interaction
+watch(() => form.value.title, () => {
+  if (formTouched.value) validateTitle();
+});
+
+watch(() => form.value.content, () => {
+  if (formTouched.value) validateContent();
+});
+
+watch(() => form.value.images, () => {
+  validateImages();
+}, { deep: true });
+
+// Computed property to check if form is valid
+const isFormValid = computed(() => {
+  return !titleError.value && !contentError.value && !imagesError.value &&
+         form.value.title.length >= 5 && form.value.content.length >= 20;
+});
+
+// Computed property to show validation summary
+const validationSummary = computed(() => {
+  if (!formTouched.value) return [];
+
+  const errors = [];
+  if (titleError.value) errors.push(titleError.value);
+  if (contentError.value) errors.push(contentError.value);
+  if (imagesError.value) errors.push(imagesError.value);
+
+  if (!form.value.title) errors.push('Заголовок обязателен');
+  else if (form.value.title.length < 5) errors.push('Заголовок должен содержать не менее 5 символов');
+
+  if (!form.value.content) errors.push('Содержание объявления обязательно');
+  else if (form.value.content.length < 20) errors.push('Содержание должно содержать не менее 20 символов');
+
+  return errors;
+});
+
 const handleSave = async (publish = false) => {
-  if (!isFormValid()) {
+  formTouched.value = true;
+
+  // Validate all fields
+  const titleValid = validateTitle();
+  const contentValid = validateContent();
+  const imagesValid = validateImages();
+
+  if (!titleValid || !contentValid || !imagesValid) {
+    useToast().add({
+      title: 'Ошибка валидации',
+      description: 'Пожалуйста, исправьте ошибки в форме',
+      color: 'warning'
+    });
     return;
   }
 
@@ -91,12 +162,34 @@ const handleImageUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (!target || !target.files || target.files.length === 0) return;
 
+  // Check if adding these files would exceed the limit
+  if (form.value.images.length + target.files.length > 10) {
+    imagesError.value = 'Максимальное количество изображений - 10';
+    useToast().add({
+      title: 'Превышен лимит',
+      description: 'Вы можете загрузить максимум 10 изображений',
+      color: 'warning'
+    });
+    target.value = '';
+    return;
+  }
+
   // In a real application, you would upload these files to your server
   // and get back URLs to store in the form.images array
   const files = Array.from(target.files);
 
   // Process each file
   files.forEach(file => {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      useToast().add({
+        title: 'Файл слишком большой',
+        description: `${file.name} превышает максимальный размер 5MB`,
+        color: 'warning'
+      });
+      return;
+    }
+
     // Create a FileReader to read the file as a data URL
     const reader = new FileReader();
 
@@ -140,7 +233,22 @@ const removeImage = (index: number) => {
       </template>
 
       <div class="space-y-6 p-4 flex flex-col gap-2">
-        <UFormGroup label="Заголовок объявления" required :error="titleError" class="font-medium">
+        <!-- Form validation summary -->
+        <UAlert
+          v-if="formTouched && validationSummary.length > 0"
+          color="warning"
+          title="Пожалуйста, исправьте следующие ошибки:"
+          icon="i-heroicons-exclamation-triangle"
+          class="mb-4"
+        >
+          <ul class="list-disc pl-5 mt-2">
+            <li v-for="(error, index) in validationSummary" :key="index" class="text-sm">
+              {{ error }}
+            </li>
+          </ul>
+        </UAlert>
+
+        <UFormField label="Заголовок объявления" required :error="titleError" class="font-medium">
           <UInput
             v-model="form.title"
             placeholder="Введите заголовок объявления"
@@ -148,9 +256,17 @@ const removeImage = (index: number) => {
             class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
             @blur="validateTitle"
           />
-        </UFormGroup>
+          <template #hint>
+            <div class="flex justify-between gap-0.5">
+              <span>Минимум 5 символов</span>
+              <span :class="{ 'text-red-500': form.title.length > 100 }">
+                {{ form.title.length }}/100
+              </span>
+            </div>
+          </template>
+        </UFormField>
 
-        <UFormGroup label="Содержание объявления" required :error="contentError" class="font-medium">
+        <UFormField label="Содержание объявления" required :error="contentError" class="font-medium">
           <UTextarea
             v-model="form.content"
             placeholder="Опишите ваше объявление подробно"
@@ -159,9 +275,17 @@ const removeImage = (index: number) => {
             class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
             @blur="validateContent"
           />
-        </UFormGroup>
+          <template #hint>
+            <div class="flex justify-between gap-0.5">
+              <span>Минимум 20 символов</span>
+              <span :class="{ 'text-red-500': form.content.length > 5000 }">
+                {{ form.content.length }}/5000
+              </span>
+            </div>
+          </template>
+        </UFormField>
 
-        <UFormGroup label="Изображения" class="font-medium">
+        <UFormField label="Изображения" class="font-medium" :error="imagesError">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div
               v-for="(image, index) in form.images"
@@ -203,7 +327,7 @@ const removeImage = (index: number) => {
             </div>
           </div>
           <p class="text-xs text-gray-500 italic">Вы можете загрузить до 10 изображений</p>
-        </UFormGroup>
+        </UFormField>
       </div>
 
       <template #footer>
@@ -212,7 +336,7 @@ const removeImage = (index: number) => {
             color="neutral"
             variant="outline"
             :loading="saving"
-            class="px-6 hover:bg-gray-100"
+            class="px-6 hover:bg-gray-100 cursor-pointer"
             @click="handleSave(false)"
           >
             Сохранить как черновик
@@ -220,7 +344,7 @@ const removeImage = (index: number) => {
           <UButton
             color="primary"
             :loading="saving"
-            class="px-6 hover:bg-primary-600"
+            class="px-6 hover:bg-primary-600 cursor-pointer"
             @click="handleSave(true)"
           >
             Опубликовать

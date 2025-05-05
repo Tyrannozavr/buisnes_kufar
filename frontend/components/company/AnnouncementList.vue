@@ -26,11 +26,11 @@ const getStatusColor = (status: string) => {
     case 'published':
       return 'success'
     case 'draft':
-      return 'gray'
+      return 'neutral'
     case 'pending':
       return 'warning'
     default:
-      return 'gray'
+      return 'neutral'
   }
 }
 
@@ -85,7 +85,7 @@ const getCategoryLabel = (category: string) => {
         <UCard v-for="announcement in announcements" :key="announcement.id" class="overflow-hidden">
           <div class="flex flex-col md:flex-row gap-4">
             <div v-if="announcement.images && announcement.images.length > 0" class="w-full md:w-48 h-32 flex-shrink-0">
-              <img :src="announcement.images[0]" alt="Изображение объявления" class="w-full h-full object-cover rounded-md" />
+              <NuxtImg :src="announcement.images[0]" alt="Изображение объявления" class="w-full h-full object-cover rounded-md" />
             </div>
             <div v-else class="w-full md:w-48 h-32 flex-shrink-0 bg-gray-100 flex items-center justify-center rounded-md">
               <UIcon name="i-heroicons-photo" class="h-12 w-12 text-gray-400" />
@@ -99,7 +99,7 @@ const getCategoryLabel = (category: string) => {
                 </UBadge>
               </div>
 
-              <UBadge class="mt-2" color="gray" variant="subtle">
+              <UBadge class="mt-2" color="neutral" variant="subtle">
                 {{ getCategoryLabel(announcement.category) }}
               </UBadge>
 
@@ -121,7 +121,7 @@ const getCategoryLabel = (category: string) => {
                   </UButton>
                   <UButton
                     size="sm"
-                    color="gray"
+                    color="neutral"
                     variant="soft"
                     :to="`/profile/announcements/${announcement.id}`"
                   >
@@ -129,7 +129,7 @@ const getCategoryLabel = (category: string) => {
                   </UButton>
                   <UButton
                     size="sm"
-                    color="gray"
+                    color="neutral"
                     variant="soft"
                     :to="`/profile/announcements/edit/${announcement.id}`"
                   >

@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import {ref, watch} from 'vue'
+import {ref, watch, onMounted} from 'vue'
 import type {Company} from '~/types/company'
 import type {NavigationMenuItem} from '~/types/navigation'
 import type {Announcement} from '~/types/announcement'
 import PageLoader from "~/components/ui/PageLoader.vue";
 import CompanyProducts from "~/components/company/CompanyProducts.vue";
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
+
+const route = useRoute()
+const router = useRouter()
 
 // Fetch company data using useApi composable
 const {
@@ -23,8 +26,19 @@ const {
 } = await useApi<Announcement[]>('/announcements/company')
 
 const saving = ref(false)
-const activeSection = ref('company')
-const showNewAnnouncementModal = ref(false)
+
+// Get the active section from query parameter or default to 'company'
+const activeSection = ref(route.query.section?.toString() || 'company')
+
+// Update URL when activeSection changes
+watch(activeSection, (newValue) => {
+  router.push({
+    query: {
+      ...route.query,
+      section: newValue
+    }
+  })
+})
 
 // Define navigation items using the NavigationMenuItem type
 const navigationItems = ref<NavigationMenuItem[][]>([
@@ -145,6 +159,13 @@ watch(activeSection, (newValue) => {
   })
 })
 
+// Watch for changes in route.query.section
+watch(() => route.query.section, (newSection) => {
+  if (newSection && typeof newSection === 'string') {
+    activeSection.value = newSection
+  }
+}, { immediate: true })
+
 const getSectionTitle = (section: string) => {
   // Find the section in the navigation items
   for (const group of navigationItems.value) {
@@ -158,17 +179,6 @@ const getSectionTitle = (section: string) => {
     }
   }
   return section
-}
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
 }
 
 const handleSaveCompany = async (data: Partial<Company>) => {
@@ -197,10 +207,6 @@ const handleSaveCompany = async (data: Partial<Company>) => {
   } finally {
     saving.value = false
   }
-}
-
-const navigateToCreateAnnouncement = () => {
-  navigateTo('/profile/announcements/create')
 }
 
 const publishAnnouncement = async (id: string) => {

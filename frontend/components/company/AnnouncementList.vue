@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Announcement } from '~/types/announcement'
+import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 
 defineProps<{
   announcements: Announcement[] | null
@@ -9,6 +10,19 @@ defineProps<{
 const emit = defineEmits<{
   publish: [id: string]
 }>()
+
+// Состояние для модального окна
+const showPublishConfirm = ref(false)
+const selectedAnnouncementId = ref<string | null>(null)
+const processingPublish = ref(false)
+
+// Состояние для опций уведомлений
+const notifyOptions = ref({
+  notify: false,
+  partners: false,
+  customers: false,
+  suppliers: false
+})
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -47,6 +61,43 @@ const getCategoryLabel = (category: string) => {
       return 'Партнерство'
     default:
       return category
+  }
+}
+
+// Функция для открытия модального окна подтверждения публикации
+const openPublishConfirm = (announcement: Announcement) => {
+  selectedAnnouncementId.value = announcement.id
+
+  // Установка опций уведомлений из объявления, если они есть
+  if (announcement.notifications) {
+    notifyOptions.value.notify = true
+    notifyOptions.value.partners = announcement.notifications.partners
+    notifyOptions.value.customers = announcement.notifications.customers
+    notifyOptions.value.suppliers = announcement.notifications.suppliers
+  } else {
+    // Значения по умолчанию, если уведомления не настроены
+    notifyOptions.value.notify = false
+    notifyOptions.value.partners = false
+    notifyOptions.value.customers = false
+    notifyOptions.value.suppliers = false
+  }
+
+  showPublishConfirm.value = true
+}
+
+// Функция для закрытия модального окна
+const closePublishModal = () => {
+  showPublishConfirm.value = false
+  selectedAnnouncementId.value = null
+}
+
+// Функция для подтверждения публикации
+const confirmPublish = () => {
+  if (selectedAnnouncementId.value) {
+    processingPublish.value = true
+    emit('publish', selectedAnnouncementId.value)
+    processingPublish.value = false
+    closePublishModal()
   }
 }
 </script>
@@ -106,7 +157,7 @@ const getCategoryLabel = (category: string) => {
                     size="sm"
                     color="primary"
                     class="cursor-pointer"
-                    @click="emit('publish', announcement.id)"
+                    @click="openPublishConfirm(announcement)"
                   >
                     Опубликовать
                   </UButton>
@@ -151,5 +202,14 @@ const getCategoryLabel = (category: string) => {
         </div>
       </div>
     </UCard>
+
+    <!-- Модальное окно подтверждения публикации -->
+    <PublishConfirmModal
+      :open="showPublishConfirm"
+      :saving="processingPublish"
+      :notify-options="notifyOptions"
+      @close="closePublishModal"
+      @confirm="confirmPublish"
+    />
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { Announcement } from '~/types/announcement';
+import type {Category} from "~/types/category";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,9 +22,16 @@ const initialFormData = computed(() => {
   return {
     title: announcement.value.title,
     content: announcement.value.content,
-    images: [...announcement.value.images]
+    images: [...announcement.value.images],
+    category: announcement.value.category,
   };
 });
+
+// Fetch categories from API
+const { data: categories } = await useApi<Category[]>('/categories', {
+  lazy: true
+});
+
 
 const handleSave = async (formData, publish = false) => {
   saving.value = true;
@@ -118,8 +126,9 @@ const handleCancel = () => {
 
     <template v-else>
       <AnnouncementForm
-        :initial-data="initialFormData || undefined"
+        :initial-data="initialFormData"
         :loading="saving"
+        :categories="categories"
         :is-edit="true"
         @save="handleSave"
         @cancel="handleCancel"

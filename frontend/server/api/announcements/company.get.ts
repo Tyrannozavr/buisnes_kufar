@@ -10,7 +10,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-20T10:00:00Z',
     updatedAt: '2024-04-20T10:00:00Z',
-    category: 'product',
+    category: 'Товары',
     published: false,
     notifications: {
       partners: true,
@@ -27,7 +27,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-19T15:30:00Z',
     updatedAt: '2024-04-19T15:30:00Z',
-    category: 'promotion',
+    category: 'Акции',
     published: true,
     notifications: {
       partners: false,
@@ -44,7 +44,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-18T09:45:00Z',
     updatedAt: '2024-04-18T09:45:00Z',
-    category: 'product',
+    category: 'Товары',
     published: false,
     notifications: {
       partners: true,
@@ -61,7 +61,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-15T14:20:00Z',
     updatedAt: '2024-04-15T14:20:00Z',
-    category: 'partnership',
+    category: 'Партнерство',
     published: true,
     notifications: {
       partners: true,
@@ -78,7 +78,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-12T11:10:00Z',
     updatedAt: '2024-04-12T11:10:00Z',
-    category: 'product',
+    category: 'Товары',
     published: true,
     notifications: {
       partners: false,
@@ -95,7 +95,7 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-10T16:30:00Z',
     updatedAt: '2024-04-10T16:30:00Z',
-    category: 'promotion',
+    category: 'События',
     published: false,
     notifications: {
       partners: true,

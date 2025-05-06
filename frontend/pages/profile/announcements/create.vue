@@ -14,7 +14,9 @@ const form = ref<AnnouncementFormData>({
 });
 
 // Fetch categories from API
-const { data: categories, error: categoriesError } = await useApi<Category[]>('/categories');
+const { data: categories, error: categoriesError } = await useApi<Category[]>('/categories', {
+  lazy: true
+});
 // Store object URLs to revoke them later
 const objectUrls = ref<string[]>([]);
 

@@ -389,7 +389,6 @@ const removeImage = (index: number) => {
           </div>
         </div>
       </UFormField>
-
       <!-- Category selection -->
       <UFormField label="Категория">
         <USelectMenu
@@ -401,13 +400,13 @@ const removeImage = (index: number) => {
             class="min-w-1/2"
         />
       </UFormField>
-
       <!-- Notification options -->
       <UFormField label="Настройки уведомлений" class="font-medium">
         <div class="space-y-3 mt-2">
           <UCheckbox
             v-model="notifyOptions.notify"
             label="Оповестить об объявлении"
+            :disabled="isEdit"
             class="font-normal"
           />
 

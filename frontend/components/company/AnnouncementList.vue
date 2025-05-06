@@ -51,19 +51,6 @@ const getStatusLabel = (published: boolean) => {
   }
 }
 
-const getCategoryLabel = (category: string) => {
-  switch (category) {
-    case 'product':
-      return 'Продукция'
-    case 'promotion':
-      return 'Акция'
-    case 'partnership':
-      return 'Партнерство'
-    default:
-      return category
-  }
-}
-
 // Функция для открытия модального окна подтверждения публикации
 const openPublishConfirm = (announcement: Announcement) => {
   selectedAnnouncementId.value = announcement.id
@@ -141,7 +128,7 @@ const confirmPublish = () => {
               </div>
 
               <UBadge class="mt-2" color="neutral" variant="subtle">
-                {{ getCategoryLabel(announcement.category) }}
+                {{ announcement.category }}
               </UBadge>
 
               <p class="mt-2 text-sm text-gray-600 line-clamp-2">{{ announcement.content }}</p>

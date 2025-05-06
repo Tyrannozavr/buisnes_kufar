@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount, computed, watch } from 'vue';
 import type { AnnouncementFormData } from '~/types/announcement';
 
 const router = useRouter();
@@ -24,77 +23,8 @@ const titleError = ref('');
 const contentError = ref('');
 const imagesError = ref('');
 
-// Validate title with detailed feedback
-const validateTitle = () => {
-  formTouched.value = true;
-
-  if (!form.value.title) {
-    titleError.value = 'Заголовок обязателен';
-    return false;
-  }
-  if (form.value.title.length < 5) {
-    titleError.value = 'Заголовок должен содержать не менее 5 символов';
-    return false;
-  }
-  if (form.value.title.length > 100) {
-    titleError.value = 'Заголовок не должен превышать 100 символов';
-    return false;
-  }
-  titleError.value = '';
-  return true;
-};
-
-// Validate content with detailed feedback
-const validateContent = () => {
-  formTouched.value = true;
-
-  if (!form.value.content) {
-    contentError.value = 'Содержание объявления обязательно';
-    return false;
-  }
-  if (form.value.content.length < 20) {
-    contentError.value = 'Содержание должно содержать не менее 20 символов';
-    return false;
-  }
-  if (form.value.content.length > 5000) {
-    contentError.value = 'Содержание не должно превышать 5000 символов';
-    return false;
-  }
-  contentError.value = '';
-  return true;
-};
-
-// Validate images
-const validateImages = () => {
-  if (form.value.images.length > 10) {
-    imagesError.value = 'Максимальное количество изображений - 10';
-    return false;
-  }
-  imagesError.value = '';
-  return true;
-};
-
-// Watch for changes to validate in real-time after first interaction
-watch(() => form.value.title, () => {
-  if (formTouched.value) validateTitle();
-});
-
-watch(() => form.value.content, () => {
-  if (formTouched.value) validateContent();
-});
-
-watch(() => form.value.images, () => {
-  validateImages();
-}, { deep: true });
-
-// Computed property to check if form is valid
-const isFormValid = computed(() => {
-  return !titleError.value && !contentError.value && !imagesError.value &&
-         form.value.title.length >= 5 && form.value.content.length >= 20;
-});
-
 // Computed property to show validation summary
-const validationSummary = computed(() => {
+computed(() => {
   if (!formTouched.value) return [];
 
   const errors = [];
@@ -110,24 +40,8 @@ const validationSummary = computed(() => {
 
   return errors;
 });
-
 const handleSave = async (publish = false) => {
   formTouched.value = true;
-
-  // Validate all fields
-  const titleValid = validateTitle();
-  const contentValid = validateContent();
-  const imagesValid = validateImages();
-
-  if (!titleValid || !contentValid || !imagesValid) {
-    useToast().add({
-      title: 'Ошибка валидации',
-      description: 'Пожалуйста, исправьте ошибки в форме',
-      color: 'warning'
-    });
-    return;
-  }
-
   saving.value = true;
   try {
     await useApi('/announcements', {
@@ -155,61 +69,6 @@ const handleSave = async (publish = false) => {
   } finally {
     saving.value = false;
   }
-};
-
-// Improved file upload handler
-const handleImageUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (!target || !target.files || target.files.length === 0) return;
-
-  // Check if adding these files would exceed the limit
-  if (form.value.images.length + target.files.length > 10) {
-    imagesError.value = 'Максимальное количество изображений - 10';
-    useToast().add({
-      title: 'Превышен лимит',
-      description: 'Вы можете загрузить максимум 10 изображений',
-      color: 'warning'
-    });
-    target.value = '';
-    return;
-  }
-
-  // In a real application, you would upload these files to your server
-  // and get back URLs to store in the form.images array
-  const files = Array.from(target.files);
-
-  // Process each file
-  files.forEach(file => {
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      useToast().add({
-        title: 'Файл слишком большой',
-        description: `${file.name} превышает максимальный размер 5MB`,
-        color: 'warning'
-      });
-      return;
-    }
-
-    // Create a FileReader to read the file as a data URL
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        // Add the data URL to the images array
-        form.value.images.push(e.target.result.toString());
-      }
-    };
-
-    // Read the file as a data URL (base64 encoded string)
-    reader.readAsDataURL(file);
-  });
-
-  // Reset the input so the same file can be selected again
-  target.value = '';
-};
-
-const removeImage = (index: number) => {
-  form.value.images = form.value.images.filter((_, i) => i !== index);
 };
 
 const handleCancel = () => {

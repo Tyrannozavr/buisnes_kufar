@@ -211,7 +211,7 @@ const editAnnouncement = () => {
             <UButton
                 color="neutral"
                 variant="ghost"
-                to="/profile"
+                to="/profile?section=announcements"
                 icon="i-heroicons-arrow-left"
             >
               Назад к списку

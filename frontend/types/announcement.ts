@@ -3,7 +3,6 @@ export interface Announcement {
   companyId: string;
   title: string;
   content: string;
-  status: 'draft' | 'pending' | 'published' | 'rejected';
   createdAt: string;
   updatedAt: string;
   category: 'product' | 'service' | 'promotion' | 'partnership' | 'other';

@@ -25,9 +25,17 @@ const emit = defineEmits(['save', 'cancel']);
 
 const saving = computed(() => props.loading);
 const formTouched = ref(false);
+const attemptedSubmit = ref(false);
 
 const form = ref<AnnouncementFormData>({
   ...props.initialData
+});
+
+// Track which fields have been touched
+const touchedFields = ref({
+  title: false,
+  content: false,
+  images: false
 });
 
 // Store object URLs to revoke them later
@@ -44,6 +52,7 @@ const imagesError = ref('');
 
 // Validate title with detailed feedback
 const validateTitle = () => {
+  touchedFields.value.title = true;
   formTouched.value = true;
 
   if (!form.value.title) {
@@ -64,6 +73,7 @@ const validateTitle = () => {
 
 // Validate content with detailed feedback
 const validateContent = () => {
+  touchedFields.value.content = true;
   formTouched.value = true;
 
   if (!form.value.content) {
@@ -84,6 +94,8 @@ const validateContent = () => {
 
 // Validate images
 const validateImages = () => {
+  touchedFields.value.images = true;
+
   if (form.value.images.length > 10) {
     imagesError.value = 'Максимальное количество изображений - 10';
     return false;
@@ -94,15 +106,15 @@ const validateImages = () => {
 
 // Watch for changes to validate in real-time after first interaction
 watch(() => form.value.title, () => {
-  if (formTouched.value) validateTitle();
+  if (touchedFields.value.title) validateTitle();
 });
 
 watch(() => form.value.content, () => {
-  if (formTouched.value) validateContent();
+  if (touchedFields.value.content) validateContent();
 });
 
 watch(() => form.value.images, () => {
-  validateImages();
+  if (touchedFields.value.images) validateImages();
 }, { deep: true });
 
 // Computed property to check if form is valid
@@ -113,7 +125,7 @@ const isFormValid = computed(() => {
 
 // Computed property to show validation summary
 const validationSummary = computed(() => {
-  if (!formTouched.value) return [];
+  if (!attemptedSubmit.value) return [];
 
   const errors = [];
   if (titleError.value) errors.push(titleError.value);
@@ -130,7 +142,15 @@ const validationSummary = computed(() => {
 });
 
 const handleSave = async (publish = false) => {
+  attemptedSubmit.value = true;
   formTouched.value = true;
+
+  // Mark all fields as touched
+  touchedFields.value = {
+    title: true,
+    content: true,
+    images: true
+  };
 
   // Validate all fields
   const titleValid = validateTitle();
@@ -153,6 +173,8 @@ const handleSave = async (publish = false) => {
 const handleImageUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (!target || !target.files || target.files.length === 0) return;
+
+  touchedFields.value.images = true;
 
   // Check if adding these files would exceed the limit
   if (form.value.images.length + target.files.length > 10) {
@@ -201,6 +223,7 @@ const handleImageUpload = (event: Event) => {
 };
 
 const removeImage = (index: number) => {
+  touchedFields.value.images = true;
   form.value.images = form.value.images.filter((_, i) => i !== index);
 };
 </script>
@@ -226,9 +249,9 @@ const removeImage = (index: number) => {
     </template>
 
     <div class="space-y-6 p-4 flex flex-col gap-2">
-      <!-- Form validation summary -->
+      <!-- Form validation summary - only show after attempted submit -->
       <UAlert
-        v-if="formTouched && validationSummary.length > 0"
+        v-if="attemptedSubmit && validationSummary.length > 0"
         color="warning"
         title="Пожалуйста, исправьте следующие ошибки:"
         icon="i-heroicons-exclamation-triangle"
@@ -241,11 +264,11 @@ const removeImage = (index: number) => {
         </ul>
       </UAlert>
 
-      <UFormField label="Заголовок объявления" required :error="titleError" class="font-medium">
+      <UFormField label="Заголовок объявления" required :error="touchedFields.title ? titleError : ''" class="font-medium">
         <UInput
           v-model="form.title"
           placeholder="Введите заголовок объявления"
-          :color="titleError ? 'error' : undefined"
+          :color="touchedFields.title && titleError ? 'error' : undefined"
           class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
           @blur="validateTitle"
         />
@@ -259,12 +282,12 @@ const removeImage = (index: number) => {
         </template>
       </UFormField>
 
-      <UFormField label="Содержание объявления" required :error="contentError" class="font-medium">
+      <UFormField label="Содержание объявления" required :error="touchedFields.content ? contentError : ''" class="font-medium">
         <UTextarea
           v-model="form.content"
           placeholder="Опишите ваше объявление подробно"
           :rows="8"
-          :color="contentError ? 'error' : undefined"
+          :color="touchedFields.content && contentError ? 'error' : undefined"
           class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
           @blur="validateContent"
         />
@@ -278,7 +301,7 @@ const removeImage = (index: number) => {
         </template>
       </UFormField>
 
-      <UFormField label="Изображения" class="font-medium" :error="imagesError">
+      <UFormField label="Изображения" class="font-medium" :error="touchedFields.images ? imagesError : ''">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div
             v-for="(image, index) in form.images"
@@ -319,14 +342,16 @@ const removeImage = (index: number) => {
       <UButton
         color="primary"
         :disabled="!isFormValid || saving"
+        class="mr-2 cursor-pointer"
         @click="handleSave"
-        class="mr-2"
       >
         Сохранить черновик
       </UButton>
       <UButton
         color="success"
         :disabled="!isFormValid || saving"
+        class="cursor-pointer"
+        :loading="saving"
         @click="handleSave(true)"
       >
         Опубликовать

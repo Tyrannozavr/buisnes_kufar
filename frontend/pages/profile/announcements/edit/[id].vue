@@ -25,18 +25,6 @@ const initialFormData = computed(() => {
   };
 });
 
-// errorirect if announcement is already published
-watch(announcement, (newAnnouncement) => {
-  if (newAnnouncement && newAnnouncement.published) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Опубликованные объявления нельзя редактировать',
-      color: 'error'
-    });
-    router.push('/profile');
-  }
-}, { immediate: true });
-
 const handleSave = async (formData, publish = false) => {
   saving.value = true;
   try {

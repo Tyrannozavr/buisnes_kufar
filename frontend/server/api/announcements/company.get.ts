@@ -10,7 +10,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-20T10:00:00Z',
     updatedAt: '2024-04-20T10:00:00Z',
-    status: 'published',
     category: 'product',
     published: false
   },
@@ -22,7 +21,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-19T15:30:00Z',
     updatedAt: '2024-04-19T15:30:00Z',
-    status: 'published',
     category: 'promotion',
     published: true
   },
@@ -34,7 +32,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-18T09:45:00Z',
     updatedAt: '2024-04-18T09:45:00Z',
-    status: 'published',
     category: 'product',
     published: false
   },
@@ -46,7 +43,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-15T14:20:00Z',
     updatedAt: '2024-04-15T14:20:00Z',
-    status: 'published',
     category: 'partnership',
     published: true
   },
@@ -58,7 +54,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-12T11:10:00Z',
     updatedAt: '2024-04-12T11:10:00Z',
-    status: 'published',
     category: 'product',
     published: true
   },
@@ -70,7 +65,6 @@ export const announcements: Announcement[] = [
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
     createdAt: '2024-04-10T16:30:00Z',
     updatedAt: '2024-04-10T16:30:00Z',
-    status: 'draft',
     category: 'promotion',
     published: false
   }

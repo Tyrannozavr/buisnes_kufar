@@ -21,29 +21,19 @@ const formatDate = (dateString: string) => {
   }).format(date)
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'published':
-      return 'success'
-    case 'draft':
-      return 'neutral'
-    case 'pending':
-      return 'warning'
-    default:
-      return 'neutral'
+const getStatusColor = (published: boolean) => {
+  if (published) {
+    return 'success'
+  } else {
+    return 'neutral'
   }
 }
 
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'published':
-      return 'Опубликовано'
-    case 'draft':
-      return 'Черновик'
-    case 'pending':
-      return 'На модерации'
-    default:
-      return status
+const getStatusLabel = (published: boolean) => {
+  if (published) {
+    return 'Опубликовано'
+  } else {
+    return 'Черновик'
   }
 }
 
@@ -94,8 +84,8 @@ const getCategoryLabel = (category: string) => {
             <div class="flex-1">
               <div class="flex justify-between items-start">
                 <h3 class="text-lg font-semibold">{{ announcement.title }}</h3>
-                <UBadge :color="getStatusColor(announcement.status)">
-                  {{ getStatusLabel(announcement.status) }}
+                <UBadge :color="getStatusColor(announcement.published)">
+                  {{ getStatusLabel(announcement.published) }}
                 </UBadge>
               </div>
 
@@ -112,9 +102,10 @@ const getCategoryLabel = (category: string) => {
 
                 <div class="flex gap-2">
                   <UButton
-                    v-if="announcement.status === 'draft'"
+                    v-if="!announcement.published"
                     size="sm"
                     color="primary"
+                    class="cursor-pointer"
                     @click="emit('publish', announcement.id)"
                   >
                     Опубликовать

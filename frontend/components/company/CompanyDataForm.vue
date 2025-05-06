@@ -285,7 +285,7 @@ const handleLogoUpload = () => {
             class="w-full mt-3 cursor-pointer"
             @click="handleSave"
         >
-          Сохранить
+          <span class="mx-auto">Сохранить</span>
         </UButton>
       </div>
     </UForm>

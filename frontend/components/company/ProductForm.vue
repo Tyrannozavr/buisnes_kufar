@@ -1,7 +1,9 @@
-<script setup>
+<script setup lang="ts">
+import type { Product } from '~/types/product'
+
 const props = defineProps({
   product: {
-    type: Object,
+    type: Object as PropType<Product | null>,
     default: null
   },
   modelValue: {
@@ -15,7 +17,9 @@ const emit = defineEmits(['save', 'update:modelValue']);
 // Form data with default values
 const formData = ref({
   type: 'Товар',
+  article: '',
   name: '',
+  description: '',
   price: '',
   unitCategory: 'economic',
   unit: 'шт',
@@ -61,7 +65,9 @@ watch(() => props.product, (newProduct) => {
   if (newProduct) {
     formData.value = {
       type: newProduct.type || 'Товар',
+      article: newProduct.article || '',
       name: newProduct.name || '',
+      description: newProduct.description || '',
       price: newProduct.price || '',
       unitCategory: newProduct.unitCategory || 'economic',
       unit: newProduct.unit || 'шт',
@@ -72,7 +78,9 @@ watch(() => props.product, (newProduct) => {
     // Reset form for new product
     formData.value = {
       type: 'Товар',
+      article: '',
       name: '',
+      description: '',
       price: '',
       unitCategory: 'economic',
       unit: 'шт',
@@ -151,17 +159,84 @@ const handleClose = () => {
     <template #body>
       <div class="p-4">
         <form class="space-y-6" @submit.prevent="handleSubmit">
+          <UFormField label="Изображения">
+            <div class="space-y-4">
+              <!-- Hidden file input -->
+              <input
+                  ref="fileInputRef"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  @change="handleImageUpload"
+                  class="hidden"
+              />
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Existing images -->
+                <div
+                    v-for="(image, index) in formData.images"
+                    :key="index"
+                    class="relative aspect-square rounded-lg border overflow-hidden group"
+                >
+                  <img :src="image" :alt="'Preview ' + (index + 1)" class="w-full h-full object-cover">
+                  <div class="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all flex items-center justify-center">
+                    <UButton
+                        type="button"
+                        color="error"
+                        variant="solid"
+                        size="xs"
+                        icon="i-heroicons-trash"
+                        class="opacity-0 group-hover:opacity-100 transform transition-all"
+                        @click="removeImage(index)"
+                    />
+                  </div>
+                </div>
+
+                <!-- Add image button styled like an image -->
+                <div
+                    class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center
+                  cursor-pointer hover:bg-gray-50 transition-colors"
+                    @click="triggerFileInput"
+                >
+                  <div class="text-center">
+                    <UIcon name="i-heroicons-plus" class="h-8 w-8 text-gray-400 mx-auto" />
+                    <p class="mt-1 text-sm text-gray-500">Добавить</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </UFormField>
+
           <URadioGroup
               v-model="formData.type"
               orientation="horizontal"
               label="Тип продукта"
               :items="productTypeItems"
           />
+          <UFormField label="Артикул" required>
+            <UInput
+              v-model="formData.article"
+              placeholder="Введите артикул продукта"
+              class="min-w-full"
+
+            />
+          </UFormField>
 
           <UFormField label="Наименование" required>
             <UInput
               v-model="formData.name"
               placeholder="Введите наименование продукта"
+              class="min-w-full"
+
+            />
+          </UFormField>
+
+          <UFormField label="Описание">
+            <UTextarea
+              v-model="formData.description"
+              placeholder="Введите описание продукта"
+              class="min-w-full"
+              rows="4"
             />
           </UFormField>
 
@@ -232,53 +307,6 @@ const handleClose = () => {
             </div>
           </div>
 
-          <UFormField label="Изображения">
-            <div class="space-y-4">
-              <!-- Hidden file input -->
-              <input
-                ref="fileInputRef"
-                type="file"
-                multiple
-                accept="image/*"
-                @change="handleImageUpload"
-                class="hidden"
-              />
-
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <!-- Existing images -->
-                <div
-                  v-for="(image, index) in formData.images"
-                  :key="index"
-                  class="relative aspect-square rounded-lg border overflow-hidden group"
-                >
-                  <img :src="image" :alt="'Preview ' + (index + 1)" class="w-full h-full object-cover">
-                  <div class="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all flex items-center justify-center">
-                    <UButton
-                      type="button"
-                      color="error"
-                      variant="solid"
-                      size="xs"
-                      icon="i-heroicons-trash"
-                      class="opacity-0 group-hover:opacity-100 transform transition-all"
-                      @click="removeImage(index)"
-                    />
-                  </div>
-                </div>
-
-                <!-- Add image button styled like an image -->
-                <div
-                  class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center
-                  cursor-pointer hover:bg-gray-50 transition-colors"
-                  @click="triggerFileInput"
-                >
-                  <div class="text-center">
-                    <UIcon name="i-heroicons-plus" class="h-8 w-8 text-gray-400 mx-auto" />
-                    <p class="mt-1 text-sm text-gray-500">Добавить</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </UFormField>
         </form>
       </div>
     </template>

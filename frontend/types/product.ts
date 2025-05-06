@@ -2,6 +2,8 @@ export interface Product {
   id: string
   companyId: string
   name: string
+  description: string
+  article: string
   type: string
   price: number
   images: string[]

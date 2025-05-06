@@ -5,6 +5,7 @@
     </div>
     <div class="product-info">
       <h3 class="product-name">{{ product.name }}</h3>
+      <p class="product-article">Артикул: {{ product.article }}</p>
       <p class="product-type">{{ product.type }}</p>
       <p v-if="!isHidden && !isDeleted" class="product-price">
         {{ product.price }} ₽
@@ -81,6 +82,12 @@ defineEmits<{
   margin: 0 0 0.5rem;
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+.product-article {
+  color: #666;
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
 }
 
 .product-type {

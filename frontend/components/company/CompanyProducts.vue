@@ -11,7 +11,6 @@ const selectedProduct = ref<Product | null>(null)
 
 // Fetch products on component mount
 const {data: productsData, refresh} = await useApi<Product[]>('/products')
-console.log('Fetched products:', productsData)
 
 // Initialize products with the fetched data
 onMounted(() => {
@@ -67,7 +66,7 @@ const hideProduct = async (product: Product) => {
       description: 'Продукт скрыт',
       color: 'success'
     })
-  } catch (error) {
+  } catch {
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось скрыть продукт',
@@ -88,7 +87,7 @@ const deleteProduct = async (product: Product) => {
       description: 'Продукт удален',
       color: 'success'
     })
-  } catch (error) {
+  } catch {
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось удалить продукт',
@@ -109,7 +108,7 @@ const restoreProduct = async (product: Product) => {
       description: 'Продукт восстановлен',
       color: 'success'
     })
-  } catch (error) {
+  } catch {
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось восстановить продукт',
@@ -146,7 +145,7 @@ const saveProduct = async (productData: Partial<Product>) => {
     // Refresh products after update
     await refresh()
     closeProductForm()
-  } catch (error) {
+  } catch {
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось сохранить продукт',
@@ -229,7 +228,7 @@ const saveProduct = async (productData: Partial<Product>) => {
       </div>
     </UCard>
 
-    <!-- Product Form Modal --> hop {{showProductForm}}
+    <!-- Product Form Modal -->
     <ProductForm
         v-model="showProductForm"
         :product="selectedProduct"

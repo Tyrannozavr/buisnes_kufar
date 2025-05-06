@@ -215,7 +215,8 @@ const handleSave = async (publish = false) => {
       suppliers: notifyOptions.value.suppliers
     } : null
   };
-
+  // дату объявления сохранять на момент публикации, а не редактирования
+  // уведомления приходят один раз
   emit('save', formData, publish);
 
   // Close modal if it was open

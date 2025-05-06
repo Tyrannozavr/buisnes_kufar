@@ -13,7 +13,7 @@
         Нет в наличии
       </p>
     </div>
-    <div class="product-actions">
+    <div class="product-actions flex flex-col">
       <button v-if="!isHidden && !isDeleted" class="action-btn edit" @click="$emit('edit', product)">
         Редактировать
       </button>

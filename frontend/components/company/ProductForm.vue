@@ -1,219 +1,316 @@
-<template>
-  <div class="product-form-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>{{ product ? 'Редактировать продукт' : 'Добавить продукт' }}</h2>
-        <button class="close-btn" @click="$emit('close')">&times;</button>
-      </div>
+<script setup>
+const props = defineProps({
+  product: {
+    type: Object,
+    default: null
+  },
+  modelValue: {
+    type: Boolean,
+    default: false
+  }
+});
 
-      <form @submit.prevent="handleSubmit" class="form">
-        <div class="form-group">
-          <label for="type">Тип продукта *</label>
-          <select id="type" v-model="formData.type" required>
-            <option value="Товар">Товар</option>
-            <option value="Услуга">Услуга</option>
-          </select>
-        </div>
+const emit = defineEmits(['save', 'update:modelValue']);
 
-        <div class="form-group">
-          <label for="name">Наименование *</label>
-          <input
-            id="name"
-            v-model="formData.name"
-            type="text"
-            required
-            placeholder="Введите наименование продукта"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="price">Цена</label>
-          <input
-            id="price"
-            v-model="formData.price"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Введите цену"
-          >
-        </div>
-
-        <div class="form-group">
-          <label>Единица измерения</label>
-          <div class="unit-selectors">
-            <select v-model="formData.unitCategory">
-              <option value="economic">Экономические единицы</option>
-              <option value="length">Единицы длины</option>
-              <option value="area">Единицы площади</option>
-              <option value="volume">Единицы объема</option>
-              <option value="mass">Единицы массы</option>
-            </select>
-            <select v-model="formData.unit">
-              <option v-for="unit in availableUnits" :key="unit.value" :value="unit.value">
-                {{ unit.label }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div class="characteristics">
-          <h3>Характеристики</h3>
-          <div v-for="(char, index) in formData.characteristics" :key="index" class="characteristic">
-            <input
-              v-model="char.name"
-              type="text"
-              placeholder="Название характеристики"
-            >
-            <input
-              v-model="char.value"
-              type="text"
-              placeholder="Значение характеристики"
-            >
-            <button type="button" class="remove-btn" @click="removeCharacteristic(index)">
-              Удалить
-            </button>
-          </div>
-          <button type="button" class="add-btn" @click="addCharacteristic">
-            Добавить характеристику
-          </button>
-        </div>
-
-        <div class="form-group">
-          <label>Изображения</label>
-          <div class="image-upload">
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              @change="handleImageUpload"
-            >
-            <div class="image-preview" v-if="formData.images.length">
-              <div v-for="(image, index) in formData.images" :key="index" class="preview-item">
-                <img :src="image" :alt="'Preview ' + (index + 1)">
-                <button type="button" class="remove-btn" @click="removeImage(index)">
-                  &times;
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="save-btn">
-            {{ product ? 'Сохранить изменения' : 'Добавить продукт' }}
-          </button>
-          <button type="button" class="cancel-btn" @click="$emit('close')">
-            Отмена
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</template>
-
-<script setup lang="ts">
-import type { Product } from '~/types/product'
-import { ref, computed } from 'vue'
-
-const props = defineProps<{
-  product: Product | null
-}>()
-
-const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'save', data: Partial<Product>): void
-}>()
-
+// Form data with default values
 const formData = ref({
-  type: props.product?.type || 'Товар',
-  name: props.product?.name || '',
-  price: props.product?.price || 0,
+  type: 'Товар',
+  name: '',
+  price: '',
   unitCategory: 'economic',
   unit: 'шт',
-  characteristics: props.product?.characteristics || [],
-  images: props.product?.images || []
-})
-
-const units = {
+  characteristics: [],
+  images: []
+});
+const productTypeItems = ['Товар', 'Услуга'];
+// Units mapping based on category
+const unititems = {
   economic: [
-    { value: 'шт', label: 'Штука, шт' },
-    { value: 'боб', label: 'Бобина, боб' },
-    { value: 'л', label: 'Лист, л.' },
-    { value: 'набор', label: 'Набор, набор' },
-    { value: 'пар', label: 'Пара, пар' },
-    { value: 'рул', label: 'Рулон, рул' }
+    { value: 'шт', label: 'Штука' },
+    { value: 'упак', label: 'Упаковка' },
+    { value: 'компл', label: 'Комплект' }
   ],
   length: [
-    { value: 'мм', label: 'Миллиметр, мм' },
-    { value: 'см', label: 'Сантиметр, см' },
-    { value: 'м', label: 'Метр, м' },
-    { value: 'км', label: 'Километр, км' },
-    { value: 'пог.м', label: 'Погонный метр, пог. м' }
+    { value: 'мм', label: 'Миллиметр' },
+    { value: 'см', label: 'Сантиметр' },
+    { value: 'м', label: 'Метр' }
   ],
   area: [
-    { value: 'мм2', label: 'Квадратный миллиметр, мм²' },
-    { value: 'см2', label: 'Квадратный сантиметр, см²' },
-    { value: 'м2', label: 'Квадратный метр, м²' },
-    { value: 'км2', label: 'Квадратный километр, км²' },
-    { value: 'га', label: 'Гектар, га' }
+    { value: 'м²', label: 'Квадратный метр' },
+    { value: 'га', label: 'Гектар' }
   ],
   volume: [
-    { value: 'мл', label: 'Миллилитр, мл' },
-    { value: 'л', label: 'Литр, л' },
-    { value: 'мм3', label: 'Кубический миллиметр, мм³' },
-    { value: 'см3', label: 'Кубический сантиметр, см³' },
-    { value: 'м3', label: 'Кубический метр, м³' }
+    { value: 'мл', label: 'Миллилитр' },
+    { value: 'л', label: 'Литр' },
+    { value: 'м³', label: 'Кубический метр' }
   ],
   mass: [
-    { value: 'мг', label: 'Миллиграмм, мг' },
-    { value: 'г', label: 'Грамм, г' },
-    { value: 'кг', label: 'Килограмм, кг' },
-    { value: 'т', label: 'Тонна, т' }
+    { value: 'г', label: 'Грамм' },
+    { value: 'кг', label: 'Килограмм' },
+    { value: 'т', label: 'Тонна' }
   ]
-}
+};
 
-const availableUnits = computed(() => units[formData.value.unitCategory])
+// Computed property to get available units based on selected category
+const availableUnits = computed(() => {
+  return unititems[formData.value.unitCategory] || [];
+});
 
-const addCharacteristic = () => {
-  formData.value.characteristics.push({ name: '', value: '' })
-}
-
-const removeCharacteristic = (index: number) => {
-  formData.value.characteristics.splice(index, 1)
-}
-
-const handleImageUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (input.files) {
-    Array.from(input.files).forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          formData.value.images.push(e.target.result as string)
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+// Initialize form data when product prop changes
+watch(() => props.product, (newProduct) => {
+  if (newProduct) {
+    formData.value = {
+      type: newProduct.type || 'Товар',
+      name: newProduct.name || '',
+      price: newProduct.price || '',
+      unitCategory: newProduct.unitCategory || 'economic',
+      unit: newProduct.unit || 'шт',
+      characteristics: [...(newProduct.characteristics || [])],
+      images: [...(newProduct.images || [])]
+    };
+  } else {
+    // Reset form for new product
+    formData.value = {
+      type: 'Товар',
+      name: '',
+      price: '',
+      unitCategory: 'economic',
+      unit: 'шт',
+      characteristics: [],
+      images: []
+    };
   }
-}
+}, { immediate: true });
 
-const removeImage = (index: number) => {
-  formData.value.images.splice(index, 1)
-}
+// Add a new characteristic field
+const addCharacteristic = () => {
+  formData.value.characteristics.push({ name: '', value: '' });
+};
 
+// Remove a characteristic field
+const removeCharacteristic = (index) => {
+  formData.value.characteristics.splice(index, 1);
+};
+
+// Handle image upload
+const handleImageUpload = (event) => {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      formData.value.images.push(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+// Remove an image
+const removeImage = (index) => {
+  formData.value.images.splice(index, 1);
+};
+
+// Submit form
 const handleSubmit = () => {
-  emit('save', formData.value)
-}
+  emit('save', { ...formData.value });
+};
+
+// Reference to the file input element
+const fileInputRef = ref(null);
+
+// Trigger file input click
+const triggerFileInput = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click();
+  }
+};
+
+// Update the close handler
+const handleClose = () => {
+  emit('update:modelValue', false);
+};
 </script>
 
+
+<template>
+  <UModal :open="modelValue" @update:open="emit('update:modelValue', $event)" :ui="{ width: 'max-w-3xl' }">
+    <template #header>
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-semibold">
+          {{ product ? 'Редактировать продукт' : 'Добавить продукт' }}
+        </h3>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          icon="i-heroicons-x-mark"
+          @click="handleClose"
+        />
+      </div>
+    </template>
+    <template #body>
+      <div class="p-4">
+        <form class="space-y-6" @submit.prevent="handleSubmit">
+          <URadioGroup
+              v-model="formData.type"
+              orientation="horizontal"
+              label="Тип продукта"
+              :items="productTypeItems"
+          />
+
+          <UFormField label="Наименование" required>
+            <UInput
+              v-model="formData.name"
+              placeholder="Введите наименование продукта"
+            />
+          </UFormField>
+
+          <UFormField label="Цена">
+            <UInput
+              v-model="formData.price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Введите цену"
+            />
+          </UFormField>
+
+          <UFormField label="Единица измерения">
+            <div class="grid grid-cols-2 gap-4">
+              <USelect
+                v-model="formData.unitCategory"
+                :items="[
+                  { label: 'Экономические единицы', value: 'economic' },
+                  { label: 'Единицы длины', value: 'length' },
+                  { label: 'Единицы площади', value: 'area' },
+                  { label: 'Единицы объема', value: 'volume' },
+                  { label: 'Единицы массы', value: 'mass' }
+                ]"
+                placeholder="Выберите категорию"
+              />
+              <USelect
+                v-model="formData.unit"
+                :items="availableUnits"
+                placeholder="Выберите единицу"
+              />
+            </div>
+          </UFormField>
+
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <h4 class="font-medium text-lg">Характеристики</h4>
+              <UButton
+                type="button"
+                color="primary"
+                variant="soft"
+                size="sm"
+                icon="i-heroicons-plus"
+                @click="addCharacteristic"
+              >
+                Добавить характеристику
+              </UButton>
+            </div>
+
+            <div v-for="(char, index) in formData.characteristics" :key="index" class="grid grid-cols-5 gap-4 items-center">
+              <UInput
+                v-model="char.name"
+                placeholder="Название характеристики"
+                class="col-span-2"
+              />
+              <UInput
+                v-model="char.value"
+                placeholder="Значение характеристики"
+                class="col-span-2"
+              />
+              <UButton
+                type="button"
+                color="error"
+                variant="soft"
+                icon="i-heroicons-trash"
+                @click="removeCharacteristic(index)"
+              />
+            </div>
+          </div>
+
+          <UFormField label="Изображения">
+            <div class="space-y-4">
+              <!-- Hidden file input -->
+              <input
+                ref="fileInputRef"
+                type="file"
+                multiple
+                accept="image/*"
+                @change="handleImageUpload"
+                class="hidden"
+              />
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Existing images -->
+                <div
+                  v-for="(image, index) in formData.images"
+                  :key="index"
+                  class="relative aspect-square rounded-lg border overflow-hidden group"
+                >
+                  <img :src="image" :alt="'Preview ' + (index + 1)" class="w-full h-full object-cover">
+                  <div class="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all flex items-center justify-center">
+                    <UButton
+                      type="button"
+                      color="error"
+                      variant="solid"
+                      size="xs"
+                      icon="i-heroicons-trash"
+                      class="opacity-0 group-hover:opacity-100 transform transition-all"
+                      @click="removeImage(index)"
+                    />
+                  </div>
+                </div>
+
+                <!-- Add image button styled like an image -->
+                <div
+                  class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center
+                  cursor-pointer hover:bg-gray-50 transition-colors"
+                  @click="triggerFileInput"
+                >
+                  <div class="text-center">
+                    <UIcon name="i-heroicons-plus" class="h-8 w-8 text-gray-400 mx-auto" />
+                    <p class="mt-1 text-sm text-gray-500">Добавить</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </UFormField>
+        </form>
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-3">
+        <UButton
+          color="neutral"
+          variant="outline"
+          @click="handleClose"
+        >
+          Отмена
+        </UButton>
+        <UButton
+          color="primary"
+          @click="handleSubmit"
+        >
+          {{ product ? 'Сохранить изменения' : 'Добавить продукт' }}
+        </UButton>
+      </div>
+    </template>
+  </UModal>
+</template>
+
+
 <style scoped>
+/* We can remove most of these styles as they're now handled by Nuxt UI components */
 .product-form-modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -228,152 +325,4 @@ const handleSubmit = () => {
   max-height: 90vh;
   overflow-y: auto;
 }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #eee;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #666;
-}
-
-.form {
-  padding: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #333;
-}
-
-input[type="text"],
-input[type="number"],
-select {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.unit-selectors {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.characteristics {
-  margin: 1rem 0;
-}
-
-.characteristic {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.image-upload {
-  margin-top: 0.5rem;
-}
-
-.image-preview {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.preview-item {
-  position: relative;
-  aspect-ratio: 1;
-}
-
-.preview-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.preview-item .remove-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #f44336;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-}
-
-.add-btn,
-.remove-btn {
-  padding: 0.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.add-btn {
-  background-color: #4CAF50;
-  color: white;
-  width: 100%;
-  margin-top: 0.5rem;
-}
-
-.remove-btn {
-  background-color: #f44336;
-  color: white;
-}
-
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.save-btn,
-.cancel-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  flex: 1;
-}
-
-.save-btn {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.cancel-btn {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.save-btn:hover {
-  background-color: #45a049;
-}
-
-.cancel-btn:hover {
-  background-color: #757575;
-}
-</style> 
+</style>

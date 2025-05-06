@@ -290,7 +290,7 @@ const handlePageChange = async (page: number) => {
 
           <!-- Products Section -->
           <template v-else-if="activeSection === 'products'">
-            <CompanyProducts/>
+            <CompanyProducts />
           </template>
 
           <!-- Announcements Section -->

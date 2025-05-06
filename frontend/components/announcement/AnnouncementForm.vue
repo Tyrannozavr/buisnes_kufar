@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, computed, watch } from 'vue';
 import type { AnnouncementFormData } from '~/types/announcement';
+import type { Category } from '~/types/category';
+import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 
 const props = defineProps({
   initialData: {
@@ -8,7 +10,8 @@ const props = defineProps({
     default: () => ({
       title: '',
       content: '',
-      images: []
+      images: [],
+      category: ''
     })
   },
   isEdit: {
@@ -18,6 +21,10 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  categories: {
+    type: Array as () => Category[],
+    default: () => []
   }
 });
 
@@ -26,16 +33,26 @@ const emit = defineEmits(['save', 'cancel']);
 const saving = computed(() => props.loading);
 const formTouched = ref(false);
 const attemptedSubmit = ref(false);
+const showPublishConfirm = ref(false);
 
 const form = ref<AnnouncementFormData>({
   ...props.initialData
+});
+
+// Notification options
+const notifyOptions = ref({
+  notify: false,
+  partners: false,
+  customers: false,
+  suppliers: false
 });
 
 // Track which fields have been touched
 const touchedFields = ref({
   title: false,
   content: false,
-  images: false
+  images: false,
+  category: false
 });
 
 // Store object URLs to revoke them later
@@ -104,6 +121,7 @@ const validateImages = () => {
   return true;
 };
 
+
 // Watch for changes to validate in real-time after first interaction
 watch(() => form.value.title, () => {
   if (touchedFields.value.title) validateTitle();
@@ -116,6 +134,16 @@ watch(() => form.value.content, () => {
 watch(() => form.value.images, () => {
   if (touchedFields.value.images) validateImages();
 }, { deep: true });
+
+
+// Reset notification options when main notify checkbox is unchecked
+watch(() => notifyOptions.value.notify, (newValue) => {
+  if (!newValue) {
+    notifyOptions.value.partners = false;
+    notifyOptions.value.customers = false;
+    notifyOptions.value.suppliers = false;
+  }
+});
 
 // Computed property to check if form is valid
 const isFormValid = computed(() => {
@@ -137,9 +165,20 @@ const validationSummary = computed(() => {
 
   if (!form.value.content) errors.push('Содержание объявления обязательно');
   else if (form.value.content.length < 20) errors.push('Содержание должно содержать не менее 20 символов');
-
   return errors;
 });
+
+const confirmPublish = () => {
+  showPublishConfirm.value = true;
+};
+
+const closePublishModal = () => {
+  showPublishConfirm.value = false;
+};
+
+const handlePublishConfirm = () => {
+  handleSave(true);
+};
 
 const handleSave = async (publish = false) => {
   attemptedSubmit.value = true;
@@ -149,7 +188,8 @@ const handleSave = async (publish = false) => {
   touchedFields.value = {
     title: true,
     content: true,
-    images: true
+    images: true,
+    category: true
   };
 
   // Validate all fields
@@ -166,7 +206,20 @@ const handleSave = async (publish = false) => {
     return;
   }
 
-  emit('save', { ...form.value, publish });
+  // Include notification options in the form data
+  const formData = {
+    ...form.value,
+    notifications: notifyOptions.value.notify ? {
+      partners: notifyOptions.value.partners,
+      customers: notifyOptions.value.customers,
+      suppliers: notifyOptions.value.suppliers
+    } : null
+  };
+
+  emit('save', formData, publish);
+
+  // Close modal if it was open
+  showPublishConfirm.value = false;
 };
 
 // Improved file upload handler
@@ -239,8 +292,8 @@ const removeImage = (index: number) => {
           <UButton
             color="neutral"
             variant="outline"
-            @click="$emit('cancel')"
             class="hover:bg-gray-100"
+            @click="$emit('cancel')"
           >
             Отмена
           </UButton>
@@ -336,6 +389,51 @@ const removeImage = (index: number) => {
           </div>
         </div>
       </UFormField>
+
+      <!-- Category selection -->
+      <UFormField label="Категория">
+        <USelectMenu
+            v-model="form.category"
+            :items="categories.map(category => category.name)"
+            option-attribute="name"
+            value-attribute="id"
+            placeholder="Выберите категорию"
+            class="min-w-1/2"
+        />
+      </UFormField>
+
+      <!-- Notification options -->
+      <UFormField label="Настройки уведомлений" class="font-medium">
+        <div class="space-y-3 mt-2">
+          <UCheckbox
+            v-model="notifyOptions.notify"
+            label="Оповестить об объявлении"
+            class="font-normal"
+          />
+
+          <div class="ml-6 space-y-2">
+            <UCheckbox
+              v-model="notifyOptions.partners"
+              label="Партнеры"
+              :disabled="!notifyOptions.notify"
+              class="font-normal"
+            />
+            <UCheckbox
+              v-model="notifyOptions.customers"
+              label="Покупатели"
+              :disabled="!notifyOptions.notify"
+              class="font-normal"
+            />
+            <UCheckbox
+              v-model="notifyOptions.suppliers"
+              label="Поставщики"
+              :disabled="!notifyOptions.notify"
+              class="font-normal"
+            />
+          </div>
+        </div>
+      </UFormField>
+
     </div>
 
     <div class="flex justify-end p-4 bg-gray-50 rounded-b-lg">
@@ -352,10 +450,19 @@ const removeImage = (index: number) => {
         :disabled="!isFormValid || saving"
         class="cursor-pointer"
         :loading="saving"
-        @click="handleSave(true)"
+        @click="confirmPublish"
       >
         Опубликовать
       </UButton>
     </div>
   </UCard>
+
+  <!-- Используем новый компонент для модального окна -->
+  <PublishConfirmModal
+    :open="showPublishConfirm"
+    :saving="loading"
+    :notify-options="notifyOptions"
+    @close="closePublishModal"
+    @confirm="handlePublishConfirm"
+  />
 </template>

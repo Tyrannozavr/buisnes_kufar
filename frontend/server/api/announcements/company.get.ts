@@ -11,7 +11,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-20T10:00:00Z',
     updatedAt: '2024-04-20T10:00:00Z',
     category: 'product',
-    published: false
+    published: false,
+    notifications: {
+      partners: true,
+      customers: true,
+      suppliers: false,
+      sent: false
+    }
   },
   {
     id: '2',
@@ -22,7 +28,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-19T15:30:00Z',
     updatedAt: '2024-04-19T15:30:00Z',
     category: 'promotion',
-    published: true
+    published: true,
+    notifications: {
+      partners: false,
+      customers: true,
+      suppliers: false,
+      sent: true
+    }
   },
   {
     id: '3',
@@ -33,7 +45,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-18T09:45:00Z',
     updatedAt: '2024-04-18T09:45:00Z',
     category: 'product',
-    published: false
+    published: false,
+    notifications: {
+      partners: true,
+      customers: true,
+      suppliers: true,
+      sent: false
+    }
   },
   {
     id: '4',
@@ -44,7 +62,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-15T14:20:00Z',
     updatedAt: '2024-04-15T14:20:00Z',
     category: 'partnership',
-    published: true
+    published: true,
+    notifications: {
+      partners: true,
+      customers: false,
+      suppliers: true,
+      sent: true
+    }
   },
   {
     id: '5',
@@ -55,7 +79,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-12T11:10:00Z',
     updatedAt: '2024-04-12T11:10:00Z',
     category: 'product',
-    published: true
+    published: true,
+    notifications: {
+      partners: false,
+      customers: true,
+      suppliers: false,
+      sent: true
+    }
   },
   {
     id: '6',
@@ -66,7 +96,13 @@ export const announcements: Announcement[] = [
     createdAt: '2024-04-10T16:30:00Z',
     updatedAt: '2024-04-10T16:30:00Z',
     category: 'promotion',
-    published: false
+    published: false,
+    notifications: {
+      partners: true,
+      customers: false,
+      suppliers: false,
+      sent: false
+    }
   }
 ]
 
@@ -83,4 +119,3 @@ export default defineEventHandler(async (event) => {
 
   return announcements
 })
-

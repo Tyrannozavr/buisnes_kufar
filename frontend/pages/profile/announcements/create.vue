@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AnnouncementFormData } from '~/types/announcement';
+import type { Category } from '~/types/category';
 
 const router = useRouter();
 const saving = ref(false);
@@ -8,9 +9,12 @@ const formTouched = ref(false);
 const form = ref<AnnouncementFormData>({
   title: '',
   content: '',
-  images: []
+  images: [],
+  category: ''
 });
 
+// Fetch categories from API
+const { data: categories, error: categoriesError } = await useApi<Category[]>('/categories');
 // Store object URLs to revoke them later
 const objectUrls = ref<string[]>([]);
 
@@ -19,35 +23,14 @@ onBeforeUnmount(() => {
   objectUrls.value.forEach(url => URL.revokeObjectURL(url));
 });
 
-const titleError = ref('');
-const contentError = ref('');
-const imagesError = ref('');
-
-// Computed property to show validation summary
-computed(() => {
-  if (!formTouched.value) return [];
-
-  const errors = [];
-  if (titleError.value) errors.push(titleError.value);
-  if (contentError.value) errors.push(contentError.value);
-  if (imagesError.value) errors.push(imagesError.value);
-
-  if (!form.value.title) errors.push('Заголовок обязателен');
-  else if (form.value.title.length < 5) errors.push('Заголовок должен содержать не менее 5 символов');
-
-  if (!form.value.content) errors.push('Содержание объявления обязательно');
-  else if (form.value.content.length < 20) errors.push('Содержание должно содержать не менее 20 символов');
-
-  return errors;
-});
-const handleSave = async (publish = false) => {
+const handleSave = async (formData: AnnouncementFormData, publish = false) => {
   formTouched.value = true;
   saving.value = true;
   try {
     await useApi('/announcements', {
       method: 'POST',
       body: {
-        ...form.value,
+        ...formData,
         published: publish
       }
     });
@@ -59,7 +42,7 @@ const handleSave = async (publish = false) => {
     });
 
     // Redirect back to announcements list
-    router.push('/profile');
+    router.push('/profile?section=announcements');
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -72,7 +55,7 @@ const handleSave = async (publish = false) => {
 };
 
 const handleCancel = () => {
-  router.push('/profile');
+  router.push('/profile?section=announcements');
 };
 </script>
 
@@ -87,11 +70,28 @@ const handleCancel = () => {
       class="mb-6"
     />
 
-    <AnnouncementForm
-      :loading="saving"
-      :is-edit="false"
-      @save="handleSave"
-      @cancel="handleCancel"
-    />
+    <div v-if="categoriesError" class="mb-6">
+      <UAlert
+        color="error"
+        title="Ошибка загрузки категорий"
+        :description="categoriesError instanceof Error ? categoriesError.message : 'Не удалось загрузить категории'"
+        icon="i-heroicons-exclamation-circle"
+      />
+    </div>
+
+    <div v-else-if="!categories">
+      <PageLoader text="Загрузка категорий..." />
+    </div>
+
+    <div v-else>
+      <AnnouncementForm
+        :loading="saving"
+        :is-edit="false"
+        :categories="categories"
+        :initial-data="form"
+        @save="handleSave"
+        @cancel="handleCancel"
+      />
+    </div>
   </div>
 </template>

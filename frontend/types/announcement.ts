@@ -3,15 +3,22 @@ export interface Announcement {
   companyId: string;
   title: string;
   content: string;
+  images: string[];
   createdAt: string;
   updatedAt: string;
-  category: 'product' | 'service' | 'promotion' | 'partnership' | 'other';
-  images: string[];
+  category: string;
   published: boolean;
+  notifications?: {
+    partners: boolean;
+    customers: boolean;
+    suppliers: boolean;
+    sent: boolean;
+  };
 }
 
 export interface AnnouncementFormData {
   title: string;
   content: string;
   images: string[];
+  category: string;
 }

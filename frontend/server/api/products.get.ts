@@ -56,7 +56,43 @@ const products: Product[] = [
     ],
     isHidden: false,
     isDeleted: false
-  }
+  },
+  {
+    id: '4',
+    companyId: '3',
+    name: 'Система автоматизации производства',
+    description: 'Комплексное решение для автоматизации производственных процессов. Включает программное обеспечение, датчики и контроллеры для оптимизации работы предприятия.',
+    article: 'AUTO-2500',
+    type: 'Товар',
+    price: 2500000,
+    images: [],
+    characteristics: [
+      { name: 'Тип', value: 'Модульная' },
+      { name: 'Совместимость', value: 'Универсальная' },
+      { name: 'Гарантия', value: '3 года' }
+    ],
+    isHidden: true,
+    isDeleted: false
+  },
+  {
+    id: '5',
+    companyId: '3',
+    name: 'Система автоматизации производства',
+    description: 'Комплексное решение для автоматизации производственных процессов. Включает программное обеспечение, датчики и контроллеры для оптимизации работы предприятия.',
+    article: 'AUTO-2500',
+    type: 'Товар',
+    price: 2500000,
+    images: ['https://avatars.mds.yandex.net/i?id=e3da028f7e2306302e561bdea6d5b5794595bc8bc9dd0653-5189723-images-thumbs&n=13',
+      'https://sun9-46.userapi.com/impg/F9XKPxJqTPezmGGqDxcq18fg2pOgtjN-Z3Mw3A/kVsdXio6eiY.jpg?size=1024x1024&quality=95&sign=8b4c9f42d446b73f8750b994fba07c04&c_uniq_tag=joEYHEddID5Gt57ZiK5Y46vnerjvYPvp993bnAOYW_Q&type=album'],
+    characteristics: [
+      { name: 'Тип', value: 'Модульная' },
+      { name: 'Совместимость', value: 'Универсальная' },
+      { name: 'Гарантия', value: '3 года' }
+    ],
+    isHidden: false,
+    isDeleted: true
+  },
+
 ]
 
 export default defineEventHandler(async (_event) => {

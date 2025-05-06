@@ -1,32 +1,35 @@
 <template>
   <div class="product-card" :class="{ 'is-hidden': isHidden, 'is-deleted': isDeleted }">
     <div class="product-image">
-      <img :src="product.images[0] || '/placeholder.png'" :alt="product.name">
+      <img :src="product.images[0] || '/images/placeholder.png'" :alt="product.name">
     </div>
-    <div class="product-info">
-      <h3 class="product-name">{{ product.name }}</h3>
-      <p class="product-article">Артикул: {{ product.article }}</p>
-      <p class="product-type">{{ product.type }}</p>
-      <p v-if="!isHidden && !isDeleted" class="product-price">
-        {{ product.price }} ₽
-      </p>
-      <p v-else-if="isHidden" class="product-status">
-        Нет в наличии
-      </p>
-    </div>
-    <div class="product-actions flex flex-col">
-      <button v-if="!isHidden && !isDeleted" class="action-btn edit" @click="$emit('edit', product)">
-        Редактировать
-      </button>
-      <button v-if="!isHidden && !isDeleted" class="action-btn hide" @click="$emit('hide', product)">
-        Скрыть
-      </button>
-      <button v-if="!isDeleted" class="action-btn delete" @click="$emit('delete', product)">
-        Удалить
-      </button>
-      <button v-if="isDeleted" class="action-btn restore" @click="$emit('restore', product)">
-        Восстановить
-      </button>
+    <div class="product-content">
+      <div class="product-info">
+        <h3 class="product-name" :title="product.name">
+          {{ truncateName(product.name, 60) }}
+        </h3>
+        <p class="product-type">{{ product.type }}</p>
+        <p v-if="!isHidden && !isDeleted" class="product-price">
+          {{ product.price }} ₽
+        </p>
+        <p v-else-if="isHidden" class="product-status">
+          Нет в наличии
+        </p>
+      </div>
+      <div class="product-actions">
+        <button v-if="!isHidden && !isDeleted" class="action-btn edit" @click="$emit('edit', product)">
+          Редактировать
+        </button>
+        <button v-if="!isHidden && !isDeleted" class="action-btn hide" @click="$emit('hide', product)">
+          Скрыть
+        </button>
+        <button v-if="!isDeleted" class="action-btn delete" @click="$emit('delete', product)">
+          Удалить
+        </button>
+        <button v-if="isDeleted" class="action-btn restore" @click="$emit('restore', product)">
+          Восстановить
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -46,6 +49,12 @@ defineEmits<{
   (e: 'delete', product: Product): void
   (e: 'restore', product: Product): void
 }>()
+
+// Функция для ограничения длины имени продукта
+const truncateName = (name: string, maxLength: number) => {
+  if (name.length <= maxLength) return name
+  return name.substring(0, maxLength) + '...'
+}
 </script>
 
 <style scoped>
@@ -55,6 +64,9 @@ defineEmits<{
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .product-card:hover {
@@ -74,14 +86,29 @@ defineEmits<{
   object-fit: cover;
 }
 
+.product-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
 .product-info {
   padding: 1rem;
+  flex-grow: 1;
 }
 
 .product-name {
   margin: 0 0 0.5rem;
   font-size: 1.1rem;
   font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  height: 2.6rem;
 }
 
 .product-article {
@@ -112,8 +139,10 @@ defineEmits<{
 .product-actions {
   padding: 1rem;
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   border-top: 1px solid #eee;
+  margin-top: auto;
 }
 
 .action-btn {
@@ -122,7 +151,10 @@ defineEmits<{
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
-  flex: 1;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background-color 0.2s;
 }
 
@@ -169,4 +201,4 @@ defineEmits<{
 .is-deleted {
   opacity: 0.5;
 }
-</style> 
+</style>

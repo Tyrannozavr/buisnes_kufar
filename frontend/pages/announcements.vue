@@ -4,7 +4,32 @@ import type { Company } from '~/types/company'
 import { useApi } from '~/composables/useApi'
 
 // Fetch data using the useApi composable
-const { data: announcements, error: announcementsError, pending: announcementsPending } = await useApi<Announcement[]>('/announcements')
+const currentPage = ref(1)
+const perPage = ref(10)
+
+const { data: announcementsData, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements } = await useApi<{
+  data: Announcement[],
+  pagination: {
+    total: number,
+    page: number,
+    perPage: number,
+    totalPages: number
+  }
+}>(`/announcements?page=${currentPage.value}&perPage=${perPage.value}`)
+
+const announcements = computed(() => announcementsData.value?.data || [])
+const pagination = computed(() => announcementsData.value?.pagination || {
+  total: 0,
+  page: 1,
+  perPage: 10,
+  totalPages: 1
+})
+
+// Watch for page changes
+watch(currentPage, async (newPage) => {
+  await refreshAnnouncements()
+})
+
 const { data: companies, error: companiesError, pending: companiesPending } = await useApi<Company[]>('/companies')
 
 // Search state
@@ -115,6 +140,22 @@ const formatDate = (dateString: string) => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="mt-6 flex justify-center">
+        <UPagination
+          v-model="currentPage"
+          :total="pagination.total"
+          :per-page="perPage"
+          :ui="{
+            wrapper: 'flex items-center justify-center',
+            base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
+            default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+            active: 'text-primary-500 dark:text-primary-400',
+            disabled: 'opacity-50 cursor-not-allowed'
+          }"
+        />
       </div>
     </div>
   </div>

@@ -20,12 +20,23 @@ const {
 
 
 // Fetch company announcements
+const currentPage = ref(1)
+const perPage = ref(10)
+
 const {
   data: announcements,
   pending: loadingAnnouncements,
   refresh: refreshAnnouncements,
-} = await useApi<Announcement[]>('/announcements/company',
-    {lazy: true}
+} = await useApi<{
+  data: Announcement[],
+  pagination: {
+    total: number,
+    page: number,
+    perPage: number,
+    totalPages: number
+  }
+}>(`/announcements/company?page=${currentPage.value}&perPage=${perPage.value}`,
+  {lazy: true}
 )
 
 const saving = ref(false)
@@ -233,6 +244,12 @@ const publishAnnouncement = async (id: string) => {
     })
   }
 }
+
+// Handle page changes
+const handlePageChange = async (page: number) => {
+  currentPage.value = page
+  await refreshAnnouncements()
+}
 </script>
 
 <template>
@@ -279,9 +296,10 @@ const publishAnnouncement = async (id: string) => {
           <!-- Announcements Section -->
           <template v-else-if="activeSection === 'announcements'">
             <AnnouncementList
-                :announcements="announcements || []"
+                :announcements="announcements"
                 :loading="loadingAnnouncements"
                 @publish="publishAnnouncement"
+                @page-change="handlePageChange"
             />
           </template>
 

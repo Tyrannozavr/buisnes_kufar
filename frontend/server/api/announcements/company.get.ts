@@ -1,4 +1,4 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler, getQuery } from 'h3'
 import type { Announcement } from '~/types/announcement'
 
 export const announcements: Announcement[] = [
@@ -107,15 +107,23 @@ export const announcements: Announcement[] = [
 ]
 
 export default defineEventHandler(async (event) => {
-  // In a real application, you would:
-  // 1. Get the authenticated user/company from the session
-  // 2. Query your database for announcements belonging to that company
-  // 3. Return the results
+  const query = getQuery(event)
+  const page = parseInt(query.page as string) || 1
+  const perPage = parseInt(query.perPage as string) || 10
 
-  // For now, we'll return mock data
+  // Calculate pagination
+  const startIndex = (page - 1) * perPage
+  const endIndex = startIndex + perPage
+  const paginatedAnnouncements = announcements.slice(startIndex, endIndex)
 
-  // Simulate a delay to show loading state
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  return announcements
+  // Return paginated data with metadata
+  return {
+    data: paginatedAnnouncements,
+    pagination: {
+      total: announcements.length,
+      page,
+      perPage,
+      totalPages: Math.ceil(announcements.length / perPage)
+    }
+  }
 })

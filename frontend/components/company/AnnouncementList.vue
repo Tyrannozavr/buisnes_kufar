@@ -3,12 +3,21 @@ import type { Announcement } from '~/types/announcement'
 import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 
 defineProps<{
-  announcements: Announcement[] | null
+  announcements: {
+    data: Announcement[],
+    pagination: {
+      total: number,
+      page: number,
+      perPage: number,
+      totalPages: number
+    }
+  } | null
   loading: boolean
 }>()
 
 const emit = defineEmits<{
   publish: [id: string]
+  pageChange: [page: number]
 }>()
 
 // Состояние для модального окна
@@ -22,6 +31,15 @@ const notifyOptions = ref({
   partners: false,
   customers: false,
   suppliers: false
+})
+
+// Pagination state
+const currentPage = ref(1)
+const perPage = ref(10)
+
+// Watch for page changes
+watch(currentPage, (newPage) => {
+  emit('pageChange', newPage)
 })
 
 const formatDate = (dateString: string) => {
@@ -108,9 +126,9 @@ const confirmPublish = () => {
       </div>
     </UCard>
 
-    <template v-else-if="announcements && announcements.length > 0">
+    <template v-else-if="announcements?.data && announcements.data.length > 0">
       <div class="space-y-4">
-        <UCard v-for="announcement in announcements" :key="announcement.id" class="overflow-hidden">
+        <UCard v-for="announcement in announcements.data" :key="announcement.id" class="overflow-hidden">
           <div class="flex flex-col md:flex-row gap-4">
             <div v-if="announcement.images && announcement.images.length > 0" class="w-full md:w-48 h-32 flex-shrink-0">
               <NuxtImg :src="announcement.images[0]" alt="Изображение объявления" class="w-full h-full object-cover rounded-md" />
@@ -169,6 +187,22 @@ const confirmPublish = () => {
             </div>
           </div>
         </UCard>
+
+        <!-- Pagination -->
+        <div class="mt-6 flex justify-center">
+          <UPagination
+            v-model="currentPage"
+            :total="announcements.pagination.total"
+            :per-page="perPage"
+            :ui="{
+              wrapper: 'flex items-center justify-center',
+              base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
+              default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              active: 'text-primary-500 dark:text-primary-400',
+              disabled: 'opacity-50 cursor-not-allowed'
+            }"
+          />
+        </div>
       </div>
     </template>
 

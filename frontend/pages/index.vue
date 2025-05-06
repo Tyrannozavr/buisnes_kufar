@@ -10,7 +10,6 @@ const { data: announcements, error: announcementsError } = await useApi<Announce
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
 })
-
 // Fetch companies from API - using our simplified useApi composable
 const { data: companies, error: companiesError } = await useApi<Company[]>('/companies', {
   transform: (data) =>

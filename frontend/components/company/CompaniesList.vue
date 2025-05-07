@@ -4,7 +4,7 @@ import CompanyCard from './CompanyCard.vue'
 
 type CompanyType = 'partner' | 'supplier' | 'buyer'
 
-const props = defineProps<{
+defineProps<{
   companies: PartnerCompany[]
   loading?: boolean
   type: CompanyType

@@ -6,10 +6,15 @@ import PageLoader from "~/components/ui/PageLoader.vue";
 import CompanyProducts from "~/components/company/CompanyProducts.vue";
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
 import CompaniesList from "~/components/company/CompaniesList.vue";
-import CompanyMessages from "~/components/company/CompanyMessages.vue";
+import Breadcrumbs from "~/components/ui/Breadcrumbs.vue";
+import ProfileLayout from "~/components/ui/ProfileLayout.vue";
 
 const route = useRoute()
 const router = useRouter()
+
+definePageMeta({
+  layout: 'profile'
+})
 
 // Fetch company data using useApi composable
 const {
@@ -18,7 +23,6 @@ const {
   pending: loading,
   refresh: refreshCompany
 } = await useApi<Company>('/company/me')
-
 
 // Fetch company announcements
 const currentPage = ref(1)
@@ -65,19 +69,19 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Данные компании',
       icon: 'i-heroicons-building-office',
-      to: 'company',
+      to: '/profile',
       active: activeSection.value === 'company'
     },
     {
       label: 'Продукция',
       icon: 'i-heroicons-cube',
-      to: 'products',
+      to: '/profile/products',
       active: activeSection.value === 'products'
     },
     {
       label: 'Объявления',
       icon: 'i-heroicons-megaphone',
-      to: 'announcements',
+      to: '/profile/announcements',
       active: activeSection.value === 'announcements'
     }
   ],
@@ -89,19 +93,19 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Партнеры',
       icon: 'i-heroicons-user-group',
-      to: 'partners',
+      to: '/profile/partners',
       active: activeSection.value === 'partners'
     },
     {
       label: 'Поставщики',
       icon: 'i-heroicons-truck',
-      to: 'suppliers',
+      to: '/profile/suppliers',
       active: activeSection.value === 'suppliers'
     },
     {
       label: 'Покупатели',
       icon: 'i-heroicons-shopping-cart',
-      to: 'buyers',
+      to: '/profile/buyers',
       active: activeSection.value === 'buyers'
     }
   ],
@@ -113,19 +117,19 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Договоры',
       icon: 'i-heroicons-document-text',
-      to: 'contracts',
+      to: '/profile/contracts',
       active: activeSection.value === 'contracts'
     },
     {
       label: 'Продажи',
       icon: 'i-heroicons-currency-dollar',
-      to: 'sales',
+      to: '/profile/sales',
       active: activeSection.value === 'sales'
     },
     {
       label: 'Закупки',
       icon: 'i-heroicons-shopping-bag',
-      to: 'purchases',
+      to: '/profile/purchases',
       active: activeSection.value === 'purchases'
     }
   ],
@@ -143,7 +147,7 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Авторизация',
       icon: 'i-heroicons-key',
-      to: 'auth',
+      to: '/profile/auth',
       active: activeSection.value === 'auth'
     }
   ]
@@ -154,10 +158,10 @@ watch(activeSection, (newValue) => {
   navigationItems.value.forEach(group => {
     group.forEach(item => {
       if (item.type !== 'label') {
-        item.active = (item.to === newValue) ||
-            (item.label === 'Данные компании' && newValue === 'company') ||
-            (item.label === 'Продукция' && newValue === 'products') ||
-            (item.label === 'Объявления' && newValue === 'announcements')
+        item.active = (item.to === route.path) ||
+            (item.label === 'Данные компании' && route.path === '/profile') ||
+            (item.label === 'Продукция' && route.path === '/profile/products') ||
+            (item.label === 'Объявления' && route.path === '/profile/announcements')
       }
     })
   })
@@ -174,16 +178,17 @@ const getSectionTitle = (section: string) => {
   // Find the section in the navigation items
   for (const group of navigationItems.value) {
     for (const item of group) {
-      if ((item.to === section) ||
-          (item.label === 'Данные компании' && section === 'company') ||
-          (item.label === 'Продукция' && section === 'products') ||
-          (item.label === 'Объявления' && section === 'announcements')) {
+      if ((item.to === route.path) ||
+          (item.label === 'Данные компании' && route.path === '/profile') ||
+          (item.label === 'Продукция' && route.path === '/profile/products') ||
+          (item.label === 'Объявления' && route.path === '/profile/announcements')) {
         return item.label
       }
     }
   }
   return section
 }
+
 const {
   data: partners,
   pending: loadingPartners,
@@ -265,15 +270,11 @@ const handleRemoveBuyer = async (buyer: PartnerCompany) => {
 const handleSaveCompany = async (data: Partial<Company>) => {
   saving.value = true
   try {
-    // Update company data using useApi
     await useApi('/company/me', {
       method: 'PUT',
       body: {...company.value, ...data}
     })
-
-    // Refresh company data
     await refreshCompany()
-
     useToast().add({
       title: 'Успешно',
       description: 'Данные компании обновлены',
@@ -295,9 +296,7 @@ const publishAnnouncement = async (id: string) => {
     await useApi(`/announcements/${id}/publish`, {
       method: 'PUT'
     })
-
     await refreshAnnouncements()
-
     useToast().add({
       title: 'Успешно',
       description: 'Объявление опубликовано',
@@ -312,7 +311,6 @@ const publishAnnouncement = async (id: string) => {
   }
 }
 
-// Handle page changes
 const handlePageChange = async (page: number) => {
   currentPage.value = page
   await refreshAnnouncements()
@@ -320,118 +318,103 @@ const handlePageChange = async (page: number) => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex flex-col md:flex-row gap-8">
-      <!-- Main Content -->
-      <div class="flex-1">
-        <template v-if="loading">
-          <PageLoader/>
-        </template>
+  <ProfileLayout>
+    <template v-if="loading">
+      <PageLoader/>
+    </template>
 
-        <template v-else-if="companyError">
-          <UAlert
-              color="error"
-              :title="companyError.toString()"
-              icon="i-heroicons-exclamation-circle"
-          />
-        </template>
+    <template v-else-if="companyError">
+      <UAlert
+          color="error"
+          :title="companyError.toString()"
+          icon="i-heroicons-exclamation-circle"
+      />
+    </template>
 
-        <template v-else-if="!company">
-          <UAlert
-              color="warning"
-              title="Данные компании не найдены"
-              description="Не удалось загрузить данные компании. Пожалуйста, попробуйте позже."
-              icon="i-heroicons-exclamation-triangle"
-          />
-        </template>
+    <template v-else-if="!company">
+      <UAlert
+          color="warning"
+          title="Данные компании не найдены"
+          description="Не удалось загрузить данные компании. Пожалуйста, попробуйте позже."
+          icon="i-heroicons-exclamation-triangle"
+      />
+    </template>
 
-        <template v-else>
-          <!-- Company Data Section -->
-          <template v-if="activeSection === 'company'">
-            <CompanyDataForm
-                :company="company"
-                :loading="saving"
-                @save="handleSaveCompany"
-            />
-          </template>
+    <template v-else>
+      <!-- Company Data Section -->
+      <template v-if="activeSection === 'company'">
+        <CompanyDataForm
+            :company="company"
+            :loading="saving"
+            @save="handleSaveCompany"
+        />
+      </template>
 
-          <!-- Products Section -->
-          <template v-else-if="activeSection === 'products'">
-            <CompanyProducts />
-          </template>
+      <!-- Products Section -->
+      <template v-else-if="activeSection === 'products'">
+        <CompanyProducts />
+      </template>
 
-          <!-- Announcements Section -->
-          <template v-else-if="activeSection === 'announcements'">
-            <AnnouncementList
-                :announcements="announcements || null"
-                :loading="loadingAnnouncements"
-                @publish="publishAnnouncement"
-                @page-change="handlePageChange"
-            />
-          </template>
+      <!-- Announcements Section -->
+      <template v-else-if="activeSection === 'announcements'">
+        <AnnouncementList
+            :announcements="announcements || null"
+            :loading="loadingAnnouncements"
+            @publish="publishAnnouncement"
+            @page-change="handlePageChange"
+        />
+      </template>
 
-          <!-- Partners Section -->
-          <template v-else-if="activeSection === 'partners'">
-            <CompaniesList
-              :companies="partners || []"
-              :loading="loadingPartners"
-              type="partner"
-              @remove="handleRemovePartner"
-            />
-          </template>
+      <!-- Partners Section -->
+      <template v-else-if="activeSection === 'partners'">
+        <CompaniesList
+          :companies="partners || []"
+          :loading="loadingPartners"
+          type="partner"
+          @remove="handleRemovePartner"
+        />
+      </template>
 
-          <!-- Messages Section -->
-          <template v-else-if="activeSection === 'messages'">
-            <div class="h-[calc(100vh-16rem)]">
-              <NuxtPage />
-            </div>
-          </template>
+      <!-- Messages Section -->
+      <template v-else-if="activeSection === 'messages'">
+        <div class="h-[calc(100vh-16rem)]">
+          <NuxtPage />
+        </div>
+      </template>
 
-          <!-- Suppliers Section -->
-          <template v-else-if="activeSection === 'suppliers'">
-            <CompaniesList
-              :companies="suppliers || []"
-              :loading="loadingSuppliers"
-              type="supplier"
-              @remove="handleRemoveSupplier"
-            />
-          </template>
+      <!-- Suppliers Section -->
+      <template v-else-if="activeSection === 'suppliers'">
+        <CompaniesList
+          :companies="suppliers || []"
+          :loading="loadingSuppliers"
+          type="supplier"
+          @remove="handleRemoveSupplier"
+        />
+      </template>
 
-          <!-- Buyers Section -->
-          <template v-else-if="activeSection === 'buyers'">
-            <CompaniesList
-              :companies="buyers || []"
-              :loading="loadingBuyers"
-              type="buyer"
-              @remove="handleRemoveBuyer"
-            />
-          </template>
+      <!-- Buyers Section -->
+      <template v-else-if="activeSection === 'buyers'">
+        <CompaniesList
+          :companies="buyers || []"
+          :loading="loadingBuyers"
+          type="buyer"
+          @remove="handleRemoveBuyer"
+        />
+      </template>
 
-          <!-- Other sections will be added here -->
-          <template v-else>
-            <UCard>
-              <template #header>
-                <h3 class="text-xl font-semibold">
-                  {{ getSectionTitle(activeSection) }}
-                </h3>
-              </template>
-              <p class="text-gray-500">
-                Раздел находится в разработке
-              </p>
-            </UCard>
-          </template>
-        </template>
-      </div>
-      <!-- Navigation Sidebar -->
-      <div class="w-full md:w-64 flex-shrink-0">
+      <!-- Other sections will be added here -->
+      <template v-else>
         <UCard>
-          <UNavigationMenu
-              orientation="vertical"
-              :items="navigationItems"
-              class="data-[orientation=vertical]:w-full"
-          />
+          <template #header>
+            <h3 class="text-xl font-semibold">
+              {{ getSectionTitle(activeSection) }}
+            </h3>
+          </template>
+          <p class="text-gray-500">
+            Раздел находится в разработке
+          </p>
         </UCard>
-      </div>
-    </div>
-  </div>
+      </template>
+    </template>
+  </ProfileLayout>
 </template>

@@ -119,7 +119,7 @@ const editAnnouncement = () => {
     <UBreadcrumb
         :items="[
       { label: 'Профиль', to: '/profile' },
-      { label: 'Объявления', to: '/profile?section=announcements' },
+      { label: 'Объявления', to: '/profile/announcements' },
       { label: announcement?.title || 'Загрузка...', to: '' }
     ]" class="mb-6"/>
 

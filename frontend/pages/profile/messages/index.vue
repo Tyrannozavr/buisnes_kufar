@@ -4,7 +4,6 @@ import type { Chat } from '~/types/chat'
 definePageMeta({
   layout: 'profile'
 })
-
 // Fetch chats
 const { data: chats, pending: chatsPending } = await useFetch<Chat[]>('/api/chats', {
   query: {

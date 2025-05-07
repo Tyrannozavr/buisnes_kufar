@@ -6,6 +6,7 @@ import PageLoader from "~/components/ui/PageLoader.vue";
 import CompanyProducts from "~/components/company/CompanyProducts.vue";
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
 import CompaniesList from "~/components/company/CompaniesList.vue";
+import CompanyMessages from "~/components/company/CompanyMessages.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -64,23 +65,20 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Данные компании',
       icon: 'i-heroicons-building-office',
-      active: activeSection.value === 'company',
-      class: "cursor-pointer",
-      onSelect: () => activeSection.value = 'company',
+      to: 'company',
+      active: activeSection.value === 'company'
     },
     {
       label: 'Продукция',
       icon: 'i-heroicons-cube',
-      active: activeSection.value === 'products',
-      class: "cursor-pointer",
-      onSelect: () => activeSection.value = 'products'
+      to: 'products',
+      active: activeSection.value === 'products'
     },
     {
       label: 'Объявления',
       icon: 'i-heroicons-megaphone',
-      active: activeSection.value === 'announcements',
-      class: "cursor-pointer",
-      onSelect: () => activeSection.value = 'announcements'
+      to: 'announcements',
+      active: activeSection.value === 'announcements'
     }
   ],
   [
@@ -92,22 +90,19 @@ const navigationItems = ref<NavigationMenuItem[][]>([
       label: 'Партнеры',
       icon: 'i-heroicons-user-group',
       to: 'partners',
-      active: activeSection.value === 'partners',
-      onSelect: () => activeSection.value = 'partners'
+      active: activeSection.value === 'partners'
     },
     {
       label: 'Поставщики',
       icon: 'i-heroicons-truck',
       to: 'suppliers',
-      active: activeSection.value === 'suppliers',
-      onSelect: () => activeSection.value = 'suppliers'
+      active: activeSection.value === 'suppliers'
     },
     {
       label: 'Покупатели',
       icon: 'i-heroicons-shopping-cart',
       to: 'buyers',
-      active: activeSection.value === 'buyers',
-      onSelect: () => activeSection.value = 'buyers'
+      active: activeSection.value === 'buyers'
     }
   ],
   [
@@ -119,22 +114,19 @@ const navigationItems = ref<NavigationMenuItem[][]>([
       label: 'Договоры',
       icon: 'i-heroicons-document-text',
       to: 'contracts',
-      active: activeSection.value === 'contracts',
-      onSelect: () => activeSection.value = 'contracts'
+      active: activeSection.value === 'contracts'
     },
     {
       label: 'Продажи',
       icon: 'i-heroicons-currency-dollar',
       to: 'sales',
-      active: activeSection.value === 'sales',
-      onSelect: () => activeSection.value = 'sales'
+      active: activeSection.value === 'sales'
     },
     {
       label: 'Закупки',
       icon: 'i-heroicons-shopping-bag',
       to: 'purchases',
-      active: activeSection.value === 'purchases',
-      onSelect: () => activeSection.value = 'purchases'
+      active: activeSection.value === 'purchases'
     }
   ],
   [
@@ -145,16 +137,14 @@ const navigationItems = ref<NavigationMenuItem[][]>([
     {
       label: 'Сообщения',
       icon: 'i-heroicons-chat-bubble-left-right',
-      to: 'messages',
-      active: activeSection.value === 'messages',
-      onSelect: () => activeSection.value = 'messages'
+      to: '/profile/messages',
+      active: activeSection.value === 'messages'
     },
     {
       label: 'Авторизация',
       icon: 'i-heroicons-key',
       to: 'auth',
-      active: activeSection.value === 'auth',
-      onSelect: () => activeSection.value = 'auth'
+      active: activeSection.value === 'auth'
     }
   ]
 ])
@@ -173,12 +163,12 @@ watch(activeSection, (newValue) => {
   })
 })
 
-// Watch for changes in route.query.section
-watch(() => route.query.section, (newSection) => {
-  if (newSection && typeof newSection === 'string') {
-    activeSection.value = newSection
+// Watch for route changes to update active section
+watch(() => route.path, (path) => {
+  if (path.startsWith('/profile/messages')) {
+    activeSection.value = 'messages'
   }
-}, {immediate: true})
+}, { immediate: true })
 
 const getSectionTitle = (section: string) => {
   // Find the section in the navigation items
@@ -388,6 +378,13 @@ const handlePageChange = async (page: number) => {
               type="partner"
               @remove="handleRemovePartner"
             />
+          </template>
+
+          <!-- Messages Section -->
+          <template v-else-if="activeSection === 'messages'">
+            <div class="h-[calc(100vh-16rem)]">
+              <NuxtPage />
+            </div>
           </template>
 
           <!-- Suppliers Section -->

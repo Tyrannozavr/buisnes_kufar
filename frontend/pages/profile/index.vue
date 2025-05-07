@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import {ref, watch, onMounted} from 'vue'
-import type {Company} from '~/types/company'
+import type {Company, PartnerCompany} from '~/types/company'
 import type {NavigationMenuItem} from '~/types/navigation'
 import type {Announcement} from '~/types/announcement'
 import PageLoader from "~/components/ui/PageLoader.vue";
 import CompanyProducts from "~/components/company/CompanyProducts.vue";
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
+import CompaniesList from "~/components/company/CompaniesList.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -194,6 +194,83 @@ const getSectionTitle = (section: string) => {
   }
   return section
 }
+const {
+  data: partners,
+  pending: loadingPartners,
+  refresh: refreshPartners
+} = await useApi<PartnerCompany[]>('/company/partners')
+
+const {
+  data: suppliers,
+  pending: loadingSuppliers,
+  refresh: refreshSuppliers
+} = await useApi<PartnerCompany[]>('/company/suppliers')
+
+const {
+  data: buyers,
+  pending: loadingBuyers,
+  refresh: refreshBuyers
+} = await useApi<PartnerCompany[]>('/company/buyers')
+
+const handleRemovePartner = async (partner: PartnerCompany) => {
+  try {
+    await useApi(`/company/partners/${partner.slug}`, {
+      method: 'DELETE'
+    })
+    await refreshPartners()
+    useToast().add({
+      title: 'Успешно',
+      description: 'Партнер удален из списка',
+      color: 'primary'
+    })
+  } catch (e) {
+    useToast().add({
+      title: 'Ошибка',
+      description: e instanceof Error ? e.message : 'Не удалось удалить партнера',
+      color: 'error'
+    })
+  }
+}
+
+const handleRemoveSupplier = async (supplier: PartnerCompany) => {
+  try {
+    await useApi(`/company/suppliers/${supplier.slug}`, {
+      method: 'DELETE'
+    })
+    await refreshSuppliers()
+    useToast().add({
+      title: 'Успешно',
+      description: 'Поставщик удален из списка',
+      color: 'primary'
+    })
+  } catch (e) {
+    useToast().add({
+      title: 'Ошибка',
+      description: e instanceof Error ? e.message : 'Не удалось удалить поставщика',
+      color: 'error'
+    })
+  }
+}
+
+const handleRemoveBuyer = async (buyer: PartnerCompany) => {
+  try {
+    await useApi(`/company/buyers/${buyer.slug}`, {
+      method: 'DELETE'
+    })
+    await refreshBuyers()
+    useToast().add({
+      title: 'Успешно',
+      description: 'Покупатель удален из списка',
+      color: 'primary'
+    })
+  } catch (e) {
+    useToast().add({
+      title: 'Ошибка',
+      description: e instanceof Error ? e.message : 'Не удалось удалить покупателя',
+      color: 'error'
+    })
+  }
+}
 
 const handleSaveCompany = async (data: Partial<Company>) => {
   saving.value = true
@@ -296,10 +373,40 @@ const handlePageChange = async (page: number) => {
           <!-- Announcements Section -->
           <template v-else-if="activeSection === 'announcements'">
             <AnnouncementList
-                :announcements="announcements"
+                :announcements="announcements || null"
                 :loading="loadingAnnouncements"
                 @publish="publishAnnouncement"
                 @page-change="handlePageChange"
+            />
+          </template>
+
+          <!-- Partners Section -->
+          <template v-else-if="activeSection === 'partners'">
+            <CompaniesList
+              :companies="partners || []"
+              :loading="loadingPartners"
+              type="partner"
+              @remove="handleRemovePartner"
+            />
+          </template>
+
+          <!-- Suppliers Section -->
+          <template v-else-if="activeSection === 'suppliers'">
+            <CompaniesList
+              :companies="suppliers || []"
+              :loading="loadingSuppliers"
+              type="supplier"
+              @remove="handleRemoveSupplier"
+            />
+          </template>
+
+          <!-- Buyers Section -->
+          <template v-else-if="activeSection === 'buyers'">
+            <CompaniesList
+              :companies="buyers || []"
+              :loading="loadingBuyers"
+              type="buyer"
+              @remove="handleRemoveBuyer"
             />
           </template>
 

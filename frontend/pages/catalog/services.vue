@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
 import type { Company } from '~/types/company'
+import PageLoader from "~/components/ui/PageLoader.vue";
+import ProductCard from "~/components/company/ProductCard.vue";
 
 // Fetch products and companies data using the useApi composable
 const { data: products, error: productsError, pending: productsPending } = await useApi<Product[]>('/products')
@@ -104,7 +106,7 @@ const handleContact = (product: Product) => {
 
     <!-- Loading state -->
     <section v-if="productsPending || companiesPending" class="bg-white rounded-lg p-6 shadow-sm">
-      <ULoader class="mx-auto" />
+      <PageLoader class="mx-auto" />
       <p class="text-center mt-4 text-gray-500">Загрузка услуг...</p>
     </section>
 

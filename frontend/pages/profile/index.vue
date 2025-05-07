@@ -6,8 +6,6 @@ import PageLoader from "~/components/ui/PageLoader.vue";
 import CompanyProducts from "~/components/company/CompanyProducts.vue";
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
 import CompaniesList from "~/components/company/CompaniesList.vue";
-import Breadcrumbs from "~/components/ui/Breadcrumbs.vue";
-import ProfileLayout from "~/components/ui/ProfileLayout.vue";
 
 const route = useRoute()
 const router = useRouter()

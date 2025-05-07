@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import CompaniesList from "~/components/company/CompaniesList.vue"
-import ProfileLayout from "~/components/profile/ProfileLayout.vue"
+
+
 
 definePageMeta({
   layout: 'profile'

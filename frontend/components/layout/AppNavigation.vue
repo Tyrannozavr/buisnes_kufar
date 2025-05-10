@@ -7,8 +7,9 @@
           :key="item.path"
           :to="item.path"
           variant="ghost"
-          color="neutral"
+          :color="isActive(item.path) ? 'primary' : 'neutral'"
           class="text-sm"
+          :class="isActive(item.path) ? 'font-medium' : ''"
         >
           {{ item.name }}
         </UButton>
@@ -18,6 +19,10 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
 const navigationItems = [
   { name: 'Главная', path: '/' },
   { name: 'Каталог товаров', path: '/catalog/products' },
@@ -28,4 +33,16 @@ const navigationItems = [
   { name: 'Объявления', path: '/announcements' },
   { name: 'Новости', path: '/news' }
 ]
-</script> 
+
+// Function to check if a navigation item is active
+const isActive = (path: string): boolean => {
+  // Exact match for home page
+  if (path === '/' && route.path === '/') {
+    return true
+  }
+
+  // For other pages, check if the current route starts with the navigation item path
+  // This handles nested routes (e.g. /catalog/products/123 should highlight "Каталог товаров")
+  return path !== '/' && route.path.startsWith(path)
+}
+</script>

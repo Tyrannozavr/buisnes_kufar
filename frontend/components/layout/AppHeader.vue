@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import {useUserStore} from '~/stores/user'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 
 const userStore = useUserStore()
+const route = useRoute()
 
 const handleLogout = () => {
   userStore.logout()
-  navigateTo('/auth/login')
+  // navigateTo('/auth/login')
 }
+
+// Create computed property for login URL with current path as back_url
+const loginUrl = computed(() => {
+  return `/auth/login?back_url=${encodeURIComponent(route.fullPath)}`
+})
 </script>
 <template>
   <UContainer>
@@ -38,36 +46,21 @@ const handleLogout = () => {
         </UButton>
       </div>
 
-      <!-- Login/Register Button or Profile Button with Dropdown -->
-      <div>
+      <!-- Login/Register Button or Profile Button with Logout Icon -->
+      <div class="flex items-center space-x-2">
         <UButton
             v-if="!userStore.isAuthenticated"
-            to="/auth/login"
+            :to="loginUrl"
             color="primary"
             variant="solid"
         >
           Вход/Регистрация
         </UButton>
 
-        <UDropdownMenu
-            class="cursor-pointer"
-            v-else
-            :items="[
-              [
-                {
-                  label: 'Профиль',
-                  icon: 'i-heroicons-user-circle',
-                  to: '/profile'
-                },
-                {
-                  label: 'Выйти',
-                  icon: 'i-heroicons-arrow-right-on-rectangle',
-                  onSelect: handleLogout
-                }
-              ]
-            ]"
-        >
+        <template v-else>
+          <!-- Profile Button -->
           <UButton
+              to="/profile"
               color="primary"
               variant="ghost"
               class="flex items-center space-x-2"
@@ -81,9 +74,19 @@ const handleLogout = () => {
             </div>
             <UIcon v-else name="i-heroicons-user-circle" class="h-8 w-8"/>
             <span>{{ userStore.companyName || 'Профиль' }}</span>
-            <UIcon name="i-heroicons-chevron-down" class="h-4 w-4"/>
           </UButton>
-        </UDropdownMenu>
+
+          <!-- Logout Button with Tooltip -->
+          <UTooltip text="Выйти">
+            <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-arrow-right-on-rectangle"
+                class="h-10 w-10 cursor-pointer"
+                @click="handleLogout"
+            />
+          </UTooltip>
+        </template>
       </div>
     </div>
   </UContainer>

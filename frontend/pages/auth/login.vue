@@ -67,6 +67,12 @@
 
 <script setup lang="ts">
 import { useUserStore } from '~/stores/user'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const backUrl = computed(() => {
+  return route.query.back_url ? String(route.query.back_url) : '/'
+})
 
 const form = ref({
   inn: '',
@@ -122,7 +128,8 @@ const handleSubmit = async () => {
     // Update the store with user data
     userStore.login(mockResponse.companyName, mockResponse.companyLogo)
 
-    navigateTo('/')
+    // Redirect to the back_url if available, otherwise to home
+    navigateTo(backUrl.value)
   } catch (error) {
     console.error('Login error:', error)
   } finally {

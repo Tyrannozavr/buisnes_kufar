@@ -99,6 +99,13 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
       ]
     ]
 )
+
+// Get page title from route meta
+const pageTitle = computed(() => {
+  const title = route.meta.title
+  return typeof title === 'function' ? title() : title
+})
+
 </script>
 
 <template>
@@ -108,7 +115,7 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
         <!-- Main Content -->
         <div class="flex-1">
           <div class="mb-6">
-            <Breadcrumbs/>
+            <Breadcrumbs :current-page-title="pageTitle" />
           </div>
           <slot/>
         </div>

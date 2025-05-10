@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import type { Chat, ChatMessage } from '~/types/chat'
 
+// Define page meta with hideLastBreadcrumb flag
+definePageMeta({
+  layout: 'profile',
+  title: 'Сообщения',
+  hideLastBreadcrumb: true
+})
+
 const route = useRoute()
 const router = useRouter()
 const chatId = route.params.id as string
 
-definePageMeta({
-  layout: 'profile'
-})
+// Fetch chat info
+const { data: chat, pending: chatPending } = await useFetch<Chat>(`/api/chats/${chatId}`)
+
+// Set document title for browser tab
+useHead(() => ({
+  title: chat.value?.participants?.[1]?.name || 'Сообщения'
+}))
 
 // Fetch chats for the sidebar
 const { data: chats, pending: chatsPending } = await useFetch<Chat[]>('/api/chats', {
@@ -15,9 +26,6 @@ const { data: chats, pending: chatsPending } = await useFetch<Chat[]>('/api/chat
     userId: 'company1' // TODO: Replace with actual company ID from auth
   }
 })
-
-// Fetch chat info
-const { data: chat, pending: chatPending } = await useFetch<Chat>(`/api/chats/${chatId}`)
 
 // Fetch messages
 const { data: messages, pending: messagesPending, refresh: refreshMessages } = await useFetch<ChatMessage[]>(`/api/chats/${chatId}/messages`)

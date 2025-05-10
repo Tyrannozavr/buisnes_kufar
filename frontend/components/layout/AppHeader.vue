@@ -15,23 +15,26 @@ const handleLogout = () => {
 const loginUrl = computed(() => {
   return `/auth/login?back_url=${encodeURIComponent(route.fullPath)}`
 })
+
 </script>
 <template>
   <UContainer>
     <div class="flex items-center justify-between py-4">
       <!-- Logo and Site Name -->
-      <NuxtLink
-          class="flex items-center space-x-4"
-          to="/"
-      >
-        <NuxtImg
-            src="/images/logo.png"
-            alt="БизнесТорг"
-            class="h-12 w-auto"
-            loading="eager"
-        />
-        <h1 class="text-xl font-semibold text-gray-900">БизнесТорг</h1>
-      </NuxtLink>
+      <div class="flex items-center space-x-4">
+        <NuxtLink
+            class="flex items-center space-x-4"
+            to="/"
+        >
+          <NuxtImg
+              src="/images/logo.png"
+              alt="БизнесТорг"
+              class="h-12 w-auto"
+              loading="eager"
+          />
+          <h1 class="text-xl font-semibold text-gray-900">БизнесТорг</h1>
+        </NuxtLink>
+      </div>
 
       <!-- Cart Link -->
       <div class="flex items-center">

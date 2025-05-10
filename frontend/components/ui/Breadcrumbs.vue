@@ -1,34 +1,72 @@
 <script setup lang="ts">
-const route = useRoute()
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
-const breadcrumbs = computed(() => {
-  const paths = route.path.split('/').filter(Boolean)
-  const items = paths.map((path, index) => {
-    const fullPath = '/' + paths.slice(0, index + 1).join('/')
-    return {
-      label: getLabel(path),
-      path: fullPath
-    }
-  })
-  return items
+interface BreadcrumbItem {
+  label: string
+  path: string
+}
+
+const props = defineProps({
+  currentPageTitle: {
+    type: String,
+    default: ''
+  }
 })
+
+const route = useRoute()
+const breadcrumbs = ref<BreadcrumbItem[]>([])
 
 function getLabel(path: string): string {
   const labels: Record<string, string> = {
-    profile: 'Профиль',
-    products: 'Продукция',
-    announcements: 'Объявления',
-    partners: 'Партнеры',
-    suppliers: 'Поставщики',
-    buyers: 'Покупатели',
-    contracts: 'Договоры',
-    sales: 'Продажи',
-    purchases: 'Закупки',
-    messages: 'Сообщения',
-    auth: 'Авторизация'
+    'profile': 'Профиль',
+    'announcements': 'Объявления',
+    'products': 'Продукция',
+    'partners': 'Партнеры',
+    'suppliers': 'Поставщики',
+    'buyers': 'Покупатели',
+    'contracts': 'Договоры',
+    'sales': 'Продажи',
+    'purchases': 'Закупки',
+    'messages': 'Сообщения',
+    'auth': 'Авторизация',
+    'create': 'Создание',
+    'edit': 'Редактирование',
   }
+
   return labels[path] || path
 }
+
+async function updateBreadcrumbs() {
+  const paths = route.path.split('/').filter(Boolean)
+  const items: BreadcrumbItem[] = []
+
+  // Add home item
+  items.push({ label: 'Главная', path: '/' })
+
+  // Check if we should hide the last breadcrumb
+  const hideLastItem = route.meta.hideLastBreadcrumb === true
+  const pathsToProcess = hideLastItem ? paths.slice(0, -1) : paths
+
+  for (let i = 0; i < pathsToProcess.length; i++) {
+    const path = pathsToProcess[i]
+    const fullPath = '/' + paths.slice(0, i + 1).join('/')
+
+    // If this is the last item and we have a custom page title, use it
+    if (i === pathsToProcess.length - 1 && props.currentPageTitle) {
+      items.push({ label: props.currentPageTitle, path: fullPath })
+    } else {
+      let label = getLabel(path)
+      items.push({ label, path: fullPath })
+    }
+  }
+
+  breadcrumbs.value = items
+}
+
+watch(() => route.path, updateBreadcrumbs, { immediate: true })
+watch(() => props.currentPageTitle, updateBreadcrumbs)
+watch(() => route.meta, updateBreadcrumbs, { deep: true })
 </script>
 
 <template>
@@ -50,4 +88,4 @@ function getLabel(path: string): string {
       </li>
     </ol>
   </nav>
-</template> 
+</template>

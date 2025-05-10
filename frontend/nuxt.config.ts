@@ -13,7 +13,6 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
   ],
-
   css: ['~/assets/css/main.css'],
 
   future: {
@@ -26,6 +25,12 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000/api'
     }
+  },
+  // Add explicit colorMode configuration
+  colorMode: {
+    classSuffix: '',
+    preference: 'system',
+    fallback: 'light'
   },
   compatibilityDate: '2024-11-27',
   ssr: true

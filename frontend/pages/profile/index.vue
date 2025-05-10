@@ -6,6 +6,26 @@ definePageMeta({
   layout: 'profile'
 })
 
+// Get route to check for query parameters
+const route = useRoute()
+
+// Check if user just registered
+onMounted(() => {
+  if (route.query.registered === 'true') {
+    // Show success toast for registration
+    useToast().add({
+      title: 'Успешно',
+      description: 'Вы успешно зарегистрировались',
+      color: 'success',
+      icon: 'i-heroicons-check-circle'
+    })
+
+    // Remove the query parameter from URL without reloading the page
+    const router = useRouter()
+    router.replace({ path: route.path })
+  }
+})
+
 // Fetch company data using useApi composable
 const {
   data: company,

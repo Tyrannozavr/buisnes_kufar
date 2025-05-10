@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   if (!mockMessages[chatId]) {
     mockMessages[chatId] = []
   }
-  mockMessages[chatId].unshift(newMessage)
+  mockMessages[chatId].push(newMessage)
 
   return newMessage
 }) 

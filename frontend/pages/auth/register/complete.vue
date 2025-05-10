@@ -105,6 +105,8 @@
 </template>
 
 <script setup lang="ts">
+import {useUserStore} from "~/stores/user";
+
 const route = useRoute()
 const router = useRouter()
 
@@ -218,6 +220,7 @@ const validateForm = () => {
   validatePassword()
   validateConfirmPassword()
 }
+const userStore = useUserStore()
 
 // Computed property for form validity
 const isFormValid = computed(() => {
@@ -263,6 +266,14 @@ const handleSubmit = async () => {
 
     // In real app, this would save the data to the database
     // and create the user profile
+
+    const mockResponse = {
+      companyName: 'КосмоПорт',
+      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
+    }
+
+    // Update the store with user data
+    userStore.login(mockResponse.companyName, mockResponse.companyLogo)
 
     // Redirect to profile page with success message
     router.push({

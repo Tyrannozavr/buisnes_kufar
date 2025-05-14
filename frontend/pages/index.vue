@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
 import type { Announcement } from '~/types/announcement'
+import { useAnnouncementsApi, useCompaniesApi } from '~/api'
 
-// Fetch announcements from API - using our simplified useApi composable
-const { data: announcements, error: announcementsError } = await useApi<Announcement[]>('/announcements', {
-  transform: (data) =>
-    data
-      .filter(a => a.published)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5)
-})
-// Fetch companies from API - using our simplified useApi composable
-const { data: companies, error: companiesError } = await useApi<Company[]>('/companies', {
-  transform: (data) =>
-    data
-      .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
-      .slice(0, 5)
-})
+const { getLatestAnnouncements } = useAnnouncementsApi()
+const { getLatestCompanies } = useCompaniesApi()
+
+// Fetch announcements from API
+const { data: announcements, error: announcementsError } = await getLatestAnnouncements(5)
+// Fetch companies from API
+const { data: companies, error: companiesError } = await getLatestCompanies(5)
 
 // Simple helper function to get company name
-const getCompanyName = (companyId: string) => {
-  const company = companies.value?.find(c => c.id === companyId)
+const getCompanyName = (companyId: number) => {
+  const company = companies.value?.find((c: Company) => c.id === companyId)
   return company?.name || 'Неизвестная компания'
 }
 
@@ -113,11 +106,11 @@ const formatDate = (dateString: string) => {
           <div v-for="company in companies" :key="company.id" class="border rounded p-4">
             <div class="flex items-center">
               <div class="flex-shrink-0 mr-3">
-                <img :src="company.logo" alt="" class="w-12 h-12 object-cover rounded">
+                <img :src="company.logo || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded">
               </div>
               <div>
                 <h3 class="font-medium">{{ company.name }}</h3>
-                <p class="text-xs text-gray-600">{{ company.activity }}</p>
+                <p class="text-xs text-gray-600">{{ company.businessType }}</p>
                 <p class="text-xs text-gray-500 mt-1">{{ formatDate(company.registrationDate) }}</p>
               </div>
             </div>

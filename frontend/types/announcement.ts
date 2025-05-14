@@ -1,6 +1,6 @@
 export interface Announcement {
   id: string;
-  companyId: string;
+  companyId: number;
   title: string;
   content: string;
   images: string[];

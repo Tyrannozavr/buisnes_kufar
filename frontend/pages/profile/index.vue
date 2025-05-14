@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {Company} from '~/types/company'
 import PageLoader from "~/components/ui/PageLoader.vue";
+import { useCompanyApi } from '~/api'
 
 definePageMeta({
   layout: 'profile'
@@ -26,24 +27,22 @@ onMounted(() => {
   }
 })
 
+const { getMyCompany, updateCompany } = useCompanyApi()
+
 // Fetch company data using useApi composable
 const {
   data: company,
   error: companyError,
   pending: loading,
   refresh: refreshCompany
-} = await useApi<Company>('/company/me')
-
+} = await getMyCompany()
 
 const saving = ref(false)
 
 const handleSaveCompany = async (data: Partial<Company>) => {
   saving.value = true
   try {
-    await useApi('/company/me', {
-      method: 'PUT',
-      body: {...company.value, ...data}
-    })
+    await updateCompany({...company.value, ...data})
     await refreshCompany()
     useToast().add({
       title: 'Успешно',

@@ -1,18 +1,36 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
+import { useChatsApi } from '~/api/chats'
 
 const props = defineProps<{
   partner: PartnerCompany
 }>()
 
 const router = useRouter()
+const { createChat } = useChatsApi()
 
 const navigateToCompany = () => {
   router.push(`/company/${props.partner.slug}`)
 }
 
-const navigateToMessage = () => {
-  router.push(`/messages/new?to=${props.partner.slug}`)
+const navigateToMessage = async () => {
+  try {
+    const { data: chat } = await createChat({
+      participantId: props.partner.slug,
+      participantName: props.partner.fullName,
+      participantLogo: props.partner.logo || undefined
+    })
+
+    if (chat.value) {
+      router.push(`/profile/messages/${chat.value.id}`)
+    }
+  } catch (error) {
+    useToast().add({
+      title: 'Ошибка',
+      description: 'Не удалось создать чат',
+      color: 'error'
+    })
+  }
 }
 </script>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Announcement } from '~/types/announcement'
 import AnnouncementList from '~/components/company/AnnouncementList.vue'
+import { useAnnouncementsApi } from '~/api'
 
 definePageMeta({
   layout: 'profile'
@@ -9,21 +10,13 @@ definePageMeta({
 const currentPage = ref(1)
 const perPage = ref(10)
 
+const { getCompanyAnnouncements, publishAnnouncement: publishAnnouncementApi } = useAnnouncementsApi()
+
 const {
   data: announcements,
   pending: loadingAnnouncements,
   refresh: refreshAnnouncements,
-} = await useApi<{
-  data: Announcement[],
-  pagination: {
-    total: number,
-    page: number,
-    perPage: number,
-    totalPages: number
-  }
-}>(`/announcements/company?page=${currentPage.value}&perPage=${perPage.value}`,
-  {lazy: true}
-)
+} = await getCompanyAnnouncements(currentPage.value, perPage.value)
 
 const handlePageChange = (page: number) => {
   currentPage.value = page
@@ -32,9 +25,7 @@ const handlePageChange = (page: number) => {
 
 const publishAnnouncement = async (announcement: Announcement) => {
   try {
-    await useApi(`/announcements/${announcement.id}/publish`, {
-      method: 'POST'
-    })
+    await publishAnnouncementApi(announcement.id)
     await refreshAnnouncements()
     useToast().add({
       title: 'Успешно',

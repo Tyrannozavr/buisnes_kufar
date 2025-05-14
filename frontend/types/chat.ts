@@ -1,32 +1,22 @@
-export interface Chat {
+export interface ChatParticipant {
   id: string
-  participants: {
-    id: string
-    name: string
-    logo?: string
-  }[]
-  lastMessage?: Message
-  unreadCount: number
-  updatedAt: string
+  name: string
+  logo?: string
 }
 
-export interface Message {
+export interface Chat {
   id: string
-  chatId: string
-  senderId: string
-  content: string
+  participants: ChatParticipant[]
+  lastMessage?: ChatMessage
   createdAt: string
-  isRead: boolean
+  updatedAt: string
 }
 
 export interface ChatMessage {
   id: string
-  sender: {
-    id: string
-    name: string
-    logo?: string
-  }
+  chatId: string
+  sender: ChatParticipant
   content: string
   createdAt: string
-  isRead: boolean
+  updatedAt: string
 } 

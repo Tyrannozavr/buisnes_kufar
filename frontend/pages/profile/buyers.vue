@@ -1,23 +1,24 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import CompaniesList from "~/components/company/CompaniesList.vue"
+import { useBuyersApi } from '~/api'
 
 
 definePageMeta({
   layout: 'profile'
 })
 
+const { getBuyers, removeBuyer } = useBuyersApi()
+
 const {
   data: buyers,
   pending: loadingBuyers,
   refresh: refreshBuyers
-} = await useApi<PartnerCompany[]>('/company/buyers')
+} = await getBuyers()
 
 const handleRemoveBuyer = async (buyer: PartnerCompany) => {
   try {
-    await useApi(`/company/buyers/${buyer.slug}`, {
-      method: 'DELETE'
-    })
+    await removeBuyer(buyer.slug)
     await refreshBuyers()
     useToast().add({
       title: 'Успешно',

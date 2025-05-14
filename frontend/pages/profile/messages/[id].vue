@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Chat, ChatMessage } from '~/types/chat'
+import type { Chat, ChatMessage, ChatParticipant } from '~/types/chat'
+import { useChatsApi } from '~/api/chats'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -12,52 +13,49 @@ const route = useRoute()
 const router = useRouter()
 const chatId = route.params.id as string
 
-// Fetch chat info
-const { data: chat, pending: chatPending } = await useFetch<Chat>(`/api/chats/${chatId}`)
+// TODO: Заменить на реальный ID пользователя
+const userId = 'company1'
 
-// Set document title for browser tab
-useHead(() => ({
-  title: chat.value?.participants?.[1]?.name || 'Сообщения'
-}))
+const { getChats, getChatById, getChatMessages, sendMessage } = useChatsApi()
 
-// Fetch chats for the sidebar
-const { data: chats, pending: chatsPending } = await useFetch<Chat[]>('/api/chats', {
-  query: {
-    userId: 'company1' // TODO: Replace with actual company ID from auth
-  }
-})
+// Получаем список всех чатов для боковой панели
+const { data: chats, pending: chatsPending } = await getChats(userId)
 
-// Fetch messages
-const { data: messages, pending: messagesPending, refresh: refreshMessages } = await useFetch<ChatMessage[]>(`/api/chats/${chatId}/messages`)
+// Получаем информацию о текущем чате
+const { data: chat, pending: chatPending } = await getChatById(chatId)
 
-// Handle sending a new message
-const handleSendMessage = async (content: string) => {
+// Получаем сообщения текущего чата
+const { data: messages, pending: messagesPending, refresh: refreshMessages } = await getChatMessages(chatId)
+
+const newMessage = ref('')
+
+const handleSendMessage = async () => {
+  if (!newMessage.value.trim()) return
+
   try {
-    await $fetch(`/api/chats/${chatId}/send`, {
-      method: 'POST',
-      body: {
-        chatId,
-        senderId: 'company1', // TODO: Replace with actual company ID from auth
-        content
-      }
+    await sendMessage(chatId, {
+      senderId: userId,
+      content: newMessage.value
     })
-
-    // Refresh messages after sending
+    newMessage.value = ''
     await refreshMessages()
   } catch (error) {
     console.error('Failed to send message:', error)
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось отправить сообщение',
-      color: 'error'
-    })
   }
 }
 
-// Handle chat selection
 const handleChatSelect = (newChatId: string) => {
   router.push(`/profile/messages/${newChatId}`)
 }
+
+// Обновляем сообщения каждые 5 секунд
+const refreshInterval = setInterval(() => {
+  refreshMessages()
+}, 5000)
+
+onUnmounted(() => {
+  clearInterval(refreshInterval)
+})
 </script>
 
 <template>
@@ -86,15 +84,15 @@ const handleChatSelect = (newChatId: string) => {
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
               <LazyNuxtImg
-                :src="chatItem.participants[0]?.logo || '/images/default-company-logo.png'"
-                :alt="chatItem.participants[0]?.name"
+                :src="chatItem.participants.find(p => p.id !== userId)?.logo || '/images/default-company-logo.png'"
+                :alt="chatItem.participants.find(p => p.id !== userId)?.name"
                 class="w-12 h-12 rounded-full object-cover"
               />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-start">
                 <h3 class="text-sm font-medium text-gray-900 truncate">
-                  {{ chatItem.participants[0]?.name }}
+                  {{ chatItem.participants.find(p => p.id !== userId)?.name }}
                 </h3>
                 <span class="text-xs text-gray-500">
                   {{ new Date(chatItem.updatedAt).toLocaleDateString('ru-RU') }}
@@ -103,11 +101,6 @@ const handleChatSelect = (newChatId: string) => {
               <p class="text-sm text-gray-500 truncate">
                 {{ chatItem.lastMessage?.content || 'Нет сообщений' }}
               </p>
-            </div>
-            <div v-if="chatItem.unreadCount > 0" class="flex-shrink-0">
-              <UBadge color="primary" size="sm">
-                {{ chatItem.unreadCount }}
-              </UBadge>
             </div>
           </div>
         </div>
@@ -121,12 +114,41 @@ const handleChatSelect = (newChatId: string) => {
       </div>
 
       <template v-else-if="chat">
-        <ChatMessages
-          :messages="messages || []"
-          :chat-info="chat"
-          current-user-id="company1"
-          @send="handleSendMessage"
-        />
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          <div
+            v-for="message in messages"
+            :key="message.id"
+            class="flex"
+            :class="{ 'justify-end': message.sender.id === userId }"
+          >
+            <div
+              class="max-w-[70%] p-4 rounded-lg"
+              :class="message.sender.id === userId ? 'bg-blue-500 text-white' : 'bg-gray-100'"
+            >
+              <p>{{ message.content }}</p>
+              <p class="text-xs mt-1" :class="message.sender.id === userId ? 'text-blue-100' : 'text-gray-500'">
+                {{ new Date(message.createdAt).toLocaleTimeString() }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 p-4">
+          <form @submit.prevent="handleSendMessage" class="flex gap-4">
+            <input
+              v-model="newMessage"
+              type="text"
+              placeholder="Введите сообщение..."
+              class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Отправить
+            </button>
+          </form>
+        </div>
       </template>
 
       <div v-else class="flex-1 flex items-center justify-center">

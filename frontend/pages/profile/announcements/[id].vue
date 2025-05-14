@@ -1,19 +1,27 @@
 <script setup lang="ts">
 import {ref} from 'vue';
 import type {Announcement} from '~/types/announcement';
+import { useAnnouncementsApi } from '~/api'
 
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id as string;
 
 const {
+  getAnnouncementById,
+  publishAnnouncement,
+  unpublishAnnouncement,
+  deleteAnnouncement
+} = useAnnouncementsApi()
+
+const {
   data: announcement,
   error: fetchError,
   pending: loading,
   refresh
-} = await useApi<Announcement>(`/announcements/${id}`);
-const processingAction = ref(false);
+} = await getAnnouncementById(id);
 
+const processingAction = ref(false);
 const showDeleteConfirm = ref(false);
 
 // Format date for display
@@ -29,13 +37,10 @@ const formatDate = (dateString: string) => {
 };
 
 // Handle publishing announcement
-const publishAnnouncement = async () => {
+const handlePublishAnnouncement = async () => {
   processingAction.value = true;
   try {
-    await useApi(`/announcements/${id}/publish`, {
-      method: 'PUT'
-    });
-
+    await publishAnnouncement(id);
     await refresh();
 
     useToast().add({
@@ -55,13 +60,10 @@ const publishAnnouncement = async () => {
 };
 
 // Handle unpublishing announcement
-const unpublishAnnouncement = async () => {
+const handleUnpublishAnnouncement = async () => {
   processingAction.value = true;
   try {
-    await useApi(`/announcements/${id}/unpublish`, {
-      method: 'PUT'
-    });
-
+    await unpublishAnnouncement(id);
     await refresh();
 
     useToast().add({
@@ -81,12 +83,10 @@ const unpublishAnnouncement = async () => {
 };
 
 // Handle deleting announcement
-const deleteAnnouncement = async () => {
+const handleDeleteAnnouncement = async () => {
   processingAction.value = true;
   try {
-    await useApi(`/announcements/${id}`, {
-      method: 'DELETE'
-    });
+    await deleteAnnouncement(id);
 
     useToast().add({
       title: 'Успешно',
@@ -194,7 +194,7 @@ const editAnnouncement = () => {
           <!-- Images gallery -->
           <div v-if="announcement.images && announcement.images.length" class="mb-6">
             <UCarousel :items="announcement.images.map(img => ({ src: img }))" class="rounded-lg overflow-hidden">
-              <template #item="{ item }">
+              <template #default="{ item }">
                 <img :src="item.src" class="w-full h-64 object-contain bg-gray-100"/>
               </template>
             </UCarousel>
@@ -211,7 +211,7 @@ const editAnnouncement = () => {
             <UButton
                 color="neutral"
                 variant="ghost"
-                to="/profile?section=announcements"
+                to="/profile/announcements"
                 icon="i-heroicons-arrow-left"
             >
               Назад к списку
@@ -234,7 +234,7 @@ const editAnnouncement = () => {
                   icon="i-heroicons-paper-airplane"
                   :loading="processingAction"
                   class="cursor-pointer"
-                  @click="publishAnnouncement"
+                  @click="handlePublishAnnouncement"
               >
                 Опубликовать
               </UButton>
@@ -245,7 +245,7 @@ const editAnnouncement = () => {
                   icon="i-heroicons-archive-box"
                   :loading="processingAction"
                   class="cursor-pointer"
-                  @click="unpublishAnnouncement"
+                  @click="handleUnpublishAnnouncement"
               >
                 Снять с публикации
               </UButton>
@@ -282,7 +282,7 @@ const editAnnouncement = () => {
               <UButton
                   color="error"
                   :loading="processingAction"
-                  @click="deleteAnnouncement"
+                  @click="handleDeleteAnnouncement"
               >
                 Удалить
               </UButton>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { AnnouncementFormData } from '~/types/announcement';
 import type { Category } from '~/types/category';
+import { useAnnouncementsApi } from '~/api'
+import { useCategoriesApi } from '~/api'
 
 const router = useRouter();
 const saving = ref(false);
@@ -13,10 +15,12 @@ const form = ref<AnnouncementFormData>({
   category: ''
 });
 
+const { getCategories } = useCategoriesApi()
+const { createAnnouncement } = useAnnouncementsApi()
+
 // Fetch categories from API
-const { data: categories, error: categoriesError } = await useApi<Category[]>('/categories', {
-  lazy: true
-});
+const { data: categories, error: categoriesError } = await getCategories()
+
 // Store object URLs to revoke them later
 const objectUrls = ref<string[]>([]);
 
@@ -29,12 +33,9 @@ const handleSave = async (formData: AnnouncementFormData, publish = false) => {
   formTouched.value = true;
   saving.value = true;
   try {
-    await useApi('/announcements', {
-      method: 'POST',
-      body: {
-        ...formData,
-        published: publish
-      }
+    await createAnnouncement({
+      ...formData,
+      published: publish
     });
 
     useToast().add({
@@ -44,7 +45,7 @@ const handleSave = async (formData: AnnouncementFormData, publish = false) => {
     });
 
     // Redirect back to announcements list
-    router.push('/profile?section=announcements');
+    router.push('/profile/announcements');
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -57,7 +58,7 @@ const handleSave = async (formData: AnnouncementFormData, publish = false) => {
 };
 
 const handleCancel = () => {
-  router.push('/profile?section=announcements');
+  router.push('/profile/announcements');
 };
 </script>
 
@@ -66,7 +67,7 @@ const handleCancel = () => {
     <UBreadcrumb
       :items="[
         { label: 'Профиль', to: '/profile' },
-        { label: 'Объявления', to: '/profile?section=announcements' },
+        { label: 'Объявления', to: '/profile/announcements' },
         { label: 'Создание объявления', to: '' }
       ]"
       class="mb-6"

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import type { Chat } from '~/types/chat'
+import { useChatsApi } from '~/api/chats'
 
 definePageMeta({
   layout: 'profile'
 })
-// Fetch chats
-const { data: chats, pending: chatsPending } = await useFetch<Chat[]>('/api/chats', {
-  query: {
-    userId: 'company1' // TODO: Replace with actual company ID from auth
-  }
-})
 
 const router = useRouter()
+const { getChats } = useChatsApi()
 
-// Handle chat selection
+// TODO: Заменить на реальный ID пользователя
+const userId = 'company1'
+
+const { data: chats, pending, error } = await getChats(userId)
+
 const handleChatSelect = (chatId: string) => {
   router.push(`/profile/messages/${chatId}`)
 }
@@ -23,8 +23,15 @@ const handleChatSelect = (chatId: string) => {
   <div class="h-[calc(100vh-16rem)] flex">
     <!-- Chat list sidebar -->
     <div class="w-1/3 border-r border-gray-200 overflow-y-auto">
-      <div v-if="chatsPending" class="flex items-center justify-center h-full">
+      <div v-if="pending" class="flex items-center justify-center h-full">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
+      </div>
+
+      <div v-else-if="error" class="flex items-center justify-center h-full">
+        <div class="text-center text-red-500">
+          <UIcon name="i-heroicons-exclamation-circle" class="h-12 w-12 mx-auto mb-2" />
+          <p>Произошла ошибка при загрузке чатов</p>
+        </div>
       </div>
 
       <div v-else-if="!chats?.length" class="flex items-center justify-center h-full">
@@ -39,21 +46,20 @@ const handleChatSelect = (chatId: string) => {
           v-for="chat in chats"
           :key="chat.id"
           class="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-          :class="{ 'bg-gray-50': $route.params.id === chat.id }"
           @click="handleChatSelect(chat.id)"
         >
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
               <LazyNuxtImg
-                :src="chat.participants[0]?.logo || '/images/default-company-logo.png'"
-                :alt="chat.participants[0]?.name"
+                :src="chat.participants.find(p => p.id !== userId)?.logo || '/images/default-company-logo.png'"
+                :alt="chat.participants.find(p => p.id !== userId)?.name"
                 class="w-12 h-12 rounded-full object-cover"
               />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-start">
                 <h3 class="text-sm font-medium text-gray-900 truncate">
-                  {{ chat.participants[0]?.name }}
+                  {{ chat.participants.find(p => p.id !== userId)?.name }}
                 </h3>
                 <span class="text-xs text-gray-500">
                   {{ new Date(chat.updatedAt).toLocaleDateString('ru-RU') }}
@@ -62,11 +68,6 @@ const handleChatSelect = (chatId: string) => {
               <p class="text-sm text-gray-500 truncate">
                 {{ chat.lastMessage?.content || 'Нет сообщений' }}
               </p>
-            </div>
-            <div v-if="chat.unreadCount > 0" class="flex-shrink-0">
-              <UBadge color="primary" size="sm">
-                {{ chat.unreadCount }}
-              </UBadge>
             </div>
           </div>
         </div>

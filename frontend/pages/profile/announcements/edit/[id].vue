@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { Announcement } from '~/types/announcement';
+import type { Announcement, AnnouncementFormData } from '~/types/announcement';
 import type {Category} from "~/types/category";
+import { useAnnouncementsApi } from '~/api'
+import { useCategoriesApi } from '~/api'
 
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id as string;
 
 const saving = ref(false);
-const { data: announcement, error: fetchError, pending: loading } = await useApi<Announcement>(`/announcements/${id}`);
+const { getAnnouncementById, updateAnnouncement } = useAnnouncementsApi()
+const { getCategories } = useCategoriesApi()
+
+const { data: announcement, error: fetchError, pending: loading } = await getAnnouncementById(id);
 
 // Check if announcement exists and is not published
 const canEdit = computed(() => {
@@ -16,8 +21,8 @@ const canEdit = computed(() => {
 });
 
 // Initial form data
-const initialFormData = computed(() => {
-  if (!announcement.value) return null;
+const initialFormData = computed<AnnouncementFormData | undefined>(() => {
+  if (!announcement.value) return undefined;
 
   return {
     title: announcement.value.title,
@@ -28,20 +33,14 @@ const initialFormData = computed(() => {
 });
 
 // Fetch categories from API
-const { data: categories } = await useApi<Category[]>('/categories', {
-  lazy: true
-});
+const { data: categories } = await getCategories()
 
-
-const handleSave = async (formData, publish = false) => {
+const handleSave = async (formData: AnnouncementFormData, publish = false) => {
   saving.value = true;
   try {
-    await useApi(`/announcements/${id}`, {
-      method: 'PUT',
-      body: {
-        ...formData,
-        published: publish
-      }
+    await updateAnnouncement(id, {
+      ...formData,
+      published: publish
     });
 
     useToast().add({
@@ -50,7 +49,7 @@ const handleSave = async (formData, publish = false) => {
       color: 'success'
     });
 
-    // errorirect back to announcement view
+    // Redirect back to announcement view
     router.push(`/profile/announcements/${id}`);
   } catch (error) {
     useToast().add({
@@ -73,7 +72,7 @@ const handleCancel = () => {
     <UBreadcrumb
 :items="[
       { label: 'Профиль', to: '/profile' },
-      { label: 'Объявления', to: '/profile?section=announcements' },
+      { label: 'Объявления', to: '/profile/announcements' },
       { label: announcement?.title || 'Загрузка...', to: `/profile/announcements/${id}` },
       { label: 'Редактирование', to: '' }
     ]" class="mb-6" />

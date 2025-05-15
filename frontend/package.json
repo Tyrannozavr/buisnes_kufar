@@ -26,7 +26,8 @@
     "@unhead/vue": "^2.0.8",
     "nuxt": "^3.16.2",
     "pinia": "^3.0.2",
-    "pinia-plugin-persistedstate": "^4.2.0"
+    "pinia-plugin-persistedstate": "^4.2.0",
+    "vue-toastification": "^2.0.0-rc.5"
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.2",

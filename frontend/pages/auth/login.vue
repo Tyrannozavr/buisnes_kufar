@@ -7,7 +7,7 @@
       
       <form class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="space-y-4 flex flex-col w-full">
-          <UFormGroup label="ИНН" class="w-full">
+          <UFormField label="ИНН" class="w-full">
             <UInput
               v-model="form.inn"
               type="text"
@@ -17,9 +17,9 @@
               class="w-full"
             />
             <p v-if="innError && form.inn" class="mt-1 text-sm text-red-500">{{ innError }}</p>
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Пароль" class="w-full">
+          <UFormField label="Пароль" class="w-full">
             <UInput
               v-model="form.password"
               type="password"
@@ -29,7 +29,7 @@
               class="w-full"
             />
             <p v-if="passwordError && form.password" class="mt-1 text-sm text-red-500">{{ passwordError }}</p>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <div class="text-center">
@@ -129,7 +129,7 @@ const handleSubmit = async () => {
     userStore.login(mockResponse.companyName, mockResponse.companyLogo)
 
     // Redirect to the back_url if available, otherwise to home
-    navigateTo(backUrl.value)
+    navigateTo("/profile")
   } catch (error) {
     console.error('Login error:', error)
   } finally {

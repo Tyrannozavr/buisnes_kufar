@@ -5,7 +5,6 @@ import { computed } from 'vue'
 
 const userStore = useUserStore()
 const route = useRoute()
-const colorMode = useColorMode()
 
 const handleLogout = () => {
   userStore.logout()

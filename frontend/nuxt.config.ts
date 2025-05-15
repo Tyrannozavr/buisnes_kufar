@@ -27,10 +27,8 @@ export default defineNuxtConfig({
     }
   },
   // Add explicit colorMode configuration
-  colorMode: {
-    classSuffix: '',
-    preference: 'system',
-    fallback: 'light'
+  ui: {
+    colorMode: false
   },
   compatibilityDate: '2024-11-27',
   ssr: true

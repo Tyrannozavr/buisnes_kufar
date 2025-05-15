@@ -12,10 +12,6 @@ const handleLogout = () => {
   // navigateTo('/auth/login')
 }
 
-function toggleColorMode() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
 // Create computed property for login URL with current path as back_url
 const loginUrl = computed(() => {
   return `/auth/login?back_url=${encodeURIComponent(route.fullPath)}`
@@ -23,7 +19,7 @@ const loginUrl = computed(() => {
 
 </script>
 <template>
-  <header class="bg-white dark:bg-gray-900 shadow">
+  <header class="bg-white  shadow">
     <UContainer>
       <div class="flex items-center justify-between py-4">
         <!-- Logo and Site Name -->

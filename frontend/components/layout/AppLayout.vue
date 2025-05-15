@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-900 dark:text-white">
+  <div class="min-h-screen bg-white  dark:text-white">
     <AppHeader />
     <AppNavigation />
     <main>
@@ -11,7 +11,4 @@
 <script setup lang="ts">
 import AppHeader from '~/components/layout/AppHeader.vue'
 import AppNavigation from './AppNavigation.vue'
-
-// Initialize color mode
-const colorMode = useColorMode()
 </script>

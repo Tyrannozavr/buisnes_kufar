@@ -2,6 +2,7 @@ export interface ChatParticipant {
   id: string
   name: string
   logo?: string
+  slug?: string
 }
 
 export interface Chat {
@@ -12,11 +13,19 @@ export interface Chat {
   updatedAt: string
 }
 
+export interface ChatFile {
+  name: string
+  url: string
+  type: string
+  size: number
+}
+
 export interface ChatMessage {
   id: string
   chatId: string
   sender: ChatParticipant
   content: string
+  file?: ChatFile
   createdAt: string
   updatedAt: string
 } 

@@ -17,13 +17,18 @@ export const useChatsApi = () => {
     return useApi<ChatMessage[]>(`/chats/${chatId}/messages`, options)
   }
 
-  const sendMessage = (chatId: string, data: { senderId: string, content: string }, options: UseFetchOptions<ChatMessage> = {}) => {
+  const sendMessage = (chatId: string, data: { senderId: string, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
+    const formData = new FormData()
+    formData.append('chatId', chatId)
+    formData.append('senderId', data.senderId)
+    formData.append('content', data.content)
+    if (data.file) {
+      formData.append('file', data.file)
+    }
+
     return useApi<ChatMessage>(`/chats/${chatId}/send`, {
       method: 'POST',
-      body: {
-        chatId,
-        ...data
-      },
+      body: formData,
       ...options
     })
   }

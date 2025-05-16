@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import {useUserStore} from '~/stores/user'
-import { useRoute } from 'vue-router'
-import { computed } from 'vue'
 
 const userStore = useUserStore()
-const route = useRoute()
 
 const handleLogout = () => {
   userStore.logout()
@@ -12,9 +9,6 @@ const handleLogout = () => {
 }
 
 // Create computed property for login URL with current path as back_url
-const loginUrl = computed(() => {
-  return `/auth/login?back_url=${encodeURIComponent(route.fullPath)}`
-})
 
 </script>
 <template>
@@ -54,7 +48,7 @@ const loginUrl = computed(() => {
         <div class="flex items-center space-x-2">
           <UButton
               v-if="!userStore.isAuthenticated"
-              :to="loginUrl"
+              to="/auth/login"
               color="primary"
               variant="solid"
           >

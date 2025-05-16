@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { AUTH_API } from '~/api/auth'
+import { authApi } from '~/api/auth'
 
 interface ApiResponse {
   success: boolean
@@ -49,10 +49,7 @@ const sendEmailCode = async () => {
 
   try {
     isEmailLoading.value = true
-    const response = await $fetch<ApiResponse>(AUTH_API.RECOVER_PASSWORD, {
-      method: 'POST',
-      body: { email: newEmail.value }
-    })
+    const response = await authApi.sendEmailChangeCode(newEmail.value)
     
     if (response.success) {
       isEmailCodeSent.value = true
@@ -73,9 +70,9 @@ const verifyEmailCode = async () => {
 
   try {
     isEmailLoading.value = true
-    const response = await $fetch<ApiResponse>(AUTH_API.CHANGE_EMAIL, {
-      method: 'POST',
-      body: { email: newEmail.value, code: emailCode.value }
+    const response = await authApi.changeEmail({
+      email: newEmail.value,
+      code: emailCode.value
     })
     
     if (response.success) {
@@ -109,12 +106,9 @@ const changePassword = async () => {
 
   try {
     isPasswordLoading.value = true
-    const response = await $fetch<ApiResponse>(AUTH_API.CHANGE_PASSWORD, {
-      method: 'POST',
-      body: {
-        oldPassword: oldPassword.value,
-        newPassword: newPassword.value
-      }
+    const response = await authApi.changePassword({
+      oldPassword: oldPassword.value,
+      newPassword: newPassword.value
     })
     
     if (response.success) {

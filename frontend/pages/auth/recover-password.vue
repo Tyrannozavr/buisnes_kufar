@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { AUTH_API } from '~/api/auth'
-
-interface ApiResponse {
-  success: boolean
-  message: string
-}
+import { authApi } from '~/api/auth'
 
 const toast = useToast()
 
@@ -16,7 +11,7 @@ const confirmPassword = ref('')
 const isCodeSent = ref(false)
 const isCodeVerified = ref(false)
 const isLoading = ref(false)
-
+const router = useRouter()
 const showSuccessToast = (message: string) => {
   toast.add({
     title: 'Успешно',
@@ -38,10 +33,7 @@ const showErrorToast = (message: string) => {
 const sendCode = async () => {
   try {
     isLoading.value = true
-    const response = await $fetch<ApiResponse>(AUTH_API.RECOVER_PASSWORD, {
-      method: 'POST',
-      body: { email: email.value }
-    })
+    const response = await authApi.sendRecoveryCode(email.value)
     
     if (response.success) {
       isCodeSent.value = true
@@ -62,24 +54,16 @@ const verifyCode = async () => {
 
   try {
     isLoading.value = true
-    console.log('Sending verification request...')
-    const response = await $fetch<ApiResponse>(AUTH_API.VERIFY_CODE, {
-      method: 'POST',
-      body: { email: email.value, code: code.value }
-    })
-    
-    console.log('Verification response:', response)
+    const response = await authApi.verifyRecoveryCode(email.value, code.value)
     
     if (response.success) {
       isCodeVerified.value = true
       showSuccessToast(response.message)
     } else {
-      isCodeVerified.value = false
       showErrorToast(response.message)
-      code.value = '' // Очищаем поле с кодом при неверном вводе
+      code.value = ''
     }
   } catch (error) {
-    console.error('Verification error:', error)
     showErrorToast('Произошла ошибка при проверке кода')
   } finally {
     isLoading.value = false
@@ -94,18 +78,15 @@ const resetPassword = async () => {
   
   try {
     isLoading.value = true
-    const response = await $fetch<ApiResponse>(AUTH_API.RESET_PASSWORD, {
-      method: 'POST',
-      body: {
-        email: email.value,
-        code: code.value,
-        newPassword: newPassword.value
-      }
+    const response = await authApi.resetPassword({
+      email: email.value,
+      code: code.value,
+      newPassword: newPassword.value
     })
     
     if (response.success) {
       showSuccessToast(response.message)
-      // Redirect to login page or handle success
+      await router.push('/auth/login')
     } else {
       showErrorToast(response.message)
     }

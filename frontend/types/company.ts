@@ -22,8 +22,6 @@ export interface Company {
   phone: string
   email: string
   website: string
-  isOwner: boolean
-  products: string[]
 }
 
 // Type for partner company with only the required fields
@@ -56,4 +54,25 @@ export interface CompanyStatistics {
   monthlyViews: number
   registrationDate: string
   totalPurchases?: number
+}
+
+export interface ManufacturersSearchParams {
+  search?: string
+  country?: string
+  federalDistrict?: string
+  region?: string
+  city?: string
+  product?: string
+}
+
+// Define a simple manufacturer type
+export interface Manufacturer {
+  id: string
+  logo: string | null
+  name: string
+  country: string
+  region: string
+  city: string
+  description: string
+  tradeActivity: string
 }

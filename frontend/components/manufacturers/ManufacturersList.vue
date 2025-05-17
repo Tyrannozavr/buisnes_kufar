@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
+import type {Manufacturer} from '~/types/company'
 import PageLoader from "~/components/ui/PageLoader.vue";
 import ManufacturerCard from "~/components/manufacturers/ManufacturerCard.vue";
 
 const props = defineProps<{
-  manufacturers: Company[]
+  manufacturers: Manufacturer[]
   pending: boolean
   error: Error | null
 }>()

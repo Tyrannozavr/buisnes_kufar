@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
+import type {Manufacturer} from '~/types/company'
 
 defineProps<{
-  manufacturer: Company
+  manufacturer: Manufacturer
 }>()
 </script>
 
@@ -39,18 +39,6 @@ defineProps<{
           {{ manufacturer.city }}, {{ manufacturer.region }}, {{ manufacturer.country }}
         </div>
 
-        <!-- Products -->
-        <div class="mt-2">
-          <UBadge
-            v-for="product in manufacturer.products"
-            :key="product"
-            color="neutral"
-            variant="soft"
-            class="mr-2"
-          >
-            {{ product }}
-          </UBadge>
-        </div>
       </div>
     </div>
   </UCard>

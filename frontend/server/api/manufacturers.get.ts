@@ -1,36 +1,41 @@
 import { defineEventHandler } from 'h3'
+import type {Manufacturer} from "~/types/company";
 
-// Define a simple manufacturer type
-interface Manufacturer {
-  id: string
-  name: string
-  description?: string
-  website?: string
-  foundedYear?: number
-}
+
 
 // Mock data for manufacturers
 const manufacturers: Manufacturer[] = [
   {
     id: '1',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
+    description: 'Ведущий производитель промышленного оборудования в России',
+    tradeActivity: 'Покупатель и продавец',
+    country: 'Россия',
+    region: 'Московская область',
+    city: 'Москва',
     name: 'Manufacturer A',
-    description: 'Leading manufacturer of industrial equipment',
-    website: 'www.manufacturer-a.com',
-    foundedYear: 1995
   },
   {
     id: '2',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
+    description: 'Комплексные строительные услуги под ключ',
     name: 'Manufacturer B',
-    description: 'Specialized in electronic components',
-    website: 'www.manufacturer-b.com',
-    foundedYear: 2005
+    country: 'Россия',
+    region: 'Санкт-Петербург',
+    city: 'Санкт-Петербург',
+    tradeActivity: 'Продавец',
+
   },
   {
     id: '3',
+    logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
+    tradeActivity: 'Покупатель и продавец',
+    country: 'Россия',
+    region: 'Новосибирская область',
+    city: 'Новосибирск',
     name: 'Manufacturer C',
     description: 'Innovative solutions for automation',
-    website: 'www.manufacturer-c.com',
-    foundedYear: 2010
+
   }
 ]
 

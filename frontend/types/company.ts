@@ -22,6 +22,7 @@ export interface Company {
   phone: string
   email: string
   website: string
+  isOwner: boolean
 }
 
 // Type for partner company with only the required fields
@@ -33,4 +34,25 @@ export interface PartnerCompany {
   country: string
   region: string
   city: string
+}
+
+export interface CompanyDetails {
+  description: string
+  inn: string
+  ogrn: string
+  ogrnDate: string
+  kpp: string
+  legalAddress: string
+  productionAddress: string
+  phone: string
+  email: string
+  website: string
+}
+
+export interface CompanyStatistics {
+  totalProducts: number
+  totalReviews: number
+  averageRating: number
+  totalViews: number
+  monthlyViews: number
 }

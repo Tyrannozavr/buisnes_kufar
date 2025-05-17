@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
-import type { Announcement } from '~/types/announcement'
 import { useAnnouncementsApi, useCompaniesApi } from '~/api'
 
 const { getLatestAnnouncements } = useAnnouncementsApi()

@@ -23,6 +23,7 @@ export interface Company {
   email: string
   website: string
   isOwner: boolean
+  products: string[]
 }
 
 // Type for partner company with only the required fields
@@ -51,8 +52,8 @@ export interface CompanyDetails {
 
 export interface CompanyStatistics {
   totalProducts: number
-  totalReviews: number
-  averageRating: number
   totalViews: number
   monthlyViews: number
+  registrationDate: string
+  totalPurchases?: number
 }

@@ -1,60 +1,14 @@
 <script setup lang="ts">
-import type { Product } from '~/types/product'
 import { useProductsApi } from '~/api/products'
 
-// State
-const showProductForm = ref(false)
-const selectedProduct = ref<Product | null>(null)
-
 // API
-const { products, refresh, hideProduct, deleteProduct, restoreProduct, saveProduct } = useProductsApi()
+const { products } = useProductsApi()
 
 // Computed properties for different product states
 const activeProducts = computed(() =>
   products.value?.filter(p => !p.isHidden && !p.isDeleted) ?? []
 )
 
-const hiddenProducts = computed(() =>
-  products.value?.filter(p => p.isHidden && !p.isDeleted) ?? []
-)
-
-const deletedProducts = computed(() =>
-  products.value?.filter(p => p.isDeleted) ?? []
-)
-
-// Product management methods
-const openProductForm = (product?: Product) => {
-  selectedProduct.value = product || null
-  showProductForm.value = true
-}
-
-const closeProductForm = () => {
-  selectedProduct.value = null
-  showProductForm.value = false
-}
-
-const editProduct = (product: Product) => {
-  openProductForm(product)
-}
-
-const handleHideProduct = async (product: Product) => {
-  await hideProduct(product.id)
-}
-
-const handleDeleteProduct = async (product: Product) => {
-  await deleteProduct(product.id)
-}
-
-const handleRestoreProduct = async (product: Product) => {
-  await restoreProduct(product.id)
-}
-
-const handleSaveProduct = async (productData: Partial<Product>) => {
-  const success = await saveProduct(productData, selectedProduct.value?.id)
-  if (success) {
-    closeProductForm()
-  }
-}
 </script>
 
 <template>
@@ -63,13 +17,6 @@ const handleSaveProduct = async (productData: Partial<Product>) => {
       <template #header>
         <div class="flex justify-between items-center">
           <h2 class="text-xl font-semibold">Продукция компании</h2>
-          <UButton
-            color="primary"
-            variant="soft"
-            @click="openProductForm()"
-          >
-            Добавить продукт
-          </UButton>
         </div>
       </template>
       
@@ -80,7 +27,7 @@ const handleSaveProduct = async (productData: Partial<Product>) => {
           class="hover:shadow-lg transition-shadow"
         >
           <template #header>
-            <img
+            <NuxtImg
               :src="product.images[0]"
               :alt="product.name"
               class="w-full h-48 object-cover rounded-t-lg"
@@ -102,20 +49,13 @@ const handleSaveProduct = async (productData: Partial<Product>) => {
           </div>
           
           <template #footer>
-            <div class="flex justify-between">
+            <div class="flex justify-end">
               <UButton
                 color="neutral"
                 variant="soft"
                 :to="`/products/${product.id}`"
               >
                 Подробнее
-              </UButton>
-              <UButton
-                color="primary"
-                variant="soft"
-                @click="editProduct(product)"
-              >
-                Редактировать
               </UButton>
             </div>
           </template>

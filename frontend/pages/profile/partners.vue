@@ -35,7 +35,6 @@ const handleRemovePartner = async (partner: PartnerCompany) => {
 </script>
 
 <template>
-  <ProfileLayout>
     <div class="bg-white shadow rounded-lg p-6">
       <h2 class="text-lg font-medium text-gray-900 mb-4">Партнеры</h2>
       <CompaniesList
@@ -45,5 +44,4 @@ const handleRemovePartner = async (partner: PartnerCompany) => {
         @remove="handleRemovePartner"
       />
     </div>
-  </ProfileLayout>
-</template> 
+</template>

@@ -3,14 +3,14 @@ import type {CompanyShort} from '~/types/company'
 import {useCompaniesApi} from "~/api";
 
 const route = useRoute()
-const title = 'Производители товаров'
+const title = 'Поставщики услуг'
 
 // Success message handling
 const showSuccessMessage = ref(false)
 const successMessage = ref('')
 
 // API
-const {searchManufacturers} = useCompaniesApi()
+const { searchServiceProviders } = useCompaniesApi()
 
 // Manufacturers data
 const manufacturers = ref<CompanyShort[]>([])
@@ -29,7 +29,7 @@ const handleSearch = async (params: {
   manufacturersError.value = null
 
   try {
-    const {data} = await searchManufacturers(params)
+    const {data} = await searchServiceProviders(params)
     manufacturers.value = data.value ?? []
   } catch (error) {
     console.error('Search error:', error)
@@ -43,7 +43,7 @@ const handleSearch = async (params: {
 
 
 // Initial companies load
-const {data: initialManufacturers} = await searchManufacturers()
+const {data: initialManufacturers} = await searchServiceProviders()
 manufacturers.value = initialManufacturers.value ?? []
 
 // Check if there's a success message in the query parameters
@@ -88,7 +88,7 @@ if (route.query.created === 'true') {
     <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
 
     <!-- Search Form -->
-    <CompaniesFilter @search="handleSearch"/>
+    <ManufacturersFilter @search="handleSearch"/>
     <!-- Manufacturers List -->
     <CompaniesList
         :manufacturers="manufacturers"

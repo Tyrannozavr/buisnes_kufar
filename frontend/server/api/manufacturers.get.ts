@@ -1,10 +1,10 @@
 import { defineEventHandler } from 'h3'
-import type {Manufacturer} from "~/types/company";
+import type {CompanyShort} from "~/types/company";
 
 
 
-// Mock data for manufacturers
-const manufacturers: Manufacturer[] = [
+// Mock data for companies
+const manufacturers: CompanyShort[] = [
   {
     id: '1',
     logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
@@ -41,7 +41,7 @@ const manufacturers: Manufacturer[] = [
 
 export default defineEventHandler(() => {
   // Simulate a slight delay to mimic real API behavior
-  return new Promise<Manufacturer[]>((resolve) => {
+  return new Promise<CompanyShort[]>((resolve) => {
     setTimeout(() => {
       resolve(manufacturers)
     }, 300)

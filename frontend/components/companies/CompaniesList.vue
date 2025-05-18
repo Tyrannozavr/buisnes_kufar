@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type {Manufacturer} from '~/types/company'
+import type {CompanyShort} from '~/types/company'
 import PageLoader from "~/components/ui/PageLoader.vue";
-import ManufacturerCard from "~/components/manufacturers/ManufacturerCard.vue";
+import CompanyCard from "~/components/companies/CompanyCard.vue";
 
 const props = defineProps<{
-  manufacturers: Manufacturer[]
+  manufacturers: CompanyShort[]
   pending: boolean
   error: Error | null
 }>()
 
-console.log('ManufacturersList props:', {
+console.log('CompaniesList props:', {
   manufacturers: props.manufacturers,
   pending: props.pending,
   error: props.error
@@ -35,7 +35,7 @@ console.log('ManufacturersList props:', {
   </section>
   <!-- Manufacturers List -->
   <div v-else class="space-y-4">
-    <ManufacturerCard
+    <CompanyCard
       v-for="manufacturer in manufacturers"
       :key="manufacturer.id"
       :manufacturer="manufacturer"

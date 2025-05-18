@@ -1,140 +1,94 @@
 <script setup lang="ts">
-import type { Product } from '~/types/product'
-import type { Company } from '~/types/company'
-import PageLoader from "~/components/ui/PageLoader.vue";
-import ProductCard from "~/components/company/ProductCard.vue";
+import ProductCard from "~/components/catalog/ProductCard.vue";
+import { useProductsApi } from '~/api/products'
+import ProductsFilter from "~/components/catalog/ProductsFilter.vue";
 
-// Fetch products and companies data using the useApi composable
-const { data: products, error: productsError, pending: productsPending } = await useApi<Product[]>('/products')
-const { data: companies, error: companiesError, pending: companiesPending } = await useApi<Company[]>('/companies')
-
-// Derive countries, regions, and cities from the API data
-const countries = computed(() => {
-  if (!companies.value) return []
-  return [...new Set((companies.value as Company[]).map(company => company.country))].sort()
-})
-
-const regions = computed(() => {
-  if (!companies.value) return []
-  return [...new Set((companies.value as Company[]).map(company => company.region))].sort()
-})
-
-const cities = computed(() => {
-  if (!companies.value) return []
-  return [...new Set((companies.value as Company[]).map(company => company.city))].sort()
-})
+// API
+const { searchServices } = useProductsApi()
 
 // Search state
 const search = ref({
   name: '',
   country: '',
+  federalDistrict: '',
   region: '',
   city: ''
 })
 
-// Filtered services (products with type 'service')
-const filteredServices = computed(() => {
-  if (!products.value || !companies.value) return []
+// Loading and error states
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-  return (products.value as Product[])
-      .filter(product => product.type === 'service')
-      .filter(product => {
-        const company = (companies.value as Company[]).find(c => c.id === product.companyId)
-        if (!company) return false
+// Load products with SSR support
+const { data: products } = await useAsyncData(
+    'products',
+    async () => {
+      try {
+        const { data } = await searchServices(search.value)
+        return data.value ?? []
+      } catch (e) {
+        error.value = 'Failed to load products'
+        console.error(e)
+        return []
+      }
+    }
+)
 
-        const matchesName = !search.value.name ||
-            product.name.toLowerCase().includes(search.value.name.toLowerCase())
-
-        const matchesCountry = !search.value.country ||
-            company.country === search.value.country
-
-        const matchesRegion = !search.value.region ||
-            company.region === search.value.region
-
-        const matchesCity = !search.value.city ||
-            company.city === search.value.city
-
-        return matchesName && matchesCountry && matchesRegion && matchesCity
-      })
-})
-
-// Handle add to cart or contact
-const handleContact = (product: Product) => {
-  // TODO: Implement contact functionality
-  console.log('Contact about service:', product)
+// Handle search updates
+const handleSearch = async (newSearch: typeof search.value) => {
+  search.value = newSearch
+  loading.value = true
+  try {
+    const { data } = await searchServices(newSearch)
+    products.value = data.value ?? []
+  } catch (e) {
+    error.value = 'Failed to load products'
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="space-y-8">
-    <!-- Search and Filters -->
-    <section class="bg-white rounded-lg p-6 shadow-sm">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <UFormGroup label="Название">
-          <UInput
-              v-model="search.name"
-              placeholder="Поиск по названию"
-          />
-        </UFormGroup>
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Каталог услуг</h1>
 
-        <UFormGroup label="Страна">
-          <USelect
-              v-model="search.country"
-              :options="countries"
-              placeholder="Выберите страну"
-          />
-        </UFormGroup>
+    <!-- Filters -->
+    <ProductsFilter
+        v-model="search"
+        @search="handleSearch"
+        class="mb-8"
+    />
 
-        <UFormGroup label="Федеральный округ">
-          <USelect
-              v-model="search.region"
-              :options="regions"
-              placeholder="Выберите округ"
-              :disabled="!search.country || search.country !== 'Россия'"
-          />
-        </UFormGroup>
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center items-center py-8">
+      <UIcon name="i-heroicons-arrow-path" class="animate-spin text-4xl" />
+    </div>
 
-        <UFormGroup label="Регион">
-          <USelect
-              v-model="search.city"
-              :options="cities"
-              placeholder="Выберите регион"
-          />
-        </UFormGroup>
-      </div>
-    </section>
+    <!-- Error State -->
+    <UAlert
+        v-else-if="error"
+        :title="error"
+        color="error"
+        class="mb-8"
+    />
 
-    <!-- Loading state -->
-    <section v-if="productsPending || companiesPending" class="bg-white rounded-lg p-6 shadow-sm">
-      <PageLoader class="mx-auto" />
-      <p class="text-center mt-4 text-gray-500">Загрузка услуг...</p>
-    </section>
+    <!-- Products Grid -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <ProductCard
+          v-for="product in (products ?? [])"
+          :key="product.id"
+          :product="product"
+      />
+    </div>
 
-    <!-- Error state -->
-    <section v-else-if="productsError || companiesError" class="bg-white rounded-lg p-6 shadow-sm">
-      <p class="text-red-500 text-center">
-        Произошла ошибка при загрузке данных. Пожалуйста, попробуйте позже.
-      </p>
-    </section>
-
-    <!-- Empty state -->
-    <section v-else-if="filteredServices.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
-      <p class="text-center text-gray-500">
-        {{ products && products.length > 0 ? 'Нет услуг, соответствующих критериям поиска' : 'Нет доступных услуг' }}
-      </p>
-    </section>
-
-    <!-- Services Grid -->
-    <section v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <ProductCard
-            v-for="service in filteredServices"
-            :key="service.id"
-            :product="service"
-            @add-to-cart="handleContact"
-            button-text="Связаться"
-        />
-      </div>
-    </section>
+    <!-- Empty State -->
+    <div
+        v-if="!loading && !error && (!products || products.length === 0)"
+        class="text-center py-8 text-gray-500"
+    >
+      Не найдено продуктов подходящих к вашему запросу.
+    </div>
   </div>
 </template>

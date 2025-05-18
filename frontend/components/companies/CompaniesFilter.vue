@@ -101,10 +101,6 @@ loadLocations()
 
 <template>
   <UCard class="mb-6">
-    <template #header>
-      <h2 class="text-xl font-semibold">Поиск производителей</h2>
-    </template>
-
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Company Name -->
       <UFormField label="Название компании">

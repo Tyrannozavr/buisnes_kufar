@@ -19,9 +19,9 @@ async function submitForm() {
     // This request will be made directly from the client
     await $api.post('/manufacturers', form)
 
-    // Redirect to manufacturers page with success message
+    // Redirect to companies page with success message
     router.push({
-      path: '/manufacturers',
+      path: '/companies',
       query: { created: 'true' }
     })
   } catch (err) {

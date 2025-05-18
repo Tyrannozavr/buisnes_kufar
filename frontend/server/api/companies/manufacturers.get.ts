@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   console.log('Search query:', query)
   
-  // Sample manufacturers data
+  // Sample companies data
   const manufacturers: Company[] = [
     {
       id: 1,
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
     }
   ]
 
-  // Filter manufacturers based on query parameters
+  // Filter companies based on query parameters
   let filteredManufacturers = manufacturers
 
   if (query.search) {
@@ -80,6 +80,6 @@ export default defineEventHandler(async (event) => {
     )
   }
 
-  console.log('Filtered manufacturers:', filteredManufacturers)
+  console.log('Filtered companies:', filteredManufacturers)
   return filteredManufacturers
 }) 

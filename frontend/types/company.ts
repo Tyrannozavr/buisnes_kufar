@@ -66,7 +66,7 @@ export interface ManufacturersSearchParams {
 }
 
 // Define a simple manufacturer type
-export interface Manufacturer {
+export interface CompanyShort {
   id: string
   logo: string | null
   name: string
@@ -76,3 +76,4 @@ export interface Manufacturer {
   description: string
   tradeActivity: string
 }
+

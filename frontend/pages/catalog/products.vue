@@ -20,7 +20,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 
 // Load products with SSR support
-const { data: products, refresh } = await useAsyncData(
+const { data: products } = await useAsyncData(
   'products',
   async () => {
     try {
@@ -52,7 +52,7 @@ const handleSearch = async (newSearch: typeof search.value) => {
 
 <template>
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Products</h1>
+    <h1 class="text-3xl font-bold mb-8">Каталог товаров</h1>
 
     <!-- Filters -->
     <ProductsFilter
@@ -88,7 +88,7 @@ const handleSearch = async (newSearch: typeof search.value) => {
         v-if="!loading && !error && (!products || products.length === 0)"
         class="text-center py-8 text-gray-500"
     >
-      No products found
+      Не найдено продуктов подходящих к вашему запросу.
     </div>
   </div>
 </template>

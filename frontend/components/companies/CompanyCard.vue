@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type {Manufacturer} from '~/types/company'
+import type {CompanyShort} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 
 const props = defineProps<{
-  manufacturer: Manufacturer
+  manufacturer: CompanyShort
 }>()
 
 const router = useRouter()

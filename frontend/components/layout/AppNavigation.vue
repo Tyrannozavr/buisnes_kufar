@@ -28,7 +28,7 @@ const navigationItems = [
   { name: 'Каталог товаров', path: '/catalog/products' },
   { name: 'Каталог услуг', path: '/catalog/services' },
   { name: 'Производители', path: '/manufacturers' },
-  { name: 'Услуги', path: '/services' },
+  { name: 'Услуги', path: '/service-providers' },
   { name: 'О нас', path: '/about' },
   { name: 'Объявления', path: '/announcements' },
   { name: 'Новости', path: '/news' }

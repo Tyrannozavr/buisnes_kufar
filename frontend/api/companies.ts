@@ -1,4 +1,4 @@
-import type { Company } from '~/types/company'
+import type {Company, CompanyShort, ManufacturersSearchParams} from '~/types/company'
 import type { UseFetchOptions } from 'nuxt/app'
 
 export const useCompaniesApi = () => {
@@ -19,9 +19,21 @@ export const useCompaniesApi = () => {
       ...options
     })
   }
+  const searchManufacturers = async (params: ManufacturersSearchParams = {}) => {
+    return useApi<CompanyShort[]>('/manufacturers', {
+      query: params
+    });
+  }
+  const searchServiceProviders = async (params: ManufacturersSearchParams = {}) => {
+    return useApi<CompanyShort[]>('/service-providers', {
+      query: params
+    });
+  }
 
   return {
     getCompanies,
-    getLatestCompanies
+    getLatestCompanies,
+    searchManufacturers,
+    searchServiceProviders
   }
 } 

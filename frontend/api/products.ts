@@ -14,6 +14,17 @@ export const useProductsApi = () => {
       query: params
     })
   }
+  const searchServices = async (params: {
+    name?: string
+    country?: string
+    federalDistrict?: string
+    region?: string
+    city?: string
+  } = {}) => {
+    return useApi<Product[]>('/services', {
+      query: params
+    })
+  }
 
   const hideProduct = async (productId: string) => {
     try {
@@ -114,6 +125,7 @@ export const useProductsApi = () => {
     products,
     refresh,
     searchProducts,
+    searchServices,
     hideProduct,
     deleteProduct,
     restoreProduct,

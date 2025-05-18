@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import {useUserStore} from '~/stores/user'
+import { useCartStore } from '~/stores/cart'
+import { computed } from 'vue'
 
 const userStore = useUserStore()
+const cartStore = useCartStore()
+const totalItems = computed(() => cartStore.totalUniqueItems)
 
 const handleLogout = () => {
   userStore.logout()
@@ -12,7 +16,7 @@ const handleLogout = () => {
 
 </script>
 <template>
-  <header class="bg-white  shadow">
+  <header class="bg-white shadow">
     <UContainer>
       <div class="flex items-center justify-between py-4">
         <!-- Logo and Site Name -->
@@ -33,15 +37,29 @@ const handleLogout = () => {
 
         <!-- Cart Link -->
         <div class="flex items-center">
-          <UButton
-              to="/cart"
-              variant="ghost"
-              color="neutral"
-              class="flex items-center space-x-2"
+          <UChip
+              v-if="totalItems > 0"
+              :text="totalItems"
+              color="primary"
+              size="xl"
+              class="mr-2"
           >
-            <UIcon name="i-heroicons-shopping-cart" class="h-6 w-6"/>
-            <span>Корзина</span>
-          </UButton>
+            <UButton
+                to="/cart"
+                color="neutral"
+                variant="ghost"
+                size="xl"
+                icon="i-heroicons-shopping-cart"
+            />
+          </UChip>
+          <UButton
+              v-else
+              to="/cart"
+              color="neutral"
+              size="xl"
+              variant="ghost"
+              icon="i-heroicons-shopping-cart"
+          />
         </div>
 
         <!-- Login/Register Button or Profile Button with Logout Icon -->

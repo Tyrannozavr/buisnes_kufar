@@ -3,6 +3,18 @@ import type { Product } from '~/types/product'
 export const useProductsApi = () => {
   const { data: products, refresh } = useApi<Product[]>('/products')
 
+  const searchProducts = async (params: {
+    name?: string
+    country?: string
+    federalDistrict?: string
+    region?: string
+    city?: string
+  } = {}) => {
+    return useApi<Product[]>('/products', {
+      query: params
+    })
+  }
+
   const hideProduct = async (productId: string) => {
     try {
       await useApi(`/products/${productId}/hide`, {
@@ -101,6 +113,7 @@ export const useProductsApi = () => {
   return {
     products,
     refresh,
+    searchProducts,
     hideProduct,
     deleteProduct,
     restoreProduct,

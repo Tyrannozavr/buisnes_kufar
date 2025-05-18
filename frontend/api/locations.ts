@@ -5,10 +5,8 @@ export const useLocationsApi = () => {
     return await useApi<Country[]>('/locations/countries')
   }
 
-  const getFederalDistricts = async (country: string) => {
-    return await useApi<FederalDistrict[]>('/locations/federal-districts', {
-      query: { country }
-    })
+  const getFederalDistricts = async () => {
+    return await useApi<FederalDistrict[]>('/locations/federal-districts')
   }
 
   const getRegions = async (country: string, federalDistrict: string = "") => {
@@ -18,7 +16,8 @@ export const useLocationsApi = () => {
   }
 
   const getCities = async (country: string) => {
-    return await useApi<City[]>(`/locations/regions/cities`, {
+    if (!country) return { data: ref<City[]>([]) }
+    return await useApi<City[]>(`/locations/cities`, {
       query: { country }
     })
   }

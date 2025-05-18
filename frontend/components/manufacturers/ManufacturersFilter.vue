@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { Region, City, FederalDistrict } from '~/types/location'
-import { useLocationsApi } from '~/api/locations'
+import type {Region, City, FederalDistrict} from '~/types/location'
+import {useLocationsApi} from '~/api/locations'
+import type {FilterItem} from "~/types/Filter";
 
 const emit = defineEmits<{
   (e: 'search', params: {
@@ -14,7 +15,7 @@ const emit = defineEmits<{
 }>()
 
 // API
-const { getCountries, getFederalDistricts, getRegions, getCities } = useLocationsApi()
+const {getCountries, getFederalDistricts, getRegions, getCities} = useLocationsApi()
 
 // Search state
 const searchQuery = ref('')
@@ -24,8 +25,18 @@ const selectedRegion = ref<string | null>(null)
 const selectedCity = ref<string | null>(null)
 const productQuery = ref('')
 
+// Loading states
+const loadingCountries = ref(true)
+const loadingFederalDistricts = ref(false)
+const loadingRegions = ref(false)
+const loadingCities = ref(false)
+
+
+const isSelectedCountry = computed(() => selectedCountry.value!== null)
 // Location data
-const { data: countries } = await getCountries()
+const {data: countries} = await getCountries()
+loadingCountries.value = false
+
 const federalDistricts = ref<FederalDistrict[]>([])
 const regions = ref<Region[]>([])
 const cities = ref<City[]>([])
@@ -35,77 +46,57 @@ const isRussia = computed(() => selectedCountry.value === 'Россия')
 const showFederalDistricts = computed(() => isRussia.value)
 
 // Methods
-const handleCountryChange = async (country: string) => {
-  selectedCountry.value = country
-  selectedFederalDistrict.value = null
-  selectedRegion.value = null
-  selectedCity.value = null
-  federalDistricts.value = []
-  regions.value = []
-  cities.value = []
-
-  if (country) {
-    const [federalDistrictsResponse, regionsResponse] = await Promise.all([
-      getFederalDistricts(country),
-      isRussia.value ? null : getRegions(country)
-    ])
-
-    federalDistricts.value = federalDistrictsResponse.data.value ?? []
-
-    if (!isRussia.value && regionsResponse) {
-      regions.value = regionsResponse.data.value ?? []
-    }
+const loadLocations = async () => {
+  if (isRussia.value && !federalDistricts.value.length) {
+    loadingFederalDistricts.value = true
+    const {data} = await getFederalDistricts()
+    federalDistricts.value = data.value ?? []
+    loadingFederalDistricts.value = false
   }
-}
-
-const handleFederalDistrictChange = async (districtId: string) => {
-  selectedFederalDistrict.value = districtId
-  selectedRegion.value = null
-  selectedCity.value = null
-  regions.value = []
-  cities.value = []
-
-  if (districtId) {
-    const { data } = await getRegions(districtId)
+  if (!regions.value.length) {
+    loadingRegions.value = true
+    const {data} = await getRegions(selectedCountry.value || "", selectedFederalDistrict.value || undefined)
     regions.value = data.value ?? []
+    loadingRegions.value = false
+  }
+  if (!cities.value.length) {
+    loadingCities.value = true
+    const {data} = await getCities(selectedCountry.value || "")
+    cities.value = data.value ?? []
+    loadingCities.value = false
   }
 }
 
-const handleRegionChange = async (regionId: string) => {
-  selectedRegion.value = regionId
-  selectedCity.value = null
-  cities.value = []
+const handleCountryChange = async (country: FilterItem) => {
+  selectedCountry.value = country.value
+  await loadLocations()
+}
 
-  if (regionId) {
-    const { data } = await getCities(regionId)
-    cities.value = data.value ?? []
-  }
+const handleFederalDistrictChange = async (district: FilterItem) => {
+  selectedFederalDistrict.value = district.value
+  await loadLocations()
+}
+
+const handleRegionChange = async (region: FilterItem) => {
+  selectedRegion.value = region.value
+  await loadLocations()
 }
 
 const handleSearch = () => {
   const params: Record<string, string> = {}
-  
-  if (searchQuery.value) {
-    params.search = searchQuery.value
-  }
-  if (selectedCountry.value) {
-    params.country = selectedCountry.value
-  }
-  if (selectedFederalDistrict.value) {
-    params.federalDistrict = selectedFederalDistrict.value
-  }
-  if (selectedRegion.value) {
-    params.region = selectedRegion.value
-  }
-  if (selectedCity.value) {
-    params.city = selectedCity.value
-  }
-  if (productQuery.value) {
-    params.product = productQuery.value
-  }
+
+  if (searchQuery.value) params.search = searchQuery.value
+  if (selectedCountry.value) params.country = selectedCountry.value
+  if (selectedFederalDistrict.value) params.federalDistrict = selectedFederalDistrict.value
+  if (selectedRegion.value) params.region = selectedRegion.value
+  if (selectedCity.value) params.city = selectedCity.value
+  if (productQuery.value) params.product = productQuery.value
 
   emit('search', params)
 }
+
+// Load initial data
+loadLocations()
 </script>
 
 <template>
@@ -118,55 +109,79 @@ const handleSearch = () => {
       <!-- Company Name -->
       <UFormField label="Название компании">
         <UInput
-          v-model="searchQuery"
-          placeholder="Введите название компании"
+            v-model="searchQuery"
+            placeholder="Введите название компании"
         />
       </UFormField>
-      <!-- Country -->
       <UFormField label="Страна">
-        <USelect
-          v-model="selectedCountry"
-          :items="countries ?? []"
-          placeholder="Выберите страну"
-          @update:model-value="handleCountryChange"
+        <USelectMenu
+            v-model="selectedCountry"
+            :items="countries ?? []"
+            :search-input="{
+              placeholder: 'Поиск',
+              icon: 'i-lucide-search'
+            }"
+            placeholder="Выберите страну"
+            searchable
+            :loading="loadingCountries"
+            @update:model-value="handleCountryChange"
         />
       </UFormField>
       <!-- Federal District (only for Russia) -->
       <UFormField
-        v-if="showFederalDistricts"
-        label="Федеральный округ"
+          v-if="showFederalDistricts"
+          label="Федеральный округ"
       >
-        <USelect
-          v-model="selectedFederalDistrict"
-          :items="federalDistricts"
-          placeholder="Выберите федеральный округ"
-          @update:model-value="handleFederalDistrictChange"
+        <USelectMenu
+            v-model="selectedFederalDistrict"
+            :items="federalDistricts"
+            :search-input="{
+              placeholder: 'Поиск',
+              icon: 'i-lucide-search'
+            }"
+            placeholder="Выберите федеральный округ"
+            searchable
+            :loading="loadingFederalDistricts"
+            @update:model-value="handleFederalDistrictChange"
         />
       </UFormField>
       <!-- Region -->
       <UFormField label="Регион">
-        <USelect
-          v-model="selectedRegion"
-          :items="regions"
-          placeholder="Выберите регион"
-          @update:model-value="handleRegionChange"
+        <USelectMenu
+            v-model="selectedRegion"
+            :items="regions"
+            :search-input="{
+              placeholder: 'Поиск',
+              icon: 'i-lucide-search'
+            }"
+            placeholder="Выберите регион"
+            searchable
+            :loading="loadingRegions"
+            @update:model-value="handleRegionChange"
         />
       </UFormField>
 
       <!-- City -->
       <UFormField label="Город">
-        <USelect
-          v-model="selectedCity"
-          :items="cities"
-          placeholder="Выберите город"
+        <USelectMenu
+            v-model="selectedCity"
+            :items="cities"
+            :search-input="{
+              placeholder: 'Поиск',
+              icon: 'i-lucide-search'
+            }"
+            placeholder="Выберите город"
+            searchable
+            :disabled="!isSelectedCountry"
+            :loading="loadingCities"
         />
       </UFormField>
 
       <!-- Product -->
       <UFormField label="Продукция">
         <UInput
-          v-model="productQuery"
-          placeholder="Введите название продукции"
+            v-model="productQuery"
+            placeholder="Введите название продукции"
         />
       </UFormField>
     </div>
@@ -174,12 +189,12 @@ const handleSearch = () => {
     <template #footer>
       <div class="flex justify-end">
         <UButton
-          color="primary"
-          @click="handleSearch"
+            color="primary"
+            @click="handleSearch"
         >
           Найти
         </UButton>
       </div>
     </template>
   </UCard>
-</template> 
+</template>

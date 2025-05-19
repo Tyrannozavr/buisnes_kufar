@@ -64,7 +64,7 @@ const handleDecreaseQuantity = () => {
           class="w-full aspect-square mb-4"
       >
         <NuxtImg
-            :src="product.images[0]"
+            :src="product.images.length > 0 ? product.images[0] : '/images/placeholder.png'"
             :alt="product.name"
             class="w-full h-full object-cover rounded-lg"
         />

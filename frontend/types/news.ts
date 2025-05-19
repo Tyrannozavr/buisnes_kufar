@@ -4,4 +4,7 @@ export interface NewsItem {
     title: string
     content: string
     date: string
+    companySlug: string
+    companyLogo: string
+    activityType: string
 }

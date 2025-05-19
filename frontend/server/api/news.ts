@@ -1,27 +1,19 @@
 import { defineEventHandler } from 'h3'
 import type { NewsItem } from '~/types/news'
+import { companies } from './companies.get'
 
 export default defineEventHandler(() => {
-  const news: NewsItem[] = [
-    {
-      id: '1',
-      title: 'Новая компания присоединилась к нашей платформе',
-      content: 'Мы рады приветствовать компанию "ТехноПрогресс" на нашей платформе. Они специализируются на инновационных решениях в области энергетики.',
-      date: '2023-05-15'
-    },
-    {
-      id: '2',
-      title: 'Обновление функционала поиска',
-      content: 'Мы улучшили систему поиска на нашей платформе. Теперь вы можете находить нужные компании и продукты еще быстрее и точнее.',
-      date: '2023-05-10'
-    },
-    {
-      id: '3',
-      title: 'Успешное сотрудничество: история успеха',
-      content: 'Компании "АльфаСтрой" и "БетаТех" заключили крупный контракт благодаря нашей платформе. Узнайте подробности их успешного сотрудничества.',
-      date: '2023-05-05'
-    }
-  ]
+  // Convert companies to news items
+  const news: NewsItem[] = companies.map(company => ({
+    id: company.id.toString(),
+    title: `Новая компания "${company.name}" присоединилась к платформе`,
+    content: `${company.name} - ${company.activityType}. ${company.description}`,
+    date: company.registrationDate,
+    companySlug: company.slug,
+    companyLogo: company.logo,
+    activityType: company.activityType
+  }))
 
-  return news
+  // Sort by registration date (newest first)
+  return news.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })

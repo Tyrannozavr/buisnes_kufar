@@ -19,6 +19,12 @@ export default defineEventHandler((event) => {
     }
   }
 
-  // Return the found announcement
-  return announcement
+  // Return the announcement with required fields plus content
+  return {
+    id: announcement.id,
+    image: announcement.images[0],
+    title: announcement.title,
+    date: announcement.createdAt,
+    content: announcement.content
+  }
 })

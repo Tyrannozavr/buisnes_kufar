@@ -14,6 +14,10 @@ export interface Announcement {
     suppliers: boolean;
     sent: boolean;
   };
+  companyName: string;
+  companyLogo: string;
+  date: string;
+  topic: string;
 }
 
 export interface AnnouncementFormData {

@@ -2,6 +2,12 @@ import type { Announcement } from '~/types/announcement'
 import type { UseFetchOptions } from 'nuxt/app'
 
 export const useAnnouncementsApi = () => {
+  const getAllAnnouncements = (options: UseFetchOptions<Announcement[]> = {}) => {
+    return useApi<Announcement[]>('/announcements', {
+      ...options
+    })
+  }
+
   const getAnnouncements = (options: UseFetchOptions<Announcement[]> = {}) => {
     return useApi<Announcement[]>('/announcements', {
       transform: (data) =>
@@ -88,6 +94,7 @@ export const useAnnouncementsApi = () => {
   }
 
   return {
+    getAllAnnouncements,
     getAnnouncements,
     getLatestAnnouncements,
     getAnnouncementById,

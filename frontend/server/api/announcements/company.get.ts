@@ -4,7 +4,7 @@ import type { Announcement } from '~/types/announcement'
 export const announcements: Announcement[] = [
   {
     id: '1',
-    companyId: '1',
+    companyId: 1,
     title: 'Новая линейка станков ЧПУ',
     content: 'Представляем новую линейку станков с ЧПУ с улучшенными характеристиками. Наши инженеры разработали инновационную систему управления, которая повышает точность обработки на 30% и снижает энергопотребление. Станки уже доступны для заказа с доставкой по всей России.',
     images: ['https://www.svgrepo.com/show/152278/marketing.svg'],

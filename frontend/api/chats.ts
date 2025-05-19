@@ -17,6 +17,10 @@ export const useChatsApi = () => {
     return useApi<ChatMessage[]>(`/chats/${chatId}/messages`, options)
   }
 
+  const getChatFiles = (chatId: string, options: UseFetchOptions<any[]> = {}) => {
+    return useApi<any[]>(`/chats/${chatId}/files`, options)
+  }
+
   const sendMessage = (chatId: string, data: { senderId: string, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
     const formData = new FormData()
     formData.append('chatId', chatId)
@@ -45,6 +49,7 @@ export const useChatsApi = () => {
     getChats,
     getChatById,
     getChatMessages,
+    getChatFiles,
     sendMessage,
     createChat
   }

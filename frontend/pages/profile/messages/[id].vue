@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type {Chat, ChatMessage, ChatParticipant} from '~/types/chat'
+import type {ChatParticipant} from '~/types/chat'
 import {useChatsApi} from '~/api/chats'
 
 // Define page meta with hideLastBreadcrumb flag
@@ -16,7 +16,7 @@ const chatId = route.params.id as string
 // TODO: Заменить на реальный ID пользователя
 const userId = 'company1'
 
-const {getChats, getChatById, getChatMessages, sendMessage} = useChatsApi()
+const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles} = useChatsApi()
 
 // Получаем список всех чатов для боковой панели
 const {data: chats, pending: chatsPending} = await getChats(userId)
@@ -27,8 +27,11 @@ const {data: chat, pending: chatPending} = await getChatById(chatId)
 // Получаем сообщения текущего чата
 const {data: messages, pending: messagesPending, refresh: refreshMessages} = await getChatMessages(chatId)
 
+// Получаем файлы чата
+const {data: files, pending: filesPending} = await getChatFiles(chatId)
+
 const newMessage = ref('')
-const showActionsModal = ref(false)
+const showFilesModal = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 
@@ -48,18 +51,12 @@ const handleSendMessage = async () => {
   if (!newMessage.value.trim() && !selectedFile.value) return
 
   try {
-    const formData = new FormData()
-    formData.append('content', newMessage.value)
-    if (selectedFile.value) {
-      formData.append('file', selectedFile.value)
-    }
-
     await sendMessage(chatId, {
       senderId: userId,
       content: newMessage.value,
-      file: selectedFile.value
+      file: selectedFile.value || undefined
     })
-    
+
     newMessage.value = ''
     selectedFile.value = null
     if (fileInput.value) {
@@ -164,26 +161,62 @@ const formatFileSize = (bytes: number) => {
         >
           {{ otherParticipant.name }}
         </NuxtLink>
-        <UModal>
-          <UButton
-              variant="subtle"
-              color="neutral"
-              class="p-2 rounded-full hover:bg-gray-100 border-none hover:border cursor-pointer"
-              @click="showActionsModal = true">
-            <UIcon name="i-heroicons-ellipsis-horizontal" class="w-6 h-6 text-gray-500"/>
-          </UButton>
-          <template #content>
-            <div class="p-8 text-center text-gray-500">
-              <p>Здесь появятся действия с чатом (например, показать все вложения).</p>
-            </div>
-          </template>
-          <template #footer>
-            <UButton @click="showActionsModal = false">
-              Закрыть
-            </UButton>
-          </template>
-        </UModal>
+        <div class="flex items-center gap-2">
+            <!-- Files Modal -->
+            <UModal
+                title="Файлы в чате"
+            >
+              <UButton
+                  icon="i-heroicons-document"
+                  class="p-2 rounded-full hover:bg-gray-100 border-none hover:border cursor-pointer"
+                  color="neutral"
+                  variant="outline"
+              >Файлы</UButton>
+              <template #content>
+                <div class="p-4">
+                  <div v-if="filesPending" class="flex items-center justify-center py-8">
+                    <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500"/>
+                  </div>
+
+                  <div v-else-if="!files?.length" class="text-center py-8 text-gray-500">
+                    <UIcon name="i-heroicons-document" class="h-12 w-12 mx-auto mb-2"/>
+                    <p>В этом чате пока нет файлов</p>
+                  </div>
+
+                  <div v-else class="space-y-4">
+                    <div
+                        v-for="file in files"
+                        :key="file.messageId"
+                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div class="flex items-center gap-3">
+                        <UIcon
+                            :name="getFileIcon(file.type)"
+                            class="w-6 h-6 text-gray-500"
+                        />
+                        <div>
+                          <p class="text-sm font-medium">{{ file.name }}</p>
+                          <p class="text-xs text-gray-500">
+                            Отправлено {{ new Date(file.createdAt).toLocaleString('ru-RU') }}
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                          :href="file.url"
+                          target="_blank"
+                          class="text-blue-600 hover:text-blue-800"
+                      >
+                        <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5"/>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+            </UModal>
+        </div>
       </div>
+<!--      class="p-2 rounded-full hover:bg-gray-100 border-none hover:border cursor-pointer"-->
 
       <div v-if="chatPending || messagesPending" class="flex-1 flex items-center justify-center">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500"/>
@@ -205,15 +238,15 @@ const formatFileSize = (bytes: number) => {
                 {{ message.content }}
               </div>
               <div v-if="message.file" class="mt-2">
-                <a 
-                  :href="message.file.url" 
-                  target="_blank"
-                  class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
-                  :class="message.sender.id === userId ? 'text-blue-100' : 'text-blue-600'"
+                <a
+                    :href="message.file.url"
+                    target="_blank"
+                    class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
+                    :class="message.sender.id === userId ? 'text-blue-100' : 'text-blue-600'"
                 >
-                  <UIcon 
-                    :name="getFileIcon(message.file.type)" 
-                    class="w-5 h-5 flex-shrink-0" 
+                  <UIcon
+                      :name="getFileIcon(message.file.type)"
+                      class="w-5 h-5 flex-shrink-0"
                   />
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium truncate">{{ message.file.name }}</p>
@@ -221,7 +254,7 @@ const formatFileSize = (bytes: number) => {
                       {{ formatFileSize(message.file.size) }}
                     </p>
                   </div>
-                  <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0" />
+                  <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0"/>
                 </a>
               </div>
               <p class="text-xs mt-2" :class="message.sender.id === userId ? 'text-blue-100' : 'text-gray-500'">
@@ -239,7 +272,7 @@ const formatFileSize = (bytes: number) => {
                   class="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
                   @click="fileInput?.click()"
               >
-                <UIcon name="i-heroicons-paper-clip" class="w-6 h-6" />
+                <UIcon name="i-heroicons-paper-clip" class="w-6 h-6"/>
               </button>
               <input
                   ref="fileInput"
@@ -262,14 +295,14 @@ const formatFileSize = (bytes: number) => {
             </button>
           </form>
           <div v-if="selectedFile" class="mt-2 flex items-center gap-2 text-sm text-gray-600">
-            <UIcon name="i-heroicons-paper-clip" class="w-4 h-4" />
+            <UIcon name="i-heroicons-paper-clip" class="w-4 h-4"/>
             {{ selectedFile.name }}
             <button
                 type="button"
                 class="text-red-500 hover:text-red-700"
                 @click="selectedFile = null"
             >
-              <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+              <UIcon name="i-heroicons-x-mark" class="w-4 h-4"/>
             </button>
           </div>
         </div>
@@ -296,45 +329,4 @@ const formatFileSize = (bytes: number) => {
     </div>
   </div>
 
-  <!-- Actions Modal -->
-  <UModal v-model="showActionsModal">
-    <div class="p-6">
-      <h3 class="text-lg font-semibold mb-4">Файлы в чате</h3>
-      <div v-if="messages?.some(m => m.file)" class="space-y-4">
-        <div
-            v-for="message in messages.filter(m => m.file)"
-            :key="message.id"
-            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-        >
-          <div class="flex items-center gap-3">
-            <UIcon 
-              :name="getFileIcon(message.file?.type || '')" 
-              class="w-6 h-6 text-gray-500" 
-            />
-            <div>
-              <p class="text-sm font-medium">{{ message.file?.name }}</p>
-              <p class="text-xs text-gray-500">
-                Отправлено {{ new Date(message.createdAt).toLocaleString('ru-RU') }}
-              </p>
-            </div>
-          </div>
-          <a
-              :href="message.file?.url"
-              target="_blank"
-              class="text-blue-600 hover:text-blue-800"
-          >
-            <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5" />
-          </a>
-        </div>
-      </div>
-      <div v-else class="text-center text-gray-500 py-4">
-        <p>В этом чате пока нет прикрепленных файлов</p>
-      </div>
-    </div>
-    <template #footer>
-      <UButton @click="showActionsModal = false">
-        Закрыть
-      </UButton>
-    </template>
-  </UModal>
 </template>

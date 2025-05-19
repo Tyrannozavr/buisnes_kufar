@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { Announcement } from '~/types/announcement'
-import type { Company } from '~/types/company'
-import { useApi } from '~/composables/useApi'
-
+interface Announcement {
+  id: string
+  image: string
+  title: string
+  date: string
+}
 
 // Fetch data using the useApi composable
 const currentPage = ref(1)
-const perPage = ref(12)
+const perPage = ref(10)
 
 const { data: announcements, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements } = await useApi<{
   data: Announcement[],
@@ -16,13 +18,12 @@ const { data: announcements, error: announcementsError, pending: announcementsPe
     perPage: number,
     totalPages: number
   }
-}>(`/announcements?page=${currentPage.value}`)
+}>(`/announcements?page=${currentPage.value}&perPage=${perPage.value}`)
 
-// const announcements = computed(() => announcementsData.value?.data || [])
 const pagination = computed(() => announcements.value?.pagination || {
   total: 0,
   page: 1,
-  perPage: 12,
+  perPage: 10,
   totalPages: 1
 })
 
@@ -30,7 +31,6 @@ const pagination = computed(() => announcements.value?.pagination || {
 watch(currentPage, async (newPage) => {
   await refreshAnnouncements()
 })
-
 </script>
 
 <template>
@@ -58,23 +58,23 @@ watch(currentPage, async (newPage) => {
         </p>
       </section>
 
-      <!-- Announcements Grid -->
+      <!-- Announcements List -->
       <section v-else>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="space-y-4">
           <AnnouncementCard
-            v-for="announcement in announcements"
-            :key="announcement.id"
-            :announcement="announcement"
+              v-for="announcement in announcements"
+              :key="announcement.id"
+              :announcement="announcement"
           />
         </div>
 
         <!-- Pagination -->
         <div class="mt-6 flex justify-center">
           <UPagination
-            v-model="currentPage"
-            :total="pagination.total"
-            :per-page="perPage"
-            :ui="{
+              v-model="currentPage"
+              :total="pagination.total"
+              :per-page="perPage"
+              :ui="{
               wrapper: 'flex items-center justify-center',
               base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
               default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',

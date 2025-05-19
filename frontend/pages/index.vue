@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
-import { useAnnouncementsApi, useCompaniesApi } from '~/api'
+import { useApi } from '~/composables/useApi'
 
-const { getLatestAnnouncements } = useAnnouncementsApi()
-const { getLatestCompanies } = useCompaniesApi()
-
-// Fetch announcements from API
-const { data: announcements, error: announcementsError } = await getLatestAnnouncements(5)
-// Fetch companies from API
-const { data: companies, error: companiesError } = await getLatestCompanies(5)
-
-// Simple helper function to get company name
-const getCompanyName = (companyId: number) => {
-  const company = companies.value?.find((c: Company) => c.id === companyId)
-  return company?.name || 'Неизвестная компания'
+interface Announcement {
+  id: string
+  image: string
+  title: string
+  date: string
 }
+
+// Fetch announcements from API with limit
+const { data: announcements, error: announcementsError } = await useApi<{
+  data: Announcement[],
+  pagination: {
+    total: number,
+    page: number,
+    perPage: number,
+    totalPages: number
+  }
+}>('/announcements?limit=5')
+
+// Fetch companies from API
+const { data: companies, error: companiesError } = await useApi<Company[]>('/companies?limit=5')
 
 // Format date for display
 const formatDate = (dateString: string) => {
@@ -59,7 +66,17 @@ const formatDate = (dateString: string) => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Announcements -->
       <section class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">Последние объявления</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">Последние объявления</h2>
+          <UButton
+            to="/announcements"
+            color="gray"
+            variant="ghost"
+            size="sm"
+          >
+            Все объявления
+          </UButton>
+        </div>
 
         <div v-if="announcementsError" class="text-red-500 mb-4">
           Не удалось загрузить объявления
@@ -70,22 +87,11 @@ const formatDate = (dateString: string) => {
         </div>
 
         <div v-else class="space-y-4">
-          <div v-for="announcement in announcements" :key="announcement.id" class="border-b pb-4 last:border-0">
-            <div class="flex items-start">
-              <div v-if="announcement.images && announcement.images.length" class="flex-shrink-0 mr-4">
-                <img :src="announcement.images[0]" alt="" class="w-16 h-16 object-cover rounded">
-              </div>
-              <div>
-                <h3 class="font-medium">{{ announcement.title }}</h3>
-                <p class="text-sm text-gray-600 mt-1">{{ announcement.content.substring(0, 100) }}...</p>
-                <div class="flex items-center mt-2 text-xs text-gray-500">
-                  <span>{{ getCompanyName(announcement.companyId) }}</span>
-                  <span class="mx-2">•</span>
-                  <span>{{ formatDate(announcement.createdAt) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AnnouncementCard
+            v-for="announcement in announcements"
+            :key="announcement.id"
+            :announcement="announcement"
+          />
         </div>
       </section>
 

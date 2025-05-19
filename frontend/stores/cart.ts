@@ -19,6 +19,21 @@ export const useCartStore = defineStore('cart', {
   },
 
   actions: {
+    init() {
+      if (process.client) {
+        const savedCart = localStorage.getItem('cart')
+        if (savedCart) {
+          try {
+            const parsedCart = JSON.parse(savedCart)
+            this.items = parsedCart
+            console.log('Loaded initial state from localStorage:', this.items)
+          } catch (e) {
+            console.error('Error loading cart from localStorage:', e)
+          }
+        }
+      }
+    },
+
     addToCart(product: Product) {
       const existingItem = this.items.find(item => item.product.id === product.id)
       
@@ -30,9 +45,8 @@ export const useCartStore = defineStore('cart', {
           quantity: 1
         })
       }
-
-      // Save to localStorage
       this.saveToStorage()
+      console.log('Cart after adding:', [...this.items])
     },
 
     removeFromCart(productId: string) {
@@ -41,6 +55,7 @@ export const useCartStore = defineStore('cart', {
         this.items.splice(index, 1)
         this.saveToStorage()
       }
+      console.log('Cart after removing:', [...this.items])
     },
 
     updateQuantity(productId: string, quantity: number) {
@@ -53,28 +68,25 @@ export const useCartStore = defineStore('cart', {
           this.saveToStorage()
         }
       }
+      console.log('Cart after updating quantity:', [...this.items])
     },
 
     clearCart() {
       this.items = []
       this.saveToStorage()
+      console.log('Cart cleared')
     },
 
-    // Storage methods
     saveToStorage() {
       if (process.client) {
-        localStorage.setItem('cart', JSON.stringify(this.items))
-      }
-    },
-
-    loadFromStorage() {
-      if (process.client) {
-        const savedCart = localStorage.getItem('cart')
-        if (savedCart) {
-          this.items = JSON.parse(savedCart)
-        }
+        // Преобразуем Proxy в обычный объект перед сохранением
+        const itemsToSave = this.items.map(item => ({
+          product: { ...item.product },
+          quantity: item.quantity
+        }))
+        localStorage.setItem('cart', JSON.stringify(itemsToSave))
+        console.log('Saved to localStorage:', itemsToSave)
       }
     }
-  },
-  persist: true,
+  }
 })

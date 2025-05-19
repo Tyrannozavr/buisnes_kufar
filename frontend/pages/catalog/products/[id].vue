@@ -1,27 +1,14 @@
 <script setup lang="ts">
-interface Product {
-  id: string
-  companyId: string
-  name: string
-  description: string
-  article: string
-  type: string
-  price: number
-  images: string[]
-  characteristics: Array<{
-    name: string
-    value: string
-  }>
-}
-
-interface Company {
-  id: string
-  name: string
-  logo: string
-}
+import type { Product } from '~/types/product'
+import type { Company } from '~/types/company'
+import { useCart } from '~/composables/useCart'
 
 const route = useRoute()
 const id = route.params.id
+
+// Cart functionality
+const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity } = useCart()
+const quantity = computed(() => getQuantity(id as string))
 
 // Fetch product data
 const { data: product, error: productError, pending: productPending } = await useApi<Product>(`/products/${id}`)
@@ -40,15 +27,8 @@ const formatPrice = (price: number) => {
 
 // Image slider
 const currentImageIndex = ref(0)
-const showNextImage = () => {
-  if (product.value?.images) {
-    currentImageIndex.value = (currentImageIndex.value + 1) % product.value.images.length
-  }
-}
-const showPrevImage = () => {
-  if (product.value?.images) {
-    currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length
-  }
+const setCurrentImage = (index: number) => {
+  currentImageIndex.value = index
 }
 </script>
 
@@ -79,27 +59,15 @@ const showPrevImage = () => {
                 v-if="product.images && product.images.length > 0"
                 :src="product.images[currentImageIndex]"
                 :alt="product.name"
-                class="w-full h-full object-cover"
+                class="w-full h-[400px] object-cover"
               />
-              <div v-else class="w-full h-full bg-gray-100 flex items-center justify-center">
-                <span class="text-gray-400">Нет изображения</span>
+              <div v-else class="w-full h-[400px] bg-gray-100 flex items-center justify-center">
+                <NuxtImg
+                  src="/images/placeholder.png"
+                  :alt="product.name"
+                  class="w-full h-full object-cover"
+                />
               </div>
-            </div>
-
-            <!-- Slider controls -->
-            <div v-if="product.images && product.images.length > 1" class="absolute inset-0 flex items-center justify-between p-4">
-              <button
-                @click="showPrevImage"
-                class="bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-colors"
-              >
-                <Icon name="heroicons:chevron-left" class="w-6 h-6" />
-              </button>
-              <button
-                @click="showNextImage"
-                class="bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-colors"
-              >
-                <Icon name="heroicons:chevron-right" class="w-6 h-6" />
-              </button>
             </div>
 
             <!-- Thumbnails -->
@@ -107,8 +75,8 @@ const showPrevImage = () => {
               <button
                 v-for="(image, index) in product.images"
                 :key="index"
-                @click="currentImageIndex = index"
-                class="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden"
+                @click="setCurrentImage(index)"
+                class="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                 :class="{ 'ring-2 ring-primary-500': currentImageIndex === index }"
               >
                 <NuxtImg
@@ -131,7 +99,6 @@ const showPrevImage = () => {
               />
               <div>
                 <h3 class="font-medium">{{ company.name }}</h3>
-                <p class="text-sm text-gray-500">Продавец</p>
               </div>
             </div>
 
@@ -159,6 +126,37 @@ const showPrevImage = () => {
                 </div>
               </dl>
             </div>
+          </div>
+        </div>
+
+        <!-- Cart controls - moved outside of product info -->
+        <div class="border-t mt-6 p-6">
+          <div v-if="quantity > 0" class="flex items-center justify-between gap-2 max-w-xs mx-auto">
+            <UButton
+              class="cursor-pointer"
+              color="neutral"
+              variant="soft"
+              icon="i-heroicons-minus"
+              @click="() => handleDecreaseQuantity(id as string, quantity)"
+            />
+            <span class="text-lg font-medium">{{ quantity }}</span>
+            <UButton
+              class="cursor-pointer"
+              color="neutral"
+              variant="soft"
+              icon="i-heroicons-plus"
+              @click="() => handleIncreaseQuantity(id as string, quantity)"
+            />
+          </div>
+          <div v-else class="flex justify-center">
+            <UButton
+              color="primary"
+              class="cursor-pointer"
+              block
+              @click="() => product && handleAddToCart(product)"
+            >
+              Добавить в корзину
+            </UButton>
           </div>
         </div>
       </div>

@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { useProductsApi } from '~/api/products'
+import type { Product } from '~/types/product'
+defineProps<{
+  products: Product[]
+}>()
 
-// API
-const { products } = useProductsApi()
-
-// Computed properties for different product states
-const activeProducts = computed(() =>
-  products.value?.filter(p => !p.isHidden && !p.isDeleted) ?? []
-)
 
 </script>
 
@@ -22,7 +18,7 @@ const activeProducts = computed(() =>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <UCard
-          v-for="product in activeProducts"
+          v-for="product in products"
           :key="product.id"
           class="hover:shadow-lg transition-shadow"
         >
@@ -53,7 +49,7 @@ const activeProducts = computed(() =>
               <UButton
                 color="neutral"
                 variant="soft"
-                :to="`/products/${product.id}`"
+                :to="`/catalog/products/${product.id}`"
               >
                 Подробнее
               </UButton>

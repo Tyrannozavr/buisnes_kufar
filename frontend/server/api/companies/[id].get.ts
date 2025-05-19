@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
     email: 'info@technoprom.ru',
     website: 'https://technoprom.ru',
     isOwner: false,
-    logo: '/images/company-logo.png',
-    coverImage: '/images/company-cover.jpg'
+    logo: 'https://i.pinimg.com/736x/ec/d9/c2/ecd9c2e8ed0dbbc96ac472a965e4afda.jpg',
+    coverImage: 'https://i.pinimg.com/736x/ec/d9/c2/ecd9c2e8ed0dbbc96ac472a965e4afda.jpg'
   }
 
   return company

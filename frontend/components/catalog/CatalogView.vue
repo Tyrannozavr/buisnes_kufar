@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import ProductCard from "~/components/catalog/ProductCard.vue";
 import { useProductsApi } from '~/api/products'
-import ProductsFilter from "~/components/catalog/ProductsFilter.vue";
-import type { Product } from '~/types/product'
-import type { Service } from '~/types/service'
 
 const props = defineProps<{
   type: 'products' | 'services'

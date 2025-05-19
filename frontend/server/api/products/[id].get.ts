@@ -67,20 +67,28 @@ const products: Product[] = [
 
 export default defineEventHandler(async (event) => {
   const id = event.context.params?.id
-  if (!id) {
-    throw createError({
-      statusCode: 400,
-      message: 'Product ID is required'
-    })
+
+  // Default product data
+  const defaultProduct: Product = {
+    id: id || 'default',
+    companyId: 'default',
+    name: 'Стандартный продукт',
+    description: 'Это стандартное описание продукта, возвращаемое по умолчанию.',
+    article: 'STD-1000',
+    type: 'Товар',
+    price: 100000,
+    images: [
+      'https://www.shareicon.net/data/2016/02/27/725765_commerce_512x512.png',
+      'https://www.shareicon.net/data/2016/02/27/725765_commerce_512x512.png'
+    ],
+    characteristics: [
+      { name: 'Характеристика 1', value: 'Значение 1' },
+      { name: 'Характеристика 2', value: 'Значение 2' },
+      { name: 'Характеристика 3', value: 'Значение 3' }
+    ],
+    isHidden: false,
+    isDeleted: false
   }
 
-  const product = products.find(p => p.id === id && !p.isHidden && !p.isDeleted)
-  if (!product) {
-    throw createError({
-      statusCode: 404,
-      message: 'Product not found'
-    })
-  }
-
-  return product
-}) 
+  return defaultProduct
+})

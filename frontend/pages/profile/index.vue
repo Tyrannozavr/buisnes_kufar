@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type {Company} from '~/types/company'
 import PageLoader from "~/components/ui/PageLoader.vue";
-import { useCompanyApi } from '~/api'
+import { getMyCompany, updateCompany } from '~/api/company'
 
 definePageMeta({
   layout: 'profile'
@@ -27,9 +27,6 @@ onMounted(() => {
   }
 })
 
-const { getMyCompany, updateCompany } = useCompanyApi()
-
-// Fetch company data using useApi composable
 const {
   data: company,
   error: companyError,

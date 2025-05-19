@@ -1,58 +1,14 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
-import { useCartStore } from '~/stores/cart'
-import {useUserStore} from "~/stores/user";
-const userStore = useUserStore()
+import { useCart } from '~/composables/useCart'
 
 const props = defineProps<{
   product: Product
 }>()
 
-const cartStore = useCartStore()
-const toast = useToast()
+const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity } = useCart()
+const quantity = computed(() => getQuantity(props.product.id))
 
-const quantity = computed(() => {
-  const item = cartStore.items.find(item => item.product.id === props.product.id)
-  return item?.quantity ?? 0
-})
-
-const handleAddToCart = async () => {
-  if (!userStore.isAuthenticated) {
-    toast.add({
-      title: 'Требуется авторизация',
-      description: 'Пожалуйста, войдите в систему, чтобы добавить товар в корзину',
-      color: 'warning'
-    })
-    return
-  }
-
-  try {
-    await cartStore.addToCart(props.product)
-    toast.add({
-      title: 'Успешно',
-      description: 'Товар добавлен в корзину',
-      color: 'success'
-    })
-  } catch (error) {
-    toast.add({
-      title: 'Ошибка',
-      description: 'Не удалось добавить товар в корзину',
-      color: 'error'
-    })
-  }
-}
-
-const handleIncreaseQuantity = () => {
-  cartStore.updateQuantity(props.product.id, quantity.value + 1)
-}
-
-const handleDecreaseQuantity = () => {
-  if (quantity.value > 1) {
-    cartStore.updateQuantity(props.product.id, quantity.value - 1)
-  } else {
-    cartStore.removeFromCart(props.product.id)
-  }
-}
 </script>
 
 <template>
@@ -97,7 +53,7 @@ const handleDecreaseQuantity = () => {
                 color="neutral"
                 variant="soft"
                 icon="i-heroicons-minus"
-                @click="handleDecreaseQuantity"
+                @click="() => handleDecreaseQuantity(product.id, quantity)"
             />
             <span class="text-lg font-medium">{{ quantity }}</span>
             <UButton
@@ -105,7 +61,7 @@ const handleDecreaseQuantity = () => {
                 color="neutral"
                 variant="soft"
                 icon="i-heroicons-plus"
-                @click="handleIncreaseQuantity"
+                @click="() => handleIncreaseQuantity(product.id, quantity)"
             />
           </div>
           <UButton
@@ -113,7 +69,7 @@ const handleDecreaseQuantity = () => {
               color="primary"
               class="cursor-pointer"
               block
-              @click="handleAddToCart"
+              @click="() => handleAddToCart(product)"
           >
             Добавить в корзину
           </UButton>

@@ -1,7 +1,21 @@
-import type { Product } from '~/types/product'
+import type { Product, ProductResponse } from '~/types/product'
+import type { Service, ServiceResponse } from '~/types/service'
+import { useApi } from '~/composables/useApi'
 
 export const useProductsApi = () => {
-  const { data: products, refresh } = useApi<Product[]>('/products')
+  const getProducts = async (params?: { page?: number; perPage?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.perPage) queryParams.append('perPage', params.perPage.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return await useApi<ProductResponse>(`/products${query}`)
+  }
+
+  const getProduct = async (id: string) => {
+    return await useApi<Product>(`/products/${id}`)
+  }
 
   const searchProducts = async (params: {
     name?: string
@@ -10,10 +24,11 @@ export const useProductsApi = () => {
     region?: string
     city?: string
   } = {}) => {
-    return useApi<Product[]>('/products', {
+    return useApi<ProductResponse>('/products', {
       query: params
     })
   }
+
   const searchServices = async (params: {
     name?: string
     country?: string
@@ -21,7 +36,7 @@ export const useProductsApi = () => {
     region?: string
     city?: string
   } = {}) => {
-    return useApi<Product[]>('/services', {
+    return useApi<ServiceResponse>('/services', {
       query: params
     })
   }
@@ -31,7 +46,6 @@ export const useProductsApi = () => {
       await useApi(`/products/${productId}/hide`, {
         method: 'PUT'
       })
-      await refresh()
       useToast().add({
         title: 'Успешно',
         description: 'Продукт скрыт',
@@ -51,7 +65,6 @@ export const useProductsApi = () => {
       await useApi(`/products/${productId}/delete`, {
         method: 'PUT'
       })
-      await refresh()
       useToast().add({
         title: 'Успешно',
         description: 'Продукт удален',
@@ -71,7 +84,6 @@ export const useProductsApi = () => {
       await useApi(`/products/${productId}/restore`, {
         method: 'PUT'
       })
-      await refresh()
       useToast().add({
         title: 'Успешно',
         description: 'Продукт восстановлен',
@@ -109,7 +121,6 @@ export const useProductsApi = () => {
           color: 'success'
         })
       }
-      await refresh()
       return true
     } catch {
       useToast().add({
@@ -122,8 +133,8 @@ export const useProductsApi = () => {
   }
 
   return {
-    products,
-    refresh,
+    getProducts,
+    getProduct,
     searchProducts,
     searchServices,
     hideProduct,

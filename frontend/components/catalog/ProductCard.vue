@@ -71,48 +71,54 @@ const handleDecreaseQuantity = () => {
       </NuxtLink>
 
       <!-- Product Info -->
-      <div class="flex-grow">
-        <NuxtLink
-            :to="`/catalog/products/${product.id}`"
-            class="text-lg font-medium mb-2 block"
-        >
-          {{ product.name }}
-        </NuxtLink>
-        <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ product.description }}</p>
-        
-        <!-- Price -->
-        <div class="text-xl font-bold mb-4">
-          {{ product.price.toLocaleString('ru-RU') }} ₽
-        </div>
-      </div>
+      <div class="flex flex-col justify-between flex-grow">
+        <div>
+          <NuxtLink
+              :to="`/catalog/products/${product.id}`"
+              class="text-lg font-medium mb-2 block h-14 overflow-hidden"
+          >
+            <span class="line-clamp-2">{{ product.name }}</span>
+          </NuxtLink>
+          <p class="text-gray-600 text-sm mb-4 h-10 overflow-hidden">
+            <span class="line-clamp-2">{{ product.description }}</span>
+          </p>
 
-      <!-- Cart Controls -->
-      <div class="mt-auto pt-4">
-        <div v-if="quantity > 0" class="flex items-center justify-between gap-2">
-          <UButton
-              color="neutral"
-              variant="soft"
-              icon="i-heroicons-minus"
-              @click="handleDecreaseQuantity"
-          />
-          <span class="text-lg font-medium">{{ quantity }}</span>
-          <UButton
-              color="neutral"
-              variant="soft"
-              icon="i-heroicons-plus"
-              @click="handleIncreaseQuantity"
-          />
+          <!-- Price -->
+          <div class="text-xl font-bold mb-4">
+            {{ product.price.toLocaleString('ru-RU') }} ₽
+          </div>
         </div>
-        <UButton
-            v-else
-            color="primary"
-            class="cursor-pointer"
-            block
-            @click="handleAddToCart"
-        >
-          Добавить в корзину
-        </UButton>
+
+        <!-- Cart Controls -->
+        <div class="pt-4">
+          <div v-if="quantity > 0" class="flex items-center justify-between gap-2">
+            <UButton
+                class="cursor-pointer"
+                color="neutral"
+                variant="soft"
+                icon="i-heroicons-minus"
+                @click="handleDecreaseQuantity"
+            />
+            <span class="text-lg font-medium">{{ quantity }}</span>
+            <UButton
+                class="cursor-pointer"
+                color="neutral"
+                variant="soft"
+                icon="i-heroicons-plus"
+                @click="handleIncreaseQuantity"
+            />
+          </div>
+          <UButton
+              v-else
+              color="primary"
+              class="cursor-pointer"
+              block
+              @click="handleAddToCart"
+          >
+            Добавить в корзину
+          </UButton>
+        </div>
       </div>
     </div>
   </UCard>
-</template> 
+</template>

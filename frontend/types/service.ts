@@ -1,10 +1,10 @@
-export interface Product {
+export interface Service {
   id: string
   companyId: string
   name: string
   description: string
   article: string
-  type: 'Товар' | 'Услуга'
+  type: 'Услуга'
   price: number
   images: string[]
   characteristics: Array<{
@@ -15,8 +15,8 @@ export interface Product {
   isDeleted: boolean
 }
 
-export interface ProductResponse {
-  data: Product[]
+export interface ServiceResponse {
+  data: Service[]
   pagination: {
     total: number
     page: number

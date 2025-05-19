@@ -1,4 +1,4 @@
-import { defineEventHandler, getQuery } from 'h3'
+import { defineEventHandler } from 'h3'
 import type { Service } from '~/types/service'
 
 // Mock data for services
@@ -66,29 +66,21 @@ const services: Service[] = [
 ]
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  const page = parseInt(query.page as string) || 1
-  const perPage = parseInt(query.perPage as string) || 10
-  const limit = parseInt(query.limit as string)
-
-  // Filter out hidden and deleted services
-  const filteredServices = services.filter(s => !s.isHidden && !s.isDeleted)
-
-  // Apply limit if specified
-  const limitedServices = limit ? filteredServices.slice(0, limit) : filteredServices
-
-  // Calculate pagination
-  const startIndex = (page - 1) * perPage
-  const endIndex = startIndex + perPage
-  const paginatedServices = limitedServices.slice(startIndex, endIndex)
-
-  return {
-    data: paginatedServices,
-    pagination: {
-      total: limitedServices.length,
-      page,
-      perPage,
-      totalPages: Math.ceil(limitedServices.length / perPage)
-    }
+  const id = event.context.params?.id
+  if (!id) {
+    throw createError({
+      statusCode: 400,
+      message: 'Service ID is required'
+    })
   }
-})
+
+  const service = services.find(s => s.id === id && !s.isHidden && !s.isDeleted)
+  if (!service) {
+    throw createError({
+      statusCode: 404,
+      message: 'Service not found'
+    })
+  }
+
+  return service
+}) 

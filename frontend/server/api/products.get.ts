@@ -108,7 +108,8 @@ export default defineEventHandler(async (event) => {
   const limit = parseInt(query.limit as string)
 
   // Filter out hidden and deleted products
-  const filteredProducts = products.filter(p => !p.isHidden && !p.isDeleted)
+  // const filteredProducts = products.filter(p => !p.isHidden && !p.isDeleted)
+  const filteredProducts = products
 
   // Apply limit if specified
   const limitedProducts = limit ? filteredProducts.slice(0, limit) : filteredProducts

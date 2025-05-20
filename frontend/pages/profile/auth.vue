@@ -2,10 +2,9 @@
 import { ref } from 'vue'
 import { authApi } from '~/api/auth'
 
-interface ApiResponse {
-  success: boolean
-  message: string
-}
+definePageMeta({
+  layout: 'profile'
+})
 
 const toast = useToast()
 

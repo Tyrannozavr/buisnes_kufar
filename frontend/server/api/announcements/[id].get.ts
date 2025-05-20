@@ -25,6 +25,8 @@ export default defineEventHandler((event) => {
     image: announcement.images[0],
     title: announcement.title,
     date: announcement.createdAt,
+    createdAt: announcement.createdAt,
+    updatedAt: announcement.createdAt,
     content: announcement.content
   }
 })

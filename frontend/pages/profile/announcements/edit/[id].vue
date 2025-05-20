@@ -13,6 +13,7 @@ const saving = ref(false);
 const { getAnnouncementById, updateAnnouncement } = useAnnouncementsApi()
 const { getCategories } = useCategoriesApi()
 
+// Fetch announcement data
 const { data: announcement, error: fetchError, pending: loading } = await getAnnouncementById(id);
 
 // Check if announcement exists and is not published
@@ -21,19 +22,26 @@ const canEdit = computed(() => {
 });
 
 // Initial form data
-const initialFormData = computed<AnnouncementFormData | undefined>(() => {
-  if (!announcement.value) return undefined;
+const initialFormData = computed<AnnouncementFormData>(() => {
+  if (!announcement.value) {
+    return {
+      title: '',
+      content: '',
+      images: [],
+      category: ''
+    };
+  }
 
   return {
     title: announcement.value.title,
     content: announcement.value.content,
-    images: [...announcement.value.images],
+    images: announcement.value.images || [],
     category: announcement.value.category,
   };
 });
 
 // Fetch categories from API
-const { data: categories } = await getCategories()
+const { data: categories, error: categoriesError } = await getCategories()
 
 const handleSave = async (formData: AnnouncementFormData, publish = false) => {
   saving.value = true;
@@ -70,19 +78,17 @@ const handleCancel = () => {
 <template>
   <div class="container mx-auto px-4 py-8">
     <UBreadcrumb
-:items="[
-      { label: 'Профиль', to: '/profile' },
-      { label: 'Объявления', to: '/profile/announcements' },
-      { label: announcement?.title || 'Загрузка...', to: `/profile/announcements/${id}` },
-      { label: 'Редактирование', to: '' }
-    ]" class="mb-6" />
+      :items="[
+        { label: 'Профиль', to: '/profile' },
+        { label: 'Объявления', to: '/profile/announcements' },
+        { label: announcement?.title || 'Загрузка...', to: `/profile/announcements/${id}` },
+        { label: 'Редактирование', to: '' }
+      ]"
+      class="mb-6"
+    />
 
     <template v-if="loading">
-      <UCard>
-        <div class="flex justify-center p-8">
-          <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
-        </div>
-      </UCard>
+      <PageLoader text="Загрузка объявления..." />
     </template>
 
     <template v-else-if="fetchError">
@@ -96,12 +102,21 @@ const handleCancel = () => {
           <UButton
             color="error"
             variant="ghost"
-            to="/profile"
+            to="/profile/announcements"
           >
-            Вернуться к профилю
+            Вернуться к объявлениям
           </UButton>
         </template>
       </UAlert>
+    </template>
+
+    <template v-else-if="categoriesError">
+      <UAlert
+        color="error"
+        title="Ошибка загрузки категорий"
+        :description="categoriesError.toString()"
+        icon="i-heroicons-exclamation-circle"
+      />
     </template>
 
     <template v-else-if="!canEdit">
@@ -115,9 +130,9 @@ const handleCancel = () => {
           <UButton
             color="warning"
             variant="ghost"
-            to="/profile"
+            to="/profile/announcements"
           >
-            Вернуться к профилю
+            Вернуться к объявлениям
           </UButton>
         </template>
       </UAlert>

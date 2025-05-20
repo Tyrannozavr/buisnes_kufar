@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {ref} from 'vue';
-import type {Announcement} from '~/types/announcement';
 import { useAnnouncementsApi } from '~/api'
 
 const route = useRoute();
@@ -122,7 +121,6 @@ const editAnnouncement = () => {
       { label: 'Объявления', to: '/profile/announcements' },
       { label: announcement?.title || 'Загрузка...', to: '' }
     ]" class="mb-6"/>
-
     <template v-if="loading">
       <UCard>
         <div class="flex justify-center p-8">
@@ -195,7 +193,7 @@ const editAnnouncement = () => {
           <div v-if="announcement.images && announcement.images.length" class="mb-6">
             <UCarousel :items="announcement.images.map(img => ({ src: img }))" class="rounded-lg overflow-hidden">
               <template #default="{ item }">
-                <img :src="item.src" class="w-full h-64 object-contain bg-gray-100"/>
+                <NuxtImg :src="item.src" class="w-full h-64 object-contain bg-gray-100"/>
               </template>
             </UCarousel>
           </div>

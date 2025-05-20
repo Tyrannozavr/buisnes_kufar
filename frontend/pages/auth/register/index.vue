@@ -146,34 +146,34 @@ const handleSubmit = async () => {
       <form class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="flex flex-col space-y-4 w-full">
           <!-- Name fields split into three separate inputs -->
-          <UFormGroup label="Фамилия (необязательно)">
+          <UFormField label="Фамилия (необязательно)">
             <UInput
                 v-model="form.lastName"
                 type="text"
                 placeholder="Введите фамилию"
                 class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Имя (необязательно)">
+          <UFormField label="Имя (необязательно)">
             <UInput
                 v-model="form.firstName"
                 type="text"
                 placeholder="Введите имя"
                 class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Отчество (необязательно)">
+          <UFormField label="Отчество (необязательно)">
             <UInput
                 v-model="form.patronymic"
                 type="text"
                 placeholder="Введите отчество"
                 class="w-full"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Email">
+          <UFormField label="Email">
             <UInput
                 v-model="form.email"
                 type="email"
@@ -183,9 +183,9 @@ const handleSubmit = async () => {
                 class="w-full"
             />
             <p v-if="emailError" class="mt-1 text-sm text-red-500">{{ emailError }}</p>
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Телефон">
+          <UFormField label="Телефон">
             <UInput
                 v-model="form.phone"
                 type="tel"
@@ -195,7 +195,7 @@ const handleSubmit = async () => {
                 class="w-full"
             />
             <p v-if="phoneError" class="mt-1 text-sm text-red-500">{{ phoneError }}</p>
-          </UFormGroup>
+          </UFormField>
 
           <div class="mt-4 flex items-center">
             <UCheckbox

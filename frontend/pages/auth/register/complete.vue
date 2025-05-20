@@ -18,7 +18,7 @@
 
       <form v-else class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="flex flex-col space-y-4 w-full">
-          <UFormGroup label="ИНН">
+          <UFormField label="ИНН">
             <UInput
               v-model="form.inn"
               type="text"
@@ -28,8 +28,8 @@
               class="w-full"
             />
             <p v-if="innError" class="mt-1 text-sm text-red-500">{{ innError }}</p>
-          </UFormGroup>
-          <UFormGroup label="Должность">
+          </UFormField>
+          <UFormField label="Должность">
             <UInput
               v-model="form.position"
               type="text"
@@ -39,9 +39,9 @@
               class="w-full"
             />
             <p v-if="positionError" class="mt-1 text-sm text-red-500">{{ positionError }}</p>
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Пароль">
+          <UFormField label="Пароль">
             <div class="relative">
               <UInput
                 v-model="form.password"
@@ -63,9 +63,9 @@
               </button>
             </div>
             <p v-if="passwordError" class="mt-1 text-sm text-red-500">{{ passwordError }}</p>
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Повторите пароль">
+          <UFormField label="Повторите пароль">
             <div class="relative">
               <UInput
                 v-model="form.confirmPassword"
@@ -87,7 +87,7 @@
               </button>
             </div>
             <p v-if="confirmPasswordError" class="mt-1 text-sm text-red-500">{{ confirmPasswordError }}</p>
-          </UFormGroup>
+          </UFormField>
         </div>
 
         <UButton

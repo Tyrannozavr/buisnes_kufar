@@ -53,6 +53,8 @@ const companyDetails = computed<CompanyDetails>(() => ({
 
       <!-- Продукция -->
       <CompanyProducts
+          class="mt-6"
+          mode="client"
           :products="products || []"
       />
     </UContainer>

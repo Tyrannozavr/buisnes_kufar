@@ -19,9 +19,14 @@ export const getCompany = async (id: string) => {
   return await useApi<Company>(`/companies/${id}`)
 }
 
-export const getCompanyProducts = async (id: string) => {
-  return await useApi<Product[]>(`/companies/${id}/products`)
+export const getCompanyProducts = (options: UseFetchOptions<Product[]> = {}) => {
+  return useApi<Product[]>('/company/products', options)
 }
+export const getMyProducts = (options: UseFetchOptions<Product[]> = {}) => {
+  return useApi<{data: Product[]}>('/products', options)
+}
+
+
 
 export const getCompanyReviews = async (id: string) => {
   return await useApi<Review[]>(`/companies/${id}/reviews`)

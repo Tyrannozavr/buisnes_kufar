@@ -42,21 +42,21 @@ async function submitForm() {
 
     <form @submit.prevent="submitForm">
       <div class="mb-4">
-        <UFormGroup label="Название" required>
+        <UFormField label="Название" required>
           <UInput v-model="form.name" placeholder="Введите название производителя" />
-        </UFormGroup>
+        </UFormField>
       </div>
 
       <div class="mb-4">
-        <UFormGroup label="Описание">
+        <UFormField label="Описание">
           <UTextarea v-model="form.description" placeholder="Введите описание" />
-        </UFormGroup>
+        </UFormField>
       </div>
 
       <div class="mb-6">
-        <UFormGroup label="Веб-сайт">
+        <UFormField label="Веб-сайт">
           <UInput v-model="form.website" placeholder="https://example.com" />
-        </UFormGroup>
+        </UFormField>
       </div>
 
       <div class="flex justify-end">

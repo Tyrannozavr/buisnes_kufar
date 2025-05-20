@@ -8,12 +8,6 @@ const props = defineProps<{
   pending: boolean
   error: Error | null
 }>()
-
-console.log('CompaniesList props:', {
-  manufacturers: props.manufacturers,
-  pending: props.pending,
-  error: props.error
-})
 </script>
 
 <template>

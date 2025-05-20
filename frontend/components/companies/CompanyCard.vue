@@ -31,22 +31,22 @@ const navigateToMessage = async () => {
   }
 }
 
-const handleDelete = async () => {
-  try {
-    await deletePartnerById(props.manufacturer.id)
-    useToast().add({
-      title: 'Успешно',
-      description: 'Компания удалена',
-      color: 'success'
-    })
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось удалить компанию',
-      color: 'error'
-    })
-  }
-}
+// const handleDelete = async () => {
+//   try {
+//     await deletePartnerById(props.manufacturer.id)
+//     useToast().add({
+//       title: 'Успешно',
+//       description: 'Компания удалена',
+//       color: 'success'
+//     })
+//   } catch (error) {
+//     useToast().add({
+//       title: 'Ошибка',
+//       description: 'Не удалось удалить компанию',
+//       color: 'error'
+//     })
+//   }
+// }
 </script>
 
 <template>
@@ -81,14 +81,14 @@ const handleDelete = async () => {
             >
               Написать сообщение
             </UButton>
-            <UButton
-              color="error"
-              variant="soft"
-              class="cursor-pointer"
-              @click="handleDelete"
-            >
-              Удалить
-            </UButton>
+<!--            <UButton-->
+<!--              color="error"-->
+<!--              variant="soft"-->
+<!--              class="cursor-pointer"-->
+<!--              @click="handleDelete"-->
+<!--            >-->
+<!--              Удалить-->
+<!--            </UButton>-->
           </div>
         </div>
 

@@ -114,7 +114,7 @@ const formatDate = (dateString: string) => {
                 <img :src="company.logo || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded">
               </div>
               <div>
-                <h3 class="font-medium">{{ company.name }}</h3>
+                <NuxtLink :to="`/company/${company.id}`" class="font-medium">{{ company.name }}</NuxtLink>
                 <p class="text-xs text-gray-600">{{ company.businessType }}</p>
                 <p class="text-xs text-gray-500 mt-1">{{ formatDate(company.registrationDate) }}</p>
               </div>

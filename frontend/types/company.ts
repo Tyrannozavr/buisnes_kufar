@@ -22,6 +22,10 @@ export interface Company {
   phone: string
   email: string
   website: string
+  officials?: Array<{
+    position: string
+    fullName: string
+  }>
 }
 
 // Type for partner company with only the required fields

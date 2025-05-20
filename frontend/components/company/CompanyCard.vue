@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import { useChatsApi } from '~/api/chats'
+import { useCompaniesApi } from '~/api/companies'
 
 const props = defineProps<{
   partner: PartnerCompany
@@ -8,6 +9,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const { createChat } = useChatsApi()
+const { deletePartnerById } = useCompaniesApi()
 
 const navigateToCompany = () => {
   router.push(`/company/${props.partner.slug}`)
@@ -32,13 +34,30 @@ const navigateToMessage = async () => {
     })
   }
 }
+
+const handleDelete = async () => {
+  try {
+    await deletePartnerById(props.partner.slug)
+    useToast().add({
+      title: 'Успешно',
+      description: 'Компания удалена из списка',
+      color: 'success'
+    })
+  } catch (error) {
+    useToast().add({
+      title: 'Ошибка',
+      description: 'Не удалось удалить компанию',
+      color: 'error'
+    })
+  }
+}
 </script>
 
 <template>
   <div class="bg-white rounded-lg shadow p-4 flex items-start space-x-4">
     <!-- Company Logo -->
     <div class="flex-shrink-0">
-      <img
+      <NuxtImg
         :src="partner.logo || '/images/default-company-logo.png'"
         :alt="partner.fullName"
         class="w-16 h-16 rounded-lg object-cover"
@@ -49,7 +68,7 @@ const navigateToMessage = async () => {
     <div class="flex-grow">
       <div class="flex justify-between items-start">
         <div>
-          <h3 
+          <h3
             class="text-lg font-semibold text-blue-600 cursor-pointer hover:text-blue-800"
             @click="navigateToCompany"
           >
@@ -68,6 +87,7 @@ const navigateToMessage = async () => {
             Написать сообщение
           </button>
           <button
+            @click="handleDelete"
             class="text-red-600 hover:text-red-800 text-sm font-medium"
           >
             Удалить из списка

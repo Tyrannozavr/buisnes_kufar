@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {CompanyShort} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
+import { useCompaniesApi } from '~/api/companies'
 
 const props = defineProps<{
   manufacturer: CompanyShort
@@ -8,6 +9,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const { createChat } = useChatsApi()
+const { deletePartnerById } = useCompaniesApi()
 
 const navigateToMessage = async () => {
   try {
@@ -24,6 +26,23 @@ const navigateToMessage = async () => {
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось создать чат',
+      color: 'error'
+    })
+  }
+}
+
+const handleDelete = async () => {
+  try {
+    await deletePartnerById(props.manufacturer.id)
+    useToast().add({
+      title: 'Успешно',
+      description: 'Компания удалена',
+      color: 'success'
+    })
+  } catch (error) {
+    useToast().add({
+      title: 'Ошибка',
+      description: 'Не удалось удалить компанию',
       color: 'error'
     })
   }
@@ -53,14 +72,24 @@ const navigateToMessage = async () => {
                 class="text-lg font-medium">{{ manufacturer.name }}</NuxtLink>
             <p class="text-gray-600">{{ manufacturer.description }}</p>
           </div>
-          <UButton
-            color="primary"
-            variant="soft"
-            class="cursor-pointer"
-            @click="navigateToMessage"
-          >
-            Написать сообщение
-          </UButton>
+          <div class="flex gap-2">
+            <UButton
+              color="primary"
+              variant="soft"
+              class="cursor-pointer"
+              @click="navigateToMessage"
+            >
+              Написать сообщение
+            </UButton>
+            <UButton
+              color="error"
+              variant="soft"
+              class="cursor-pointer"
+              @click="handleDelete"
+            >
+              Удалить
+            </UButton>
+          </div>
         </div>
 
         <!-- Location -->
@@ -71,4 +100,4 @@ const navigateToMessage = async () => {
       </div>
     </div>
   </UCard>
-</template> 
+</template>

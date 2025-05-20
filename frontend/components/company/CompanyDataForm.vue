@@ -51,7 +51,36 @@ watch([() => formState.value.country, () => formState.value.federalDistrict], ()
   refreshRegions()
 })
 
+interface PositionOption {
+  label: string
+  value: string
+}
+
+const positionOptions = [
+  { label: 'Генеральный директор', value: 'Генеральный директор' },
+  { label: 'Финансовый директор', value: 'Финансовый директор' },
+  { label: 'Главный бухгалтер', value: 'Главный бухгалтер' },
+  { label: 'Коммерческий директор', value: 'Коммерческий директор' },
+  { label: 'Технический директор', value: 'Технический директор' },
+  { label: 'Руководитель отдела продаж', value: 'Руководитель отдела продаж' },
+  { label: 'Руководитель отдела закупок', value: 'Руководитель отдела закупок' },
+  { label: 'Руководитель производства', value: 'Руководитель производства' }
+]
+
+const officials = ref(props.company.officials || [{ position: '', fullName: '' }])
+
+const addOfficial = () => {
+  officials.value.push({ position: '', fullName: '' })
+}
+
+const removeOfficial = (index: number) => {
+  if (officials.value.length > 1) {
+    officials.value.splice(index, 1)
+  }
+}
+
 const handleSave = () => {
+  formState.value.officials = officials.value
   emits('save', formState.value)
 }
 
@@ -236,7 +265,45 @@ const handleLogoUpload = () => {
           </div>
         </div>
 
-        <!-- 4. Контактные данные -->
+        <!-- 4. Должностные лица -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Должностные лица</h4>
+          <div class="space-y-4">
+            <div v-for="(official, index) in officials" :key="index" class="flex items-end gap-4">
+              <UFormField label="Должность" required class="flex-1">
+                <USelect
+                    v-model="official.position"
+                    :items="positionOptions || []"
+                    placeholder="Выберите должность"
+                />
+              </UFormField>
+              <UFormField label="ФИО" required class="flex-1">
+                <UInput
+                    v-model="official.fullName"
+                    placeholder="Например: Иванова И.И."
+                />
+              </UFormField>
+              <UButton
+                  v-if="officials.length > 1"
+                  color="error"
+                  variant="soft"
+                  icon="i-heroicons-trash"
+                  class="mb-1"
+                  @click="removeOfficial(index)"
+              />
+            </div>
+            <UButton
+                color="primary"
+                variant="soft"
+                icon="i-heroicons-plus"
+                @click="addOfficial"
+            >
+              Добавить должностное лицо
+            </UButton>
+          </div>
+        </div>
+
+        <!-- 5. Контактные данные -->
         <div>
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Контактные данные</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

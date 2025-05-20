@@ -30,10 +30,17 @@ export const useCompaniesApi = () => {
     });
   }
 
+  const deletePartnerById = async (id: string) => {
+    return await useFetch(`/api/companies/${id}`, {
+      method: 'delete'
+    })
+  }
+
   return {
     getCompanies,
     getLatestCompanies,
     searchManufacturers,
-    searchServiceProviders
+    searchServiceProviders,
+    deletePartnerById
   }
 } 

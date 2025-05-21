@@ -91,7 +91,11 @@ const setCurrentImage = (index: number) => {
           <!-- Product info -->
           <div class="space-y-6">
             <!-- Company info -->
-            <div v-if="company" class="flex items-center gap-3">
+            <NuxtLink
+                v-if="company"
+                :to="`/company/${company.id}`"
+                class="flex items-center gap-3"
+            >
               <NuxtImg
                 :src="company.logo || '/images/default-company.png'"
                 :alt="company.name"
@@ -100,7 +104,7 @@ const setCurrentImage = (index: number) => {
               <div>
                 <h3 class="font-medium">{{ company.name }}</h3>
               </div>
-            </div>
+            </NuxtLink>
 
             <!-- Product details -->
             <div>

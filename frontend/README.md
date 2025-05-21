@@ -3,7 +3,13 @@
 Look at [Nuxt docs](https://nuxt.com/docs/getting-started/introduction) and [Nuxt UI docs](https://ui.nuxt.com) to learn more.
 
 ## Setup
+loclx tunnel http --to localhost:3000
 
+npm install -g localtunnel
+lt --port 3000
+далее просит ввести какой то пароль, нужно ввести свой IP адрес
+можно посмотреть на
+https://2ip.ru/
 Make sure to install the dependencies:
 
 ```bash

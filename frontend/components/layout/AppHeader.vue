@@ -26,12 +26,17 @@ const handleLogout = () => {
               to="/"
           >
             <NuxtImg
-                src="/images/logo.png"
+                src="/images/logo.jpg"
                 alt="БизнесТорг"
-                class="h-12 w-auto"
+                class="h-12 w-auto mr-0"
                 loading="eager"
             />
-            <h1 class="text-xl font-semibold text-gray-900">БизнесТорг</h1>
+            <NuxtImg
+                src="/images/companyNameWhite.png"
+                alt="trade_synergy"
+                class="h-14 w-auto"
+                loading="eager"
+            />
           </NuxtLink>
         </div>
 

@@ -70,7 +70,7 @@ const formatDate = (dateString: string) => {
           <h2 class="text-xl font-semibold">Последние объявления</h2>
           <UButton
             to="/announcements"
-            color="gray"
+            color="neutral"
             variant="ghost"
             size="sm"
           >

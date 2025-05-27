@@ -43,9 +43,7 @@ const publishAnnouncement = async (announcement: Announcement) => {
 </script>
 
 <template>
-  <ProfileLayout>
     <div class="bg-white shadow rounded-lg p-6">
-      <h2 class="text-lg font-medium text-gray-900 mb-4">Объявления</h2>
       <AnnouncementList
         :announcements="announcements || null"
         :loading="loadingAnnouncements"
@@ -53,5 +51,4 @@ const publishAnnouncement = async (announcement: Announcement) => {
         @page-change="handlePageChange"
       />
     </div>
-  </ProfileLayout>
-</template> 
+</template>

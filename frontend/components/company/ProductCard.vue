@@ -1,5 +1,5 @@
 <template>
-  <div class="product-card" :class="{ 'is-hidden': isHidden, 'is-deleted': isDeleted }">
+  <NuxtLink :to="`/catalog/items/${product.slug}`" class="product-card" :class="{ 'is-hidden': isHidden, 'is-deleted': isDeleted }">
     <div class="product-image">
       <img :src="product.images[0] || '/images/placeholder.png'" :alt="product.name">
     </div>
@@ -45,7 +45,7 @@
         </template>
       </div>
     </div>
-  </div>
+  </NuxtLink>
 </template>
 
 <script setup lang="ts">

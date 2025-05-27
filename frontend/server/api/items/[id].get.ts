@@ -7,6 +7,7 @@ const products: Product[] = [
     id: '1',
     companyId: '1',
     name: 'Промышленный станок ЧПУ',
+    slug: 'promyshlennyj-stanok-chpu',
     description: 'Высокоточный промышленный станок с числовым программным управлением для обработки металла. Подходит для серийного производства деталей сложной формы.',
     article: 'CNC-5000',
     type: 'Товар',
@@ -27,6 +28,7 @@ const products: Product[] = [
     id: '2',
     companyId: '2',
     name: 'Строительство коттеджа',
+    slug: 'stroitelstvo-kottedzha',
     description: 'Полный комплекс услуг по строительству коттеджа под ключ. Включает проектирование, закупку материалов, строительные работы и финишную отделку.',
     article: 'HOUSE-150',
     type: 'Услуга',
@@ -47,6 +49,7 @@ const products: Product[] = [
     id: '3',
     companyId: '3',
     name: 'Система автоматизации производства',
+    slug: 'sistema-avtomatizacii-proizvodstva',
     description: 'Комплексное решение для автоматизации производственных процессов. Включает программное обеспечение, датчики и контроллеры для оптимизации работы предприятия.',
     article: 'AUTO-2500',
     type: 'Товар',
@@ -73,13 +76,14 @@ export default defineEventHandler(async (event) => {
     id: id || 'default',
     companyId: 'default',
     name: 'Стандартный продукт',
+    slug: 'standartnyj-produkt',
     description: 'Это стандартное описание продукта, возвращаемое по умолчанию.',
     article: 'STD-1000',
     type: 'Товар',
     price: 100000,
     images: [
       'https://www.shareicon.net/data/2016/02/27/725765_commerce_512x512.png',
-      'https://www.shareicon.net/data/2016/02/27/725765_commerce_512x512.png'
+      'https://cdn2.iconfinder.com/data/icons/media-advertising-2/64/monitor-ecommerce-screen-multimedia-broswer-online_shop-shopping_cart-online_shopping-1024.png'
     ],
     characteristics: [
       { name: 'Характеристика 1', value: 'Значение 1' },

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Announcement } from '~/types/announcement'
 import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
+import { useRouter } from 'vue-router'
 
 defineProps<{
   announcements: {
@@ -14,6 +15,8 @@ defineProps<{
   } | null
   loading: boolean
 }>()
+
+const router = useRouter()
 
 const emit = defineEmits<{
   publish: [id: string]
@@ -130,7 +133,11 @@ const confirmPublish = () => {
       <div class="space-y-4">
         <UCard v-for="announcement in announcements.data" :key="announcement.id" class="overflow-hidden">
           <div class="flex flex-col md:flex-row gap-4">
-            <div v-if="announcement.images && announcement.images.length > 0" class="w-full md:w-48 h-32 flex-shrink-0">
+            <div 
+              v-if="announcement.images && announcement.images.length > 0" 
+              class="w-full md:w-48 h-32 flex-shrink-0 cursor-pointer"
+              @click="router.push(`/announcements/${announcement.id}`)"
+            >
               <NuxtImg :src="announcement.images[0]" alt="Изображение объявления" class="w-full h-full object-cover rounded-md" />
             </div>
             <div v-else class="w-full md:w-48 h-32 flex-shrink-0 bg-gray-100 flex items-center justify-center rounded-md">
@@ -139,7 +146,10 @@ const confirmPublish = () => {
 
             <div class="flex-1">
               <div class="flex justify-between items-start">
-                <h3 class="text-lg font-semibold">{{ announcement.title }}</h3>
+                <h3 
+                  class="text-lg font-semibold cursor-pointer hover:text-primary-500"
+                  @click="router.push(`/profile/announcements/${announcement.id}`)"
+                >{{ announcement.title }}</h3>
                 <UBadge :color="getStatusColor(announcement.published)">
                   {{ getStatusLabel(announcement.published) }}
                 </UBadge>

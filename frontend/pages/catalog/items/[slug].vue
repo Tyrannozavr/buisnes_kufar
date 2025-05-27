@@ -60,7 +60,7 @@ const setCurrentImage = (index: number) => {
                 v-if="item.images && item.images.length > 0"
                 :src="item.images[currentImageIndex]"
                 :alt="item.name"
-                class="w-full h-[400px] object-cover"
+                class="w-full h-auto object-contain"
               />
               <div v-else class="w-full h-[400px] bg-gray-100 flex items-center justify-center">
                 <NuxtImg
@@ -110,9 +110,40 @@ const setCurrentImage = (index: number) => {
             <!-- Item details -->
             <div>
               <h1 class="text-3xl font-bold mb-2">{{ item.name }}</h1>
-              <p class="text-2xl font-semibold text-primary-600 mb-4">
-                {{ formatPrice(item.price) }}
-              </p>
+              <div class="flex justify-between gap-4 mb-4">
+                <p class="text-2xl font-semibold text-primary-600">
+                  {{ formatPrice(item.price) }}
+                </p>
+                <div v-if="quantity > 0" class="flex items-center gap-2">
+                  <UButton
+                    class="cursor-pointer"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-minus"
+                    size="sm"
+                    @click="() => handleDecreaseQuantity(slug as string, quantity)"
+                  />
+                  <span class="text-lg font-medium">{{ quantity }}</span>
+                  <UButton
+                    class="cursor-pointer"
+                    color="neutral"
+                    variant="soft"
+                    icon="i-heroicons-plus"
+                    size="sm"
+                    @click="() => handleIncreaseQuantity(slug as string, quantity)"
+                  />
+                </div>
+                <div v-else>
+                  <UButton
+                    color="primary"
+                    class="cursor-pointer"
+                    size="sm"
+                    @click="() => item && handleAddToCart(item)"
+                  >
+                    Добавить в корзину
+                  </UButton>
+                </div>
+              </div>
               <p class="text-gray-600">{{ item.description }}</p>
             </div>
 
@@ -131,37 +162,6 @@ const setCurrentImage = (index: number) => {
                 </div>
               </dl>
             </div>
-          </div>
-        </div>
-
-        <!-- Cart controls - moved outside of item info -->
-        <div class="border-t mt-6 p-6">
-          <div v-if="quantity > 0" class="flex items-center justify-between gap-2 max-w-xs mx-auto">
-            <UButton
-              class="cursor-pointer"
-              color="neutral"
-              variant="soft"
-              icon="i-heroicons-minus"
-              @click="() => handleDecreaseQuantity(slug as string, quantity)"
-            />
-            <span class="text-lg font-medium">{{ quantity }}</span>
-            <UButton
-              class="cursor-pointer"
-              color="neutral"
-              variant="soft"
-              icon="i-heroicons-plus"
-              @click="() => handleIncreaseQuantity(slug as string, quantity)"
-            />
-          </div>
-          <div v-else class="flex justify-center">
-            <UButton
-              color="primary"
-              class="cursor-pointer"
-              block
-              @click="() => item && handleAddToCart(item)"
-            >
-              Добавить в корзину
-            </UButton>
           </div>
         </div>
       </div>

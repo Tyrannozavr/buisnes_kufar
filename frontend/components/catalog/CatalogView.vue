@@ -67,7 +67,7 @@ const handleSearch = async (newSearch: typeof search.value) => {
       </div>
 
       <div v-else>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <ProductCard
             v-for="item in items?.data"
             :key="item.id"

@@ -1,6 +1,9 @@
+import { ref } from 'vue'
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
 import type { Product } from '~/types/product'
+
+const cart = ref<Map<string, number>>(new Map())
 
 export const useCart = () => {
   const cartStore = useCartStore()
@@ -45,6 +48,14 @@ export const useCart = () => {
     }
   }
 
+  const updateQuantity = (productId: string, newQuantity: number) => {
+    if (newQuantity > 0) {
+      cartStore.updateQuantity(productId, newQuantity)
+    } else {
+      cartStore.removeFromCart(productId)
+    }
+  }
+
   const getQuantity = (productId: string) => {
     const item = cartStore.items.find(item => item.product.id === productId)
     return item?.quantity ?? 0
@@ -54,6 +65,7 @@ export const useCart = () => {
     handleAddToCart,
     handleIncreaseQuantity,
     handleDecreaseQuantity,
+    updateQuantity,
     getQuantity
   }
 } 

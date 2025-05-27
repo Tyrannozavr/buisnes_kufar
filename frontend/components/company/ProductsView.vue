@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
 import ProductCard from "~/components/company/ProductCard.vue"
+import CustomTooltip from "~/components/ui/CustomTooltip.vue"
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -34,9 +35,9 @@ const getSectionDescription = computed(() => {
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2">
           <h3 class="text-xl font-semibold">{{ title }}</h3>
-          <UTooltip :text="getSectionDescription">
+          <CustomTooltip :text="getSectionDescription">
             <UIcon name="i-heroicons-information-circle" class="text-gray-400 hover:text-gray-600 cursor-help" />
-          </UTooltip>
+          </CustomTooltip>
         </div>
         <slot name="header-actions" />
       </div>

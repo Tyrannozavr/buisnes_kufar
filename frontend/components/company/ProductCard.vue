@@ -17,18 +17,32 @@
         </p>
       </div>
       <div class="product-actions">
-        <button v-if="!isHidden && !isDeleted" class="action-btn edit" @click="$emit('edit', product)">
-          Редактировать
-        </button>
-        <button v-if="!isHidden && !isDeleted" class="action-btn hide" @click="$emit('hide', product)">
-          Скрыть
-        </button>
-        <button v-if="!isDeleted" class="action-btn delete" @click="$emit('delete', product)">
-          Удалить
-        </button>
-        <button v-if="isDeleted" class="action-btn restore" @click="$emit('restore', product)">
-          Восстановить
-        </button>
+        <template v-if="!isDeleted">
+          <template v-if="!isHidden">
+            <button class="action-btn edit" @click="$emit('edit', product)">
+              Редактировать
+            </button>
+            <button class="action-btn hide" @click="$emit('hide', product)">
+              Скрыть
+            </button>
+            <button class="action-btn delete" @click="$emit('delete', product)">
+              Удалить
+            </button>
+          </template>
+          <template v-else>
+            <button class="action-btn restore" @click="$emit('restore', product)">
+              Восстановить
+            </button>
+            <button class="action-btn delete" @click="$emit('delete', product)">
+              Удалить
+            </button>
+          </template>
+        </template>
+        <template v-else>
+          <button class="action-btn restore" @click="$emit('restore', product)">
+            Восстановить
+          </button>
+        </template>
       </div>
     </div>
   </div>
@@ -150,7 +164,11 @@ const truncateName = (name: string, maxLength: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
 }
 
 .edit {

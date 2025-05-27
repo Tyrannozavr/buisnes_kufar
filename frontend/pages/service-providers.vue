@@ -88,7 +88,7 @@ if (route.query.created === 'true') {
     <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
 
     <!-- Search Form -->
-    <ManufacturersFilter @search="handleSearch"/>
+    <CompaniesFilter @search="handleSearch"/>
     <!-- Manufacturers List -->
     <CompaniesList
         :manufacturers="manufacturers"

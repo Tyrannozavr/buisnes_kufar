@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import ProductCard from "~/components/catalog/ProductCard.vue";
+import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 import { useProductsApi } from '~/api/products'
+import type { ProductSearchParams, ServiceSearchParams } from '~/types/filters'
 
 const props = defineProps<{
   type: 'products' | 'services'
@@ -12,12 +14,16 @@ const { searchProducts, searchServices } = useProductsApi()
 const currentPage = ref(1)
 
 // Search state
-const search = ref({
-  name: '',
+const search = ref<ProductSearchParams | ServiceSearchParams>({
+  search: '',
   country: '',
   federalDistrict: '',
   region: '',
-  city: ''
+  city: '',
+  type: '',
+  minPrice: undefined,
+  maxPrice: undefined,
+  inStock: undefined
 })
 
 // Loading and error states
@@ -25,16 +31,10 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 
 // Load items
-const { data: items, pending: isPending } = await (props.type === 'products' ? searchProducts : searchServices)({
-  name: '',
-  country: '',
-  federalDistrict: '',
-  region: '',
-  city: ''
-})
+const { data: items, pending: isPending } = await (props.type === 'products' ? searchProducts : searchServices)(search.value)
 
 // Handle search updates
-const handleSearch = async (newSearch: typeof search.value) => {
+const handleSearch = async (newSearch: ProductSearchParams | ServiceSearchParams) => {
   search.value = newSearch
   loading.value = true
   try {
@@ -57,6 +57,13 @@ const handleSearch = async (newSearch: typeof search.value) => {
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">{{ title }}</h1>
       </div>
+
+      <!-- Filter -->
+      <CatalogFilter
+        :type="type"
+        :title="title"
+        @search="handleSearch"
+      />
 
       <div v-if="isPending" class="flex justify-center items-center h-64">
         <ULoadingIcon />

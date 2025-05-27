@@ -2,6 +2,7 @@
 import type { Announcement } from '~/types/announcement'
 import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 import { useRouter } from 'vue-router'
+import AnnouncementCard from './AnnouncementCard.vue';
 
 defineProps<{
   announcements: {
@@ -131,86 +132,21 @@ const confirmPublish = () => {
 
     <template v-else-if="announcements?.data && announcements.data.length > 0">
       <div class="space-y-4">
-        <UCard v-for="announcement in announcements.data" :key="announcement.id" class="overflow-hidden">
-          <div class="flex flex-col md:flex-row gap-4">
-            <div 
-              v-if="announcement.images && announcement.images.length > 0" 
-              class="w-full md:w-48 h-32 flex-shrink-0 cursor-pointer"
-              @click="router.push(`/announcements/${announcement.id}`)"
-            >
-              <NuxtImg :src="announcement.images[0]" alt="Изображение объявления" class="w-full h-full object-cover rounded-md" />
-            </div>
-            <div v-else class="w-full md:w-48 h-32 flex-shrink-0 bg-gray-100 flex items-center justify-center rounded-md">
-              <UIcon name="i-heroicons-photo" class="h-12 w-12 text-gray-400" />
-            </div>
-
-            <div class="flex-1">
-              <div class="flex justify-between items-start">
-                <h3 
-                  class="text-lg font-semibold cursor-pointer hover:text-primary-500"
-                  @click="router.push(`/profile/announcements/${announcement.id}`)"
-                >{{ announcement.title }}</h3>
-                <UBadge :color="getStatusColor(announcement.published)">
-                  {{ getStatusLabel(announcement.published) }}
-                </UBadge>
-              </div>
-
-              <UBadge class="mt-2" color="neutral" variant="subtle">
-                {{ announcement.category }}
-              </UBadge>
-
-              <p class="mt-2 text-sm text-gray-600 line-clamp-2">{{ announcement.content }}</p>
-
-              <div class="mt-4 flex justify-between items-center">
-                <div class="text-xs text-gray-500">
-                  Создано: {{ formatDate(announcement.createdAt) }}
-                </div>
-
-                <div class="flex gap-2">
-                  <UButton
-                    v-if="!announcement.published"
-                    size="sm"
-                    color="primary"
-                    class="cursor-pointer"
-                    @click="openPublishConfirm(announcement)"
-                  >
-                    Опубликовать
-                  </UButton>
-                  <UButton
-                    size="sm"
-                    color="neutral"
-                    variant="soft"
-                    :to="`/profile/announcements/${announcement.id}`"
-                  >
-                    Просмотр
-                  </UButton>
-                  <UButton
-                    size="sm"
-                    color="neutral"
-                    variant="soft"
-                    :to="`/profile/announcements/edit/${announcement.id}`"
-                  >
-                    Редактировать
-                  </UButton>
-                </div>
-              </div>
-            </div>
-          </div>
-        </UCard>
-
+        <AnnouncementCard
+          v-for="announcement in announcements.data"
+          :key="announcement.id"
+          :announcement="announcement"
+          :get-status-color="getStatusColor"
+          :get-status-label="getStatusLabel"
+          :format-date="formatDate"
+          @publish="openPublishConfirm"
+        />
         <!-- Pagination -->
         <div class="mt-6 flex justify-center">
           <UPagination
             v-model="currentPage"
             :total="announcements.pagination.total"
             :per-page="perPage"
-            :ui="{
-              wrapper: 'flex items-center justify-center',
-              base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
-              default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-              active: 'text-primary-500 dark:text-primary-400',
-              disabled: 'opacity-50 cursor-not-allowed'
-            }"
           />
         </div>
       </div>

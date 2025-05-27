@@ -43,7 +43,7 @@ const getSectionDescription = computed(() => {
       </div>
     </template>
 
-    <div v-if="products.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <div v-if="products.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <ProductCard
         v-for="product in products"
         :key="product.id"

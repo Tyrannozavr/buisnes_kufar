@@ -157,6 +157,7 @@ const saveProduct = async (productData: Partial<Product>) => {
           <UButton
             color="primary"
             icon="i-heroicons-plus"
+            size="sm"
             @click="() => openProductForm()"
           >
             Добавить продукт

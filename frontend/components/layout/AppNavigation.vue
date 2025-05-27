@@ -31,7 +31,7 @@ const isActive = (path: string): boolean => {
 <template>
   <div class="bg-gray-50 border-b">
     <UContainer>
-      <nav class="flex justify-between space-x-6 py-3">
+      <nav class="flex justify-between space-x-6 md:space-x-0 py-3">
         <UButton
           v-for="item in navigationItems"
           :key="item.path"

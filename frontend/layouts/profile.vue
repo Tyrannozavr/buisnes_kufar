@@ -110,18 +110,18 @@ const pageTitle = computed(() => {
 
 <template>
   <AppLayout>
-    <div class="container mx-auto px-4 py-8">
-      <div class="flex flex-col md:flex-row gap-8">
+    <div class="container mx-auto px-4 py-8 md:px-0">
+      <div class="mb-6">
+        <Breadcrumbs :current-page-title="pageTitle" />
+      </div>
+      <div class="flex flex-col md:flex-row gap-8 md:gap-0.5">
         <!-- Main Content -->
         <div class="flex-1">
-          <div class="mb-6">
-            <Breadcrumbs :current-page-title="pageTitle" />
-          </div>
           <slot/>
         </div>
         <!-- Navigation Sidebar -->
         <div class="w-full md:w-64 flex-shrink-0">
-          <UCard>
+          <UCard class="sticky top-8">
             <UNavigationMenu
                 orientation="vertical"
                 :items="navigationItems"

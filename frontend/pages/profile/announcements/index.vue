@@ -43,7 +43,7 @@ const publishAnnouncement = async (announcement: Announcement) => {
 </script>
 
 <template>
-    <div class="bg-white shadow rounded-lg p-6">
+    <div class="bg-white shadow rounded-lg p-4 md:p-4 max-w-full overflow-x-hidden">
       <AnnouncementList
         :announcements="announcements || null"
         :loading="loadingAnnouncements"

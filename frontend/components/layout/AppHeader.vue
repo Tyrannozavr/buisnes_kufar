@@ -2,10 +2,12 @@
 import {useUserStore} from '~/stores/user'
 import { useCartStore } from '~/stores/cart'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const totalItems = computed(() => cartStore.totalUniqueItems)
+const route = useRoute()
 
 const handleLogout = () => {
   userStore.logout()
@@ -17,7 +19,7 @@ const handleLogout = () => {
 </script>
 <template>
   <header class="bg-white shadow">
-    <UContainer>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between py-4">
         <!-- Logo and Site Name -->
         <div class="flex items-center space-x-4">
@@ -109,17 +111,8 @@ const handleLogout = () => {
             </UTooltip>
           </template>
         </div>
-
-        <!-- Add this color mode toggle button -->
-<!--        <UButton-->
-<!--          :icon="colorMode.value === 'dark' ? 'i-heroicons-sun-20-solid' : 'i-heroicons-moon-20-solid'"-->
-<!--          color="neutral"-->
-<!--          variant="ghost"-->
-<!--          aria-label="Toggle dark mode"-->
-<!--          @click="toggleColorMode"-->
-<!--        />-->
       </div>
-    </UContainer>
+    </div>
   </header>
 </template>
 

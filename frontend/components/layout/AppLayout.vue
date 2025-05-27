@@ -1,9 +1,11 @@
 <template>
-  <div class="min-h-screen bg-white  dark:text-white">
+  <div class="min-h-screen bg-white dark:text-white">
     <AppHeader />
     <AppNavigation />
     <main class="min-h-screen">
-      <slot />
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <slot />
+      </div>
     </main>
     <AppFooter />
   </div>

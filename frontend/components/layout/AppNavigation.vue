@@ -1,23 +1,3 @@
-<template>
-  <div class="bg-gray-50 border-b">
-    <UContainer>
-      <nav class="flex items-center space-x-6 py-3">
-        <UButton
-          v-for="item in navigationItems"
-          :key="item.path"
-          :to="item.path"
-          variant="ghost"
-          :color="isActive(item.path) ? 'primary' : 'neutral'"
-          class="text-sm"
-          :class="isActive(item.path) ? 'font-medium' : ''"
-        >
-          {{ item.name }}
-        </UButton>
-      </nav>
-    </UContainer>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 
@@ -46,3 +26,25 @@ const isActive = (path: string): boolean => {
   return path !== '/' && route.path.startsWith(path)
 }
 </script>
+
+
+<template>
+  <div class="bg-gray-50 border-b">
+    <UContainer>
+      <nav class="flex justify-between space-x-6 py-3">
+        <UButton
+          v-for="item in navigationItems"
+          :key="item.path"
+          :to="item.path"
+          variant="ghost"
+          :color="isActive(item.path) ? 'primary' : 'neutral'"
+          class="text-sm"
+          :class="isActive(item.path) ? 'font-medium' : ''"
+        >
+          {{ item.name }}
+        </UButton>
+      </nav>
+    </UContainer>
+  </div>
+</template>
+

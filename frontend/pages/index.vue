@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
-import { useApi } from '~/composables/useApi'
+import { useHomeApi } from '~/api/home'
+import { computed } from 'vue'
 
-interface Announcement {
-  id: string
-  image: string
-  title: string
-  date: string
-}
+const { getLatestAnnouncements, getLatestCompanies } = useHomeApi()
 
 // Fetch announcements from API with limit
-const { data: announcements, error: announcementsError } = await useApi<{
-  data: Announcement[],
-  pagination: {
-    total: number,
-    page: number,
-    perPage: number,
-    totalPages: number
-  }
-}>('/announcements?limit=5')
+const { data: announcements, error: announcementsError } = await getLatestAnnouncements()
 
 // Fetch companies from API
-const { data: companies, error: companiesError } = await useApi<Company[]>('/companies?limit=5')
+const { data: companies, error: companiesError } = await getLatestCompanies()
 
 // Format date for display
 const formatDate = (dateString: string) => {
@@ -31,18 +18,30 @@ const formatDate = (dateString: string) => {
     day: 'numeric'
   })
 }
+
+// Map announcement data to match AnnouncementCard requirements
+const mappedAnnouncements = computed(() => {
+  if (!announcements.value?.data) return []
+  
+  return announcements.value.data.map(announcement => ({
+    id: announcement.id,
+    image: announcement.images?.[0] || '/images/default-announcement.png',
+    title: announcement.title,
+    date: announcement.date
+  }))
+})
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <!-- Hero Section -->
-    <section class="bg-[#E3D8FC] rounded-lg p-8">
-      <div class="container mx-auto">
+    <section class="bg-[#E3D8FC] rounded-lg p-8 text-center">
+      <div class="max-w-3xl mx-auto">
         <h1 class="text-4xl font-bold mb-4">Добро пожаловать на бизнес-платформу</h1>
         <p class="text-xl text-gray-600 mb-8">
           Найдите надежных партнеров, поставщиков и покупателей для вашего бизнеса
         </p>
-        <div class="flex gap-4">
+        <div class="flex gap-4 justify-center">
           <UButton
             to="/catalog/products"
             color="primary"
@@ -66,8 +65,8 @@ const formatDate = (dateString: string) => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Announcements -->
       <section class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Последние объявления</h2>
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold">Последние объявления</h2>
           <UButton
             to="/announcements"
             color="neutral"
@@ -78,17 +77,17 @@ const formatDate = (dateString: string) => {
           </UButton>
         </div>
 
-        <div v-if="announcementsError" class="text-red-500 mb-4">
+        <div v-if="announcementsError" class="text-red-500 mb-4 text-center">
           Не удалось загрузить объявления
         </div>
 
-        <div v-else-if="!announcements || announcements.length === 0" class="text-gray-500 mb-4">
+        <div v-else-if="!mappedAnnouncements.length" class="text-gray-500 mb-4 text-center">
           Нет доступных объявлений
         </div>
 
         <div v-else class="space-y-4">
           <AnnouncementCard
-            v-for="announcement in announcements"
+            v-for="announcement in mappedAnnouncements"
             :key="announcement.id"
             :announcement="announcement"
           />
@@ -97,24 +96,36 @@ const formatDate = (dateString: string) => {
 
       <!-- New Companies -->
       <section class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4">Новые компании</h2>
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold">Новые компании</h2>
+          <UButton
+            to="/news"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+          >
+            Все компании
+          </UButton>
+        </div>
 
-        <div v-if="companiesError" class="text-red-500 mb-4">
+        <div v-if="companiesError" class="text-red-500 mb-4 text-center">
           Не удалось загрузить компании
         </div>
 
-        <div v-else-if="!companies || companies.length === 0" class="text-gray-500 mb-4">
+        <div v-else-if="!companies || companies.length === 0" class="text-gray-500 mb-4 text-center">
           Нет новых компаний
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="company in companies" :key="company.id" class="border rounded p-4">
+          <div v-for="company in companies" :key="company.id" class="border rounded-lg p-4 hover:shadow-md transition-shadow">
             <div class="flex items-center">
               <div class="flex-shrink-0 mr-3">
                 <img :src="company.logo || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded">
               </div>
               <div>
-                <NuxtLink :to="`/company/${company.id}`" class="font-medium">{{ company.name }}</NuxtLink>
+                <NuxtLink :to="`/company/${company.id}`" class="font-medium hover:text-primary-600 transition-colors">
+                  {{ company.name }}
+                </NuxtLink>
                 <p class="text-xs text-gray-600">{{ company.businessType }}</p>
                 <p class="text-xs text-gray-500 mt-1">{{ formatDate(company.registrationDate) }}</p>
               </div>

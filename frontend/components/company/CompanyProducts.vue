@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
-import ProductCard from "~/components/company/ProductCard.vue"
 import ProductForm from "~/components/company/ProductForm.vue"
+import ProductsView from "~/components/company/ProductsView.vue"
 
 const props = defineProps<{
   products: Product[]
@@ -137,121 +137,63 @@ const saveProduct = async (productData: Partial<Product>) => {
   <div class="company-products">
     <!-- Client Mode -->
     <template v-if="mode === 'client'">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <UCard
-          v-for="product in activeProducts"
-          :key="product.id"
-          class="hover:shadow-lg transition-shadow"
-        >
-          <template #header>
-            <NuxtImg
-              :src="product.images[0]"
-              :alt="product.name"
-              class="w-full h-48 object-cover rounded-t-lg"
-            />
-          </template>
-          
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">{{ product.name }}</h3>
-            <p class="text-gray-600 line-clamp-2">{{ product.description }}</p>
-            <div class="flex justify-between items-center">
-              <span class="text-lg font-semibold">{{ product.price }} ₽</span>
-              <UBadge
-                color="neutral"
-                variant="soft"
-              >
-                {{ product.type }}
-              </UBadge>
-            </div>
-          </div>
-          
-          <template #footer>
-            <div class="flex justify-end">
-              <UButton
-                color="neutral"
-                variant="soft"
-                :to="`/catalog/products/${product.id}`"
-              >
-                Подробнее
-              </UButton>
-            </div>
-          </template>
-        </UCard>
-      </div>
+      <ProductsView
+        :products="activeProducts"
+        title="Продукция"
+      />
     </template>
 
     <!-- Owner Mode -->
     <template v-else>
-      <UCard class="mb-6">
-        <template #header>
-          <div class="flex justify-between items-center">
-            <h3 class="text-xl font-semibold">Активная продукция</h3>
-            <UButton
-              color="primary"
-              icon="i-heroicons-plus"
-              @click="openProductForm"
-            >
-              Добавить продукт
-            </UButton>
-          </div>
+      <!-- Active Products -->
+      <ProductsView
+        :products="activeProducts"
+        title="Активная продукция"
+        @edit="editProduct"
+        @hide="hideProduct"
+        @delete="deleteProduct"
+      >
+        <template #header-actions>
+          <UButton
+            color="primary"
+            icon="i-heroicons-plus"
+            @click="() => openProductForm()"
+          >
+            Добавить продукт
+          </UButton>
         </template>
-        <!-- Active Products -->
-        <div v-if="activeProducts.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <ProductCard
-            v-for="product in activeProducts"
-            :key="product.id"
-            :product="product"
-            @edit="editProduct"
-            @hide="hideProduct"
-            @delete="deleteProduct"
-          />
-        </div>
-        <div v-else class="py-8 text-center text-gray-500">
+        <template #empty-state>
           <UIcon name="i-heroicons-cube" class="mx-auto mb-2 h-12 w-12"/>
           <p>У вас пока нет добавленных продуктов</p>
           <UButton
             color="primary"
             icon="i-heroicons-plus"
             class="mt-4"
-            @click="openProductForm"
+            @click="() => openProductForm()"
           >
             Добавить продукт
           </UButton>
-        </div>
-      </UCard>
+        </template>
+      </ProductsView>
 
       <!-- Hidden Products -->
-      <UCard v-if="hiddenProducts.length > 0" class="mb-6">
-        <template #header>
-          <h3 class="text-xl font-semibold">Скрытая продукция</h3>
-        </template>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <ProductCard
-            v-for="product in hiddenProducts"
-            :key="product.id"
-            :product="product"
-            :is-hidden="true"
-            @restore="restoreProduct"
-            @delete="deleteProduct"
-          />
-        </div>
-      </UCard>
+      <ProductsView
+        v-if="hiddenProducts.length > 0"
+        :products="hiddenProducts"
+        title="Скрытая продукция"
+        :is-hidden="true"
+        @restore="restoreProduct"
+        @delete="deleteProduct"
+      />
 
       <!-- Deleted Products -->
-      <UCard v-if="deletedProducts.length > 0">
-        <template #header>
-          <h3 class="text-xl font-semibold">Удаленная продукция</h3>
-        </template>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <ProductCard
-            v-for="product in deletedProducts"
-            :key="product.id"
-            :product="product"
-            :is-deleted="true"
-            @restore="restoreProduct"
-          />
-        </div>
-      </UCard>
+      <ProductsView
+        v-if="deletedProducts.length > 0"
+        :products="deletedProducts"
+        title="Удаленная продукция"
+        :is-deleted="true"
+        @restore="restoreProduct"
+      />
 
       <!-- Product Form Modal -->
       <ProductForm

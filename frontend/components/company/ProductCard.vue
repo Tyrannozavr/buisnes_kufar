@@ -10,7 +10,7 @@
         </h3>
         <p class="product-type">{{ product.type }}</p>
         <p v-if="!isHidden && !isDeleted" class="product-price">
-          {{ product.price }} ₽
+          {{ product.price.toLocaleString('ru-RU') }} ₽
         </p>
         <p v-else-if="isHidden" class="product-status">
           Нет в наличии
@@ -76,7 +76,7 @@ const truncateName = (name: string, maxLength: number) => {
 
 .product-image {
   width: 100%;
-  height: 200px;
+  height: 240px;
   overflow: hidden;
 }
 
@@ -91,40 +91,34 @@ const truncateName = (name: string, maxLength: number) => {
   flex-direction: column;
   flex: 1;
   justify-content: space-between;
+  padding: 1.25rem;
 }
 
 .product-info {
-  padding: 1rem;
   flex-grow: 1;
 }
 
 .product-name {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
   font-weight: 600;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
-  height: 2.6rem;
-}
-
-.product-article {
-  color: #666;
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
+  line-height: 1.4;
+  height: 3.5rem;
 }
 
 .product-type {
   color: #666;
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
 }
 
 .product-price {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #4CAF50;
   margin: 0;
@@ -134,24 +128,25 @@ const truncateName = (name: string, maxLength: number) => {
   color: #f44336;
   font-weight: 500;
   margin: 0;
+  font-size: 1.1rem;
 }
 
 .product-actions {
-  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
   border-top: 1px solid #eee;
-  margin-top: auto;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
 }
 
 .action-btn {
-  padding: 0.5rem;
+  padding: 0.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
-  height: 36px;
+  font-size: 1rem;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;

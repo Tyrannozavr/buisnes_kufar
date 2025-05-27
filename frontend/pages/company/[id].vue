@@ -76,6 +76,7 @@ const handleCreateChat = async () => {
       />
 
       <!-- Продукция -->
+      <h2 class="text-2xl font-bold mb-4 mt-8">Продукция компании</h2>
       <CompanyProducts
           class="mt-6"
           mode="client"

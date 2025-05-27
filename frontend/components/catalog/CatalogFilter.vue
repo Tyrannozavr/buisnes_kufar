@@ -136,6 +136,22 @@ loadLocations()
 
 <template>
   <UCard class="mb-6">
+    <!-- Advanced Mode Toggle -->
+    <div class="flex justify-end mb-4">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="flex items-center gap-2"
+        @click="isAdvancedMode = !isAdvancedMode"
+      >
+        <span class="text-sm text-gray-500">Расширенный режим</span>
+        <Icon
+          :name="isAdvancedMode ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+          class="w-4 h-4 text-gray-500"
+        />
+      </UButton>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Basic Filters (Always visible) -->
       <!-- Name -->
@@ -259,12 +275,7 @@ loadLocations()
     </div>
 
     <template #footer>
-      <div class="flex justify-between items-center">
-        <UCheckbox
-          v-model="isAdvancedMode"
-          label="Расширенный режим"
-          class="text-sm text-gray-500"
-        />
+      <div class="flex justify-end">
         <UButton
           color="primary"
           @click="handleSearch"

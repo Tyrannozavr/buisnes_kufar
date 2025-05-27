@@ -105,4 +105,18 @@ export const useAnnouncementsApi = () => {
     unpublishAnnouncement,
     deleteAnnouncement
   }
+}
+
+interface PaginationResponse {
+  data: Announcement[]
+  pagination: {
+    total: number
+    page: number
+    perPage: number
+    totalPages: number
+  }
+}
+
+export const useAnnouncements = (page: number, perPage: number) => {
+  return useApi<PaginationResponse>(`/announcements?page=${page}&perPage=${perPage}`)
 } 

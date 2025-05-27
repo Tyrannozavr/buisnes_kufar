@@ -59,7 +59,7 @@ if (route.query.created === 'true') {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto">
     <!-- Success message notification -->
     <div v-if="showSuccessMessage" class="mb-6">
       <UAlert

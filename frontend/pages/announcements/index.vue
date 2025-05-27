@@ -1,26 +1,13 @@
 <script setup lang="ts">
-interface Announcement {
-  id: string
-  image: string
-  title: string
-  date: string
-}
+import { useAnnouncements } from '~/api/announcements'
 
-// Fetch data using the useApi composable
 const currentPage = ref(1)
 const perPage = ref(10)
 
-const { data: announcements, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements } = await useApi<{
-  data: Announcement[],
-  pagination: {
-    total: number,
-    page: number,
-    perPage: number,
-    totalPages: number
-  }
-}>(`/announcements?page=${currentPage.value}&perPage=${perPage.value}`)
+const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements } = useAnnouncements(currentPage.value, perPage.value)
 
-const pagination = computed(() => announcements.value?.pagination || {
+const announcements = computed(() => response.value?.data || [])
+const pagination = computed(() => response.value?.pagination || {
   total: 0,
   page: 1,
   perPage: 10,
@@ -34,7 +21,7 @@ watch(currentPage, async (newPage) => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto">
     <h1 class="text-3xl font-bold mb-8">Объявления</h1>
     <div class="space-y-8">
       <!-- Loading state -->
@@ -52,7 +39,7 @@ watch(currentPage, async (newPage) => {
       </section>
 
       <!-- Empty state -->
-      <section v-else-if="!announcements || announcements.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
+      <section v-else-if="announcements.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
         <p class="text-center text-gray-500">
           На данный момент объявлений нет.
         </p>

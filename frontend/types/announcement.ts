@@ -18,6 +18,7 @@ export interface Announcement {
   companyLogo: string;
   date: string;
   topic: string;
+  image: string;
 }
 
 export interface AnnouncementFormData {
@@ -25,4 +26,11 @@ export interface AnnouncementFormData {
   content: string;
   images: string[];
   category: string;
+}
+
+export interface AnnouncementCard {
+  id: string;
+  image: string;
+  title: string;
+  date: string;
 }

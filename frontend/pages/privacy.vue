@@ -1,6 +1,6 @@
 <template>
   <UContainer>
-    <div class="py-12">
+    <div>
       <h1 class="text-3xl font-bold mb-8">Политика конфиденциальности</h1>
       
       <div class="prose prose-gray max-w-none">

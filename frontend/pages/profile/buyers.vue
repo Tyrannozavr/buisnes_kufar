@@ -36,8 +36,8 @@ const handleRemoveBuyer = async (buyer: PartnerCompany) => {
 </script>
 
 <template>
-  <ProfileLayout>
-    <div class="bg-white shadow rounded-lg p-6">
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow rounded-lg">
       <h2 class="text-lg font-medium text-gray-900 mb-4">Покупатели</h2>
       <CompaniesList
         :companies="buyers || []"
@@ -46,5 +46,5 @@ const handleRemoveBuyer = async (buyer: PartnerCompany) => {
         @remove="handleRemoveBuyer"
       />
     </div>
-  </ProfileLayout>
+  </div>
 </template> 

@@ -60,7 +60,7 @@ const handleSaveCompany = async (data: Partial<Company>) => {
 </script>
 
 <template>
-  <div>
+  <div class="max-w-3xl mx-auto">
     <div v-if="loading">
       <PageLoader/>
     </div>

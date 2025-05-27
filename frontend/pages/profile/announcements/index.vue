@@ -43,7 +43,8 @@ const publishAnnouncement = async (announcement: Announcement) => {
 </script>
 
 <template>
-    <div class="bg-white shadow rounded-lg p-4 md:p-4 max-w-full overflow-x-hidden">
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow rounded-lg">
       <AnnouncementList
         :announcements="announcements || null"
         :loading="loadingAnnouncements"
@@ -51,4 +52,5 @@ const publishAnnouncement = async (announcement: Announcement) => {
         @page-change="handlePageChange"
       />
     </div>
+  </div>
 </template>

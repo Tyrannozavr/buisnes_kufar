@@ -13,6 +13,7 @@ export interface Service {
   }>
   isHidden: boolean
   isDeleted: boolean
+  slug: string
 }
 
 export interface ServiceResponse {

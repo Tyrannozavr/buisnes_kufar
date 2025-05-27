@@ -13,6 +13,7 @@ export interface Product {
   }>
   isHidden: boolean
   isDeleted: boolean
+  slug: string
 }
 
 export interface ProductResponse {

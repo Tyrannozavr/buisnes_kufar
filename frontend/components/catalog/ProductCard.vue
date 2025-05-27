@@ -54,7 +54,7 @@ const startEditing = () => {
 </script>
 
 <template>
-  <div class="product-card">
+  <NuxtLink :to="`/catalog/items/${product.slug}`" class="product-card">
     <div class="product-image">
       <img :src="product.images[0] || '/images/placeholder.png'" :alt="product.name">
     </div>
@@ -116,7 +116,7 @@ const startEditing = () => {
         </button>
       </div>
     </div>
-  </div>
+  </NuxtLink>
 </template>
 
 <style scoped>

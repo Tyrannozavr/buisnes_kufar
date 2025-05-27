@@ -21,7 +21,8 @@ const services: Service[] = [
       { name: 'Гарантия', value: '2 года' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'proektirovanie-promyshlennyh-obektov'
   },
   {
     id: '2',
@@ -41,7 +42,8 @@ const services: Service[] = [
       { name: 'Гарантия', value: '1 год' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'montazh-promyshlennogo-oborudovaniya'
   },
   {
     id: '3',
@@ -61,7 +63,8 @@ const services: Service[] = [
       { name: 'Гарантия', value: '1 год' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'tehnicheskoe-obsluzhivanie'
   }
 ]
 

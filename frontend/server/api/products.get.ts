@@ -21,7 +21,8 @@ const products: Product[] = [
       { name: 'Точность', value: '0.01 мм' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'promyshlennyj-stanok-chpu'
   },
   {
     id: '5',
@@ -41,7 +42,8 @@ const products: Product[] = [
       { name: 'Гарантия', value: '5 лет' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'stroitelstvo-kottedzha'
   },
   {
     id: '6',
@@ -61,7 +63,8 @@ const products: Product[] = [
       { name: 'Гарантия', value: '3 года' }
     ],
     isHidden: false,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'sistema-avtomatizacii-proizvodstva'
   },
   {
     id: '7',
@@ -78,7 +81,8 @@ const products: Product[] = [
       { name: 'Гарантия', value: '3 года' }
     ],
     isHidden: true,
-    isDeleted: false
+    isDeleted: false,
+    slug: 'sistema-avtomatizacii-proizvodstva-2'
   },
   {
     id: '8',
@@ -96,9 +100,9 @@ const products: Product[] = [
       { name: 'Гарантия', value: '3 года' }
     ],
     isHidden: false,
-    isDeleted: true
+    isDeleted: true,
+    slug: 'sistema-avtomatizacii-proizvodstva-3'
   },
-
 ]
 
 export default defineEventHandler(async (event) => {

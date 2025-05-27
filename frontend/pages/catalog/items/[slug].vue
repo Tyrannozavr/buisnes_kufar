@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
+import type { Service } from '~/types/service'
 import type { Company } from '~/types/company'
 import { useCart } from '~/composables/useCart'
 
 const route = useRoute()
-const id = route.params.id
+const slug = route.params.slug
 
 // Cart functionality
 const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity } = useCart()
-const quantity = computed(() => getQuantity(id as string))
+const quantity = computed(() => getQuantity(slug as string))
 
-// Fetch product data
-const { data: product, error: productError, pending: productPending } = await useApi<Product>(`/products/${id}`)
+// Fetch item data
+const { data: item, error: itemError, pending: itemPending } = await useApi<Product | Service>(`/items/${slug}`)
 
 // Fetch company data
-const { data: company, error: companyError } = await useApi<Company>(`/companies/${product.value?.companyId}`)
+const { data: company, error: companyError } = await useApi<Company>(`/companies/${item.value?.companyId}`)
 
 // Format price
 const formatPrice = (price: number) => {
@@ -35,45 +36,45 @@ const setCurrentImage = (index: number) => {
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Loading state -->
-    <div v-if="productPending" class="max-w-6xl mx-auto">
+    <div v-if="itemPending" class="max-w-6xl mx-auto">
       <p class="text-center text-gray-500">
-        Загрузка информации о продукте...
+        Загрузка информации...
       </p>
     </div>
 
     <!-- Error state -->
-    <div v-else-if="productError || companyError" class="max-w-6xl mx-auto">
+    <div v-else-if="itemError || companyError" class="max-w-6xl mx-auto">
       <p class="text-center text-red-500">
         Произошла ошибка при загрузке информации. Пожалуйста, попробуйте позже.
       </p>
     </div>
 
-    <!-- Product content -->
-    <div v-else-if="product" class="max-w-6xl mx-auto">
+    <!-- Item content -->
+    <div v-else-if="item" class="max-w-6xl mx-auto">
       <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
           <!-- Image slider -->
           <div class="relative">
             <div class="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden">
               <NuxtImg
-                v-if="product.images && product.images.length > 0"
-                :src="product.images[currentImageIndex]"
-                :alt="product.name"
+                v-if="item.images && item.images.length > 0"
+                :src="item.images[currentImageIndex]"
+                :alt="item.name"
                 class="w-full h-[400px] object-cover"
               />
               <div v-else class="w-full h-[400px] bg-gray-100 flex items-center justify-center">
                 <NuxtImg
                   src="/images/placeholder.png"
-                  :alt="product.name"
+                  :alt="item.name"
                   class="w-full h-full object-cover"
                 />
               </div>
             </div>
 
             <!-- Thumbnails -->
-            <div v-if="product.images && product.images.length > 1" class="mt-4 flex gap-2 overflow-x-auto">
+            <div v-if="item.images && item.images.length > 1" class="mt-4 flex gap-2 overflow-x-auto">
               <button
-                v-for="(image, index) in product.images"
+                v-for="(image, index) in item.images"
                 :key="index"
                 @click="setCurrentImage(index)"
                 class="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
@@ -81,14 +82,14 @@ const setCurrentImage = (index: number) => {
               >
                 <NuxtImg
                   :src="image"
-                  :alt="`${product.name} - изображение ${index + 1}`"
+                  :alt="`${item.name} - изображение ${index + 1}`"
                   class="w-full h-full object-cover"
                 />
               </button>
             </div>
           </div>
 
-          <!-- Product info -->
+          <!-- Item info -->
           <div class="space-y-6">
             <!-- Company info -->
             <NuxtLink
@@ -106,25 +107,25 @@ const setCurrentImage = (index: number) => {
               </div>
             </NuxtLink>
 
-            <!-- Product details -->
+            <!-- Item details -->
             <div>
-              <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+              <h1 class="text-3xl font-bold mb-2">{{ item.name }}</h1>
               <p class="text-2xl font-semibold text-primary-600 mb-4">
-                {{ formatPrice(product.price) }}
+                {{ formatPrice(item.price) }}
               </p>
-              <p class="text-gray-600">{{ product.description }}</p>
+              <p class="text-gray-600">{{ item.description }}</p>
             </div>
 
             <!-- Article -->
             <div class="border-t pt-4">
-              <p class="text-sm text-gray-500">Артикул: {{ product.article }}</p>
+              <p class="text-sm text-gray-500">Артикул: {{ item.article }}</p>
             </div>
 
             <!-- Characteristics -->
             <div class="border-t pt-4">
               <h3 class="font-semibold mb-4">Характеристики</h3>
               <dl class="grid grid-cols-1 gap-4">
-                <div v-for="(char, index) in product.characteristics" :key="index" class="flex justify-between py-2 border-b last:border-0">
+                <div v-for="(char, index) in item.characteristics" :key="index" class="flex justify-between py-2 border-b last:border-0">
                   <dt class="text-gray-600">{{ char.name }}</dt>
                   <dd class="font-medium">{{ char.value }}</dd>
                 </div>
@@ -133,7 +134,7 @@ const setCurrentImage = (index: number) => {
           </div>
         </div>
 
-        <!-- Cart controls - moved outside of product info -->
+        <!-- Cart controls - moved outside of item info -->
         <div class="border-t mt-6 p-6">
           <div v-if="quantity > 0" class="flex items-center justify-between gap-2 max-w-xs mx-auto">
             <UButton
@@ -141,7 +142,7 @@ const setCurrentImage = (index: number) => {
               color="neutral"
               variant="soft"
               icon="i-heroicons-minus"
-              @click="() => handleDecreaseQuantity(id as string, quantity)"
+              @click="() => handleDecreaseQuantity(slug as string, quantity)"
             />
             <span class="text-lg font-medium">{{ quantity }}</span>
             <UButton
@@ -149,7 +150,7 @@ const setCurrentImage = (index: number) => {
               color="neutral"
               variant="soft"
               icon="i-heroicons-plus"
-              @click="() => handleIncreaseQuantity(id as string, quantity)"
+              @click="() => handleIncreaseQuantity(slug as string, quantity)"
             />
           </div>
           <div v-else class="flex justify-center">
@@ -157,7 +158,7 @@ const setCurrentImage = (index: number) => {
               color="primary"
               class="cursor-pointer"
               block
-              @click="() => product && handleAddToCart(product)"
+              @click="() => item && handleAddToCart(item)"
             >
               Добавить в корзину
             </UButton>

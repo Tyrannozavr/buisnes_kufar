@@ -14,11 +14,22 @@ const handleLogout = () => {
   // navigateTo('/auth/login')
 }
 
-// Create computed property for login URL with current path as back_url
+// Props for sidebar state
+const props = defineProps<{
+  isSidebarOpen: boolean
+}>()
 
+const emit = defineEmits<{
+  'update:isSidebarOpen': [value: boolean]
+}>()
+
+const toggleSidebar = () => {
+  emit('update:isSidebarOpen', !props.isSidebarOpen)
+}
 </script>
+
 <template>
-  <header class="bg-white shadow">
+  <header class="bg-white shadow fixed top-0 left-0 right-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between py-4">
         <!-- Logo and Site Name -->
@@ -36,11 +47,20 @@ const handleLogout = () => {
             <NuxtImg
                 src="/images/companyNameWhite.png"
                 alt="trade_synergy"
-                class="h-14 w-auto"
+                class="h-14 w-auto hidden sm:block"
                 loading="eager"
             />
           </NuxtLink>
         </div>
+
+        <!-- Mobile Menu Button -->
+        <UButton
+          icon="i-heroicons-bars-3"
+          variant="ghost"
+          color="neutral"
+          class="md:hidden"
+          @click="toggleSidebar"
+        />
 
         <!-- Cart Link -->
         <div class="flex items-center">
@@ -76,6 +96,7 @@ const handleLogout = () => {
               to="/auth/login"
               color="primary"
               variant="solid"
+              class="text-sm sm:text-base"
           >
             Вход/Регистрация
           </UButton>
@@ -88,15 +109,15 @@ const handleLogout = () => {
                 variant="ghost"
                 class="flex items-center space-x-2"
             >
-              <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full">
+              <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full hidden sm:block">
                 <NuxtImg
                     :src="userStore.companyLogo"
                     :alt="userStore.companyName"
                     class="h-full w-full object-cover"
                 />
               </div>
-              <UIcon v-else name="i-heroicons-user-circle" class="h-8 w-8"/>
-              <span>{{ userStore.companyName || 'Профиль' }}</span>
+              <UIcon name="i-heroicons-user-circle" class="h-8 w-8"/>
+              <span class="hidden sm:inline">{{ userStore.companyName || 'Профиль' }}</span>
             </UButton>
 
             <!-- Logout Button with Tooltip -->

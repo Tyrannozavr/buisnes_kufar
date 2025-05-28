@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
+import QuantityControls from '~/components/ui/QuantityControls.vue'
 
 const cartStore = useCartStore()
 const userStore = useUserStore()
@@ -43,60 +44,53 @@ const handleClearCart = () => {
             <div
                 v-for="item in cartStore.items"
                 :key="item.product.id"
-                class="p-6 flex items-center"
+                class="p-6"
             >
-              <!-- Product Image -->
-              <NuxtLink
-                  :to="`/catalog/products/${item.product.id}`"
-                  class="w-24 h-24 flex-shrink-0"
-              >
-                <NuxtImg
-                    :src="item.product.images[0]"
-                    :alt="item.product.name"
-                    class="w-full h-full object-cover rounded-lg"
-                />
-              </NuxtLink>
+              <div class="flex flex-col">
+                <!-- Product Image and Info -->
+                <div class="flex items-start space-x-4">
+                  <NuxtLink
+                      :to="`/catalog/products/${item.product.id}`"
+                      class="w-24 h-24 flex-shrink-0"
+                  >
+                    <NuxtImg
+                        :src="item.product.images[0]"
+                        :alt="item.product.name"
+                        class="w-full h-full object-cover rounded-lg"
+                    />
+                  </NuxtLink>
 
-              <!-- Product Info -->
-              <div class="ml-6 flex-grow">
-                <NuxtLink
-                    :to="`/catalog/products/${item.product.id}`"
-                    class="text-lg font-medium text-gray-900 hover:text-primary-600"
-                >
-                  {{ item.product.name }}
-                </NuxtLink>
-                <p class="mt-1 text-sm text-gray-500 line-clamp-2">
-                  {{ item.product.description }}
-                </p>
-                <div class="mt-2 text-lg font-medium text-gray-900">
-                  {{ item.product.price.toLocaleString('ru-RU') }} ₽
+                  <!-- Product Info -->
+                  <div class="flex-grow">
+                    <NuxtLink
+                        :to="`/catalog/products/${item.product.id}`"
+                        class="text-lg font-medium text-gray-900 hover:text-primary-600"
+                    >
+                      {{ item.product.name }}
+                    </NuxtLink>
+                    <p class="mt-1 text-sm text-gray-500 line-clamp-2">
+                      {{ item.product.description }}
+                    </p>
+                    <div class="mt-2 text-lg font-medium text-gray-900">
+                      {{ item.product.price.toLocaleString('ru-RU') }} ₽
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Quantity Controls -->
-              <div class="ml-6 flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                  <UButton
-                      color="neutral"
-                      variant="soft"
-                      icon="i-heroicons-minus"
-                      :disabled="item.quantity <= 1"
-                      @click="handleUpdateQuantity(item.product.id, item.quantity - 1)"
+                <!-- Controls -->
+                <div class="mt-4 flex items-center justify-between">
+                  <QuantityControls
+                    :quantity="item.quantity"
+                    @update:quantity="(qty) => handleUpdateQuantity(item.product.id, qty)"
+                    @remove="() => handleRemoveItem(item.product.id)"
                   />
-                  <span class="text-lg font-medium w-8 text-center">{{ item.quantity }}</span>
                   <UButton
-                      color="neutral"
-                      variant="soft"
-                      icon="i-heroicons-plus"
-                      @click="handleUpdateQuantity(item.product.id, item.quantity + 1)"
+                      color="error"
+                      variant="ghost"
+                      icon="i-heroicons-trash"
+                      @click="handleRemoveItem(item.product.id)"
                   />
                 </div>
-                <UButton
-                    color="error"
-                    variant="ghost"
-                    icon="i-heroicons-trash"
-                    @click="handleRemoveItem(item.product.id)"
-                />
               </div>
             </div>
           </div>

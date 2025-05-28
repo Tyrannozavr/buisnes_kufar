@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
 import { useCart } from '~/composables/useCart'
+import QuantityControls from '~/components/ui/QuantityControls.vue'
 
 const props = defineProps<{
   product: Product
@@ -8,115 +9,49 @@ const props = defineProps<{
 
 const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity, updateQuantity } = useCart()
 const quantity = computed(() => getQuantity(props.product.id))
-const isEditing = ref(false)
-const inputValue = ref('')
 
 // Функция для ограничения длины имени продукта
 const truncateName = (name: string, maxLength: number) => {
   if (name.length <= maxLength) return name
   return name.substring(0, maxLength) + '...'
 }
-
-const handleQuantityInput = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const value = target.value.replace(/[^\d]/g, '')
-  inputValue.value = value
-}
-
-const handleQuantityBlur = () => {
-  const newQuantity = parseInt(inputValue.value) || 0
-  if (newQuantity > 0) {
-    updateQuantity(props.product.id, newQuantity)
-  } else {
-    inputValue.value = quantity.value.toString()
-  }
-  isEditing.value = false
-}
-
-const handleQuantityKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter') {
-    handleQuantityBlur()
-  }
-}
-
-const startEditing = () => {
-  inputValue.value = quantity.value.toString()
-  isEditing.value = true
-  // Фокусируемся на поле ввода после его появления
-  nextTick(() => {
-    const input = document.querySelector('.quantity-input') as HTMLInputElement
-    if (input) {
-      input.focus()
-      input.select()
-    }
-  })
-}
 </script>
 
 <template>
-  <NuxtLink :to="`/catalog/items/${product.slug}`" class="product-card">
-    <div class="product-image">
-      <img :src="product.images[0] || '/images/placeholder.png'" :alt="product.name">
-    </div>
-    <div class="product-content">
-      <div class="product-info">
-        <h3 class="product-name" :title="product.name">
-          {{ truncateName(product.name, 50) }}
-        </h3>
-        <p class="product-type">{{ product.type }}</p>
-        <p class="product-price">
-          {{ product.price.toLocaleString('ru-RU') }} ₽
-        </p>
+  <div class="product-card">
+    <NuxtLink :to="`/catalog/items/${product.slug}`" class="product-link">
+      <div class="product-image">
+        <img :src="product.images[0] || '/images/placeholder.png'" :alt="product.name">
       </div>
-      <div class="product-actions">
-        <div v-if="quantity > 0" class="quantity-controls">
-          <button 
-            class="quantity-btn" 
-            @click="handleDecreaseQuantity(product.id, quantity)"
-            title="Уменьшить количество"
-          >
-            <UIcon name="i-heroicons-minus" class="w-4 h-4" />
-          </button>
-          
-          <div 
-            v-if="!isEditing" 
-            class="quantity-display"
-            @click="startEditing"
-            title="Нажмите для ввода количества"
-          >
-            <span>{{ quantity }}</span>
-            <UIcon name="i-heroicons-pencil-square" class="w-3 h-3 ml-1 text-gray-400" />
-          </div>
-          <input
-            v-else
-            type="text"
-            class="quantity-input"
-            v-model="inputValue"
-            @input="handleQuantityInput"
-            @blur="handleQuantityBlur"
-            @keydown="handleQuantityKeydown"
-            ref="quantityInput"
-            placeholder="Введите количество"
-          />
-          
-          <button 
-            class="quantity-btn" 
-            @click="handleIncreaseQuantity(product.id, quantity)"
-            title="Увеличить количество"
-          >
-            <UIcon name="i-heroicons-plus" class="w-4 h-4" />
-          </button>
+      <div class="product-content">
+        <div class="product-info">
+          <h3 class="product-name" :title="product.name">
+            {{ truncateName(product.name, 50) }}
+          </h3>
+          <p class="product-type">{{ product.type }}</p>
+          <p class="product-price">
+            {{ product.price.toLocaleString('ru-RU') }} ₽
+          </p>
         </div>
-        <button 
-          v-else 
-          class="action-btn add-to-cart"
-          @click="handleAddToCart(product)"
-        >
-          Добавить в корзину
-        </button>
       </div>
+    </NuxtLink>
+    <div class="product-actions">
+      <div v-if="quantity > 0" class="quantity-controls">
+        <QuantityControls
+          :quantity="quantity"
+          @update:quantity="(qty: number) => updateQuantity(product.id, qty)"
+          @remove="() => handleDecreaseQuantity(product.id, quantity)"
+        />
+      </div>
+      <button 
+        v-else 
+        class="action-btn add-to-cart"
+        @click.stop="handleAddToCart(product)"
+      >
+        Добавить в корзину
+      </button>
     </div>
-  </NuxtLink>
+  </div>
 </template>
 
 <style scoped>
@@ -129,6 +64,14 @@ const startEditing = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.product-link {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
 }
 
 .product-card:hover {
@@ -190,7 +133,7 @@ const startEditing = () => {
 
 .product-actions {
   margin-top: 1rem;
-  padding-top: 1rem;
+  padding: 1rem;
   border-top: 1px solid #eee;
 }
 
@@ -225,68 +168,5 @@ const startEditing = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-}
-
-.quantity-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  background: white;
-  color: #4a5568;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.quantity-btn:hover {
-  background: #f7fafc;
-  border-color: #cbd5e0;
-}
-
-.quantity-display {
-  min-width: 40px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #2d3748;
-  cursor: text;
-  padding: 0 0.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  background: #f8fafc;
-  transition: all 0.2s ease;
-}
-
-.quantity-display:hover {
-  border-color: #4CAF50;
-  background: white;
-}
-
-.quantity-input {
-  width: 80px;
-  height: 28px;
-  text-align: center;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  padding: 0 0.5rem;
-  outline: none;
-  background: white;
-}
-
-.quantity-input:focus {
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
-}
-
-.quantity-input::placeholder {
-  color: #a0aec0;
 }
 </style>

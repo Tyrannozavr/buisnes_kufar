@@ -68,31 +68,31 @@ const handleIncrease = () => {
       color="neutral"
       variant="soft"
       icon="i-heroicons-minus"
-      :disabled="disabled || quantity <= 1"
+      :disabled="disabled"
       @click="handleDecrease"
     />
-    
-    <div 
-      v-if="!isEditing" 
+
+    <div
+      v-if="!isEditing"
       class="quantity-display"
-      @click="startEditing"
       title="Нажмите для ввода количества"
+      @click="startEditing"
     >
       <span>{{ quantity }}</span>
       <UIcon name="i-heroicons-pencil-square" class="w-3 h-3 ml-1 text-gray-400" />
     </div>
     <input
       v-else
+      ref="quantityInput"
+      v-model="inputValue"
       type="text"
       class="quantity-input"
-      v-model="inputValue"
+      placeholder="Введите количество"
       @input="handleQuantityInput"
       @blur="handleQuantityBlur"
       @keydown="handleQuantityKeydown"
-      ref="quantityInput"
-      placeholder="Введите количество"
     />
-    
+
     <UButton
       color="neutral"
       variant="soft"
@@ -117,13 +117,12 @@ const handleIncrease = () => {
   padding: 0 0.5rem;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
-  background: #f8fafc;
+  background: white;
   transition: all 0.2s ease;
 }
 
 .quantity-display:hover {
   border-color: #4CAF50;
-  background: white;
 }
 
 .quantity-input {
@@ -146,4 +145,4 @@ const handleIncrease = () => {
 .quantity-input::placeholder {
   color: #a0aec0;
 }
-</style> 
+</style>

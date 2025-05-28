@@ -94,7 +94,7 @@ const toggleSidebar = () => {
           <UButton
               v-if="!userStore.isAuthenticated"
               to="/auth/login"
-              color="primary"
+              color="neutral"
               variant="solid"
               class="text-sm sm:text-base"
           >
@@ -105,7 +105,7 @@ const toggleSidebar = () => {
             <!-- Profile Button -->
             <UButton
                 to="/profile"
-                color="primary"
+                color="neutral"
                 variant="ghost"
                 class="flex items-center space-x-2"
             >
@@ -116,7 +116,7 @@ const toggleSidebar = () => {
                     class="h-full w-full object-cover"
                 />
               </div>
-              <UIcon name="i-heroicons-user-circle" class="h-8 w-8"/>
+              <UIcon name="i-heroicons-user-circle" class="sm:hidden h-8 w-8"/>
               <span class="hidden sm:inline">{{ userStore.companyName || 'Профиль' }}</span>
             </UButton>
 

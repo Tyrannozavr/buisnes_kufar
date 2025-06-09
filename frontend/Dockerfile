@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-npm install -g pnpm
+RUN npm install -g pnpm
 
 COPY ./package*.json ./
 

@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -15,6 +18,7 @@ import httpx
 
 from app_logging.logger import logger
 
+load_dotenv()
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -58,6 +62,8 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root(request: Request):
     """Returns a beautiful HTML page with links to /docs and /admin"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+DEV_REDIRECT_URL = os.getenv("DEV_REDIRECT_URL", "http://localhost:3000")
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: HTTPException):

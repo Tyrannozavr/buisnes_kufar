@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.requests import Request
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -11,6 +11,9 @@ from app.admin.views import setup_admin
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.base import Base
+import httpx
+
+from app_logging.logger import logger
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -55,3 +58,14 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root(request: Request):
     """Returns a beautiful HTML page with links to /docs and /admin"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc: HTTPException):
+    logger.error(f"404 Not Found: {request.url}")
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"http://localhost:3000{request.url.path}")
+            return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.RequestError:
+            # Если не удалось подключиться к localhost:3000, возвращаем оригинальную 404 ошибку
+            return JSONResponse(content={"detail": "Not Found"}, status_code=404)

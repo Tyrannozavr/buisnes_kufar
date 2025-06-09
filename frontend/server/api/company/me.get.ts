@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
   // For now, return mock data
   const mockCompany: Company = {
     id: 1,
+    slug: "myCompany",
     name: 'ООО "ТехноПром"',
     logo: 'https://banner2.cleanpng.com/20181124/av/kisspng-comcast-business-organization-computer-icons-email-5bf8ef2b040795.9053466915430408110165.jpg',
     type: 'manufacturer',

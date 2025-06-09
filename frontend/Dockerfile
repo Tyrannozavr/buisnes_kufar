@@ -14,5 +14,5 @@ RUN rm -rf ./.nuxt
 
 EXPOSE 3000
 
-RUN npm run build
+RUN pnpm run build
 CMD [ "pnpm", "run", "start" ]

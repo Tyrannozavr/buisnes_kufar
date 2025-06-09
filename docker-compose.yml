@@ -33,8 +33,10 @@ services:
     build: ./nginx
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/letsencrypt:/etc/letsencrypt  # Для сертификатов
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/webroot:/var/www/html  # Add this volume
     depends_on:
       - backend
       - frontend
@@ -43,10 +45,10 @@ services:
     image: certbot/certbot
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
-    command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive
+      - ./nginx/webroot:/var/www/html  # Same volume as nginx
+    command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive --dry-run
     depends_on:
       - nginx
-
   pgadmin:
     image: dpage/pgadmin4
     expose:

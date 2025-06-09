@@ -33,7 +33,7 @@ jobs:
             # 2. Запускаем контейнеры в тестовом режиме (временные)
             docker compose -f docker-compose.yml up -d --build --force-recreate && \
             # 3. Проверяем, что все контейнеры запустились
-            if [ $(docker compose ps --services --status running | wc -l) -eq 3 ]; then
+            if [ $(docker compose ps --services --status running | wc -l) -eq 4 ]; then
               echo '✅ Все контейнеры работают! Применяем изменения...' && \
               git reset --hard origin/master  # Фиксируем новую версию кода
             else

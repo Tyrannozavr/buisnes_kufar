@@ -9,27 +9,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install SSH key
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # Вариант 1 (рекомендуемый): Используем ssh-agent
+      - name: Install SSH key via ssh-agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-#    - name: Run tests
-#      run: |
-#        docker compose run --rm app pytest
-    - name: Install SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+      # Вариант 2: ИЛИ ручная настройка (раскомментируйте, если вариант 1 не работает)
+      # - name: Install SSH key manually
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+      #     chmod 600 ~/.ssh/id_ed25519
+      #     ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-    - name: Execute deploy commands
-      run: |
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "
-          cd buisnes_kufar && \
-          git pull && \
-          docker compose up -d --build
-        "
+      - name: Test SSH connection
+        run: ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "echo 'SSH успешно работает!'"
+
+      - name: Execute deploy commands
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "
+            cd buisnes_kufar && \
+            git pull && \
+            docker compose up -d --build
+          "

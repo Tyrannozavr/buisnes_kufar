@@ -1,0 +1,65 @@
+version: '3'
+
+services:
+  backend:
+    build: ./backend
+    restart: on-failure
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
+    volumes:
+      - ./logs:/app/logging
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    env_file:
+      - ./frontend/.env
+    container_name: frontend
+    restart: always
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dmitriy40647274@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: adminKufar2398
+
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "postgres"
+
+    command: >
+      -c shared_buffers=512MB
+      -c max_connections=200
+      -c idle_in_transaction_session_timeout=10s
+      -c tcp_keepalives_idle=60
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data:cached

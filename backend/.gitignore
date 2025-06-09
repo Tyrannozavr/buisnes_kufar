@@ -1,0 +1,15 @@
+# Файлы UV и Poetry
+.venv/              # Виртуальное окружение
+.python-version     # Автогенерируемый файл версии Python
+__pycache__/        # Кэш Python
+*.pyc               # Скомпилированные файлы Python
+
+# Файлы зависимостей (генерируются автоматически)
+poetry.lock         # Для Poetry (если используете) — спорно, можно коммитить для reproducibility
+requirements.txt    # Если генерируете через `uv pip freeze`
+
+# Файлы IDE и ОС
+.DS_Store           # MacOS
+.idea/              # JetBrains IDE
+.vscode/            # VS Code
+.env                # Локальные переменные окружения

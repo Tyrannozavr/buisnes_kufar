@@ -1,5 +1,5 @@
 # Первый этап - сборка
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -15,19 +15,25 @@ RUN uv venv && \
     . /app/.venv/bin/activate && \
     uv pip install --no-cache-dir -e ".[dev]"
 
-COPY src/ ./src/
+COPY app/ ./app/
+COPY app_logging/ ./app_logging/
 
 # Второй этап - итоговый образ
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Только runtime-зависимости (без gcc и dev-пакетов)
+# Только runtime-зависимости
 RUN apt-get update && \
     apt-get install -y libpq5 && \
     rm -rf /var/lib/apt/lists/*
 
-# Копируем виртуальное окружение из builder-этапа
-COPY --from=builder /app /app
+# Копируем только необходимое из builder-этапа
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/app /app/app
+COPY --from=builder /app/app_logging /app/app_logging
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Добавляем .venv/bin в PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

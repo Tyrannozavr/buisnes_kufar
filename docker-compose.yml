@@ -30,9 +30,20 @@ services:
     build: ./nginx
     ports:
       - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/letsencrypt:/etc/letsencrypt  # Для сертификатов
     depends_on:
       - backend
       - frontend
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive
+    depends_on:
+      - nginx
 
   pgadmin:
     image: dpage/pgadmin4

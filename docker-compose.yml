@@ -1,6 +1,7 @@
 version: '3'
 
 services:
+
   backend:
     build: ./backend
     restart: on-failure
@@ -33,7 +34,6 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/letsencrypt:/etc/letsencrypt  # Для сертификатов
     depends_on:
       - backend

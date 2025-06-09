@@ -7,7 +7,7 @@ definePageMeta({
 <template>
   <UContainer>
     <div class="py-12">
-      <h1 class="text-3xl font-bold mb-8">Условия использования test variant 123</h1>
+      <h1 class="text-3xl font-bold mb-8">Условия использования</h1>
       
       <div class="prose prose-gray max-w-none">
         <section class="mb-8">

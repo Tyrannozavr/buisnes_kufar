@@ -74,4 +74,5 @@ async def custom_404_handler(request: Request, exc: HTTPException):
             return JSONResponse(content=response.json(), status_code=response.status_code)
         except httpx.RequestError:
             # Если не удалось подключиться к localhost:3000, возвращаем оригинальную 404 ошибку
+            logger.error(f"Failed to connect to frontend server {DEV_REDIRECT_URL}")
             return JSONResponse(content={"detail": "Not Found"}, status_code=404)

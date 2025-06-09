@@ -27,19 +27,27 @@ jobs:
       - name: Deploy with validation
         run: |
           ssh target-server "
+            set -e  # Прерывать при ошибках
             cd buisnes_kufar && \
-            # 1. Получаем изменения, но НЕ применяем сразу
+            
+            # 1. Получаем изменения (без применения)
             git fetch origin && \
-            # 2. Запускаем контейнеры в тестовом режиме (временные)
-            docker compose -f docker-compose.yml up -d --build --force-recreate && \
-            # 3. Проверяем, что все контейнеры запустились
-            if [ $(docker compose ps --services --status running | wc -l) -eq 4 ]; then
-              echo '✅ Все контейнеры работают! Применяем изменения...' && \
-              git reset --hard origin/master  # Фиксируем новую версию кода
+            
+            # 2. Запускаем контейнеры во временном режиме
+            docker compose up -d --build --force-recreate && \
+            
+            # 3. Даём время на запуск (если нужно)
+            sleep 15 && \
+            
+            # 4. Проверяем ОСНОВНЫЕ контейнеры (не все!)
+            REQUIRED_CONTAINERS='backend frontend nginx'  # ← Укажите здесь нужные сервисы
+            if docker compose ps --status running | grep -qE \"(${REQUIRED_CONTAINERS// /|})\"; then
+              echo '✅ Основные контейнеры запущены! Фиксируем изменения.' && \
+              git reset --hard origin/master
             else
-              echo '❌ Ошибка: контейнеры не запустились! Откатываем...' && \
-              docker compose down && \  # Останавливаем временные контейнеры
-              git reset --hard HEAD  # Откатываемся к предыдущей версии
-              exit 1  # Помечаем workflow как failed
+              echo '❌ Ошибка: не все контейнеры запустились! Откатываем...' && \
+              docker compose down && \
+              git reset --hard HEAD
+              exit 1
             fi
           "

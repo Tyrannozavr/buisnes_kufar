@@ -11,39 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-
-      - name: Test SSH
-        run: ssh -i ~/.ssh/id_ed25519 root@${{ secrets.SERVER_IP }} "echo 'Success!'"
-
-      # Вариант 1 (рекомендуемый): Используем ssh-agent
+      # Сначала настраиваем SSH
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
           echo "Host target-server" >> ~/.ssh/config
           echo "  HostName ${{ secrets.SERVER_IP }}" >> ~/.ssh/config
           echo "  User root" >> ~/.ssh/config
           echo "  IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
+      # Затем тестируем подключение
       - name: Test connection
         run: ssh target-server "echo 'Connected!'"
 
-      # Вариант 2: ИЛИ ручная настройка (раскомментируйте, если вариант 1 не работает)
-      # - name: Install SSH key manually
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-      #     chmod 600 ~/.ssh/id_ed25519
-      #     ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-
-      - name: Test SSH connection
-        run: ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "echo 'SSH успешно работает!'"
-
       - name: Execute deploy commands
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "
+          ssh target-server "
             cd buisnes_kufar && \
             git pull && \
             docker compose up -d --build

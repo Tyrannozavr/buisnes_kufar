@@ -11,6 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+
+      - name: Test SSH
+        run: ssh -i ~/.ssh/id_ed25519 root@${{ secrets.SERVER_IP }} "echo 'Success!'"
+
       # Вариант 1 (рекомендуемый): Используем ssh-agent
       - name: Setup SSH
         run: |

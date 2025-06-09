@@ -2,11 +2,9 @@ FROM node:24-slim
 
 WORKDIR /app
 
-RUN npm install -g pnpm
-
 COPY ./package*.json ./
 
-RUN pnpm install
+RUN npm install
 
 COPY . .
 RUN rm -rf ./.output
@@ -14,5 +12,5 @@ RUN rm -rf ./.nuxt
 
 EXPOSE 3000
 
-RUN pnpm run build
-CMD [ "pnpm", "run", "start" ]
+RUN npm run build
+CMD [ "npm", "run", "start" ]

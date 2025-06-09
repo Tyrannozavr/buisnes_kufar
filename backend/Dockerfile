@@ -1,22 +1,33 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+# Первый этап - сборка
+FROM python:3.12-slim as builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-#COPY . /app
+# Устанавливаем системные зависимости для сборки
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends netcat-openbsd && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN apt-get update && \
-    apt-get install -y libpq-dev gcc
-
-COPY requirements.txt /app
-RUN pip install --upgrade pip
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-RUN apt-get update && \
-    apt-get install -y libpq-dev && \
+    apt-get install -y libpq-dev gcc && \
     rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv poetry==2.1.3
+
+COPY pyproject.toml poetry.lock ./
+RUN uv venv && \
+    . /app/.venv/bin/activate && \
+    uv pip install --no-cache-dir -e ".[dev]"
+
+COPY src/ ./src/
+
+# Второй этап - итоговый образ
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Только runtime-зависимости (без gcc и dev-пакетов)
+RUN apt-get update && \
+    apt-get install -y libpq5 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Копируем виртуальное окружение из builder-этапа
+COPY --from=builder /app /app
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -70,9 +70,14 @@ async def custom_404_handler(request: Request, exc: HTTPException):
     logger.error(f"404 Not Found: {request.url}")
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{DEV_REDIRECT_URL}{request.url.path}")
+            # Формируем URL с учетом query параметров
+            url = f"{DEV_REDIRECT_URL}{request.url.path}"
+            if request.url.query:
+                url += f"?{request.url.query}"
+            
+            response = await client.get(url)
             return JSONResponse(content=response.json(), status_code=response.status_code)
         except httpx.RequestError:
             # Если не удалось подключиться к localhost:3000, возвращаем оригинальную 404 ошибку
-            logger.error(f"Failed to connect to frontend server {DEV_REDIRECT_URL}{request.url.path}")
+            logger.error(f"Failed to connect to frontend server {url}")
             return JSONResponse(content={"detail": "Not Found"}, status_code=404)

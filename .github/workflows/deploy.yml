@@ -24,14 +24,22 @@ jobs:
           echo "  IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
-      # Затем тестируем подключение
-      - name: Test connection
-        run: ssh target-server "echo 'Connected!'"
-
-      - name: Execute deploy commands
+      - name: Deploy with validation
         run: |
           ssh target-server "
             cd buisnes_kufar && \
-            git pull && \
-            docker compose up -d --build
+            # 1. Получаем изменения, но НЕ применяем сразу
+            git fetch origin && \
+            # 2. Запускаем контейнеры в тестовом режиме (временные)
+            docker compose -f docker-compose.yml up -d --build --force-recreate && \
+            # 3. Проверяем, что все контейнеры запустились
+            if [ $(docker compose ps --services --status running | wc -l) -eq 3 ]; then
+              echo '✅ Все контейнеры работают! Применяем изменения...' && \
+              git reset --hard origin/master  # Фиксируем новую версию кода
+            else
+              echo '❌ Ошибка: контейнеры не запустились! Откатываем...' && \
+              docker compose down && \  # Останавливаем временные контейнеры
+              git reset --hard HEAD  # Откатываемся к предыдущей версии
+              exit 1  # Помечаем workflow как failed
+            fi
           "

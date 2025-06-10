@@ -7,26 +7,12 @@ import type {
   ApiError
 } from '~/types/auth'
 
-interface ApiResponse {
-  success: boolean
-  message: string
-}
-
-interface EmailChangeParams {
-  email: string
-  code: string
-}
-
-interface PasswordChangeParams {
-  oldPassword: string
-  newPassword: string
-}
-
-interface PasswordResetParams {
-  email: string
-  code: string
-  newPassword: string
-}
+import type {
+  ApiResponse,
+  EmailChangeParams,
+  PasswordChangeParams,
+  PasswordResetParams
+} from '~/types/api'
 
 export const AUTH_API = {
   RECOVER_PASSWORD: '/api/auth/recover-password',

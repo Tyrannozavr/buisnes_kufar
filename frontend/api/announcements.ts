@@ -1,5 +1,6 @@
 import type { Announcement } from '~/types/announcement'
 import type { UseFetchOptions } from 'nuxt/app'
+import type { PaginationResponse } from '~/types/api'
 
 export const useAnnouncementsApi = () => {
   const getAllAnnouncements = (options: UseFetchOptions<Announcement[]> = {}) => {
@@ -33,24 +34,8 @@ export const useAnnouncementsApi = () => {
     return useApi<Announcement>(`/announcements/${id}`, options)
   }
 
-  const getCompanyAnnouncements = (page: number = 1, perPage: number = 10, options: UseFetchOptions<{
-    data: Announcement[],
-    pagination: {
-      total: number,
-      page: number,
-      perPage: number,
-      totalPages: number
-    }
-  }> = {}) => {
-    return useApi<{
-      data: Announcement[],
-      pagination: {
-        total: number,
-        page: number,
-        perPage: number,
-        totalPages: number
-      }
-    }>(`/announcements/company?page=${page}&perPage=${perPage}`, {
+  const getCompanyAnnouncements = (page: number = 1, perPage: number = 10, options: UseFetchOptions<PaginationResponse<Announcement>> = {}) => {
+    return useApi<PaginationResponse<Announcement>>(`/announcements/company?page=${page}&perPage=${perPage}`, {
       lazy: true,
       ...options
     })
@@ -107,16 +92,6 @@ export const useAnnouncementsApi = () => {
   }
 }
 
-interface PaginationResponse {
-  data: Announcement[]
-  pagination: {
-    total: number
-    page: number
-    perPage: number
-    totalPages: number
-  }
-}
-
 export const useAnnouncements = (page: number, perPage: number) => {
-  return useApi<PaginationResponse>(`/announcements?page=${page}&perPage=${perPage}`)
+  return useApi<PaginationResponse<Announcement>>(`/announcements?page=${page}&perPage=${perPage}`)
 } 

@@ -1,9 +1,9 @@
 import os
-
+import json
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.requests import Request
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -25,7 +25,7 @@ app = FastAPI(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="static")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Set up CORS
 app.add_middleware(
@@ -76,8 +76,19 @@ async def custom_404_handler(request: Request, exc: HTTPException):
                 url += f"?{request.url.query}"
             
             response = await client.get(url)
-            return JSONResponse(content=response.json(), status_code=response.status_code)
+            
+            try:
+                # Try to parse the response as JSON
+                content = response.json()
+                return JSONResponse(content=content, status_code=response.status_code)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, return the raw content
+                return Response(content=response.content, status_code=response.status_code, media_type=response.headers.get("content-type"))
         except httpx.RequestError:
             # Если не удалось подключиться к localhost:3000, возвращаем оригинальную 404 ошибку
             logger.error(f"Failed to connect to frontend server {url}")
             return JSONResponse(content={"detail": "Not Found"}, status_code=404)
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(content="", media_type="image/x-icon")

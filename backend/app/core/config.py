@@ -13,16 +13,27 @@ def get_async_database_url(sync_url: str) -> str:
     return sync_url  # Return original if no conversion is needed
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Business Kufar"
+    PROJECT_NAME: str = "Business Trade API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # Настройки безопасности
+    # Security
     SECRET_KEY: str = "your-secret-key-here"  # В продакшене заменить на безопасный ключ
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
-    # Настройки базы данных
+    # Cookie settings
+    COOKIE_SECURE: bool = False  # Set to True in production with HTTPS
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_SAMESITE: str = "lax"  # Options: "lax", "strict", "none"
+    COOKIE_DOMAIN: Optional[str] = None
+    COOKIE_PATH: str = "/"
+    
+    # Database
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "business_trade"
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
     
     # Настройки фронтенда

@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
 
+if TYPE_CHECKING:
+    from app.api.company.models import Company
 class User(Base):
     __tablename__ = "users"
 

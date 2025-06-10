@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, Enum, ForeignKey, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
@@ -14,6 +14,12 @@ class BusinessType(str, enum.Enum):
     GOODS = "Производство товаров"
     SERVICES = "Оказание услуг"
     BOTH = "Производство товаров и оказание услуг"
+
+if TYPE_CHECKING:
+    from app.api.company.models import CompanyOfficial
+    from app.api.authentication.models import User
+    from app.api.products.models import Product
+    from app.api.messages.models import Message
 
 class Company(Base):
     __tablename__ = "companies"

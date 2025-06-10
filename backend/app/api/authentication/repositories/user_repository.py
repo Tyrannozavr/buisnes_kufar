@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 from uuid import UUID, uuid4
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,8 @@ class UserRepository:
         user = User(
             id=uuid4(),
             hashed_password=hashed_password,
+            is_active=True,
+            is_verified=True,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
             **user_data.model_dump(exclude={'password'})
@@ -50,9 +52,10 @@ class UserRepository:
         await self.session.commit()
         return result.rowcount > 0
 
-    async def create_registration_token(self, email: str) -> RegistrationToken:
+    async def create_registration_token(self, email: str, registration_data: Dict[str, Any]) -> RegistrationToken:
         token = DBRegistrationToken(
             email=email,
+            registration_data=registration_data,
             created_at=datetime.utcnow(),
             expires_at=datetime.utcnow() + timedelta(hours=24)
         )

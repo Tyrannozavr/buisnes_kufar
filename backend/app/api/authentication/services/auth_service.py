@@ -23,12 +23,15 @@ class AuthService:
                 detail="User with this email already exists"
             )
 
-        # Создаем токен регистрации
-        registration_token = await self.user_repository.create_registration_token(user_data.email)
-        logger.info(f"Created registration token for {user_data.email}")
+        # Создаем токен регистрации и сохраняем данные первого шага
+        registration_token = await self.user_repository.create_registration_token(
+            email=user_data.email,
+            registration_data=user_data.model_dump(exclude={'password'})  # Сохраняем все данные кроме пароля
+        )
+        logger.info(f"Created registration token and stored data for {user_data.email}")
         
         # Формируем URL для верификации
-        verification_url = f"{settings.FRONTEND_URL}/verify-email/{registration_token.token}"
+        verification_url = f"{settings.FRONTEND_URL}/auth/register/complete?token={registration_token.token}"
         
         # Отправляем email с ссылкой для верификации
         email_sent = await send_verification_email(user_data.email, verification_url)
@@ -40,7 +43,7 @@ class AuthService:
                 detail="Failed to send verification email"
             )
 
-    async def register_step2(self, token: UUID, user_data: UserCreate) -> User:
+    async def register_step2(self, token: UUID, password: str) -> Tuple[User, Token]:
         # Проверяем токен
         registration_token = await self.user_repository.get_registration_token(token)
         if not registration_token:
@@ -61,19 +64,26 @@ class AuthService:
                 detail="Registration token expired"
             )
 
-        if registration_token.email != user_data.email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email mismatch"
-            )
-
+        # Создаем пользователя с сохраненными данными и новым паролем
+        user_data = UserCreate(
+            email=registration_token.email,
+            password=password,
+            **registration_token.registration_data
+        )
+        
         # Создаем пользователя
         user = await self.user_repository.create_user(user_data)
         
         # Помечаем токен как использованный
         await self.user_repository.mark_token_as_used(token)
+        
+        # Создаем JWT токен для автоматической аутентификации
+        access_token = create_access_token(
+            data={"sub": str(user.id)},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
 
-        return User.model_validate(user)
+        return User.model_validate(user), Token(access_token=access_token)
 
     async def verify_token(self, token: UUID) -> bool:
         registration_token = await self.user_repository.get_registration_token(token)

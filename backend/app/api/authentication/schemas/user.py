@@ -1,20 +1,20 @@
 from datetime import datetime
-from typing import Optional
-from uuid import UUID
+from typing import Optional, Dict, Any
+from uuid import UUID, uuid4
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class UserBase(BaseModel):
     email: EmailStr
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone: str
     inn: str
     position: str
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
+    password: str
 
 class UserInDB(UserBase):
     id: UUID
@@ -25,7 +25,7 @@ class UserInDB(UserBase):
     updated_at: datetime
 
 class User(UserBase):
-    id: UUID
+    id: uuid4
     is_active: bool
     is_verified: bool
     created_at: datetime
@@ -35,8 +35,9 @@ class User(UserBase):
         from_attributes = True
 
 class RegistrationToken(BaseModel):
-    token: UUID
+    token: uuid4
     email: EmailStr
+    registration_data: Dict[str, Any]
     created_at: datetime
     expires_at: datetime
     is_used: bool = False
@@ -45,4 +46,7 @@ class RegistrationToken(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer" 
+
+class RegistrationStep2(BaseModel):
+    token: uuid4
+    password: str 

@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.api.authentication.dependencies import AuthServiceDep
-from app.api.authentication.schemas.user import UserCreate, User, Token, RegistrationToken
+from app.api.authentication.schemas.user import UserCreate, User, Token, RegistrationToken, RegistrationStep2
 from app.core.security import get_current_user_id_from_token
 from uuid import UUID
 
@@ -17,13 +17,25 @@ async def register_step1(
     await auth_service.register_step1(user_data)
 
 
-@router.post("/register/step2", response_model=User)
+@router.post("/register/step2", response_model=Token)
 async def register_step2(
-        token: UUID,
-        user_data: UserCreate,
+        data: RegistrationStep2,
+        response: Response,
         auth_service: AuthServiceDep
-) -> User:
-    return await auth_service.register_step2(token, user_data)
+) -> Token:
+    user, token = await auth_service.register_step2(data.token, data.password)
+    
+    # Устанавливаем cookie с токеном
+    response.set_cookie(
+        key="access_token",
+        value=token.access_token,
+        httponly=True,
+        secure=True,  # для HTTPS
+        samesite="lax",
+        max_age=3600  # 1 час
+    )
+    
+    return token
 
 
 @router.get("/verify-token/{token}")

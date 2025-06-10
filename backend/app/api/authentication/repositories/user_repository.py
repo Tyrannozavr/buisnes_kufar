@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken
 from app.api.authentication.schemas.user import UserCreate, UserInDB, RegistrationToken
 from app.core.security import get_password_hash, verify_password
+from app_logging.logger import logger
+
 
 class UserRepository:
     def __init__(self, session: AsyncSession):
@@ -49,16 +51,25 @@ class UserRepository:
         return result.rowcount > 0
 
     async def create_registration_token(self, email: str) -> RegistrationToken:
+        logger.info(f"Starting token creation for {email}")
         token = DBRegistrationToken(
-            token=uuid4(),
             email=email,
             created_at=datetime.utcnow(),
             expires_at=datetime.utcnow() + timedelta(hours=24)
         )
+        logger.info(f"Created token object: {token.__dict__}")
         self.session.add(token)
-        await self.session.commit()
-        await self.session.refresh(token)
-        return RegistrationToken.model_validate(token)
+        logger.info(f"Added token to session for {email}, token={token.token}")
+        try:
+            await self.session.commit()
+            logger.info(f"Committed token to database for {email}, token={token.token}")
+            await self.session.refresh(token)
+            logger.info(f"Refreshed token from database for {email}, token={token.token}, id={token.id}")
+            return RegistrationToken.model_validate(token)
+        except Exception as e:
+            logger.error(f"Error creating token for {email}: {str(e)}")
+            await self.session.rollback()
+            raise
 
     async def get_registration_token(self, token: UUID) -> Optional[RegistrationToken]:
         result = await self.session.execute(

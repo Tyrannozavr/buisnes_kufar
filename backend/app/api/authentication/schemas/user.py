@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -39,6 +40,8 @@ class RegistrationToken(BaseModel):
     created_at: datetime
     expires_at: datetime
     is_used: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str

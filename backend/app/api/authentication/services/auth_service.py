@@ -6,6 +6,8 @@ from app.api.authentication.schemas.user import UserCreate, User, Token, Registr
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.core.security import create_access_token
 from app.core.config import settings
+from app_logging.logger import logger
+
 
 class AuthService:
     def __init__(self, user_repository: UserRepository):
@@ -22,7 +24,7 @@ class AuthService:
 
         # Создаем токен регистрации
         registration_token = await self.user_repository.create_registration_token(user_data.email)
-        
+        logger.info(f"Final registration token for {user_data.email}")
         # В реальном приложении здесь будет отправка email
         # Для примера просто выводим токен в консоль
         verification_url = f"{settings.FRONTEND_URL}/verify-email/{registration_token.token}"

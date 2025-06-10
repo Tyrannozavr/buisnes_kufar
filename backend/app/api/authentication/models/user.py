@@ -1,9 +1,12 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 from sqlalchemy import String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
+
+if TYPE_CHECKING:
+    from app.api.company.models.company import Company
 
 class User(Base):
     __tablename__ = "users"
@@ -28,8 +31,13 @@ class User(Base):
 class RegistrationToken(Base):
     __tablename__ = "registration_tokens"
 
-    token: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    token: Mapped[UUID] = mapped_column(unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False) 
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.token:
+            self.token = uuid4() 

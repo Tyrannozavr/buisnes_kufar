@@ -22,7 +22,9 @@ export const AUTH_API = {
   VERIFY_CODE: '/auth/verify-code',
   RESET_PASSWORD: '/auth/reset-password',
   CHANGE_EMAIL: '/auth/change-email',
-  CHANGE_PASSWORD: '/auth/change-password'
+  CHANGE_PASSWORD: '/auth/change-password',
+  LOGIN: '/v1/auth/login',
+  COMPANY_ME: '/v1/company/me'
 } as const 
 
 export const authApi = {
@@ -166,9 +168,42 @@ export function useAuthApi() {
     }
   }
 
+  const login = async (inn: string, password: string): Promise<void> => {
+    try {
+      await $fetch(`${apiBaseUrl}${AUTH_API.LOGIN}`, {
+        method: 'POST',
+        body: { inn, password },
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+    } catch (error: any) {
+      throw formatErrorResponse(error)
+    }
+  }
+
+  const getCompanyInfo = async () => {
+    try {
+      const response = await $fetch(`${apiBaseUrl}${AUTH_API.COMPANY_ME}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      return response
+    } catch (error: any) {
+      throw formatErrorResponse(error)
+    }
+  }
+
   return {
     registerStep1,
     validateRegistrationToken,
-    registerStep2
+    registerStep2,
+    login,
+    getCompanyInfo
   }
 } 

@@ -81,3 +81,8 @@ export interface CompanyShort {
   tradeActivity: string
 }
 
+export interface CompanyInfo {
+  companyName: string
+  companyLogo: string
+}
+

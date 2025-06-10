@@ -51,6 +51,13 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_user_by_inn(self, inn: str) -> Optional[User]:
+        """Get user by INN"""
+        result = await self.session.execute(
+            select(User).where(User.inn == inn)
+        )
+        return result.scalar_one_or_none()
+
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
         db_token = DBRegistrationToken(
             email=email,

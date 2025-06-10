@@ -67,12 +67,8 @@
 
 <script setup lang="ts">
 import { useUserStore } from '~/stores/user'
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
-const backUrl = computed(() => {
-  return route.query.back_url ? String(route.query.back_url) : '/'
-})
+import { useAuthApi } from '~/api/auth'
+import type { CompanyInfo } from '~/types/company'
 
 const form = ref({
   inn: '',
@@ -90,7 +86,7 @@ const rules = {
   },
   password: (value: string) => {
     if (!value) return true
-    return value.length >= 6 || 'Пароль должен содержать минимум 6 символов'
+    return value.length >= 8 || 'Пароль должен содержать минимум 8 символов'
   }
 }
 
@@ -116,22 +112,39 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    // TODO: Replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000)) // Simulated API call
-
-    // Mock response - replace with actual API response
-    const mockResponse = {
-      companyName: 'КосмоПорт',
-      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
-    }
-
+    const authApi = useAuthApi()
+    
+    // First login to get the cookie
+    await authApi.login(form.value.inn, form.value.password)
+    
+    // Then get company info
+    const companyInfo = await authApi.getCompanyInfo() as CompanyInfo
+    
     // Update the store with user data
-    userStore.login(mockResponse.companyName, mockResponse.companyLogo)
+    userStore.login(companyInfo.companyName, companyInfo.companyLogo)
 
-    // Redirect to the back_url if available, otherwise to home
+    // Redirect to profile
     navigateTo("/profile")
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error)
+    
+    const errorMessage = error.response?._data?.detail || error.detail || error.message
+    
+    let message = 'Произошла ошибка при входе'
+    
+    if (errorMessage === 'Incorrect INN or password') {
+      message = 'Неверный ИНН или пароль'
+    } else if (errorMessage === 'Password must be at least 8 characters long') {
+      message = 'Пароль должен содержать минимум 8 символов'
+    }
+    console.log("Error message:", message)
+    // Show error toast with Russian message
+    useToast().add({
+      title: 'Ошибка',
+      description: message,
+      icon: 'i-heroicons-exclamation-circle',
+      color: 'error'
+    })
   } finally {
     isLoading.value = false
   }

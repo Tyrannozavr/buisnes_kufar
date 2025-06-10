@@ -3,15 +3,12 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: [
-    '@nuxt/ui',
-    '@nuxt/eslint',
-    '@nuxt/fonts',
-    '@nuxt/icon',
-    '@nuxt/image',
-    '@nuxt/scripts',
-    '@nuxt/test-utils',
+    '@nuxtjs/tailwindcss',
+    '@nuxtjs/color-mode',
     '@pinia/nuxt',
+    '@nuxt/ui',
     'pinia-plugin-persistedstate/nuxt',
+    '@nuxt/image'
   ],
   css: ['~/assets/css/main.css'],
 
@@ -28,8 +25,32 @@ export default defineNuxtConfig({
   },
   // Add explicit colorMode configuration
   ui: {
-    colorMode: false
+    colorMode: false,
+    global: true,
+    icons: ['heroicons']
   },
   compatibilityDate: '2024-11-27',
-  ssr: true
+  ssr: true,
+  i18n: {
+    vueI18n: './i18n.config.ts',
+    strategy: 'no_prefix',
+    defaultLocale: 'ru',
+    detectBrowserLanguage: false
+  },
+  colorMode: {
+    classSuffix: ''
+  },
+  app: {
+    head: {
+      title: 'БизнесТорг',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'БизнесТорг - платформа для бизнеса' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  }
 })

@@ -157,12 +157,8 @@ const handleSubmit = async () => {
     // Redirect to success page
     await router.push('/auth/register/success')
   } catch (error) {
-    console.log("Error in api error second block caught")
     const apiError = error as ApiError
-    console.log("Error details:", apiError)
     if (apiError.errors) {
-      console.log("Error in api erro first block")
-      console.log(apiError.errors, "Detail ", apiError.detail)
       // Display field-specific errors
       Object.entries(apiError.errors).forEach(([field, messages]) => {
         const errorMessage = messages.join(', ')

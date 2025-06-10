@@ -1,58 +1,38 @@
+import { defineEventHandler, getQuery } from 'h3'
 import type { Announcement } from '~/types/announcement'
+import { announcements } from './company.get'
 
-export const announcements: Announcement[] = [
-  {
-    id: '1',
-    companyId: 1,
-    companyName: 'ТехноПром',
-    companyLogo: 'https://www.svgrepo.com/show/152278/marketing.svg',
-    title: 'Новое поступление оборудования',
-    content: 'Компания ТехноПром рада сообщить о поступлении нового оборудования для производства. В наличии имеются станки последнего поколения с ЧПУ, а также вспомогательное оборудование.',
-    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
-    createdAt: '2024-04-20T10:00:00Z',
-    updatedAt: '2024-04-20T10:00:00Z',
-    date: '2024-04-20',
-    topic: 'Оборудование',
-    category: 'Товары',
-    published: true,
-    notifications: {
-      partners: true,
-      customers: true,
-      suppliers: false,
-      sent: true
-    }
-  },
-  {
-    id: '2',
-    companyId: 2,
-    companyName: 'СтройСервис',
-    companyLogo: 'https://www.svgrepo.com/show/152278/marketing.svg',
-    title: 'Специальное предложение на строительство',
-    content: 'Действует специальное предложение на строительство коттеджей. При заказе строительства до конца месяца, вы получаете проект ландшафтного дизайна в подарок.',
-    images: ['https://www.svgrepo.com/show/152278/marketing.svg'],
-    createdAt: '2024-04-19T15:30:00Z',
-    updatedAt: '2024-04-19T15:30:00Z',
-    date: '2024-04-19',
-    topic: 'Акции',
-    category: 'Акции',
-    published: true,
-    notifications: {
-      partners: false,
-      customers: true,
-      suppliers: false,
-      sent: true
-    }
-  }
-]
+export default defineEventHandler(async (event) => {
+  const query = getQuery(event)
+  const limit = Number(query.limit) || 6
 
-export default defineEventHandler(() => {
+  // Get latest announcements and transform to required format
+  const data = announcements
+    .slice(0, limit)
+    .map(announcement => ({
+      id: announcement.id,
+      companyId: announcement.companyId,
+      companyName: announcement.companyName,
+      companyLogo: announcement.companyLogo,
+      title: announcement.title,
+      content: announcement.content,
+      images: announcement.images,
+      createdAt: announcement.createdAt,
+      updatedAt: announcement.updatedAt,
+      date: announcement.date,
+      topic: announcement.topic,
+      category: announcement.category,
+      published: announcement.published,
+      notifications: announcement.notifications
+    } as Announcement))
+
   return {
-    data: announcements,
+    data,
     pagination: {
       total: announcements.length,
       page: 1,
-      perPage: 5,
-      totalPages: 1
+      perPage: limit,
+      totalPages: Math.ceil(announcements.length / limit)
     }
   }
 }) 

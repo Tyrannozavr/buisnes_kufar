@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { useHomeApi } from '~/api/home'
+import type { Announcement } from '~/types/announcement'
+import type { Company } from '~/types/company'
 import { computed } from 'vue'
 
-const { getLatestAnnouncements, getLatestCompanies } = useHomeApi()
+// Use useFetch for server-side data fetching
+const { data: announcementsData } = await useFetch<{
+  data: Announcement[],
+  pagination: {
+    total: number,
+    page: number,
+    perPage: number,
+    totalPages: number
+  }
+}>('/api/announcements/latest', {
+  params: {
+    limit: 6
+  }
+})
 
-// Fetch announcements from API with limit
-const { data: announcements, error: announcementsError } = await getLatestAnnouncements()
-
-// Fetch companies from API
-const { data: companies, error: companiesError } = await getLatestCompanies()
+const { data: companies } = await useFetch<Company[]>('/api/companies/latest', {
+  params: {
+    limit: 6
+  }
+})
 
 // Format date for display
 const formatDate = (dateString: string) => {
@@ -21,9 +35,9 @@ const formatDate = (dateString: string) => {
 
 // Map announcement data to match AnnouncementCard requirements
 const mappedAnnouncements = computed(() => {
-  if (!announcements.value?.data) return []
+  if (!announcementsData.value?.data) return []
   
-  return announcements.value.data.map(announcement => ({
+  return announcementsData.value.data.map(announcement => ({
     id: announcement.id,
     image: announcement.images?.[0] || '/images/default-announcement.png',
     title: announcement.title,
@@ -77,11 +91,7 @@ const mappedAnnouncements = computed(() => {
           </UButton>
         </div>
 
-        <div v-if="announcementsError" class="text-red-500 mb-4 text-center">
-          Не удалось загрузить объявления
-        </div>
-
-        <div v-else-if="!mappedAnnouncements.length" class="text-gray-500 mb-4 text-center">
+        <div v-if="!mappedAnnouncements.length" class="text-gray-500 mb-4 text-center">
           Нет доступных объявлений
         </div>
 
@@ -99,7 +109,7 @@ const mappedAnnouncements = computed(() => {
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-semibold">Новые компании</h2>
           <UButton
-            to="/news"
+            to="/companies"
             color="neutral"
             variant="ghost"
             size="sm"
@@ -108,11 +118,7 @@ const mappedAnnouncements = computed(() => {
           </UButton>
         </div>
 
-        <div v-if="companiesError" class="text-red-500 mb-4 text-center">
-          Не удалось загрузить компании
-        </div>
-
-        <div v-else-if="!companies || companies.length === 0" class="text-gray-500 mb-4 text-center">
+        <div v-if="!companies || companies.length === 0" class="text-gray-500 mb-4 text-center">
           Нет новых компаний
         </div>
 
@@ -123,7 +129,7 @@ const mappedAnnouncements = computed(() => {
                 <img :src="company.logo || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded">
               </div>
               <div>
-                <NuxtLink :to="`/company/${company.id}`" class="font-medium hover:text-primary-600 transition-colors">
+                <NuxtLink :to="`/company/${company.slug}`" class="font-medium hover:text-primary-600 transition-colors">
                   {{ company.name }}
                 </NuxtLink>
                 <p class="text-xs text-gray-600">{{ company.businessType }}</p>

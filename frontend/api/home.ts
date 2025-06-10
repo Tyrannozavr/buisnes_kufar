@@ -1,5 +1,6 @@
 import type { Announcement } from '~/types/announcement'
 import type { Company } from '~/types/company'
+import { useApi } from '~/composables/useApi'
 
 export const useHomeApi = () => {
   const getLatestAnnouncements = () => {
@@ -10,12 +11,20 @@ export const useHomeApi = () => {
         page: number,
         perPage: number,
         totalPages: number
+      },
+    }>('/announcements/latest', {
+      params: {
+        limit: 6
       }
-    }>('/announcements/latest')
+    })
   }
 
   const getLatestCompanies = () => {
-    return useApi<Company[]>('/companies/latest')
+    return useApi<Company[]>('/companies/latest', {
+      params: {
+        limit: 6
+      }
+    })
   }
 
   return {

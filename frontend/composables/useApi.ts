@@ -1,39 +1,45 @@
+import { useNuxtApp } from 'nuxt/app'
 import type { UseFetchOptions } from 'nuxt/app'
-import type { FetchOptions } from 'ofetch'
+import { ref } from 'vue'
 
-type HttpMethod = 'GET' | 'HEAD' | 'PATCH' | 'POST' | 'PUT' | 'DELETE' | 'CONNECT' | 'OPTIONS' | 'TRACE'
+interface ApiInstance {
+  get: (url: string, params?: Record<string, any>) => Promise<any>
+  post: (url: string, data?: Record<string, any>) => Promise<any>
+  put: (url: string, data?: Record<string, any>) => Promise<any>
+  delete: (url: string) => Promise<any>
+  clearCache: () => void
+}
 
 export function useApi<T>(url: string, options: UseFetchOptions<T> = {}) {
-  const config = useRuntimeConfig()
-  const apiBaseUrl = config.public.apiBaseUrl
+  const { $api } = useNuxtApp()
+  const api = $api as ApiInstance
+  const data = ref<T | null>(null)
+  const error = ref<Error | null>(null)
+  const pending = ref(true)
 
-  // Ensure URL starts with apiBaseUrl if it doesn't include http
-  const apiUrl = url.startsWith('http') ? url : `${apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`
-
-  // For POST, PUT, DELETE requests, use $fetch directly
-  if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method as string)) {
-    const fetchOptions: FetchOptions = {
-      method: (options.method as string).toUpperCase() as HttpMethod,
-      body: options.body,
-      credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {})
-      }
+  const fetchData = async () => {
+    try {
+      pending.value = true
+      error.value = null
+      
+      const response = await api.get(url, options.params || {})
+      data.value = response as T
+    } catch (e) {
+      error.value = e instanceof Error ? e : new Error('An error occurred')
+    } finally {
+      pending.value = false
     }
-    return $fetch<T>(apiUrl, fetchOptions)
   }
 
-  // For GET requests, use useFetch
-  const defaults: UseFetchOptions<T> = {
-    credentials: 'include',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    ...options
+  // If not lazy, fetch immediately
+  if (!options.lazy) {
+    fetchData()
   }
 
-  return useFetch<T>(apiUrl, defaults as never)
+  return {
+    data,
+    error,
+    pending,
+    refresh: fetchData
+  }
 }

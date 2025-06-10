@@ -1,17 +1,20 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-from fastapi import HTTPException, status
-from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, Token, RegistrationToken
+from fastapi import HTTPException, status, Request
+from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, Token, UserInDB, RegistrationToken
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.core.security import create_access_token
+from app.core.security import create_access_token, decode_token
 from app.core.config import settings
 from app.core.email_utils import send_verification_email
 from app_logging.logger import logger
+from sqlalchemy.orm import Session
+from app.core.security import verify_password
 
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserRepository, db: Session):
         self.user_repository = user_repository
+        self.db = db
 
     async def register_step1(self, user_data: UserCreateStep1) -> None:
         # Проверяем, не существует ли уже пользователь с таким email
@@ -85,27 +88,51 @@ class AuthService:
             return False
         return True
 
-    async def login(self, email: str, password: str) -> Token:
+    async def login(self, email: str, password: str) -> User:
+        """Login user and return user data. Token will be set in cookie by the router."""
         user = await self.user_repository.authenticate_user(email, password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
             )
-        # Создаем JWT токен
-        access_token = create_access_token(
-            data={"sub": str(user.id)},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        )
-        return Token(access_token=access_token)
+        return User.model_validate(user)
 
-    async def get_current_user(self, user_id: int) -> Optional[User]:
-        db_user = await self.user_repository.get_user_by_id(user_id)
-        return User.model_validate(db_user) if db_user else None
+    async def get_current_user_from_cookie(self, request: Request) -> Optional[User]:
+        """Get current user from access token in cookie"""
+        token = request.cookies.get("access_token")
+        if not token:
+            return None
+            
+        try:
+            payload = decode_token(token)
+            user_id = int(payload.get("sub"))
+            if user_id is None:
+                return None
+        except Exception as e:
+            logger.error(f"Error decoding token: {str(e)}")
+            return None
+            
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            return None
+            
+        return User.model_validate(user)
 
     async def create_access_token_cookie(self, user_id: int) -> str:
         """Create access token for cookie"""
         return create_access_token(
             data={"sub": str(user_id)},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        ) 
+        )
+
+    async def authenticate_user_by_inn(self, inn: str, password: str) -> Optional[User]:
+        """Authenticate user by INN and password"""
+        user = await self.user_repository.get_user_by_inn(inn)
+        if not user:
+            return None
+        if not user.hashed_password:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return User.model_validate(user) 

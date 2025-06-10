@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     
     # CORS настройки
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_FROM: str
+    MAIL_PORT: str
+    MAIL_SERVER: str
     
     # Static files
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

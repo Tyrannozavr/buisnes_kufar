@@ -9,13 +9,12 @@ from uuid import UUID
 router = APIRouter()
 
 
-@router.post("/register/step1", response_model=RegistrationToken)
+@router.post("/register/step1", status_code=status.HTTP_201_CREATED)
 async def register_step1(
         user_data: UserCreate,
         auth_service: AuthServiceDep
-) -> RegistrationToken:
-    token, _ = await auth_service.register_step1(user_data)
-    return token
+) -> None:
+    await auth_service.register_step1(user_data)
 
 
 @router.post("/register/step2", response_model=User)

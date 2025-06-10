@@ -6,6 +6,7 @@ from app.api.authentication.schemas.user import UserCreate, User, Token, Registr
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.core.security import create_access_token
 from app.core.config import settings
+from app.core.email_utils import send_verification_email
 from app_logging.logger import logger
 
 
@@ -13,7 +14,7 @@ class AuthService:
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
 
-    async def register_step1(self, user_data: UserCreate) -> Tuple[RegistrationToken, str]:
+    async def register_step1(self, user_data: UserCreate) -> None:
         # Проверяем, не существует ли уже пользователь с таким email
         existing_user = await self.user_repository.get_user_by_email(user_data.email)
         if existing_user:
@@ -24,13 +25,20 @@ class AuthService:
 
         # Создаем токен регистрации
         registration_token = await self.user_repository.create_registration_token(user_data.email)
-        logger.info(f"Final registration token for {user_data.email}")
-        # В реальном приложении здесь будет отправка email
-        # Для примера просто выводим токен в консоль
+        logger.info(f"Created registration token for {user_data.email}")
+        
+        # Формируем URL для верификации
         verification_url = f"{settings.FRONTEND_URL}/verify-email/{registration_token.token}"
-        print(f"Verification URL: {verification_url}")
-
-        return registration_token, verification_url
+        
+        # Отправляем email с ссылкой для верификации
+        email_sent = await send_verification_email(user_data.email, verification_url)
+        if not email_sent:
+            # Если не удалось отправить email, удаляем токен и возвращаем ошибку
+            await self.user_repository.delete_registration_token(registration_token.token)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email"
+            )
 
     async def register_step2(self, token: UUID, user_data: UserCreate) -> User:
         # Проверяем токен

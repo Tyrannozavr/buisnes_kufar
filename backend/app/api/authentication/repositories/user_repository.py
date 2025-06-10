@@ -39,19 +39,17 @@ class UserRepository:
         await self.session.refresh(user)
         return UserInDB.model_validate(user)
 
-    async def get_user_by_email(self, email: str) -> Optional[UserInDB]:
+    async def get_user_by_email(self, email: str) -> Optional[User]:
         result = await self.session.execute(
             select(User).where(User.email == email)
         )
-        user = result.scalar_one_or_none()
-        return UserInDB.model_validate(user) if user else None
+        return result.scalar_one_or_none()
 
-    async def get_user_by_id(self, user_id: int) -> Optional[UserInDB]:
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
         result = await self.session.execute(
             select(User).where(User.id == user_id)
         )
-        user = result.scalar_one_or_none()
-        return UserInDB.model_validate(user) if user else None
+        return result.scalar_one_or_none()
 
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
         db_token = DBRegistrationToken(

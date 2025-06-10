@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { RegisterStep2Data } from '~/types/auth'
+import type { RegisterStep2Data, ApiError } from '~/types/auth'
 import { useAuthApi } from '~/api/auth'
 import { useUserStore } from "~/stores/user"
 
 const route = useRoute()
 const router = useRouter()
 const authApi = useAuthApi()
+const userStore = useUserStore()
 
 const form = ref<RegisterStep2Data>({
+  token: '',
   inn: '',
   position: '',
   password: '',
@@ -35,7 +37,7 @@ const rules = {
   },
   password: (value: string) => {
     if (!value) return true
-    return value.length >= 6 || 'Пароль должен содержать минимум 6 символов'
+    return value.length >= 8 || 'Пароль должен содержать минимум 8 символов'
   },
   confirmPassword: (value: string) => {
     if (!value) return true
@@ -117,7 +119,6 @@ const validateForm = () => {
   validatePassword()
   validateConfirmPassword()
 }
-const userStore = useUserStore()
 
 // Computed property for form validity
 const isFormValid = computed(() => {
@@ -135,40 +136,56 @@ const isFormValid = computed(() => {
 onMounted(async () => {
   const token = route.query.token as string
   if (!token) {
+    console.log('No token provided')
     isTokenValid.value = false
     return
   }
 
+  // Set token in form
+  form.value.token = token
+
   try {
+    console.log('Validating token:', token)
     const response = await authApi.validateRegistrationToken(token)
-    isTokenValid.value = response.isValid
+    console.log('Token validation response:', response)
+    isTokenValid.value = response.is_valid
+    if (!response.is_valid) {
+      console.log('Token is invalid')
+      useToast().add({
+        title: 'Ошибка',
+        description: 'Недействительная ссылка для регистрации',
+        color: 'error',
+        icon: 'i-heroicons-exclamation-circle'
+      })
+    }
   } catch (error) {
     console.error('Token validation error:', error)
     isTokenValid.value = false
+    useToast().add({
+      title: 'Ошибка',
+      description: 'Не удалось проверить ссылку для регистрации',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
   }
 })
 
 const handleSubmit = async () => {
-  // Validate all fields before submission
-  validateForm()
-
-  if (!isFormValid.value) return
-
-  isLoading.value = true
   try {
-    const token = route.query.token as string
-    const response = await authApi.registerStep2(token, form.value)
-
-    // Update the store with user data
-    userStore.login(response.companyName, response.companyLogo)
-
-    // Redirect to profile page with success message
-    router.push({
-      path: '/profile',
-      query: { registered: 'true' }
-    })
-  } catch (error) {
+    isLoading.value = true
+    await authApi.registerStep2(form.value)
+    
+    // If we get here, registration was successful (201 status)
+    router.push('/')
+  } catch (error: any) {
     console.error('Registration completion error:', error)
+    const errorMessage = error.response?.data?.detail || 'An error occurred during registration'
+    useToast().add({
+      title: 'Ошибка',
+      description: errorMessage,
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
   } finally {
     isLoading.value = false
   }

@@ -44,7 +44,7 @@ class AuthService:
                 detail="Failed to send verification email"
             )
 
-    async def register_step2(self, user_data: UserCreateStep2) -> Tuple[User, Token]:
+    async def register_step2(self, user_data: UserCreateStep2) -> User:
         # Проверяем токен
         registration_token = await self.user_repository.get_registration_token(user_data.token)
         if not registration_token:
@@ -63,22 +63,17 @@ class AuthService:
                 detail="Registration token expired"
             )
         # Получаем пользователя по email из токена
-        user = await self.user_repository.get_user_by_email(registration_token.email)
-        if not user:
+        db_user = await self.user_repository.get_user_by_email(registration_token.email)
+        if not db_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User not found"
             )
         # Обновляем пользователя (ИНН, должность, пароль)
-        user = await self.user_repository.update_user_step2(user, user_data)
+        updated_user = await self.user_repository.update_user_step2(db_user, user_data)
         # Помечаем токен как использованный
         await self.user_repository.mark_token_as_used(user_data.token)
-        # Создаем JWT токен для автоматической аутентификации
-        access_token = create_access_token(
-            data={"sub": str(user.id)},
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        )
-        return User.model_validate(user), Token(access_token=access_token)
+        return User.model_validate(updated_user)
 
     async def verify_token(self, token: str) -> bool:
         registration_token = await self.user_repository.get_registration_token(token)
@@ -105,5 +100,12 @@ class AuthService:
         return Token(access_token=access_token)
 
     async def get_current_user(self, user_id: int) -> Optional[User]:
-        user = await self.user_repository.get_user_by_id(user_id)
-        return User.model_validate(user) if user else None 
+        db_user = await self.user_repository.get_user_by_id(user_id)
+        return User.model_validate(db_user) if db_user else None
+
+    async def create_access_token_cookie(self, user_id: int) -> str:
+        """Create access token for cookie"""
+        return create_access_token(
+            data={"sub": str(user_id)},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        ) 

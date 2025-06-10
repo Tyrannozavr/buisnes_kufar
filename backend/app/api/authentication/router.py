@@ -1,41 +1,53 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.authentication.dependencies import AuthServiceDep
-from app.api.authentication.schemas.user import User, Token, RegistrationToken, UserCreateStep1, UserCreateStep2
+from app.api.authentication.schemas.user import User, Token, UserCreateStep1, UserCreateStep2
+from app.api.authentication.services.auth_service import AuthService
+from app.core.config import settings
 from app.core.security import get_current_user_id_from_token
-from uuid import UUID
+from app.db.base import get_db
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @router.post("/register/step1", status_code=status.HTTP_201_CREATED)
 async def register_step1(
-        user_data: UserCreateStep1,
-        auth_service: AuthServiceDep
-) -> None:
-    await auth_service.register_step1(user_data)
+        data: UserCreateStep1,
+        db: AsyncSession = Depends(get_db)
+):
+    auth_service = AuthService(db)
+    await auth_service.register_step1(data)
+    return {"message": "Registration email sent"}
 
 
-@router.post("/register/step2", response_model=Token)
+@router.post("/register/step2", status_code=status.HTTP_201_CREATED)
 async def register_step2(
         data: UserCreateStep2,
         response: Response,
-        auth_service: AuthServiceDep
-) -> Token:
-    user, token = await auth_service.register_step2(data)
-    
-    # Устанавливаем cookie с токеном
+        db: AsyncSession = Depends(get_db)
+):
+    auth_service = AuthService(db)
+    user = await auth_service.register_step2(data)
+
+    # Create access token
+    access_token = await auth_service.create_access_token_cookie(user.id)
+
+    # Set HTTP-only cookie
     response.set_cookie(
         key="access_token",
-        value=token.access_token,
+        value=access_token,
         httponly=True,
-        secure=True,  # для HTTPS
+        secure=settings.COOKIE_SECURE,  # True in production
         samesite="lax",
-        max_age=3600  # 1 час
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
-    
-    return token
+
+    return {"message": "Registration completed successfully"}
 
 
 @router.get("/verify-token/{token}")

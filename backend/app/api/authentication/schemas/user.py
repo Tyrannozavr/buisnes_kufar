@@ -29,6 +29,7 @@ class UserCreateStep2(BaseModel):
 class UserInDB(UserBase):
     id: int
     is_active: bool
+    hashed_password: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

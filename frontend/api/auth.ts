@@ -128,6 +128,7 @@ export function useAuthApi() {
 
   const validateRegistrationToken = async (token: string): Promise<RegisterValidationResponse> => {
     try {
+      console.log('Validating token in API:', token)
       const response = await $fetch<RegisterValidationResponse>(`${apiBaseUrl}${AUTH_API.VERIFY_TOKEN}/${token}`, {
         credentials: 'include',
         headers: {
@@ -135,8 +136,10 @@ export function useAuthApi() {
           'Content-Type': 'application/json'
         }
       })
+      console.log('Token validation API response:', response)
       return response
     } catch (error: any) {
+      console.log('Token validation API error:', error)
       throw formatErrorResponse(error)
     }
   }

@@ -1,22 +1,39 @@
 import type { UseFetchOptions } from 'nuxt/app'
+import type { FetchOptions } from 'ofetch'
+
+type HttpMethod = 'GET' | 'HEAD' | 'PATCH' | 'POST' | 'PUT' | 'DELETE' | 'CONNECT' | 'OPTIONS' | 'TRACE'
 
 export function useApi<T>(url: string, options: UseFetchOptions<T> = {}) {
-  // Ensure URL starts with /api if it doesn't include http
-  const apiUrl = url.startsWith('http') ? url : url.startsWith('/api') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`
+  const config = useRuntimeConfig()
+  const apiBaseUrl = config.public.apiBaseUrl
 
-  // Set default options for all API requests
+  // Ensure URL starts with apiBaseUrl if it doesn't include http
+  const apiUrl = url.startsWith('http') ? url : `${apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+
+  // For POST, PUT, DELETE requests, use $fetch directly
+  if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method as string)) {
+    const fetchOptions: FetchOptions = {
+      method: (options.method as string).toUpperCase() as HttpMethod,
+      body: options.body,
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {})
+      }
+    }
+    return $fetch<T>(apiUrl, fetchOptions)
+  }
+
+  // For GET requests, use useFetch
   const defaults: UseFetchOptions<T> = {
-    // Enable cookie passing
     credentials: 'include',
-    // Default headers
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     },
-    // Add any other default options here
     ...options
   }
 
-  // Use Nuxt's built-in useFetch with our defaults
   return useFetch<T>(apiUrl, defaults as never)
 }

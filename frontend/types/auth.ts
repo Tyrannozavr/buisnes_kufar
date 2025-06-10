@@ -4,8 +4,8 @@ export interface RegisterStep1Data {
   patronymic?: string
   email: string
   phone: string
-  captcha: string
-  agreement: boolean
+  captcha?: string
+  agreement?: boolean
 }
 
 export interface RegisterStep2Data {
@@ -13,24 +13,38 @@ export interface RegisterStep2Data {
   position: string
   password: string
   confirmPassword: string
+  token: string
 }
 
 export interface RegisterStep1Response {
-  token: string
   statusCode: number
+  message: string
 }
 
 export interface RegisterStep2Response {
-  companyName: string
-  companyLogo: string
+  access_token: string
+  user: {
+    id: number
+    email: string
+    first_name: string | null
+    last_name: string | null
+    patronymic: string | null
+    phone: string
+    inn: string
+    position: string
+    is_active: boolean
+    created_at: string
+  }
 }
 
 export interface RegisterValidationResponse {
-  isValid: boolean
+  is_valid: boolean
+  message?: string
 }
 
 export interface ApiError {
   message: string
+  detail?: string
   errors?: Record<string, string[]>
   statusCode: number
 } 

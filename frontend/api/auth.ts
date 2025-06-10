@@ -15,31 +15,34 @@ import type {
 } from '~/types/api'
 
 export const AUTH_API = {
-  RECOVER_PASSWORD: '/api/auth/recover-password',
-  VERIFY_CODE: '/api/auth/verify-code',
-  RESET_PASSWORD: '/api/auth/reset-password',
-  CHANGE_EMAIL: '/api/auth/change-email',
-  CHANGE_PASSWORD: '/api/auth/change-password'
+  REGISTER_STEP1: '/v1/auth/register/step1',
+  REGISTER_STEP2: '/v1/auth/register/step2',
+  VERIFY_TOKEN: '/v1/auth/verify-token',
+  RECOVER_PASSWORD: '/auth/recover-password',
+  VERIFY_CODE: '/auth/verify-code',
+  RESET_PASSWORD: '/auth/reset-password',
+  CHANGE_EMAIL: '/auth/change-email',
+  CHANGE_PASSWORD: '/auth/change-password'
 } as const 
 
 export const authApi = {
   // Восстановление пароля
   async sendRecoveryCode(email: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/recover-password', {
+    return await $fetch<ApiResponse>('/auth/recover-password', {
       method: 'POST',
       body: { email }
     })
   },
 
   async verifyRecoveryCode(email: string, code: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/verify-code', {
+    return await $fetch<ApiResponse>('/auth/verify-code', {
       method: 'POST',
       body: { email, code }
     })
   },
 
   async resetPassword(params: PasswordResetParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/reset-password', {
+    return await $fetch<ApiResponse>('/auth/reset-password', {
       method: 'POST',
       body: params
     })
@@ -47,14 +50,14 @@ export const authApi = {
 
   // Смена email
   async sendEmailChangeCode(email: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/recover-password', {
+    return await $fetch<ApiResponse>('/auth/recover-password', {
       method: 'POST',
       body: { email }
     })
   },
 
   async changeEmail(params: EmailChangeParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/change-email', {
+    return await $fetch<ApiResponse>('/auth/change-email', {
       method: 'POST',
       body: params
     })
@@ -62,56 +65,101 @@ export const authApi = {
 
   // Смена пароля
   async changePassword(params: PasswordChangeParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/api/auth/change-password', {
+    return await $fetch<ApiResponse>('/auth/change-password', {
       method: 'POST',
       body: params
     })
   }
 }
 
-export const useAuthApi = () => {
-  const config = useRuntimeConfig()
-  const baseURL = config.public.apiBase
+function formatErrorResponse(error: any): ApiError {
+  // Handle $fetch error response
+  if (error.response?._data) {
+    return {
+      message: error.response._data.message || error.response._data.detail || 'Произошла ошибка',
+      detail: error.response._data.detail,
+      errors: error.response._data.errors,
+      statusCode: error.response.status
+    }
+  }
+  // Handle direct error response
+  if (error.response?.data) {
+    return {
+      message: error.response.data.message || error.response.data.detail || 'Произошла ошибка',
+      detail: error.response.data.detail,
+      errors: error.response.data.errors,
+      statusCode: error.response.status
+    }
+  }
+  // Handle other errors
+  return {
+    message: error.message || 'Произошла ошибка',
+    detail: error.detail,
+    statusCode: error.statusCode || 500
+  }
+}
 
-  const registerStep1 = async (data: RegisterStep1Data): Promise<RegisterStep1Response> => {
+export function useAuthApi() {
+  const config = useRuntimeConfig()
+  const apiBaseUrl = config.public.apiBaseUrl
+
+  const registerStep1 = async (data: RegisterStep1Data): Promise<void> => {
     try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Simulate successful registration
-      return {
-        token: Math.random().toString(36).substring(2, 15),
-        statusCode: 201
-      }
+      await $fetch(`${apiBaseUrl}${AUTH_API.REGISTER_STEP1}`, {
+        method: 'POST',
+        body: {
+          email: data.email,
+          phone: data.phone,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          patronymic: data.patronymic
+        },
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
     } catch (error: any) {
-      if (error.response?.data) {
-        throw {
-          message: error.response.data.message || 'Произошла ошибка при регистрации',
-          errors: error.response.data.errors,
-          statusCode: error.response.status
-        } as ApiError
-      }
-      throw {
-        message: 'Произошла ошибка при регистрации',
-        statusCode: 500
-      } as ApiError
+      console.log('Registration error:', error)
+      throw formatErrorResponse(error)
     }
   }
 
   const validateRegistrationToken = async (token: string): Promise<RegisterValidationResponse> => {
-    // TODO: Replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    return {
-      isValid: true
+    try {
+      const response = await $fetch<RegisterValidationResponse>(`${apiBaseUrl}${AUTH_API.VERIFY_TOKEN}/${token}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      return response
+    } catch (error: any) {
+      throw formatErrorResponse(error)
     }
   }
 
-  const registerStep2 = async (token: string, data: RegisterStep2Data): Promise<RegisterStep2Response> => {
-    // TODO: Replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    return {
-      companyName: 'КосмоПорт',
-      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
+  const registerStep2 = async (data: RegisterStep2Data): Promise<RegisterStep2Response> => {
+    try {
+      const response = await $fetch<RegisterStep2Response>(`${apiBaseUrl}${AUTH_API.REGISTER_STEP2}`, {
+        method: 'POST',
+        body: {
+          token: data.token,
+          inn: data.inn,
+          position: data.position,
+          password: data.password
+        },
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      return response
+    } catch (error: any) {
+      throw formatErrorResponse(error)
     }
   }
 

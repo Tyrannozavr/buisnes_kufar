@@ -29,8 +29,15 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     
     # CORS настройки
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",  # Add this line
+        "http://127.0.0.1:3000",  # Add this line
+    ]
+    
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: str

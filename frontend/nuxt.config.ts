@@ -23,7 +23,7 @@ export default defineNuxtConfig({
 
     // Keys within public are also exposed to the client
     public: {
-      apiBaseUrl: process.env.NUXT_API_URL || 'http://localhost:3000/api'
+      apiBaseUrl: process.env.VITE_PUBLIC_API_URL || 'http://localhost:3000/api'
     }
   },
   // Add explicit colorMode configuration

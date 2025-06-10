@@ -14,11 +14,13 @@ class UserAdmin(ModelView, model=User):
         User.email,
         User.first_name,
         User.last_name,
+        User.patronymic,
         User.phone,
+        User.inn,
+        User.position,
         User.is_active,
-        User.is_verified,
         User.created_at,
-        User.updated_at
+        User.updated_at,
     ]
     
     # Настройка поиска
@@ -32,18 +34,13 @@ class UserAdmin(ModelView, model=User):
     # Настройка фильтров
     column_filters = [
         User.is_active,
-        User.is_verified,
-        User.created_at,
-        User.updated_at
     ]
     
     # Настройка сортировки
     column_sortable_list = [
+        User.id,
         User.email,
         User.created_at,
-        User.updated_at,
-        User.is_active,
-        User.is_verified
     ]
     
     # Настройка детальной информации
@@ -54,8 +51,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
+        User.inn,
+        User.position,
         User.is_active,
-        User.is_verified,
         User.created_at,
         User.updated_at
     ]
@@ -67,8 +65,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
+        User.inn,
+        User.position,
         User.is_active,
-        User.is_verified
     ]
     
     # Настройка отображения в списке
@@ -79,8 +78,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name: "Last Name",
         User.patronymic: "Patronymic",
         User.phone: "Phone",
+        User.inn: "INN",
+        User.position: "Position",
         User.is_active: "Active",
-        User.is_verified: "Verified",
         User.created_at: "Created At",
         User.updated_at: "Updated At"
     }
@@ -90,6 +90,11 @@ class UserAdmin(ModelView, model=User):
         User.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
         User.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None
     }
+    
+    column_default_sort = (User.created_at, True)
+    can_create = False
+    can_edit = True
+    can_delete = True
 
 
 class RegistrationTokenAdmin(ModelView, model=RegistrationToken):

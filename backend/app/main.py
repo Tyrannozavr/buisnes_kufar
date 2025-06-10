@@ -30,11 +30,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Database setup
 engine = create_async_engine(settings.ASYNC_DATABASE_URL)
@@ -74,9 +75,10 @@ async def custom_404_handler(request: Request, exc: HTTPException):
             url = f"{DEV_REDIRECT_URL}{request.url.path}"
             if request.url.query:
                 url += f"?{request.url.query}"
-            
-            response = await client.get(url)
-            
+
+            response = await client.get(url, timeout=5.0)  # Добавляем таймаут
+            logger.info(f"Response comes from url {url} with status code {response.status_code}")
+
             try:
                 # Try to parse the response as JSON
                 content = response.json()
@@ -84,11 +86,7 @@ async def custom_404_handler(request: Request, exc: HTTPException):
             except json.JSONDecodeError:
                 # If it's not valid JSON, return the raw content
                 return Response(content=response.content, status_code=response.status_code, media_type=response.headers.get("content-type"))
-        except httpx.RequestError:
-            # Если не удалось подключиться к localhost:3000, возвращаем оригинальную 404 ошибку
-            logger.error(f"Failed to connect to frontend server {url}")
+        except (httpx.RequestError, httpx.TimeoutException) as e:
+            # Если не удалось подключиться к localhost:3000 или превышен таймаут, возвращаем оригинальную 404 ошибку
+            logger.error(f"Failed to connect to frontend server {url}: {str(e)}")
             return JSONResponse(content={"detail": "Not Found"}, status_code=404)
-
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return Response(content="", media_type="image/x-icon")

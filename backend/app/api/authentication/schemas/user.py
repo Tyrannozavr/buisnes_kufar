@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
 from uuid import UUID, uuid4
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, constr
 
 
 class UserBase(BaseModel):
@@ -9,43 +9,61 @@ class UserBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
-    phone: str
-    inn: str
-    position: str
+    phone: constr(min_length=10, max_length=15)
+    inn: Optional[str] = None
+    position: Optional[str] = None
 
-class UserCreate(UserBase):
-    password: str
+class UserCreateStep1(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone: constr(min_length=10, max_length=15)
+
+class UserCreateStep2(BaseModel):
+    token: str
+    inn: constr(min_length=10, max_length=12)
+    position: str
+    password: constr(min_length=8)
 
 class UserInDB(UserBase):
-    id: UUID
-    hashed_password: str
-    is_active: bool = True
-    is_verified: bool = False
-    created_at: datetime
-    updated_at: datetime
-
-class User(UserBase):
-    id: uuid4
+    id: int
     is_active: bool
-    is_verified: bool
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-class RegistrationToken(BaseModel):
-    token: uuid4
-    email: EmailStr
-    registration_data: Dict[str, Any]
-    created_at: datetime
-    expires_at: datetime
-    is_used: bool = False
-
-    model_config = ConfigDict(from_attributes=True)
+class User(UserInDB):
+    pass
 
 class Token(BaseModel):
     access_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+class RegistrationTokenCreate(BaseModel):
+    email: EmailStr
+
+class RegistrationTokenVerify(BaseModel):
+    token: str
+
+class RegistrationTokenResponse(BaseModel):
+    is_valid: bool
+    message: Optional[str] = None
+
+class RegistrationToken(BaseModel):
+    token: str
+    email: EmailStr
+    created_at: datetime
+    expires_at: datetime
+    is_used: bool = False
+    user_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class RegistrationStep2(BaseModel):
     token: uuid4

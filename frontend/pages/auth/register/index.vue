@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { RegisterStep1Data, ApiError } from '~/types/auth'
-import { useAuthApi } from '~/api/auth'
-import { useRouter } from 'vue-router'
+import type {RegisterStep1Data, ApiError} from '~/types/auth'
+import {useAuthApi} from '~/api/auth'
+import {useRouter} from 'vue-router'
 
 const router = useRouter()
 const form = ref<RegisterStep1Data>({
@@ -105,12 +105,12 @@ const validateForm = () => {
 // Computed property for form validity
 const isFormValid = computed(() => {
   return !!form.value.email &&
-         !!form.value.phone &&
-         !!form.value.captcha &&
-         form.value.agreement &&
-         !emailError.value &&
-         !phoneError.value &&
-         !agreementError.value
+      !!form.value.phone &&
+      !!form.value.captcha &&
+      form.value.agreement &&
+      !emailError.value &&
+      !phoneError.value &&
+      !agreementError.value
 })
 
 const handleSubmit = async () => {
@@ -130,27 +130,39 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    const response = await authApi.registerStep1(form.value)
+    console.log('Submitting registration form...')
+    await authApi.registerStep1(form.value)
+    console.log('Registration successful, redirecting to success page...')
     
-    if (response.statusCode === 201) {
-      // Reset form after successful registration
-      form.value = {
-        firstName: '',
-        lastName: '',
-        patronymic: '',
-        email: '',
-        phone: '',
-        captcha: '',
-        agreement: false
-      }
-      isHuman.value = false
-      
-      // Redirect to success page
-      await router.push('/auth/register/success')
+    // Reset form after successful registration
+    form.value = {
+      firstName: '',
+      lastName: '',
+      patronymic: '',
+      email: '',
+      phone: '',
+      captcha: '',
+      agreement: false
     }
+    isHuman.value = false
+
+    // Show success message
+    useToast().add({
+      title: 'Успешно',
+      description: 'На ваш email отправлена ссылка для завершения регистрации. Пожалуйста, проверьте вашу почту.',
+      color: 'success',
+      icon: 'i-heroicons-check-circle'
+    })
+
+    // Redirect to success page
+    await router.push('/auth/register/success')
   } catch (error) {
+    console.log("Error in api error second block caught")
     const apiError = error as ApiError
+    console.log("Error details:", apiError)
     if (apiError.errors) {
+      console.log("Error in api erro first block")
+      console.log(apiError.errors, "Detail ", apiError.detail)
       // Display field-specific errors
       Object.entries(apiError.errors).forEach(([field, messages]) => {
         const errorMessage = messages.join(', ')
@@ -170,11 +182,18 @@ const handleSubmit = async () => {
             })
         }
       })
+    } else if (apiError.detail === 'User with this email already exists' || apiError.message === 'User with this email already exists') {
+      useToast().add({
+        title: 'Информация',
+        description: 'На ваш email уже была отправлена ссылка для продолжения регистрации. Пожалуйста, проверьте вашу почту, включая папку "Спам"',
+        color: 'info',
+        icon: 'i-heroicons-information-circle'
+      })
     } else {
       // Display general error message
       useToast().add({
         title: 'Ошибка',
-        description: apiError.message,
+        description: apiError.message || apiError.detail || 'Произошла ошибка при регистрации',
         color: 'error',
         icon: 'i-heroicons-exclamation-circle'
       })

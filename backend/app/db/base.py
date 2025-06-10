@@ -4,7 +4,6 @@ from app.core.config import settings
 from app.db.base_class import Base  # noqa
 
 # Import all models here to ensure they are registered with SQLAlchemy metadata
-from app.core.models import BaseUser  # noqa
 from app_logging.logger import logger
 
 

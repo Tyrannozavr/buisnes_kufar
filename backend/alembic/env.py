@@ -26,7 +26,7 @@ if config.config_file_name is not None:
 
 
 # Override sqlalchemy.url with the value from environment variable or settings
-sqlalchemy_url = settings.DATABASE_URL
+sqlalchemy_url = settings.SQLALCHEMY_DATABASE_URI
 config.set_main_option("sqlalchemy.url", sqlalchemy_url)
 
 # add your model's MetaData object here

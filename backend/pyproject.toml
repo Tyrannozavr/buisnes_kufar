@@ -14,6 +14,10 @@ pydantic-settings = "^2.9.1"
 sqladmin = "^0.20.1"
 aiosqlite = "^0.21.0"
 httpx = "^0.28.1"
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-multipart = "^0.0.20"
+pydantic = {extras = ["email"], version = "^2.11.5"}
 
 
 [build-system]

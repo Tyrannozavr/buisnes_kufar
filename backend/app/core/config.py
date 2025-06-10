@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 from pathlib import Path
+import os
 
 def get_async_database_url(sync_url: str) -> str:
     """Convert sync database URL to async URL."""
@@ -12,35 +13,35 @@ def get_async_database_url(sync_url: str) -> str:
     return sync_url  # Return original if no conversion is needed
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Talkery"
+    PROJECT_NAME: str = "Business Kufar"
+    VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # Database
-    DATABASE_URL: str = "sqlite:///./sql_app.db"  # Synchronous URL for Alembic
-
-    @property
-    def ASYNC_DATABASE_URL(self) -> str:
-        return get_async_database_url(self.DATABASE_URL)
-    # JWT
-    JWT_SECRET_KEY: str = "your-secret-key"  # Change in production
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_DAYS: int = 30
-
-    # CORS
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    # Настройки безопасности
+    SECRET_KEY: str = "your-secret-key-here"  # В продакшене заменить на безопасный ключ
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
-    ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "secretpassword"  # Замените на свой пароль администратора
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
+    # Настройки базы данных
+    SQLALCHEMY_DATABASE_URI: Optional[str] = None
+    
+    # Настройки фронтенда
+    FRONTEND_URL: str = "http://localhost:3000"
+    
+    # CORS настройки
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     
     # Static files
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     STATIC_DIR: Path = BASE_DIR / "static"
 
+    @property
+    def ASYNC_DATABASE_URL(self) -> str:
+        return get_async_database_url(self.SQLALCHEMY_DATABASE_URI)
+
     class Config:
-        env_file = ".env"
         case_sensitive = True
+        env_file = ".env"
 
 
 settings = Settings()

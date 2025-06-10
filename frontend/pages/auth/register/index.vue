@@ -1,5 +1,10 @@
 <script setup lang="ts">
-const form = ref({
+import type { RegisterStep1Data, ApiError } from '~/types/auth'
+import { useAuthApi } from '~/api/auth'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const form = ref<RegisterStep1Data>({
   firstName: '',
   lastName: '',
   patronymic: '',
@@ -14,11 +19,8 @@ const isHuman = ref(false)
 const emailError = ref('')
 const phoneError = ref('')
 const agreementError = ref('')
-const captchaError = ref('')
 
 const isLoading = ref(false)
-const showModal = ref(false)
-const registrationToken = ref('')
 
 const rules = {
   required: (value: string | boolean) => {
@@ -35,9 +37,11 @@ const rules = {
   }
 }
 
+const authApi = useAuthApi()
+
 // Handle captcha change
-const handleCaptchaChange = (value: boolean) => {
-  if (value) {
+const handleCaptchaChange = (value: boolean | 'indeterminate') => {
+  if (value === true) {
     // When checkbox is checked, set a mock captcha value
     form.value.captcha = 'verified'
   } else {
@@ -115,21 +119,66 @@ const handleSubmit = async () => {
 
   if (!isFormValid.value) return
   if (!isHuman.value) {
-    alert('Пожалуйста, подтвердите что вы не робот')
+    useToast().add({
+      title: 'Ошибка',
+      description: 'Пожалуйста, подтвердите что вы не робот',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
     return
   }
+
   isLoading.value = true
   try {
-    // Mock API call to save first step data and generate token
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Generate mock token (in real app this would come from backend)
-    registrationToken.value = Math.random().toString(36).substring(2, 15)
-
-    // Show modal with registration link
-    showModal.value = true
+    const response = await authApi.registerStep1(form.value)
+    
+    if (response.statusCode === 201) {
+      // Reset form after successful registration
+      form.value = {
+        firstName: '',
+        lastName: '',
+        patronymic: '',
+        email: '',
+        phone: '',
+        captcha: '',
+        agreement: false
+      }
+      isHuman.value = false
+      
+      // Redirect to success page
+      await router.push('/auth/register/success')
+    }
   } catch (error) {
-    console.error('Registration error:', error)
+    const apiError = error as ApiError
+    if (apiError.errors) {
+      // Display field-specific errors
+      Object.entries(apiError.errors).forEach(([field, messages]) => {
+        const errorMessage = messages.join(', ')
+        switch (field) {
+          case 'email':
+            emailError.value = errorMessage
+            break
+          case 'phone':
+            phoneError.value = errorMessage
+            break
+          default:
+            useToast().add({
+              title: 'Ошибка',
+              description: errorMessage,
+              color: 'error',
+              icon: 'i-heroicons-exclamation-circle'
+            })
+        }
+      })
+    } else {
+      // Display general error message
+      useToast().add({
+        title: 'Ошибка',
+        description: apiError.message,
+        color: 'error',
+        icon: 'i-heroicons-exclamation-circle'
+      })
+    }
   } finally {
     isLoading.value = false
   }
@@ -247,24 +296,6 @@ const handleSubmit = async () => {
         </div>
       </form>
     </div>
-
-    <!-- Modal for showing registration link -->
-    <UModal v-model="showModal">
-      <div class="p-4">
-        <h3 class="text-lg font-medium text-gray-900">Регистрация успешно начата</h3>
-        <p class="mt-2 text-sm text-gray-600">
-          Для завершения регистрации перейдите по ссылке:
-        </p>
-        <div class="mt-4">
-          <NuxtLink
-              :to="`/auth/register/complete?token=${registrationToken}`"
-              class="text-primary-600 hover:text-primary-500 break-all"
-          >
-            {{ `http://localhost:3000/auth/register/complete?token=${registrationToken}` }}
-          </NuxtLink>
-        </div>
-      </div>
-    </UModal>
   </div>
 </template>
 

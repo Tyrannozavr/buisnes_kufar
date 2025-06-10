@@ -1,3 +1,12 @@
+import type {
+  RegisterStep1Data,
+  RegisterStep1Response,
+  RegisterStep2Data,
+  RegisterStep2Response,
+  RegisterValidationResponse,
+  ApiError
+} from '~/types/auth'
+
 interface ApiResponse {
   success: boolean
   message: string
@@ -71,5 +80,58 @@ export const authApi = {
       method: 'POST',
       body: params
     })
+  }
+}
+
+export const useAuthApi = () => {
+  const config = useRuntimeConfig()
+  const baseURL = config.public.apiBase
+
+  const registerStep1 = async (data: RegisterStep1Data): Promise<RegisterStep1Response> => {
+    try {
+      // TODO: Replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Simulate successful registration
+      return {
+        token: Math.random().toString(36).substring(2, 15),
+        statusCode: 201
+      }
+    } catch (error: any) {
+      if (error.response?.data) {
+        throw {
+          message: error.response.data.message || 'Произошла ошибка при регистрации',
+          errors: error.response.data.errors,
+          statusCode: error.response.status
+        } as ApiError
+      }
+      throw {
+        message: 'Произошла ошибка при регистрации',
+        statusCode: 500
+      } as ApiError
+    }
+  }
+
+  const validateRegistrationToken = async (token: string): Promise<RegisterValidationResponse> => {
+    // TODO: Replace with actual API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      isValid: true
+    }
+  }
+
+  const registerStep2 = async (token: string, data: RegisterStep2Data): Promise<RegisterStep2Response> => {
+    // TODO: Replace with actual API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      companyName: 'КосмоПорт',
+      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
+    }
+  }
+
+  return {
+    registerStep1,
+    validateRegistrationToken,
+    registerStep2
   }
 } 

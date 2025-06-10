@@ -105,12 +105,15 @@
 </template>
 
 <script setup lang="ts">
-import {useUserStore} from "~/stores/user";
+import type { RegisterStep2Data } from '~/types/auth'
+import { useAuthApi } from '~/api/auth'
+import { useUserStore } from "~/stores/user"
 
 const route = useRoute()
 const router = useRouter()
+const authApi = useAuthApi()
 
-const form = ref({
+const form = ref<RegisterStep2Data>({
   inn: '',
   position: '',
   password: '',
@@ -243,10 +246,8 @@ onMounted(async () => {
   }
 
   try {
-    // Mock API call to validate token
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    // In real app, this would check if the token is valid in the backend
-    isTokenValid.value = true
+    const response = await authApi.validateRegistrationToken(token)
+    isTokenValid.value = response.isValid
   } catch (error) {
     console.error('Token validation error:', error)
     isTokenValid.value = false
@@ -261,19 +262,11 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    // Mock API call to complete registration
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // In real app, this would save the data to the database
-    // and create the user profile
-
-    const mockResponse = {
-      companyName: 'КосмоПорт',
-      companyLogo: 'https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album'
-    }
+    const token = route.query.token as string
+    const response = await authApi.registerStep2(token, form.value)
 
     // Update the store with user data
-    userStore.login(mockResponse.companyName, mockResponse.companyLogo)
+    userStore.login(response.companyName, response.companyLogo)
 
     // Redirect to profile page with success message
     router.push({

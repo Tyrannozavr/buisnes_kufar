@@ -22,7 +22,10 @@ export function useApi<T>(url: string, options: UseFetchOptions<T> = {}) {
       pending.value = true
       error.value = null
       
-      const response = await api.get(url, options.params || {})
+      const response = await api.get(url, {
+        ...options,
+        params: options.params || {}
+      })
       data.value = response as T
     } catch (e) {
       error.value = e instanceof Error ? e : new Error('An error occurred')

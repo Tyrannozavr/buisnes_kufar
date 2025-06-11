@@ -14,6 +14,8 @@ import type {
   PasswordResetParams
 } from '~/types/api'
 
+import { useCookie } from 'nuxt/app'
+
 export const AUTH_API = {
   REGISTER_STEP1: '/v1/auth/register/step1',
   REGISTER_STEP2: '/v1/auth/register/step2',
@@ -104,6 +106,7 @@ function formatErrorResponse(error: any): ApiError {
 export function useAuthApi() {
   const config = useRuntimeConfig()
   const apiBaseUrl = config.public.apiBaseUrl
+  const accessToken = useCookie('access_token')
 
   const registerStep1 = async (data: RegisterStep1Data): Promise<void> => {
     try {
@@ -146,9 +149,9 @@ export function useAuthApi() {
     }
   }
 
-  const registerStep2 = async (data: RegisterStep2Data): Promise<RegisterStep2Response> => {
+  const registerStep2 = async (data: RegisterStep2Data): Promise<{ message: string }> => {
     try {
-      const response = await $fetch<RegisterStep2Response>(`${apiBaseUrl}${AUTH_API.REGISTER_STEP2}`, {
+      const response = await $fetch<{ access_token: string, token_type: string }>(`${apiBaseUrl}${AUTH_API.REGISTER_STEP2}`, {
         method: 'POST',
         body: {
           token: data.token,
@@ -162,7 +165,11 @@ export function useAuthApi() {
           'Content-Type': 'application/json'
         }
       })
-      return response
+
+      // Set the token in a cookie
+      accessToken.value = response.access_token
+
+      return { message: 'Registration completed successfully' }
     } catch (error: any) {
       throw formatErrorResponse(error)
     }
@@ -170,7 +177,7 @@ export function useAuthApi() {
 
   const login = async (inn: string, password: string): Promise<void> => {
     try {
-      await $fetch(`${apiBaseUrl}${AUTH_API.LOGIN}`, {
+      const response = await $fetch<{ access_token: string, token_type: string }>(`${apiBaseUrl}${AUTH_API.LOGIN}`, {
         method: 'POST',
         body: { inn, password },
         credentials: 'include',
@@ -179,6 +186,9 @@ export function useAuthApi() {
           'Content-Type': 'application/json'
         }
       })
+
+      // Set the token in a cookie
+      accessToken.value = response.access_token
     } catch (error: any) {
       throw formatErrorResponse(error)
     }
@@ -186,12 +196,18 @@ export function useAuthApi() {
 
   const getCompanyInfo = async () => {
     try {
+      const headers = new Headers({
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      })
+      
+      if (accessToken.value) {
+        headers.set('Authorization', `Bearer ${accessToken.value}`)
+      }
+
       const response = await $fetch(`${apiBaseUrl}${AUTH_API.COMPANY_ME}`, {
         credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+        headers
       })
       return response
     } catch (error: any) {

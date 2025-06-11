@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { RegisterStep2Data, ApiError } from '~/types/auth'
-import { useAuthApi } from '~/api/auth'
-import { useUserStore } from "~/stores/user"
+import type {RegisterStep2Data, ApiError} from '~/types/auth'
+import {useAuthApi} from '~/api/auth'
+import {useUserStore} from "~/stores/user"
+import type {CompanyInfo} from "~/types/company";
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +29,7 @@ const confirmPasswordError = ref('')
 
 const isLoading = ref(false)
 const isTokenValid = ref(false)
+const isTokenChecking = ref(true)
 
 const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
@@ -138,6 +140,7 @@ onMounted(async () => {
   if (!token) {
     console.log('No token provided')
     isTokenValid.value = false
+    isTokenChecking.value = false
     return
   }
 
@@ -167,15 +170,27 @@ onMounted(async () => {
       color: 'error',
       icon: 'i-heroicons-exclamation-circle'
     })
+  } finally {
+    isTokenChecking.value = false
   }
 })
 
 const handleSubmit = async () => {
   try {
     isLoading.value = true
-    await authApi.registerStep2(form.value)
-    
-    // If we get here, registration was successful (201 status)
+    const response = await authApi.registerStep2(form.value)
+
+    // After successful registration, get company info
+    try {
+      const companyInfo = await authApi.getCompanyInfo()  as CompanyInfo
+      // Update user store with company info
+      userStore.login(companyInfo.companyName, companyInfo.companyLogo)
+    } catch (error) {
+      console.error('Error fetching company info:', error)
+      // Continue with redirect even if company info fetch fails
+    }
+
+    // Redirect to profile page after successful registration and company info fetch
     router.push('/')
   } catch (error: any) {
     console.error('Registration completion error:', error)
@@ -200,37 +215,49 @@ const handleSubmit = async () => {
         <p class="mt-2 text-sm text-gray-600">Шаг 2 из 2</p>
       </div>
 
-      <div v-if="!isTokenValid" class="text-center text-red-600">
-        <p>Недействительная ссылка для регистрации.</p>
+      <!-- Loading state -->
+      <div v-if="isTokenChecking" class="flex flex-col items-center justify-center py-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <p class="mt-4 text-gray-600">Проверка ссылки для регистрации...</p>
+      </div>
+
+      <!-- Invalid token state -->
+      <div v-else-if="!isTokenValid" class="text-center py-8">
+        <div class="flex justify-center mb-4">
+          <UIcon name="i-heroicons-exclamation-circle" class="h-12 w-12 text-red-500"/>
+        </div>
+        <p class="text-red-600 mb-4">Недействительная ссылка для регистрации.</p>
         <NuxtLink
-          to="/auth/register"
-          class="text-primary-600 hover:text-primary-500"
+            to="/auth/register"
+            class="inline-flex items-center text-primary-600 hover:text-primary-500"
         >
+          <UIcon name="i-heroicons-arrow-left" class="h-5 w-5 mr-2"/>
           Вернуться к регистрации
         </NuxtLink>
       </div>
 
+      <!-- Registration form -->
       <form v-else class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="flex flex-col space-y-4 w-full">
           <UFormField label="ИНН">
             <UInput
-              v-model="form.inn"
-              type="text"
-              placeholder="Введите ИНН"
-              :color="innError ? 'error' : undefined"
-              @update:model-value="validateInn"
-              class="w-full"
+                v-model="form.inn"
+                type="text"
+                placeholder="Введите ИНН"
+                :color="innError ? 'error' : undefined"
+                @update:model-value="validateInn"
+                class="w-full"
             />
             <p v-if="innError" class="mt-1 text-sm text-red-500">{{ innError }}</p>
           </UFormField>
           <UFormField label="Должность">
             <UInput
-              v-model="form.position"
-              type="text"
-              placeholder="Введите должность"
-              :color="positionError ? 'error' : undefined"
-              @update:model-value="validatePosition"
-              class="w-full"
+                v-model="form.position"
+                type="text"
+                placeholder="Введите должность"
+                :color="positionError ? 'error' : undefined"
+                @update:model-value="validatePosition"
+                class="w-full"
             />
             <p v-if="positionError" class="mt-1 text-sm text-red-500">{{ positionError }}</p>
           </UFormField>
@@ -238,21 +265,21 @@ const handleSubmit = async () => {
           <UFormField label="Пароль">
             <div class="relative">
               <UInput
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="Введите пароль"
-                :color="passwordError ? 'error' : undefined"
-                @update:model-value="validatePassword"
-                class="w-full pr-10"
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Введите пароль"
+                  :color="passwordError ? 'error' : undefined"
+                  @update:model-value="validatePassword"
+                  class="w-full pr-10"
               />
               <button
-                type="button"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                @click="showPassword = !showPassword"
+                  type="button"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  @click="showPassword = !showPassword"
               >
                 <UIcon
-                  :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                  class="h-5 w-5 text-gray-400"
+                    :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                    class="h-5 w-5 text-gray-400"
                 />
               </button>
             </div>
@@ -262,21 +289,21 @@ const handleSubmit = async () => {
           <UFormField label="Повторите пароль">
             <div class="relative">
               <UInput
-                v-model="form.confirmPassword"
-                :type="showConfirmPassword ? 'text' : 'password'"
-                placeholder="Повторите пароль"
-                :color="confirmPasswordError ? 'error' : undefined"
-                @update:model-value="validateConfirmPassword"
-                class="w-full pr-10"
+                  v-model="form.confirmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  placeholder="Повторите пароль"
+                  :color="confirmPasswordError ? 'error' : undefined"
+                  @update:model-value="validateConfirmPassword"
+                  class="w-full pr-10"
               />
               <button
-                type="button"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center"
-                @click="showConfirmPassword = !showConfirmPassword"
+                  type="button"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  @click="showConfirmPassword = !showConfirmPassword"
               >
                 <UIcon
-                  :name="showConfirmPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                  class="h-5 w-5 text-gray-400"
+                    :name="showConfirmPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                    class="h-5 w-5 text-gray-400"
                 />
               </button>
             </div>
@@ -285,11 +312,11 @@ const handleSubmit = async () => {
         </div>
 
         <UButton
-          type="submit"
-          :color="isFormValid ? 'primary' : 'error'"
-          :disabled="!isFormValid"
-          :loading="isLoading"
-          class="w-full cursor-pointer"
+            type="submit"
+            :color="isFormValid ? 'primary' : 'error'"
+            :disabled="!isFormValid"
+            :loading="isLoading"
+            class="w-full cursor-pointer"
         >
           Завершить регистрацию
         </UButton>

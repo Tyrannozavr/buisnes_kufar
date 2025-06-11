@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token
 from app.api.authentication.services.auth_service import AuthService
 from app.api.dependencies import get_async_db
 from app.core.config import settings
@@ -24,29 +24,24 @@ async def register_step1(
     return {"message": "Registration email sent"}
 
 
-@router.post("/register/step2", status_code=status.HTTP_201_CREATED)
+@router.post("/register/step2", status_code=status.HTTP_201_CREATED, response_model=Token)
 async def register_step2(
         data: UserCreateStep2,
-        response: Response,
         db: get_async_db
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.register_step2(data)
 
     # Create access token
-    access_token = await auth_service.create_access_token_cookie(user.id)
-
-    # Set HTTP-only cookie
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=settings.COOKIE_SECURE,  # True in production
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    return {"message": "Registration completed successfully"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.get("/verify-token/{token}")
@@ -58,9 +53,8 @@ async def verify_token(
     return {"is_valid": is_valid}
 
 
-@router.post("/login", response_model=dict)
+@router.post("/login", response_model=Token)
 async def login(
-    response: Response,
     user_data: UserLogin,
     db: get_async_db
 ):
@@ -88,17 +82,10 @@ async def login(
         expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     
-    # Set HTTP-only cookie with the token
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=settings.COOKIE_SECURE,  # True in production
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
-    
-    return {"message": "Successfully logged in"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.get("/me", response_model=User)
@@ -107,11 +94,12 @@ async def get_current_user(
     db: get_async_db
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
-    user = await auth_service.get_current_user_from_cookie(request)
+    user = await auth_service.get_current_user(request)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
         )
     return user
 

@@ -114,17 +114,18 @@ const handleSubmit = async () => {
   try {
     const authApi = useAuthApi()
     
-    // First login to get the cookie
+    // Login to get the token
     await authApi.login(form.value.inn, form.value.password)
     
     // Then get company info
     const companyInfo = await authApi.getCompanyInfo() as CompanyInfo
+
     
     // Update the store with user data
     userStore.login(companyInfo.companyName, companyInfo.companyLogo)
 
     // Redirect to profile
-    navigateTo("/profile")
+    navigateTo("/")
   } catch (error: any) {
     console.error('Login error:', error)
     

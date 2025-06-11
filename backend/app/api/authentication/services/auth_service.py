@@ -98,12 +98,13 @@ class AuthService:
             )
         return User.model_validate(user)
 
-    async def get_current_user_from_cookie(self, request: Request) -> Optional[User]:
-        """Get current user from access token in cookie"""
-        token = request.cookies.get("access_token")
-        if not token:
+    async def get_current_user(self, request: Request) -> Optional[User]:
+        """Get current user from Bearer token in Authorization header"""
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
             return None
             
+        token = auth_header.split(" ")[1]
         try:
             payload = decode_token(token)
             user_id = int(payload.get("sub"))

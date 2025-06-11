@@ -1,5 +1,6 @@
 import type {Company, CompanyShort, ManufacturersSearchParams} from '~/types/company'
 import type { UseFetchOptions } from 'nuxt/app'
+import { useApi } from '~/composables/useApi'
 
 export const useCompaniesApi = () => {
   const getCompanies = (options: UseFetchOptions<Company[]> = {}) => {
@@ -31,8 +32,8 @@ export const useCompaniesApi = () => {
   }
 
   const deletePartnerById = async (id: string) => {
-    return await useFetch(`/api/companies/${id}`, {
-      method: 'delete'
+    return await useApi<void>(`/companies/${id}`, {
+      method: 'DELETE'
     })
   }
 

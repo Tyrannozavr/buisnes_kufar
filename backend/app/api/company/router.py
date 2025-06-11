@@ -15,11 +15,12 @@ async def get_company_info(
     Get current company information based on the authenticated user
     """
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
-    user = await auth_service.get_current_user_from_cookie(request)
+    user = await auth_service.get_current_user(request)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
         )
     
     # For now, return mock data

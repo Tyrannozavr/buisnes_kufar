@@ -1,19 +1,32 @@
-import { defineNuxtPlugin, useRuntimeConfig } from '#app'
-import type { FetchOptions } from 'ofetch';
+import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app'
+import type { FetchOptions } from 'ofetch'
 import { $fetch } from 'ofetch'
+import type { Plugin } from 'nuxt/app'
+import { useCookie } from 'nuxt/app'
 
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBaseUrl || 'http://localhost:8000/api'
+  const accessToken = useCookie('access_token')
 
   // Create a custom fetch instance with base configuration
   const apiFetch = $fetch.create({
     baseURL,
-    credentials: 'include', // This ensures cookies are sent with requests
+    credentials: 'include',
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     },
+    // Add CORS mode
+    mode: 'cors',
+    // Add authorization header if token exists
+    onRequest({ options }) {
+      if (accessToken.value) {
+        const headers = new Headers(options.headers as HeadersInit)
+        headers.set('Authorization', `Bearer ${accessToken.value}`)
+        options.headers = headers
+      }
+    }
   })
 
   // Create a cache for SSR requests to avoid duplicate requests
@@ -29,7 +42,26 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
     
     try {
-      const response = await apiFetch(url, options)
+      // Merge options with base configuration
+      const mergedOptions: FetchOptions = {
+        ...options,
+        credentials: 'include',
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      }
+
+      // Add authorization header if token exists
+      if (accessToken.value) {
+        const headers = new Headers(mergedOptions.headers as HeadersInit)
+        headers.set('Authorization', `Bearer ${accessToken.value}`)
+        mergedOptions.headers = headers
+      }
+      
+      const response = await apiFetch(url, mergedOptions)
       
       // Cache the response if we're on the server
       if (import.meta.server) {
@@ -46,26 +78,26 @@ export default defineNuxtPlugin((nuxtApp) => {
   // API methods
   const api = {
     // GET request
-    get: (url: string, params = {}) => {
-      return fetchWithCache(url, { method: 'GET', params })
+    get: (url: string, options: FetchOptions = {}) => {
+      return fetchWithCache(url, { method: 'GET', ...options })
     },
     
-    // POST request (typically from client)
-    post: (url: string, data = {}) => {
-      return fetchWithCache(url, { method: 'POST', body: data })
+    // POST request
+    post: (url: string, data = {}, options: FetchOptions = {}) => {
+      return fetchWithCache(url, { method: 'POST', body: data, ...options })
     },
     
     // PUT request
-    put: (url: string, data = {}) => {
-      return fetchWithCache(url, { method: 'PUT', body: data })
+    put: (url: string, data = {}, options: FetchOptions = {}) => {
+      return fetchWithCache(url, { method: 'PUT', body: data, ...options })
     },
     
     // DELETE request
-    delete: (url: string) => {
-      return fetchWithCache(url, { method: 'DELETE' })
+    delete: (url: string, options: FetchOptions = {}) => {
+      return fetchWithCache(url, { method: 'DELETE', ...options })
     },
     
-    // Clear cache (useful for logout or other state changes)
+    // Clear cache
     clearCache: () => {
       ssrCache.clear()
     }
@@ -73,16 +105,16 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   // Make the API available throughout the app
   nuxtApp.provide('api', api)
-})
+}) as Plugin
 
 // Type definitions for better TypeScript support
-declare module '#app' {
+declare module 'nuxt/app' {
   interface NuxtApp {
     $api: {
-      get: (url: string, params?: Record<string, any>) => Promise<any>
-      post: (url: string, data?: Record<string, any>) => Promise<any>
-      put: (url: string, data?: Record<string, any>) => Promise<any>
-      delete: (url: string) => Promise<any>
+      get: (url: string, options?: FetchOptions) => Promise<any>
+      post: (url: string, data?: Record<string, any>, options?: FetchOptions) => Promise<any>
+      put: (url: string, data?: Record<string, any>, options?: FetchOptions) => Promise<any>
+      delete: (url: string, options?: FetchOptions) => Promise<any>
       clearCache: () => void
     }
   }

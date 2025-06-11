@@ -27,12 +27,29 @@ onMounted(() => {
   }
 })
 
-const {
-  data: company,
-  error: companyError,
-  pending: loading,
-  refresh: refreshCompany
-} = await getMyCompany()
+const loading = ref(true)
+const company = ref<Company | null>(null)
+const companyError = ref<Error | null>(null)
+
+const fetchCompany = async () => {
+  loading.value = true
+  try {
+    company.value = await getMyCompany()
+    companyError.value = null
+  } catch (error) {
+    companyError.value = error instanceof Error ? error : new Error('Failed to fetch company data')
+    useToast().add({
+      title: 'Ошибка',
+      description: companyError.value.message,
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// Initial fetch
+await fetchCompany()
 
 const saving = ref(false)
 
@@ -40,7 +57,7 @@ const handleSaveCompany = async (data: Partial<Company>) => {
   saving.value = true
   try {
     await updateCompany({...company.value, ...data})
-    await refreshCompany()
+    await fetchCompany()
     useToast().add({
       title: 'Успешно',
       description: 'Данные компании обновлены',

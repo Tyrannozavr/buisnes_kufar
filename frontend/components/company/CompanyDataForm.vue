@@ -68,17 +68,43 @@ const {
 
 // Watch для страны
 watch(() => formState.value.country, async (newCountry) => {
-  if (!newCountry || newCountry.value !== 'Россия') {
-    formState.value.federalDistrict = undefined
-    formState.value.region = undefined
-    formState.value.city = undefined
+  // Сбрасываем все зависимые поля
+  formState.value.federalDistrict = undefined
+  formState.value.region = undefined
+  formState.value.city = undefined
+
+  if (!newCountry) {
     return
   }
+
   try {
-    await loadRegions(newCountry.value)
-    await loadFederalDistricts()
+    // Загружаем федеральные округи только для России
+    if (newCountry.value === 'Россия') {
+      await loadFederalDistricts()
+    } else {
+      // Для других стран сразу загружаем регионы
+      await loadRegions(newCountry.value)
+    }
   } catch (error) {
     console.error('Error handling country change:', error)
+  }
+})
+
+// Watch для федерального округа
+watch(() => formState.value.federalDistrict, async (newFederalDistrict) => {
+  // Сбрасываем зависимые поля
+  formState.value.region = undefined
+  formState.value.city = undefined
+
+  if (!newFederalDistrict || !formState.value.country || formState.value.country.value !== 'Россия') {
+    return
+  }
+
+  try {
+    // Загружаем регионы только после выбора федерального округа для России
+    await loadRegions(formState.value.country.value, newFederalDistrict.value)
+  } catch (error) {
+    console.error('Error handling federal district change:', error)
   }
 })
 
@@ -271,7 +297,9 @@ const positionOptions = positions.map(pos => ({
                   v-model="formState.region"
                   :items="regionOptions || []"
                   :loading="regionsLoading"
-                  :disabled="!formState.country || regionsLoading"
+                  :disabled="!formState.country || 
+                           (formState.country.value === 'Россия' && !formState.federalDistrict) || 
+                           regionsLoading"
                   placeholder="Выберите регион"
                   :search-input="{
                       placeholder: 'Поиск...',

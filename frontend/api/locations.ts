@@ -49,11 +49,13 @@ export const useLocationsApi = () => {
   }
 
   // Загрузка регионов для выбранной страны
-  const loadRegions = async (countryCode: string) => {
+  const loadRegions = async (countryCode: string, federalDistrict?: string) => {
     regionsLoading.value = true
     regionsError.value = null
     try {
-      const response = await $api.get(`/v1/locations/regions/${countryCode}`)
+      const response = await $api.get(`/v1/locations/regions/${countryCode}`, {
+        params: { federal_district: federalDistrict }
+      })
       const data = response as LocationResponse
       regionOptions.value = data.items || []
     } catch (error) {

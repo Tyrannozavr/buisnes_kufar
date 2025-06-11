@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
 import type { PropType } from 'vue'
+import type { LocationResponse } from '~/types/location'
 
 const props = defineProps({
   company: {
@@ -30,25 +31,74 @@ const businessTypeOptions = [
 ]
 
 // Fetch countries from API
-const { data: countryOptions, error: countriesError } = await useApi('/locations/countries')
+const { data: countryOptions, error: countriesError, pending: countriesLoading } = await useApi<LocationResponse>('/locations/countries')
 
 // Fetch federal districts from API
-const { data: federalDistrictOptions, error: federalDistrictsError } = await useApi('/locations/federal-districts')
+const { data: federalDistrictOptions, error: federalDistrictsError, pending: federalDistrictsLoading } = await useApi<LocationResponse>('/locations/federal-districts')
 
-// Reactive query for regions based on selected country and federal district
-const regionsQuery = computed(() => ({
-  country: formState.value.country,
-  federalDistrict: formState.value.federalDistrict
-}))
-
-// Fetch regions based on selected country and federal district
-const { data: regionOptions, error: regionsError, refresh: refreshRegions } = await useApi('/locations/regions', {
-  query: regionsQuery
+// Reactive query for regions based on selected country
+const regionsQuery = computed(() => {
+  console.log('Computing regions query with country:', formState.value.country)
+  return {
+    country: formState.value.country
+  }
 })
 
-// Watch for changes in country or federal district to refresh regions
-watch([() => formState.value.country, () => formState.value.federalDistrict], () => {
-  refreshRegions()
+// Fetch regions based on selected country
+const { data: regionOptions, error: regionsError, pending: regionsLoading, refresh: refreshRegions } = await useApi<LocationResponse>('/locations/regions', {
+  query: () => ({ country: formState.value.country }), // Используем функцию вместо computed
+  watch: false,
+  immediate: false
+})
+
+// Watch for changes in country to refresh regions
+watch(() => formState.value.country, async (newCountry) => {
+  console.log('Country changed to:', newCountry)
+  if (newCountry) {
+    try {
+      console.log('Attempting to fetch regions for country:', newCountry)
+      await refreshRegions()
+      console.log('Regions fetch response:', regionOptions.value)
+    } catch (error) {
+      console.error('Error fetching regions:', error)
+    }
+  } else {
+    console.log('Country cleared, resetting region')
+    formState.value.region = ''
+  }
+})
+
+// Reactive query for cities based on selected country and region
+const citiesQuery = computed(() => {
+  console.log('Computing cities query with country:', formState.value.country, 'region:', formState.value.region)
+  return {
+    country: formState.value.country,
+    region: formState.value.region
+  }
+})
+
+// Fetch cities based on selected country and region
+const { data: cityOptions, error: citiesError, pending: citiesLoading, refresh: refreshCities } = await useApi<LocationResponse>('/locations/cities', {
+  query: () => ({ country: formState.value.country, region: formState.value.region }), // Используем функцию вместо computed
+  watch: false,
+  immediate: false
+})
+
+// Watch for changes in region to refresh cities
+watch(() => formState.value.region, async (newRegion) => {
+  console.log('Region changed to:', newRegion)
+  if (newRegion) {
+    try {
+      console.log('Attempting to fetch cities for region:', newRegion)
+      await refreshCities()
+      console.log('Cities fetch response:', cityOptions.value)
+    } catch (error) {
+      console.error('Error fetching cities:', error)
+    }
+  } else {
+    console.log('Region cleared, resetting city')
+    formState.value.city = ''
+  }
 })
 
 interface PositionOption {
@@ -56,7 +106,7 @@ interface PositionOption {
   value: string
 }
 
-const positionOptions = [
+const positions = [
   { label: 'Генеральный директор', value: 'Генеральный директор' },
   { label: 'Финансовый директор', value: 'Финансовый директор' },
   { label: 'Главный бухгалтер', value: 'Главный бухгалтер' },
@@ -87,6 +137,12 @@ const handleSave = () => {
 const handleLogoUpload = () => {
   // TODO: Implement logo upload
 }
+
+// Добавляем определение positionOptions
+const positionOptions = positions.map(pos => ({
+  label: pos.label,
+  value: pos.value
+}))
 </script>
 
 <template>
@@ -183,24 +239,33 @@ const handleLogoUpload = () => {
             <UFormField label="Страна" required>
               <USelect
                   v-model="formState.country"
+                  class="w-48"
                   :items="countryOptions || []"
-                  :loading="!countryOptions && !countriesError"
-                  :disabled="!countryOptions || !!countriesError"
+                  :loading="countriesLoading"
+                  :disabled="countriesLoading || !!countriesError"
+                  placeholder="Выберите страну"
+                  @update:model-value="(val) => console.log('Country selected:', val)"
               />
               <p v-if="countriesError" class="text-red-500 text-sm mt-1">
-                Ошибка загрузки списка стран
+                Не удалось загрузить список стран. Пожалуйста, попробуйте позже.
               </p>
             </UFormField>
 
             <UFormField label="Федеральный округ" required>
               <USelect
                   v-model="formState.federalDistrict"
+                  class="w-48"
                   :items="federalDistrictOptions || []"
-                  :loading="!federalDistrictOptions && !federalDistrictsError"
-                  :disabled="formState.country !== 'Россия' || !federalDistrictOptions || !!federalDistrictsError"
+                  :loading="federalDistrictsLoading"
+                  :disabled="formState.country !== 'Россия' || federalDistrictsLoading || !!federalDistrictsError"
+                  placeholder="Выберите федеральный округ"
+                  @update:model-value="(val) => console.log('Federal district selected:', val)"
               />
               <p v-if="federalDistrictsError" class="text-red-500 text-sm mt-1">
-                Ошибка загрузки списка федеральных округов
+                Не удалось загрузить список федеральных округов. Пожалуйста, попробуйте позже.
+              </p>
+              <p v-if="formState.country && formState.country !== 'Россия'" class="text-gray-500 text-sm mt-1">
+                Федеральный округ доступен только для России
               </p>
             </UFormField>
 
@@ -208,18 +273,36 @@ const handleLogoUpload = () => {
               <USelect
                   v-model="formState.region"
                   :items="regionOptions || []"
-                  :loading="!regionOptions && !regionsError"
-                  :disabled="!regionOptions || !!regionsError"
+                  :loading="regionsLoading"
+                  :disabled="!formState.country || regionsLoading"
+                  placeholder="Выберите регион"
+                  @update:model-value="(val) => console.log('Region selected:', val)"
               />
               <p v-if="regionsError" class="text-red-500 text-sm mt-1">
-                Ошибка загрузки списка регионов
+                Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
+              </p>
+              <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
+                {{ formState.country === 'Россия' 
+                  ? 'Выберите федеральный округ для загрузки списка регионов' 
+                  : 'Для выбранной страны регионы не требуются' }}
               </p>
             </UFormField>
 
             <UFormField label="Город" required>
-              <UInput
+              <USelect
                   v-model="formState.city"
+                  :items="cityOptions || []"
+                  :loading="citiesLoading"
+                  :disabled="!formState.region || citiesLoading"
+                  placeholder="Выберите город"
+                  searchable
               />
+              <p v-if="citiesError" class="text-red-500 text-sm mt-1">
+                Не удалось загрузить список городов: {{ citiesError.message || 'Неизвестная ошибка' }}
+              </p>
+              <p v-if="formState.region && !citiesLoading && !cityOptions.length" class="text-gray-500 text-sm mt-1">
+                Для выбранного региона список городов недоступен. Введите название города вручную.
+              </p>
             </UFormField>
           </div>
         </div>

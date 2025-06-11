@@ -20,4 +20,13 @@ export interface City {
   id: string
   name: string
   regionId: string
+}
+
+export interface LocationItem {
+  label: string
+  value: string
+}
+
+export interface LocationResponse {
+  data: LocationItem[]
 } 

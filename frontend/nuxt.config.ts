@@ -26,17 +26,9 @@ export default defineNuxtConfig({
   // Add explicit colorMode configuration
   ui: {
     colorMode: false,
-    global: true,
-    icons: ['heroicons']
   },
   compatibilityDate: '2024-11-27',
   ssr: true,
-  i18n: {
-    vueI18n: './i18n.config.ts',
-    strategy: 'no_prefix',
-    defaultLocale: 'ru',
-    detectBrowserLanguage: false
-  },
   colorMode: {
     classSuffix: ''
   },

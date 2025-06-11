@@ -1,0 +1,9 @@
+{
+  "errors": {
+    "auth": {
+      "incorrect_credentials": "Неверный ИНН или пароль",
+      "password_too_short": "Пароль должен содержать минимум 8 символов",
+      "generic_error": "Произошла ошибка при входе"
+    }
+  }
+} 

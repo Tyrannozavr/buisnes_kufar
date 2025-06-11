@@ -27,4 +27,5 @@ export interface LocationItem {
   value: string
 }
 
+// API возвращает просто массив элементов
 export type LocationResponse = LocationItem[]

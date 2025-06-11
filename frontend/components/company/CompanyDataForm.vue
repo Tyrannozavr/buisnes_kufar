@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type {Company} from '~/types/company'
 import type {PropType} from 'vue'
-import type {LocationResponse} from '~/types/location'
+import type {LocationResponse, LocationItem} from '~/types/location'
+import {useLocationsApi} from '~/api/locations'
 
 const props = defineProps({
   company: {
@@ -16,7 +17,59 @@ const props = defineProps({
 
 const emits = defineEmits(['save'])
 
-const formState = ref<Company>({...props.company})
+// Определяем тип для значений формы
+interface Official {
+  position: string
+  fullName: string
+}
+
+interface FormState {
+  inn: string
+  kpp: string
+  ogrn: string
+  registrationDate: string
+  country: LocationItem | undefined
+  federalDistrict: LocationItem | undefined
+  region: LocationItem | undefined
+  city: LocationItem | undefined
+  productionAddress: string
+  officials: Official[]
+  tradeActivity: string
+  businessType: string
+  activityType: string
+  position: string
+  companyName: string
+  companyDescription: string
+  companyWebsite: string
+  companyLogo: string
+  companyAddress: string
+  companyPhone: string
+  companyEmail: string
+}
+
+const formState = ref<FormState>({
+  inn: '',
+  kpp: '',
+  ogrn: '',
+  registrationDate: '',
+  country: undefined,
+  federalDistrict: undefined,
+  region: undefined,
+  city: undefined,
+  productionAddress: '',
+  officials: [],
+  tradeActivity: '',
+  businessType: '',
+  activityType: '',
+  position: '',
+  companyName: '',
+  companyDescription: '',
+  companyWebsite: '',
+  companyLogo: '',
+  companyAddress: '',
+  companyPhone: '',
+  companyEmail: ''
+})
 
 const tradeActivityOptions = [
   {label: 'Покупатель', value: 'Покупатель'},
@@ -30,99 +83,52 @@ const businessTypeOptions = [
   {label: 'Производство товаров и оказание услуг', value: 'Производство товаров и оказание услуг'}
 ]
 
-// Fetch countries from API
 const {
-  data: countryOptions,
-  error: countriesError,
-  pending: countriesLoading
-} = await useApi<LocationResponse>('/locations/countries')
+  countries: countryOptions,
+  federalDistricts: federalDistrictOptions,
+  regions: regionOptions,
+  cities: cityOptions,
+  countriesLoading,
+  federalDistrictsLoading,
+  regionsLoading,
+  citiesLoading,
+  countriesError,
+  federalDistrictsError,
+  regionsError,
+  citiesError,
+  refreshFederalDistricts,
+  loadRegions,
+  loadCities
+} = useLocationsApi()
 
-// Fetch federal districts from API
-const {
-  data: federalDistrictOptions,
-  error: federalDistrictsError,
-  pending: federalDistrictsLoading
-} = await useApi<LocationResponse>('/locations/federal-districts')
-
-// Reactive query for regions based on selected country
-const regionsQuery = computed(() => {
-  console.log('Computing regions query with country:', formState.value.country)
-  return {
-    country: formState.value.country
-  }
-})
-
-// Fetch regions based on selected country
-const {
-  data: regionOptions,
-  error: regionsError,
-  pending: regionsLoading,
-  refresh: refreshRegions
-} = await useApi<LocationResponse>('/locations/regions', {
-  query: () => ({country: formState.value.country}), // Используем функцию вместо computed
-  watch: false,
-  immediate: false
-})
-
-// Watch for changes in country to refresh regions
+// Watch для страны
 watch(() => formState.value.country, async (newCountry) => {
-  console.log('Country changed to:', newCountry)
-  if (newCountry) {
-    try {
-      console.log('Attempting to fetch regions for country:', newCountry)
-      await refreshRegions()
-      console.log('Regions fetch response:', regionOptions.value)
-    } catch (error) {
-      console.error('Error fetching regions:', error)
-    }
-  } else {
-    console.log('Country cleared, resetting region')
-    formState.value.region = ''
+  if (!newCountry || newCountry.value !== 'Россия') {
+    formState.value.federalDistrict = undefined
+    formState.value.region = undefined
+    formState.value.city = undefined
+    return
+  }
+  try {
+    await loadRegions(newCountry.value)
+    await refreshFederalDistricts()
+  } catch (error) {
+    console.error('Error handling country change:', error)
   }
 })
 
-// Reactive query for cities based on selected country and region
-const citiesQuery = computed(() => {
-  console.log('Computing cities query with country:', formState.value.country, 'region:', formState.value.region)
-  return {
-    country: formState.value.country,
-    region: formState.value.region
-  }
-})
-
-// Fetch cities based on selected country and region
-const {
-  data: cityOptions,
-  error: citiesError,
-  pending: citiesLoading,
-  refresh: refreshCities
-} = await useApi<LocationResponse>('/locations/cities', {
-  query: () => ({country: formState.value.country, region: formState.value.region}), // Используем функцию вместо computed
-  watch: false,
-  immediate: false
-})
-
-// Watch for changes in region to refresh cities
+// Watch для региона
 watch(() => formState.value.region, async (newRegion) => {
-  console.log('Region changed to:', newRegion)
-  if (newRegion) {
-    try {
-      console.log('Attempting to fetch cities for region:', newRegion)
-      await refreshCities()
-      console.log('Cities fetch response:', cityOptions.value)
-    } catch (error) {
-      console.error('Error fetching cities:', error)
-    }
-  } else {
-    console.log('Region cleared, resetting city')
-    formState.value.city = ''
+  if (!newRegion || !formState.value.country) {
+    formState.value.city = undefined
+    return
+  }
+  try {
+    await loadCities(formState.value.country.value, newRegion.value)
+  } catch (error) {
+    console.error('Error handling region change:', error)
   }
 })
-
-interface PositionOption {
-  label: string
-  value: string
-}
 
 const positions = [
   {label: 'Генеральный директор', value: 'Генеральный директор'},
@@ -189,9 +195,9 @@ const positionOptions = positions.map(pos => ({
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo || undefined"
+                :src="formState.companyLogo || undefined"
                 size="xl"
-                :alt="formState.name"
+                :alt="formState.companyName"
             />
             <UButton
                 color="secondary"
@@ -232,7 +238,7 @@ const positionOptions = positions.map(pos => ({
 
             <UFormField label="Название организации" required help="Краткое название организации для визитной карточки">
               <UInput
-                  v-model="formState.name"
+                  v-model="formState.companyName"
                   placeholder="Краткое название организации"
                   class="min-w-1/2"
               />
@@ -250,7 +256,7 @@ const positionOptions = positions.map(pos => ({
             <UFormField label="Описание организации" required
                         help="Опишите деятельность компании и ее основные достоинства" class="md:col-span-2">
               <UTextarea
-                  v-model="formState.description"
+                  v-model="formState.companyDescription"
                   placeholder="Опишите деятельность компании и ее основные достоинства"
                   :rows="4"
                   class="min-w-2/5"
@@ -258,14 +264,17 @@ const positionOptions = positions.map(pos => ({
             </UFormField>
 
             <UFormField label="Страна" required>
-              <USelect
+              <USelectMenu
                   v-model="formState.country"
-                  class="w-48"
                   :items="countryOptions || []"
                   :loading="countriesLoading"
                   :disabled="countriesLoading || !!countriesError"
                   placeholder="Выберите страну"
-                  @update:model-value="(val) => console.log('Country selected:', val)"
+                  :search-input="{
+                      placeholder: 'Поиск...',
+                      icon: 'i-lucide-search'
+                    }"
+                  searchable
               />
               <p v-if="countriesError" class="text-red-500 text-sm mt-1">
                 Не удалось загрузить список стран. Пожалуйста, попробуйте позже.
@@ -273,42 +282,46 @@ const positionOptions = positions.map(pos => ({
             </UFormField>
 
             <UFormField label="Федеральный округ" required>
-              <USelect
+              <USelectMenu
                   v-model="formState.federalDistrict"
-                  class="w-48"
                   :items="federalDistrictOptions || []"
                   :loading="federalDistrictsLoading"
-                  :disabled="formState.country !== 'Россия' || federalDistrictsLoading || !!federalDistrictsError"
+                  :disabled="formState.country?.value !== 'Россия' || federalDistrictsLoading || !!federalDistrictsError"
                   placeholder="Выберите федеральный округ"
-                  @update:model-value="(val) => console.log('Federal district selected:', val)"
+                  :search-input="{
+                      placeholder: 'Поиск...',
+                      icon: 'i-lucide-search'
+                    }"
+                  searchable
               />
               <p v-if="federalDistrictsError" class="text-red-500 text-sm mt-1">
                 Не удалось загрузить список федеральных округов. Пожалуйста, попробуйте позже.
               </p>
-              <p v-if="formState.country && formState.country !== 'Россия'" class="text-gray-500 text-sm mt-1">
+              <p v-if="formState.country && formState.country.value !== 'Россия'" class="text-gray-500 text-sm mt-1">
                 Федеральный округ доступен только для России
               </p>
             </UFormField>
 
             <UFormField label="Регион" required>
-              <USelect
+              <USelectMenu
                   v-model="formState.region"
                   :items="regionOptions || []"
                   :loading="regionsLoading"
                   :disabled="!formState.country || regionsLoading"
                   placeholder="Выберите регион"
-                  @update:model-value="(val) => console.log('Region selected:', val)"
+                  :search-input="{
+                      placeholder: 'Поиск...',
+                      icon: 'i-lucide-search'
+                    }"
+                  searchable
               />
               <p v-if="regionsError" class="text-red-500 text-sm mt-1">
                 Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
               </p>
-              <p v-if="formState.country && !regionsLoading && !regionOptions?.length"
-                 class="text-gray-500 text-sm mt-1">
-                {{
-                  formState.country === 'Россия'
-                      ? 'Выберите федеральный округ для загрузки списка регионов'
-                      : 'Для выбранной страны регионы не требуются'
-                }}
+              <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
+                {{ formState.country.value === 'Россия' 
+                  ? 'Выберите федеральный округ для загрузки списка регионов' 
+                  : 'Для выбранной страны регионы не требуются' }}
               </p>
             </UFormField>
             <UFormField label="Город" required>
@@ -322,11 +335,12 @@ const positionOptions = positions.map(pos => ({
                       placeholder: 'Поиск...',
                       icon: 'i-lucide-search'
                     }"
+                  searchable
               />
               <p v-if="citiesError" class="text-red-500 text-sm mt-1">
-                Не удалось загрузить список городов: {{ citiesError.message || 'Неизвестная ошибка' }}
+                Не удалось загрузить список городов: {{ citiesError?.message || 'Неизвестная ошибка' }}
               </p>
-              <p v-if="formState.region && !citiesLoading && !cityOptions.length" class="text-gray-500 text-sm mt-1">
+              <p v-if="formState.region && !citiesLoading && !cityOptions?.length" class="text-gray-500 text-sm mt-1">
                 Для выбранного региона список городов недоступен. Введите название города вручную.
               </p>
             </UFormField>
@@ -339,7 +353,7 @@ const positionOptions = positions.map(pos => ({
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormField label="Полное название организации" required>
               <UInput
-                  v-model="formState.fullName"
+                  v-model="formState.companyName"
                   class="min-w-4/5"
               />
             </UFormField>
@@ -418,7 +432,7 @@ const positionOptions = positions.map(pos => ({
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormField label="Юридический адрес" required>
               <UInput
-                  v-model="formState.legalAddress"
+                  v-model="formState.companyAddress"
                   class="min-w-full"
               />
             </UFormField>
@@ -432,21 +446,21 @@ const positionOptions = positions.map(pos => ({
 
             <UFormField label="Телефон" required>
               <UInput
-                  v-model="formState.phone"
+                  v-model="formState.companyPhone"
                   type="tel"
               />
             </UFormField>
 
             <UFormField label="Электронная почта" required>
               <UInput
-                  v-model="formState.email"
+                  v-model="formState.companyEmail"
                   type="email"
               />
             </UFormField>
 
             <UFormField label="Официальный сайт компании">
               <UInput
-                  v-model="formState.website"
+                  v-model="formState.companyWebsite"
                   type="url"
                   placeholder="https://example.com"
               />

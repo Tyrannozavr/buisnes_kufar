@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
-import type { PropType } from 'vue'
-import type { LocationResponse } from '~/types/location'
+import type {Company} from '~/types/company'
+import type {PropType} from 'vue'
+import type {LocationResponse} from '~/types/location'
 
 const props = defineProps({
   company: {
@@ -31,10 +31,18 @@ const businessTypeOptions = [
 ]
 
 // Fetch countries from API
-const { data: countryOptions, error: countriesError, pending: countriesLoading } = await useApi<LocationResponse>('/locations/countries')
+const {
+  data: countryOptions,
+  error: countriesError,
+  pending: countriesLoading
+} = await useApi<LocationResponse>('/locations/countries')
 
 // Fetch federal districts from API
-const { data: federalDistrictOptions, error: federalDistrictsError, pending: federalDistrictsLoading } = await useApi<LocationResponse>('/locations/federal-districts')
+const {
+  data: federalDistrictOptions,
+  error: federalDistrictsError,
+  pending: federalDistrictsLoading
+} = await useApi<LocationResponse>('/locations/federal-districts')
 
 // Reactive query for regions based on selected country
 const regionsQuery = computed(() => {
@@ -45,8 +53,13 @@ const regionsQuery = computed(() => {
 })
 
 // Fetch regions based on selected country
-const { data: regionOptions, error: regionsError, pending: regionsLoading, refresh: refreshRegions } = await useApi<LocationResponse>('/locations/regions', {
-  query: () => ({ country: formState.value.country }), // Используем функцию вместо computed
+const {
+  data: regionOptions,
+  error: regionsError,
+  pending: regionsLoading,
+  refresh: refreshRegions
+} = await useApi<LocationResponse>('/locations/regions', {
+  query: () => ({country: formState.value.country}), // Используем функцию вместо computed
   watch: false,
   immediate: false
 })
@@ -78,8 +91,13 @@ const citiesQuery = computed(() => {
 })
 
 // Fetch cities based on selected country and region
-const { data: cityOptions, error: citiesError, pending: citiesLoading, refresh: refreshCities } = await useApi<LocationResponse>('/locations/cities', {
-  query: () => ({ country: formState.value.country, region: formState.value.region }), // Используем функцию вместо computed
+const {
+  data: cityOptions,
+  error: citiesError,
+  pending: citiesLoading,
+  refresh: refreshCities
+} = await useApi<LocationResponse>('/locations/cities', {
+  query: () => ({country: formState.value.country, region: formState.value.region}), // Используем функцию вместо computed
   watch: false,
   immediate: false
 })
@@ -107,20 +125,20 @@ interface PositionOption {
 }
 
 const positions = [
-  { label: 'Генеральный директор', value: 'Генеральный директор' },
-  { label: 'Финансовый директор', value: 'Финансовый директор' },
-  { label: 'Главный бухгалтер', value: 'Главный бухгалтер' },
-  { label: 'Коммерческий директор', value: 'Коммерческий директор' },
-  { label: 'Технический директор', value: 'Технический директор' },
-  { label: 'Руководитель отдела продаж', value: 'Руководитель отдела продаж' },
-  { label: 'Руководитель отдела закупок', value: 'Руководитель отдела закупок' },
-  { label: 'Руководитель производства', value: 'Руководитель производства' }
+  {label: 'Генеральный директор', value: 'Генеральный директор'},
+  {label: 'Финансовый директор', value: 'Финансовый директор'},
+  {label: 'Главный бухгалтер', value: 'Главный бухгалтер'},
+  {label: 'Коммерческий директор', value: 'Коммерческий директор'},
+  {label: 'Технический директор', value: 'Технический директор'},
+  {label: 'Руководитель отдела продаж', value: 'Руководитель отдела продаж'},
+  {label: 'Руководитель отдела закупок', value: 'Руководитель отдела закупок'},
+  {label: 'Руководитель производства', value: 'Руководитель производства'}
 ]
 
-const officials = ref(props.company.officials || [{ position: '', fullName: '' }])
+const officials = ref(props.company.officials || [{position: '', fullName: ''}])
 
 const addOfficial = () => {
-  officials.value.push({ position: '', fullName: '' })
+  officials.value.push({position: '', fullName: ''})
 }
 
 const removeOfficial = (index: number) => {
@@ -202,7 +220,8 @@ const positionOptions = positions.map(pos => ({
               />
             </UFormField>
 
-            <UFormField label="Род деятельности" required help="Определяет в каком разделе будет отображаться ваша компания">
+            <UFormField label="Род деятельности" required
+                        help="Определяет в каком разделе будет отображаться ваша компания">
               <USelect
                   v-model="formState.businessType"
                   :items="businessTypeOptions"
@@ -219,7 +238,8 @@ const positionOptions = positions.map(pos => ({
               />
             </UFormField>
 
-            <UFormField label="Вид деятельности" required help="Основное направление деятельности компании. Например: «Производство обуви», «Строительство каркасных домов»">
+            <UFormField label="Вид деятельности" required
+                        help="Основное направление деятельности компании. Например: «Производство обуви», «Строительство каркасных домов»">
               <UInput
                   v-model="formState.activityType"
                   placeholder="Например: Производство обуви"
@@ -227,7 +247,8 @@ const positionOptions = positions.map(pos => ({
               />
             </UFormField>
 
-            <UFormField label="Описание организации" required help="Опишите деятельность компании и ее основные достоинства" class="md:col-span-2">
+            <UFormField label="Описание организации" required
+                        help="Опишите деятельность компании и ее основные достоинства" class="md:col-span-2">
               <UTextarea
                   v-model="formState.description"
                   placeholder="Опишите деятельность компании и ее основные достоинства"
@@ -281,21 +302,26 @@ const positionOptions = positions.map(pos => ({
               <p v-if="regionsError" class="text-red-500 text-sm mt-1">
                 Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
               </p>
-              <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
-                {{ formState.country === 'Россия' 
-                  ? 'Выберите федеральный округ для загрузки списка регионов' 
-                  : 'Для выбранной страны регионы не требуются' }}
+              <p v-if="formState.country && !regionsLoading && !regionOptions?.length"
+                 class="text-gray-500 text-sm mt-1">
+                {{
+                  formState.country === 'Россия'
+                      ? 'Выберите федеральный округ для загрузки списка регионов'
+                      : 'Для выбранной страны регионы не требуются'
+                }}
               </p>
             </UFormField>
-
             <UFormField label="Город" required>
-              <USelect
+              <USelectMenu
                   v-model="formState.city"
                   :items="cityOptions || []"
                   :loading="citiesLoading"
                   :disabled="!formState.region || citiesLoading"
                   placeholder="Выберите город"
-                  searchable
+                  :search-input="{
+                      placeholder: 'Поиск...',
+                      icon: 'i-lucide-search'
+                    }"
               />
               <p v-if="citiesError" class="text-red-500 text-sm mt-1">
                 Не удалось загрузить список городов: {{ citiesError.message || 'Неизвестная ошибка' }}

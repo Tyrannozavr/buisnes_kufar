@@ -27,6 +27,4 @@ export interface LocationItem {
   value: string
 }
 
-export interface LocationResponse {
-  data: LocationItem[]
-} 
+export type LocationResponse = LocationItem[]

@@ -1,3 +1,5 @@
+import type { LocationItem } from './location'
+
 export interface Company {
   id: number
   logo: string | null
@@ -84,5 +86,63 @@ export interface CompanyShort {
 export interface CompanyInfo {
   companyName: string
   companyLogo: string
+}
+
+export interface CompanyFormState {
+    name: string
+    inn: string
+    kpp: string
+    ogrn: string
+    registrationDate: string
+    legalAddress: string
+    productionAddress: string
+    country: LocationItem | undefined
+    federalDistrict: LocationItem | undefined
+    region: LocationItem | undefined
+    city: LocationItem | undefined
+    countryOptions: LocationItem[]
+    federalDistrictOptions: LocationItem[]
+    regionOptions: LocationItem[]
+    cityOptions: LocationItem[]
+}
+
+export interface CompanyFormProps {
+    modelValue: CompanyFormState
+    loading?: boolean
+    error?: string | null
+}
+
+export interface CompanyOfficial {
+  position: string
+  fullName: string
+}
+
+export interface CompanyDataFormState {
+  inn: string
+  kpp: string
+  ogrn: string
+  registrationDate: string
+  country: LocationItem | undefined
+  federalDistrict: LocationItem | undefined
+  region: LocationItem | undefined
+  city: LocationItem | undefined
+  productionAddress: string
+  officials: CompanyOfficial[]
+  tradeActivity: string
+  businessType: string
+  activityType: string
+  position: string
+  companyName: string
+  companyDescription: string
+  companyWebsite: string
+  companyLogo: string
+  companyAddress: string
+  companyPhone: string
+  companyEmail: string
+}
+
+export interface CompanyDataFormProps {
+  company: Company
+  loading?: boolean
 }
 

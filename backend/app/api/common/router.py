@@ -1,33 +1,89 @@
-from fastapi import APIRouter, Query
-from typing import Optional
+from fastapi import APIRouter, Query, Path, HTTPException
+from typing import Optional, Dict, Tuple
+from functools import lru_cache
 
 from ..common.schemas.location import LocationResponse
+from ..common.utils.location_api import LocationAPI, LocationAPIError
 from ..common.utils.location_data import (
     get_countries,
     get_federal_districts,
-    get_regions,
     get_cities
 )
 
 router = APIRouter(prefix="/locations", tags=["locations"])
+location_api = LocationAPI()
+
+# Cache for regions data
+@lru_cache(maxsize=None)
+async def get_cached_regions(country_code: str, federal_district: Optional[str] = None) -> Tuple[str, list]:
+    """
+    Get regions with caching. Returns a tuple of (cache_key, regions) to ensure proper caching.
+    The cache key is used to differentiate between different combinations of country and federal district.
+    """
+    try:
+        regions = await location_api.get_regions(country_code)
+        return f"{country_code}:{federal_district or ''}", regions
+    except LocationAPIError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/countries", response_model=LocationResponse)
 async def get_countries_list():
     """Получить список стран"""
-    return {"data": get_countries()}
+    countries = get_countries()
+    return {
+        "items": countries,
+        "total": len(countries)
+    }
 
 @router.get("/federal-districts", response_model=LocationResponse)
 async def get_federal_districts_list():
     """Получить список федеральных округов"""
-    return {"data": get_federal_districts()}
+    federal_districts = get_federal_districts()
+    return {
+        "items": federal_districts,
+        "total": len(federal_districts)
+    }
 
-@router.get("/regions", response_model=LocationResponse)
+@router.get("/regions/{country}", response_model=LocationResponse)
 async def get_regions_list(
-    country: str = Query(..., description="Страна"),
+    country: str = Path(..., description="Страна"),
     federal_district: Optional[str] = Query(None, description="Федеральный округ")
 ):
-    """Получить список регионов по стране и федеральному округу"""
-    return {"data": get_regions(country, federal_district)}
+    """
+    Получить список регионов по стране и федеральному округу.
+    Результаты кэшируются навсегда для одинаковых запросов.
+    """
+    try:
+        # Convert country name to code if needed
+        country_code = country.upper() if len(country) == 2 else {
+            "Россия": "RU",
+            "Беларусь": "BY",
+            "Казахстан": "KZ",
+            "Украина": "UA",
+            "Армения": "AM",
+            "Азербайджан": "AZ",
+            "Киргизия": "KG",
+            "Молдова": "MD",
+            "Таджикистан": "TJ",
+            "Узбекистан": "UZ"
+        }.get(country, country)
+
+        # Get cached regions
+        _, regions = await get_cached_regions(country_code, federal_district)
+        regions = [{"label": region.get("label"), "value": region.get("label")} for region in regions]
+        
+        # Filter by federal district if provided (only for Russia)
+        if federal_district and country_code == "RU":
+            # TODO: Implement federal district filtering if needed
+            # For now, we return all regions as the API doesn't support federal district filtering
+            pass
+
+        return LocationResponse(
+            items=regions,
+            total=len(regions)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/cities", response_model=LocationResponse)
 async def get_cities_list(

@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     STATIC_DIR: Path = BASE_DIR / "static"
 
+    # API ключ для сервиса локаций (htmlweb.ru)
+    LOCATION_API_KEY: Optional[str] = None
+
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         return get_async_database_url(self.SQLALCHEMY_DATABASE_URI)

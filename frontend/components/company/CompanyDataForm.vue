@@ -1,19 +1,8 @@
 <script setup lang="ts">
-import type {Company} from '~/types/company'
-import type {PropType} from 'vue'
-import type {LocationResponse, LocationItem} from '~/types/location'
+import type {CompanyDataFormProps, CompanyDataFormState, CompanyOfficial} from '~/types/company'
 import {useLocationsApi} from '~/api/locations'
 
-const props = defineProps({
-  company: {
-    type: Object as PropType<Company>,
-    required: true
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  }
-})
+const props = defineProps<CompanyDataFormProps>()
 
 const emits = defineEmits(['save'])
 
@@ -23,31 +12,7 @@ interface Official {
   fullName: string
 }
 
-interface FormState {
-  inn: string
-  kpp: string
-  ogrn: string
-  registrationDate: string
-  country: LocationItem | undefined
-  federalDistrict: LocationItem | undefined
-  region: LocationItem | undefined
-  city: LocationItem | undefined
-  productionAddress: string
-  officials: Official[]
-  tradeActivity: string
-  businessType: string
-  activityType: string
-  position: string
-  companyName: string
-  companyDescription: string
-  companyWebsite: string
-  companyLogo: string
-  companyAddress: string
-  companyPhone: string
-  companyEmail: string
-}
-
-const formState = ref<FormState>({
+const formState = ref<CompanyDataFormState>({
   inn: '',
   kpp: '',
   ogrn: '',
@@ -84,10 +49,10 @@ const businessTypeOptions = [
 ]
 
 const {
-  countries: countryOptions,
-  federalDistricts: federalDistrictOptions,
-  regions: regionOptions,
-  cities: cityOptions,
+  countryOptions,
+  federalDistrictOptions,
+  regionOptions,
+  cityOptions,
   countriesLoading,
   federalDistrictsLoading,
   regionsLoading,
@@ -96,7 +61,7 @@ const {
   federalDistrictsError,
   regionsError,
   citiesError,
-  refreshFederalDistricts,
+  loadFederalDistricts,
   loadRegions,
   loadCities
 } = useLocationsApi()
@@ -111,7 +76,7 @@ watch(() => formState.value.country, async (newCountry) => {
   }
   try {
     await loadRegions(newCountry.value)
-    await refreshFederalDistricts()
+    await loadFederalDistricts()
   } catch (error) {
     console.error('Error handling country change:', error)
   }
@@ -124,7 +89,7 @@ watch(() => formState.value.region, async (newRegion) => {
     return
   }
   try {
-    await loadCities(formState.value.country.value, newRegion.value)
+    await loadCities(newRegion.value, 1) // Pass region value as string and specify level 1 for major cities
   } catch (error) {
     console.error('Error handling region change:', error)
   }
@@ -141,7 +106,7 @@ const positions = [
   {label: 'Руководитель производства', value: 'Руководитель производства'}
 ]
 
-const officials = ref(props.company.officials || [{position: '', fullName: ''}])
+const officials = ref<CompanyOfficial[]>(props.company.officials || [{position: '', fullName: ''}])
 
 const addOfficial = () => {
   officials.value.push({position: '', fullName: ''})
@@ -262,7 +227,6 @@ const positionOptions = positions.map(pos => ({
                   class="min-w-2/5"
               />
             </UFormField>
-
             <UFormField label="Страна" required>
               <USelectMenu
                   v-model="formState.country"

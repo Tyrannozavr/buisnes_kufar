@@ -1,65 +1,132 @@
-import type { LocationResponse } from '~/types/location'
+import type { LocationItem, LocationResponse } from '~/types/location'
 
 export const useLocationsApi = () => {
-  // Загружаем страны на сервере
-  const { data: countries, error: countriesError, pending: countriesLoading } = useApi<LocationResponse>('/locations/countries', {
-    server: true, // Загружаем на сервере
-    immediate: true // Загружаем сразу
-  })
+  const { $api } = useNuxtApp()
+  const countriesLoading = ref(false)
+  const federalDistrictsLoading = ref(false)
+  const regionsLoading = ref(false)
+  const citiesLoading = ref(false)
+  const countriesError = ref<Error | null>(null)
+  const federalDistrictsError = ref<Error | null>(null)
+  const regionsError = ref<Error | null>(null)
+  const citiesError = ref<Error | null>(null)
 
-  // Федеральные округи загружаем только для России
-  const { data: federalDistricts, error: federalDistrictsError, pending: federalDistrictsLoading, refresh: refreshFederalDistricts } = useApi<LocationResponse>('/locations/federal-districts', {
-    server: false,
-    immediate: false // Не загружаем сразу
-  })
+  const countryOptions = ref<LocationItem[]>([])
+  const federalDistrictOptions = ref<LocationItem[]>([])
+  const regionOptions = ref<LocationItem[]>([])
+  const cityOptions = ref<LocationItem[]>([])
 
-  // Регионы загружаем только при выборе страны
-  const { data: regions, error: regionsError, pending: regionsLoading, refresh: refreshRegions } = useApi<LocationResponse>('/locations/regions', {
-    server: false,
-    immediate: false, // Не загружаем сразу
-    watch: false // Отключаем автоматическое обновление
-  })
-
-  // Города загружаем только при выборе региона
-  const { data: cities, error: citiesError, pending: citiesLoading, refresh: refreshCities } = useApi<LocationResponse>('/locations/cities', {
-    server: false,
-    immediate: false, // Не загружаем сразу
-    watch: false // Отключаем автоматическое обновление
-  })
-
-  // Функция для загрузки регионов
-  const loadRegions = async (country: string) => {
-    if (!country) return
-    const query = { country }
-    await refreshRegions()
+  // Загрузка списка стран
+  const loadCountries = async () => {
+    countriesLoading.value = true
+    countriesError.value = null
+    try {
+      const response = await $api.get('/v1/locations/countries')
+      const data = response as LocationResponse
+      countryOptions.value = data.items || []
+    } catch (error) {
+      countriesError.value = error as Error
+      console.error('Error loading countries:', error)
+    } finally {
+      countriesLoading.value = false
+    }
   }
 
-  // Функция для загрузки городов
-  const loadCities = async (country: string, region: string) => {
-    if (!country || !region) return
-    const query = { country, region }
-    await refreshCities()
+  // Загрузка федеральных округов для России
+  const loadFederalDistricts = async () => {
+    federalDistrictsLoading.value = true
+    federalDistrictsError.value = null
+    try {
+      const response = await $api.get('/v1/locations/federal-districts')
+      const data = response as LocationResponse
+      federalDistrictOptions.value = data.items || []
+    } catch (error) {
+      federalDistrictsError.value = error as Error
+      console.error('Error loading federal districts:', error)
+    } finally {
+      federalDistrictsLoading.value = false
+    }
   }
+
+  // Загрузка регионов для выбранной страны
+  const loadRegions = async (countryCode: string) => {
+    regionsLoading.value = true
+    regionsError.value = null
+    try {
+      const response = await $api.get(`/v1/locations/regions/${countryCode}`)
+      const data = response as LocationResponse
+      regionOptions.value = data.items || []
+    } catch (error) {
+      regionsError.value = error as Error
+      console.error('Error loading regions:', error)
+    } finally {
+      regionsLoading.value = false
+    }
+  }
+
+  // Загрузка городов для выбранного региона
+  const loadCities = async (regionId: string, level?: number) => {
+    citiesLoading.value = true
+    citiesError.value = null
+    try {
+      const response = await $api.get(`/v1/locations/cities/${regionId}`, {
+        params: { level }
+      })
+      const data = response as LocationResponse
+      cityOptions.value = data.items || []
+    } catch (error) {
+      citiesError.value = error as Error
+      console.error('Error loading cities:', error)
+    } finally {
+      citiesLoading.value = false
+    }
+  }
+
+  // Поиск городов по названию
+  const searchCities = async (cityName: string) => {
+    citiesLoading.value = true
+    citiesError.value = null
+    try {
+      const response = await $api.get(`/v1/locations/cities/search/${encodeURIComponent(cityName)}`)
+      const data = response as LocationResponse
+      cityOptions.value = data.items || []
+    } catch (error) {
+      citiesError.value = error as Error
+      console.error('Error searching cities:', error)
+    } finally {
+      citiesLoading.value = false
+    }
+  }
+
+  // Загрузка начальных данных
+  onMounted(() => {
+    loadCountries()
+  })
 
   return {
-    // Данные
-    countries,
-    federalDistricts,
-    regions,
-    cities,
     // Состояния загрузки
     countriesLoading,
     federalDistrictsLoading,
     regionsLoading,
     citiesLoading,
+    
     // Ошибки
     countriesError,
     federalDistrictsError,
     regionsError,
     citiesError,
+    
+    // Данные
+    countryOptions,
+    federalDistrictOptions,
+    regionOptions,
+    cityOptions,
+    
     // Методы
-    refreshFederalDistricts,
+    loadCountries,
+    loadFederalDistricts,
     loadRegions,
-    loadCities
+    loadCities,
+    searchCities
   }
 } 

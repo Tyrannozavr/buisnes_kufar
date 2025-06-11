@@ -27,5 +27,30 @@ export interface LocationItem {
   value: string
 }
 
-// API возвращает просто массив элементов
-export type LocationResponse = LocationItem[]
+export interface LocationResponse {
+  items: LocationItem[]
+  total: number
+}
+
+export interface CityInfo {
+  id: number
+  name: string
+  area?: number
+  telcod?: string
+  latitude?: number
+  longitude?: number
+  time_zone?: number | string
+  english?: string
+  rajon?: number | string
+  country?: string
+  sound?: string
+  level?: number | string
+  iso?: string
+  vid?: number | string
+  full_name?: string
+}
+
+export interface CitySearchResponse {
+  items: CityInfo[]
+  total: number
+}

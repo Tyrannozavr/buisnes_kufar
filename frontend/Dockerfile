@@ -3,12 +3,12 @@ FROM node:20-slim
 WORKDIR /app
 
 COPY package*.json ./
-RUN yarn install
+RUN npm install
 
 COPY . .
 RUN rm -rf ./.output ./.nuxt
 
 EXPOSE 3000
 
-RUN yarn build
-CMD [ "yarn", "start" ]
+RUN npm build
+CMD [ "npm", "run", "start" ]

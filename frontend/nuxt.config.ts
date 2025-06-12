@@ -1,17 +1,16 @@
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: [
-    '@nuxtjs/tailwindcss',
+    '@nuxt/ui',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
-    '@nuxt/ui',
     'pinia-plugin-persistedstate/nuxt',
     '@nuxt/image'
   ],
-  css: ['~/assets/css/main.css'],
-
+  css: ['~/assets/css/tailwind.css'],
   future: {
     compatibilityVersion: 4
   },

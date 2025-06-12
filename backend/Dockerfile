@@ -22,6 +22,7 @@ RUN poetry config virtualenvs.create false && \
 COPY app/ ./app/
 COPY app_logging/ ./app_logging/
 
+
 # Второй этап - итоговый образ
 FROM python:3.12-slim
 

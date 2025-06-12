@@ -5,13 +5,16 @@ services:
   backend:
     build: ./backend
     restart: on-failure
-    expose:
-      - "8000"
+#    expose:
+#      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
       DEV_REDIRECT_URL: "http://frontend:3000"
     volumes:
       - ./logs/backend:/app/logging
+      - ./backend/cache:/app/cache
     env_file:
       - ./backend/.env
 

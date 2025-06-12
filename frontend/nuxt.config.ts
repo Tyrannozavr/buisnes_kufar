@@ -29,7 +29,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-27',
   ssr: true,
   colorMode: {
-    classSuffix: ''
+    preference: 'light', // принудительно использует только светлую тему
+    fallback: 'light',   // если preference не указан, всё равно будет светлая
+    classSuffix: ''      // убирает суффиксы классов (например 'light:')
   },
   app: {
     head: {

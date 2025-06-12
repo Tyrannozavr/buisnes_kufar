@@ -1,17 +1,16 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
-from app.api.common.utils.location_api import LocationAPI, LocationAPIError
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException
+
 from app.api.common.schemas.location import (
     LocationResponse,
-    LocationItem,
-    CitySearchResponse,
-    CityInfo
+    CitySearchResponse
 )
-from app.core.config import get_settings
+from app.api.common.utils.location_api import LocationAPI
 
 router = APIRouter(prefix="/locations", tags=["locations"])
-settings = get_settings()
-location_api = LocationAPI(settings.LOCATION_API_KEY)
+location_api = LocationAPI()
+
 
 @router.get("/countries", response_model=LocationResponse)
 async def get_countries():
@@ -27,6 +26,7 @@ async def get_countries():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/regions/{country_code}", response_model=LocationResponse)
 async def get_regions(country_code: str):
     """
@@ -40,6 +40,7 @@ async def get_regions(country_code: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/cities/{region_id}", response_model=LocationResponse)
 async def get_cities(region_id: int, level: Optional[int] = None):
@@ -55,6 +56,7 @@ async def get_cities(region_id: int, level: Optional[int] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/cities/search/{city_name}", response_model=CitySearchResponse)
 async def search_cities(city_name: str):
     """
@@ -69,6 +71,7 @@ async def search_cities(city_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/districts/{region_id}", response_model=LocationResponse)
 async def get_districts(region_id: int):
     """
@@ -81,4 +84,4 @@ async def get_districts(region_id: int):
             total=len(districts)
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))

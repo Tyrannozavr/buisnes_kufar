@@ -1,20 +1,25 @@
 from typing import Dict, List, Optional, Union
+
 import httpx
-from pydantic import BaseModel, Field
-from fastapi import HTTPException
+from pydantic import BaseModel
+
 from app.core.config import settings
+
 
 class LocationAPIError(Exception):
     """Базовый класс для ошибок API локаций"""
     pass
 
+
 class LocationAPIResponseError(LocationAPIError):
     """Ошибка при получении ответа от API"""
     pass
 
+
 class LocationAPIConfigError(LocationAPIError):
     """Ошибка конфигурации API"""
     pass
+
 
 class CityInfo(BaseModel):
     """Информация о городе"""
@@ -34,6 +39,7 @@ class CityInfo(BaseModel):
     vid: Optional[Union[int, str]] = None
     full_name: Optional[str] = None
 
+
 class RegionInfo(BaseModel):
     """Информация о регионе"""
     id: int
@@ -42,6 +48,7 @@ class RegionInfo(BaseModel):
     english: Optional[str] = None
     iso: Optional[str] = None
     level: Optional[int] = None
+
 
 class CountryInfo(BaseModel):
     """Информация о стране"""
@@ -58,6 +65,7 @@ class CountryInfo(BaseModel):
     lang: Optional[str] = None
     langcod: Optional[str] = None
 
+
 class LocationAPI:
     """
     Класс для взаимодействия с внешним API локаций (htmlweb.ru)
@@ -70,7 +78,7 @@ class LocationAPI:
         api_key (str): Ключ API для доступа к сервису
         client (httpx.AsyncClient): HTTP клиент для асинхронных запросов
     """
-    
+
     def __init__(self):
         """Инициализация клиента API"""
         self.base_url = "http://htmlweb.ru/geo/api.php"
@@ -78,7 +86,7 @@ class LocationAPI:
         if not self.api_key:
             raise LocationAPIConfigError("LOCATION_API_KEY не настроен")
         self.client = httpx.AsyncClient(timeout=10.0)
-        
+
         # Фиксированный список стран для фронтенда
         self._countries = [
             {"label": "Россия", "value": "RU"},
@@ -183,16 +191,18 @@ class LocationAPI:
             List[Dict[str, str]]: Список городов в формате {label: str, value: str}
         """
         params = {"area": str(region_id)}
+        params["perpage"] = 99999
+
         if level is not None:
             params["level"] = str(level)
-            
+
         response = await self._make_request(params)
         cities = []
         for city in response.values():
             if isinstance(city, dict) and "id" in city and "name" in city:
                 cities.append({
                     "label": city["name"],
-                    "value": str(city["id"])
+                    "value": str(city["id"]),
                 })
         return cities
 
@@ -231,4 +241,4 @@ class LocationAPI:
                     "label": district["name"],
                     "value": str(district["id"])
                 })
-        return districts 
+        return districts

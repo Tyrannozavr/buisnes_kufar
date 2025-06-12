@@ -67,12 +67,17 @@ export const useLocationsApi = () => {
   }
 
   // Загрузка городов для выбранного региона
-  const loadCities = async (regionId: string, level?: number) => {
+  const loadCities = async (countryCode: string, regionId: string, level?: number, searchQuery?: string) => {
     citiesLoading.value = true
     citiesError.value = null
     try {
-      const response = await $api.get(`/v1/locations/cities/${regionId}`, {
-        params: { level }
+      const response = await $api.get(`/v1/locations/cities`, {
+        params: { 
+          level, 
+          region: regionId, 
+          country: countryCode,
+          name: searchQuery
+        }
       })
       const data = response as LocationResponse
       cityOptions.value = data.items || []

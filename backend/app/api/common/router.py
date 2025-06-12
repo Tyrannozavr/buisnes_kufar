@@ -23,10 +23,9 @@ async def get_cached_regions(country_code: str, federal_district: Optional[str] 
     Get regions with caching. Returns a tuple of (cache_key, regions) to ensure proper caching.
     The cache key is used to differentiate between different combinations of country and federal district.
     """
-    print("Hello world ", country_code, federal_district)
     try:
         regions = await location_api.get_regions(country_code)
-        
+
         return f"{country_code}:{federal_district or ''}", regions
     except LocationAPIError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -76,13 +75,12 @@ async def get_regions_list(
 
         # Get cached regions
         _, regions = await get_cached_regions(country_code, federal_district)
-        regions = [{"label": region.get("label"), "value": region.get("label")} for region in regions]
-        
+
         # Filter by federal district if provided (only for Russia)
         if federal_district and country_code == "RU":
-            # TODO: Implement federal district filtering if needed
-            # For now, we return all regions as the API doesn't support federal district filtering
-            pass
+            regions = [region for region in regions if region.get("okrug") == federal_district]
+
+        regions = [{"label": region.get("label"), "value": region.get("label")} for region in regions]
 
         regions = await unify_list(regions)
         return LocationResponse(

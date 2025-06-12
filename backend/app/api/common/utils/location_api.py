@@ -144,7 +144,7 @@ class LocationAPI:
         response = await self._make_request({"location": ""})
         return [CountryInfo(**country) for country in response.values() if isinstance(country, dict)]
 
-    async def get_regions(self, country_code: str) -> List[Dict[str, str]]:
+    async def get_regions(self, country_code: str, area_rajon: int | None = None) -> List[Dict[str, str]]:
         """
         Получает список регионов для указанной страны
         
@@ -154,14 +154,21 @@ class LocationAPI:
         Returns:
             List[Dict[str, str]]: Список регионов в формате {label: str, value: str}
         """
-        response = await self._make_request({"country": country_code.lower()})
+        request_data = {"country": country_code.lower()}
+        if area_rajon is not None:
+            request_data["area_rajon"] = str(area_rajon)
+        response = await self._make_request(request_data)
+
         regions = []
         for region in response.values():
             if isinstance(region, dict) and "id" in region and "name" in region:
-                regions.append({
+                item = {
                     "label": region["name"],
-                    "value": str(region["id"])
-                })
+                    "value": str(region["id"]),
+                }
+                if region.get("okrug"):
+                    item["okrug"] = region["okrug"]
+                regions.append(item)
         return regions
 
     async def get_cities(self, region_id: int, level: Optional[int] = None) -> List[Dict[str, str]]:

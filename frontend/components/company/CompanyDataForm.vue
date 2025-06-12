@@ -256,6 +256,7 @@ const positionOptions = positions.map(pos => ({
             <UFormField label="Страна" required>
               <USelectMenu
                   v-model="formState.country"
+                  clsss="w-48"
                   :items="countryOptions || []"
                   :loading="countriesLoading"
                   :disabled="countriesLoading || !!countriesError"

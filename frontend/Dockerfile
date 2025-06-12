@@ -1,16 +1,14 @@
-FROM node:24-slim
+FROM node:20-slim
 
 WORKDIR /app
 
-COPY ./package*.json ./
-
-RUN npm install
+COPY package*.json ./
+RUN yarn install
 
 COPY . .
-RUN rm -rf ./.output
-RUN rm -rf ./.nuxt
+RUN rm -rf ./.output ./.nuxt
 
 EXPOSE 3000
 
-RUN npm run build
-CMD [ "npm", "run", "start" ]
+RUN yarn build
+CMD [ "yarn", "start" ]

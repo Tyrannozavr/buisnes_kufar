@@ -10,7 +10,7 @@ export default defineNuxtConfig({
     'pinia-plugin-persistedstate/nuxt',
     '@nuxt/image'
   ],
-  css: ['~/assets/css/tailwind.css'],
+  css: ['~/assets/css/main.css'],
   future: {
     compatibilityVersion: 4
   },

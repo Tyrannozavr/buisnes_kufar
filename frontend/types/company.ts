@@ -132,7 +132,8 @@ export interface CompanyDataFormState {
   businessType: string
   activityType: string
   position: string
-  companyName: string
+  name: string
+  fullName: string
   companyDescription: string
   companyWebsite: string
   companyLogo: string
@@ -144,5 +145,28 @@ export interface CompanyDataFormState {
 export interface CompanyDataFormProps {
   company: Company
   loading?: boolean
+}
+
+export interface CompanyUpdate {
+  name: string
+  fullName: string
+  inn: string
+  kpp: string
+  ogrn: string
+  registrationDate: string
+  country: string | undefined
+  federalDistrict: string | undefined
+  region: string | undefined
+  city: string | undefined
+  productionAddress: string
+  officials: CompanyOfficial[]
+  tradeActivity: 'Покупатель' | 'Продавец' | 'Покупатель и продавец'
+  businessType: 'Производство товаров' | 'Оказание услуг' | 'Производство товаров и оказание услуг'
+  activityType: string
+  description: string
+  website: string | undefined
+  legalAddress: string
+  phone: string
+  email: string
 }
 

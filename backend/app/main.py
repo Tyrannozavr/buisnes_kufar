@@ -9,6 +9,8 @@ from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -21,11 +23,21 @@ from .api.authentication.router import router as auth_router
 from .api.common.router import router as common_router
 from .api.company.router import router as company_router
 
+# Import all schemas to ensure they are included in the OpenAPI schema
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, RegistrationTokenResponse
+from app.api.company.schemas.company import CompanyResponse, CompanyUpdate, CompanyOfficial, CompanyOfficialUpdate
+from app.schemas.user import UserLogin, UserBase, UserCreate, UserResponse
+
 load_dotenv()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    docs_url="/docs",
+    redoc_url=None,
+    swagger_ui_parameters={"persistAuthorization": True}
 )
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -63,9 +75,7 @@ async def shutdown():
 
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(company_router, prefix="/api/v1")
-app.include_router(common_router, prefix="/api/v1")
+
 
 
 @app.get("/", response_class=HTMLResponse)

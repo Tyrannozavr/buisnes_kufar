@@ -168,12 +168,21 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
         />
       </UFormField>
 
-      <UFormField label="Название организации" required help="Краткое название организации для визитной карточки">
+      <UFormField label="Название организации" required help="Краткое название для отображения в карточке компании и списках">
         <UInput
-            :model-value="formState.companyName"
-            placeholder="Краткое название организации"
+            :model-value="formState.name"
+            placeholder="Например: ЭкоПродукт"
             class="min-w-1/2"
-            @update:model-value="value => updateField('companyName', value)"
+            @update:model-value="value => updateField('name', value)"
+        />
+      </UFormField>
+
+      <UFormField label="Полное юридическое название" required help="Полное название организации с указанием организационно-правовой формы">
+        <UInput
+            :model-value="formState.fullName"
+            placeholder="Например: ООО 'ЭкоПродукт'"
+            class="min-w-1/2"
+            @update:model-value="value => updateField('fullName', value)"
         />
       </UFormField>
 

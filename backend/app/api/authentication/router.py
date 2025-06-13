@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Response, HTTPException, status, Request
+import json
+from typing import Optional
+
+from fastapi import APIRouter, Response, HTTPException, status, Request, Form
 from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token
 from app.api.authentication.services.auth_service import AuthService
-from app.api.dependencies import get_async_db
+from app.api.dependencies import async_db_dep
 from app.core.config import settings
 from app.core.security import create_access_token
+from app.db.base import get_async_db
 from app.schemas.user import UserLogin
 
 router = APIRouter()
@@ -56,7 +60,7 @@ async def verify_token(
 @router.post("/login", response_model=Token)
 async def login(
     user_data: UserLogin,
-    db: get_async_db
+    db: async_db_dep
 ):
     """
     Login user with INN and password.
@@ -82,6 +86,39 @@ async def login(
         expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/auth/token", response_model=Token)
+async def login(
+        db: get_async_db,
+        username: str = Form(...),
+    password: str = Form(...),
+    grant_type: Optional[str] = Form(None),
+):
+    """
+    Login user with username (INN) and password.
+
+    """
+
+
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    user = await auth_service.authenticate_user_by_inn(username, password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect INN or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
     return {
         "access_token": access_token,
         "token_type": "bearer"

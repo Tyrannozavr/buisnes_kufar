@@ -1,108 +1,81 @@
 <script setup lang="ts">
-import type {Company} from '~/types/company'
-import PageLoader from "~/components/ui/PageLoader.vue";
-import { getMyCompany, updateCompany } from '~/api/company'
+import { ref, onMounted } from 'vue'
+import type { Company, CompanyUpdate } from '~/types/company'
+import { getMyCompany, updateCompany, uploadCompanyLogo } from '~/api/company'
 
-definePageMeta({
-  layout: 'profile'
-})
-
-// Get route to check for query parameters
-const route = useRoute()
-
-// Check if user just registered
-onMounted(() => {
-  if (route.query.registered === 'true') {
-    // Show success toast for registration
-    useToast().add({
-      title: 'Успешно',
-      description: 'Вы успешно зарегистрировались',
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-
-    // Remove the query parameter from URL without reloading the page
-    const router = useRouter()
-    router.replace({ path: route.path })
-  }
-})
-
-const loading = ref(true)
+// Company data
 const company = ref<Company | null>(null)
-const companyError = ref<Error | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-const fetchCompany = async () => {
+// Load company data
+const loadCompany = async () => {
   loading.value = true
+  error.value = null
   try {
     company.value = await getMyCompany()
-    companyError.value = null
-  } catch (error) {
-    companyError.value = error instanceof Error ? error : new Error('Failed to fetch company data')
-    useToast().add({
-      title: 'Ошибка',
-      description: companyError.value.message,
-      color: 'error'
-    })
+  } catch (e: any) {
+    error.value = e.message || 'Ошибка загрузки данных компании'
+    useToast().add({ title: 'Ошибка', description: error.value, color: 'error' })
   } finally {
     loading.value = false
   }
 }
 
-// Initial fetch
-await fetchCompany()
-
-const saving = ref(false)
-
-const handleSaveCompany = async (data: Partial<Company>) => {
-  saving.value = true
+// Handle form submission
+const handleSave = async (data: CompanyUpdate) => {
+  loading.value = true
+  error.value = null
   try {
-    await updateCompany({...company.value, ...data})
-    await fetchCompany()
-    useToast().add({
-      title: 'Успешно',
-      description: 'Данные компании обновлены',
-      color: 'primary'
-    })
-  } catch (e) {
-    useToast().add({
-      title: 'Ошибка',
-      description: e instanceof Error ? e.message : 'Не удалось обновить данные компании',
-      color: 'error'
-    })
+    company.value = await updateCompany(data)
+    useToast().add({ title: 'Успешно', description: 'Данные компании обновлены', color: 'success' })
+  } catch (e: any) {
+    error.value = e.message || 'Ошибка при обновлении данных компании'
+    useToast().add({ title: 'Ошибка', description: error.value, color: 'error' })
   } finally {
-    saving.value = false
+    loading.value = false
   }
 }
 
+// Handle logo upload
+const handleLogoUpload = async (file: File) => {
+  loading.value = true
+  error.value = null
+  try {
+    company.value = await uploadCompanyLogo(file)
+    useToast().add({ title: 'Успешно', description: 'Логотип компании обновлен', color: 'success' })
+  } catch (e: any) {
+    error.value = e.message || 'Ошибка при загрузке логотипа'
+    useToast().add({ title: 'Ошибка', description: error.value, color: 'error' })
+  } finally {
+    loading.value = false
+  }
+}
+
+// Load company data on mount
+onMounted(() => {
+  loadCompany()
+})
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto">
-    <div v-if="loading">
-      <PageLoader/>
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold text-gray-900 mb-8">Company Profile</h1>
+
+    <div v-if="error" class="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+      {{ error }}
     </div>
 
-    <UAlert
-        v-else-if="companyError"
-        color="error"
-        :title="companyError.toString()"
-        icon="i-heroicons-exclamation-circle"
-    />
+    <div v-if="loading && !company" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+    </div>
 
-    <UAlert
-        v-else-if="!company"
-        color="warning"
-        title="Данные компании не найдены"
-        description="Не удалось загрузить данные компании. Пожалуйста, попробуйте позже."
-        icon="i-heroicons-exclamation-triangle"
-    />
-
-    <!-- Company Data Section -->
     <CompanyDataForm
-        v-else
-        :company="company"
-        :loading="saving"
-        @save="handleSaveCompany"
+      v-else-if="company"
+      :company="company"
+      :loading="loading"
+      @save="handleSave"
+      @logo-upload="handleLogoUpload"
     />
   </div>
 </template>

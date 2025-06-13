@@ -26,6 +26,15 @@ export default defineNuxtPlugin((nuxtApp) => {
         headers.set('Authorization', `Bearer ${accessToken.value}`)
         options.headers = headers
       }
+    },
+    // Add global error handler
+    onResponseError({ response }) {
+      if (response.status === 401) {
+        // Clear the access token
+        accessToken.value = null
+        // Redirect to login page
+        navigateTo('/auth/login')
+      }
     }
   })
 

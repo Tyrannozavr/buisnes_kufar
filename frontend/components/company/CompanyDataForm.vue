@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import type {CompanyDataFormProps, CompanyDataFormState, CompanyOfficial} from '~/types/company'
+import type {Company, CompanyUpdate, CompanyDataFormProps, CompanyDataFormState, CompanyOfficial} from '~/types/company'
+import type {LocationItem} from '~/types/location'
 import {useLocationsApi} from '~/api/locations'
 
-const props = defineProps<CompanyDataFormProps>()
+const props = defineProps<{
+  company?: Company
+  loading?: boolean
+}>()
 
-const emits = defineEmits(['save'])
+const emit = defineEmits<{
+  (e: 'save', data: CompanyUpdate): void
+  (e: 'logo-upload', file: File): void
+}>()
 
 // Определяем тип для значений формы
 interface Official {
@@ -27,7 +34,8 @@ const formState = ref<CompanyDataFormState>({
   businessType: '',
   activityType: '',
   position: '',
-  companyName: '',
+  name: '',
+  fullName: '',
   companyDescription: '',
   companyWebsite: '',
   companyLogo: '',
@@ -35,6 +43,36 @@ const formState = ref<CompanyDataFormState>({
   companyPhone: '',
   companyEmail: ''
 })
+
+// Initialize form state with company data if available
+watch(() => props.company, (newCompany) => {
+  if (newCompany) {
+    formState.value = {
+      inn: newCompany.inn ?? '',
+      kpp: newCompany.kpp ?? '',
+      ogrn: newCompany.ogrn ?? '',
+      registrationDate: newCompany.registrationDate ?? '',
+      country: undefined,
+      federalDistrict: undefined,
+      region: undefined,
+      city: undefined,
+      productionAddress: newCompany.productionAddress ?? '',
+      officials: newCompany.officials ?? [],
+      tradeActivity: newCompany.tradeActivity ?? '',
+      businessType: newCompany.businessType ?? '',
+      activityType: newCompany.activityType ?? '',
+      position: '',
+      name: newCompany.name ?? '',
+      fullName: newCompany.fullName ?? '',
+      companyDescription: newCompany.description ?? '',
+      companyWebsite: newCompany.website ?? '',
+      companyLogo: newCompany.logo ?? '',
+      companyAddress: newCompany.legalAddress ?? '',
+      companyPhone: newCompany.phone ?? '',
+      companyEmail: newCompany.email ?? ''
+    }
+  }
+}, { immediate: true })
 
 const tradeActivityOptions = [
   {label: 'Покупатель', value: 'Покупатель'},
@@ -146,11 +184,54 @@ const removeOfficial = (index: number) => {
 
 const handleSave = () => {
   formState.value.officials = officials.value
-  emits('save', formState.value)
+  emit('save', formState.value)
 }
 
-const handleLogoUpload = () => {
-  // TODO: Implement logo upload
+const handleLogoUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+  
+  const file = input.files[0]
+  if (file) {
+    emit('logo-upload', file)
+  }
+}
+
+const handleSubmit = () => {
+  const data: CompanyUpdate = {
+    name: formState.value.name,
+    fullName: formState.value.fullName,
+    inn: formState.value.inn,
+    kpp: formState.value.kpp,
+    ogrn: formState.value.ogrn,
+    registrationDate: formState.value.registrationDate,
+    country: (formState.value.country as LocationItem)?.value,
+    federalDistrict: (formState.value.federalDistrict as LocationItem)?.value,
+    region: (formState.value.region as LocationItem)?.value,
+    city: (formState.value.city as LocationItem)?.value,
+    productionAddress: formState.value.productionAddress,
+    officials: formState.value.officials,
+    tradeActivity: formState.value.tradeActivity as CompanyUpdate['tradeActivity'],
+    businessType: formState.value.businessType as CompanyUpdate['businessType'],
+    activityType: formState.value.activityType,
+    description: formState.value.companyDescription,
+    website: formState.value.companyWebsite || undefined,
+    legalAddress: formState.value.companyAddress,
+    phone: formState.value.companyPhone,
+    email: formState.value.companyEmail
+  }
+
+  const errors = validateForm()
+  if (errors.length > 0) {
+    useToast().add({
+      title: 'Ошибка валидации',
+      description: errors.join('\n'),
+      color: 'error'
+    })
+    return
+  }
+
+  emit('save', data)
 }
 
 // Добавляем определение positionOptions
@@ -158,6 +239,52 @@ const positionOptions = positions.map(pos => ({
   label: pos.label,
   value: pos.value
 }))
+
+const validateForm = () => {
+  const errors: string[] = []
+  
+  if (!formState.value.name) {
+    errors.push('Введите название организации')
+  }
+  if (!formState.value.fullName) {
+    errors.push('Введите полное юридическое название организации')
+  }
+  if (!formState.value.inn) {
+    errors.push('Введите ИНН')
+  }
+  if (!formState.value.ogrn) {
+    errors.push('Введите ОГРН')
+  }
+  if (!formState.value.kpp) {
+    errors.push('Введите КПП')
+  }
+  if (!formState.value.registrationDate) {
+    errors.push('Введите дату регистрации')
+  }
+  if (!formState.value.tradeActivity) {
+    errors.push('Выберите тип торговой деятельности')
+  }
+  if (!formState.value.businessType) {
+    errors.push('Выберите род деятельности')
+  }
+  if (!formState.value.activityType) {
+    errors.push('Введите вид деятельности')
+  }
+  if (!formState.value.companyAddress) {
+    errors.push('Введите юридический адрес')
+  }
+  if (!formState.value.productionAddress) {
+    errors.push('Введите адрес производства')
+  }
+  if (!formState.value.companyPhone) {
+    errors.push('Введите телефон')
+  }
+  if (!formState.value.companyEmail) {
+    errors.push('Введите email')
+  }
+  
+  return errors
+}
 </script>
 
 <template>
@@ -169,7 +296,7 @@ const positionOptions = positions.map(pos => ({
             color="primary"
             :loading="loading"
             class="cursor-pointer"
-            @click="handleSave"
+            @click="handleSubmit"
         >
           Сохранить
         </UButton>
@@ -178,7 +305,7 @@ const positionOptions = positions.map(pos => ({
 
     <UForm
         :state="formState"
-        @submit="handleSave"
+        @submit="handleSubmit"
     >
       <div class="space-y-8">
         <!-- 1. Логотип компании -->
@@ -188,7 +315,7 @@ const positionOptions = positions.map(pos => ({
             <UAvatar
                 :src="formState.companyLogo || undefined"
                 size="xl"
-                :alt="formState.companyName"
+                :alt="formState.name"
             />
             <UButton
                 color="secondary"
@@ -230,7 +357,7 @@ const positionOptions = positions.map(pos => ({
             color="primary"
             :loading="loading"
             class="w-full mt-3 cursor-pointer"
-            @click="handleSave"
+            @click="handleSubmit"
         >
           <span class="mx-auto">Сохранить</span>
         </UButton>

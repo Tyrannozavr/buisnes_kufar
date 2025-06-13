@@ -1,31 +1,41 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from app.api.authentication.services.auth_service import AuthService
-from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User
-from app.api.dependencies import get_async_db
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter()
+from app.api.authentication.dependencies import CurrentUser
+from app.api.company.repositories.company_repository import CompanyRepository
+from app.api.company.schemas.company import CompanyUpdate, CompanyResponse
+from app.api.company.services.company_service import CompanyService
+from app.db.base import get_async_db
 
-@router.get("/me", response_model=dict)
-async def get_company_info(
-    request: Request,
-    db: get_async_db
+# from app.api.dependencies import get_async_db
+
+router = APIRouter(tags=["company"])
+
+async def get_company_service(db: AsyncSession = Depends(get_async_db)) -> CompanyService:
+    company_repository = CompanyRepository(db)
+    return CompanyService(company_repository, db)
+
+@router.get("/me", response_model=CompanyResponse)
+async def get_my_company(
+    current_user: CurrentUser,
+    company_service: CompanyService = Depends(get_company_service)
 ):
-    """
-    Get current company information based on the authenticated user
-    """
-    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
-    user = await auth_service.get_current_user(request)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    
-    # For now, return mock data
-    # TODO: Replace with actual company data from database
-    return {
-        "companyName": "КосмоПорт",
-        "companyLogo": "https://sun9-64.userapi.com/impg/IRHOxDleaLUBKmbafJ-j_3Z5Y-pYSMHou64S9A/kASuUQJDYrY.jpg?size=728x546&quality=96&sign=cdbf008a6c9d088a665d8e0b2fb5141a&c_uniq_tag=YJ1-dsBQHtkD4Ssy2wd5CaQpmFxJcQVaq3xbhyqOo38&type=album"
-    } 
+    """Это проверка компании текущего пользователя. Если компании нет, создается пустая запись."""
+    company = await company_service.get_or_create_company_by_user(current_user)
+    return company
+
+@router.put("/me", response_model=CompanyResponse)
+async def update_my_company(
+    company_data: CompanyUpdate,
+    current_user: CurrentUser,
+    company_service: CompanyService = Depends(get_company_service)
+):
+    return await company_service.update_company(current_user, company_data)
+
+@router.post("/me/logo", response_model=CompanyResponse)
+async def upload_company_logo(
+    current_user: CurrentUser,
+    company_service: CompanyService = Depends(get_company_service),
+    file: UploadFile = File(...)
+):
+    return await company_service.upload_logo(current_user, file)

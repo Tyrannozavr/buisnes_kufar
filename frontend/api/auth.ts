@@ -17,16 +17,16 @@ import type {
 import { useCookie } from 'nuxt/app'
 
 export const AUTH_API = {
-  REGISTER_STEP1: '/auth/register/step1',
-  REGISTER_STEP2: '/auth/register/step2',
-  VERIFY_TOKEN: '/auth/verify-token',
-  RECOVER_PASSWORD: '/auth/recover-password',
-  VERIFY_CODE: '/auth/verify-code',
-  RESET_PASSWORD: '/auth/reset-password',
-  CHANGE_EMAIL: '/auth/change-email',
-  CHANGE_PASSWORD: '/auth/change-password',
-  LOGIN: '/auth/login',
-  COMPANY_ME: '/company/me'
+  REGISTER_STEP1: '/v1/auth/register/step1',
+  REGISTER_STEP2: '/v1/auth/register/step2',
+  VERIFY_TOKEN: '/v1/auth/verify-token',
+  RECOVER_PASSWORD: '/v1/auth/recover-password',
+  VERIFY_CODE: '/v1/auth/verify-code',
+  RESET_PASSWORD: '/v1/auth/reset-password',
+  CHANGE_EMAIL: '/v1/auth/change-email',
+  CHANGE_PASSWORD: '/v1/auth/change-password',
+  LOGIN: '/v1/auth/login',
+  COMPANY_ME: '/v1/company/me'
 } as const 
 
 export const authApi = {

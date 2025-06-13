@@ -30,24 +30,29 @@ jobs:
             set -e  # Прерывать при ошибках
             cd buisnes_kufar && \
             
-            # 1. Получаем изменения (без применения)
-            git fetch origin && \
+            # 1. Получаем и применяем изменения
+            git fetch origin
+            if git diff --quiet HEAD origin/master; then
+              echo '✅ Нет новых изменений. Выходим.'
+              exit 0
+            fi
+            git reset --hard origin/master
             
-            # 2. Запускаем контейнеры во временном режиме
+            # 2. Запускаем контейнеры с новыми изменениями
             docker compose up -d --build --force-recreate && \
             
             # 3. Даём время на запуск (если нужно)
             sleep 15 && \
             
-            # 4. Проверяем ОСНОВНЫЕ контейнеры (не все!)
-            REQUIRED_CONTAINERS='backend frontend nginx'  # ← Укажите здесь нужные сервисы
+            # 4. Проверяем ОСНОВНЫЕ контейнеры
+            REQUIRED_CONTAINERS='backend frontend nginx'
             if docker compose ps --status running | grep -qE \"(${REQUIRED_CONTAINERS// /|})\"; then
-              echo '✅ Основные контейнеры запущены! Фиксируем изменения.' && \
-              git reset --hard origin/master
+              echo '✅ Основные контейнеры запущены! Изменения применены.'
             else
-              echo '❌ Ошибка: не все контейнеры запустились! Откатываем...' && \
-              docker compose down && \
-              git reset --hard HEAD
+              echo '❌ Ошибка: не все контейнеры запустились! Откатываем...'
+              git reset --hard HEAD^
+              docker compose down
+              docker compose up -d  # Пытаемся запустить предыдущую версию
               exit 1
             fi
           "

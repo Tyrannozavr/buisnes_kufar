@@ -1,5 +1,5 @@
 from sqladmin import Admin
-from app.api.admin.admin import UserAdmin, RegistrationTokenAdmin
+from app.api.admin.admin import UserAdmin, RegistrationTokenAdmin, CompanyAdmin, CompanyOfficialAdmin
 
 
 # class AdminView(ModelView, model=AdminModel):
@@ -21,5 +21,7 @@ def setup_admin(app, engine):
     # Регистрируем представления
     admin.add_view(UserAdmin)
     admin.add_view(RegistrationTokenAdmin)
+    admin.add_view(CompanyAdmin)
+    admin.add_view(CompanyOfficialAdmin)
     
     return admin 

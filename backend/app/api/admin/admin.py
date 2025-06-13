@@ -1,11 +1,13 @@
 from sqladmin import ModelView
 from app.api.authentication.models.user import User, RegistrationToken
+from app.api.company.models.company import Company
+from app.api.company.models.official import CompanyOfficial
 from datetime import datetime
 
 
 class UserAdmin(ModelView, model=User):
-    name = "User"
-    name_plural = "Users"
+    name = "Пользователь"
+    name_plural = "Пользователи"
     icon = "fa-solid fa-user"
     
     # Настройка отображаемых колонок
@@ -79,15 +81,15 @@ class UserAdmin(ModelView, model=User):
     column_labels = {
         User.id: "ID",
         User.email: "Email",
-        User.first_name: "First Name",
-        User.last_name: "Last Name",
-        User.patronymic: "Patronymic",
-        User.phone: "Phone",
-        User.inn: "INN",
-        User.position: "Position",
-        User.is_active: "Active",
-        User.created_at: "Created At",
-        User.updated_at: "Updated At"
+        User.first_name: "Имя",
+        User.last_name: "Фамилия",
+        User.patronymic: "Отчество",
+        User.phone: "Телефон",
+        User.inn: "ИНН",
+        User.position: "Должность",
+        User.is_active: "Активен",
+        User.created_at: "Дата создания",
+        User.updated_at: "Дата обновления"
     }
     
     # Настройка форматирования
@@ -111,8 +113,8 @@ class UserAdmin(ModelView, model=User):
 
 
 class RegistrationTokenAdmin(ModelView, model=RegistrationToken):
-    name = "Registration Token"
-    name_plural = "Registration Tokens"
+    name = "Токен регистрации"
+    name_plural = "Токены регистрации"
     icon = "fa-solid fa-key"
     
     # Настройка отображаемых колонок
@@ -174,12 +176,12 @@ class RegistrationTokenAdmin(ModelView, model=RegistrationToken):
     # Настройка отображения в списке
     column_labels = {
         RegistrationToken.id: "ID",
-        RegistrationToken.token: "Token",
+        RegistrationToken.token: "Токен",
         RegistrationToken.email: "Email",
-        RegistrationToken.user_id: "User ID",
-        RegistrationToken.created_at: "Created At",
-        RegistrationToken.expires_at: "Expires At",
-        RegistrationToken.is_used: "Used"
+        RegistrationToken.user_id: "ID пользователя",
+        RegistrationToken.created_at: "Дата создания",
+        RegistrationToken.expires_at: "Срок действия",
+        RegistrationToken.is_used: "Использован"
     }
     
     # Настройка форматирования
@@ -198,5 +200,233 @@ class RegistrationTokenAdmin(ModelView, model=RegistrationToken):
     column_default_sort = (RegistrationToken.created_at, True)
     can_create = False
     can_edit = True  # Разрешаем редактирование
+    can_delete = True
+    can_view_details = True
+
+
+class CompanyAdmin(ModelView, model=Company):
+    name = "Компания"
+    name_plural = "Компании"
+    icon = "fa-solid fa-building"
+    
+    # Настройка отображаемых колонок
+    column_list = [
+        Company.id,
+        Company.name,
+        Company.type,
+        Company.trade_activity,
+        Company.business_type,
+        Company.inn,
+        Company.ogrn,
+        Company.email,
+        Company.phone,
+        Company.city,
+        Company.created_at,
+        Company.updated_at
+    ]
+    
+    # Настройка поиска
+    column_searchable_list = [
+        Company.name,
+        Company.inn,
+        Company.ogrn,
+        Company.email,
+        Company.phone,
+        Company.city
+    ]
+    
+    # Настройка фильтров
+    column_filters = [
+        Company.trade_activity,
+        Company.business_type,
+        Company.type,
+        Company.created_at,
+        Company.updated_at
+    ]
+    
+    # Настройка сортировки
+    column_sortable_list = [
+        Company.id,
+        Company.name,
+        Company.created_at,
+        Company.updated_at,
+        Company.trade_activity,
+        Company.business_type
+    ]
+    
+    # Настройка детальной информации
+    column_details_list = [
+        Company.id,
+        Company.name,
+        Company.slug,
+        Company.logo,
+        Company.type,
+        Company.trade_activity,
+        Company.business_type,
+        Company.activity_type,
+        Company.description,
+        Company.country,
+        Company.federal_district,
+        Company.region,
+        Company.city,
+        Company.full_name,
+        Company.inn,
+        Company.ogrn,
+        Company.kpp,
+        Company.registration_date,
+        Company.legal_address,
+        Company.production_address,
+        Company.phone,
+        Company.email,
+        Company.website,
+        Company.total_views,
+        Company.monthly_views,
+        Company.total_purchases,
+        Company.created_at,
+        Company.updated_at,
+        Company.user_id
+    ]
+    
+    # Настройка формы редактирования
+    form_columns = [
+        Company.name,
+        Company.type,
+        Company.trade_activity,
+        Company.business_type,
+        Company.activity_type,
+        Company.description,
+        Company.country,
+        Company.federal_district,
+        Company.region,
+        Company.city,
+        Company.full_name,
+        Company.inn,
+        Company.ogrn,
+        Company.kpp,
+        Company.registration_date,
+        Company.legal_address,
+        Company.production_address,
+        Company.phone,
+        Company.email,
+        Company.website,
+        Company.user_id
+    ]
+    
+    # Настройка отображения в списке
+    column_labels = {
+        Company.id: "ID",
+        Company.name: "Название",
+        Company.slug: "Slug",
+        Company.logo: "Логотип",
+        Company.type: "Тип",
+        Company.trade_activity: "Торговая деятельность",
+        Company.business_type: "Тип бизнеса",
+        Company.activity_type: "Вид деятельности",
+        Company.description: "Описание",
+        Company.country: "Страна",
+        Company.federal_district: "Федеральный округ",
+        Company.region: "Регион",
+        Company.city: "Город",
+        Company.full_name: "Полное наименование",
+        Company.inn: "ИНН",
+        Company.ogrn: "ОГРН",
+        Company.kpp: "КПП",
+        Company.registration_date: "Дата регистрации",
+        Company.legal_address: "Юридический адрес",
+        Company.production_address: "Производственный адрес",
+        Company.phone: "Телефон",
+        Company.email: "Email",
+        Company.website: "Веб-сайт",
+        Company.total_views: "Всего просмотров",
+        Company.monthly_views: "Просмотров за месяц",
+        Company.total_purchases: "Всего покупок",
+        Company.created_at: "Дата создания",
+        Company.updated_at: "Дата обновления",
+        Company.user_id: "ID пользователя"
+    }
+    
+    # Настройка форматирования
+    column_formatters = {
+        Company.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
+        Company.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None,
+        Company.registration_date: lambda m, a: m.registration_date.strftime("%Y-%m-%d") if m.registration_date else None
+    }
+    
+    # Настройка валидации формы
+    form_widget_args = {
+        "slug": {"readonly": True},
+        "created_at": {"readonly": True},
+        "updated_at": {"readonly": True},
+        "total_views": {"readonly": True},
+        "monthly_views": {"readonly": True},
+        "total_purchases": {"readonly": True}
+    }
+    
+    column_default_sort = (Company.created_at, True)
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_view_details = True
+
+
+class CompanyOfficialAdmin(ModelView, model=CompanyOfficial):
+    name = "Представитель компании"
+    name_plural = "Представители компаний"
+    icon = "fa-solid fa-user-tie"
+    
+    # Настройка отображаемых колонок
+    column_list = [
+        CompanyOfficial.id,
+        CompanyOfficial.position,
+        CompanyOfficial.full_name,
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка поиска
+    column_searchable_list = [
+        CompanyOfficial.position,
+        CompanyOfficial.full_name,
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка фильтров
+    column_filters = [
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка сортировки
+    column_sortable_list = [
+        CompanyOfficial.id,
+        CompanyOfficial.position,
+        CompanyOfficial.full_name,
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка детальной информации
+    column_details_list = [
+        CompanyOfficial.id,
+        CompanyOfficial.position,
+        CompanyOfficial.full_name,
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка формы редактирования
+    form_columns = [
+        CompanyOfficial.position,
+        CompanyOfficial.full_name,
+        CompanyOfficial.company_id
+    ]
+    
+    # Настройка отображения в списке
+    column_labels = {
+        CompanyOfficial.id: "ID",
+        CompanyOfficial.position: "Должность",
+        CompanyOfficial.full_name: "ФИО",
+        CompanyOfficial.company_id: "ID компании"
+    }
+    
+    column_default_sort = (CompanyOfficial.id, True)
+    can_create = True
+    can_edit = True
     can_delete = True
     can_view_details = True 

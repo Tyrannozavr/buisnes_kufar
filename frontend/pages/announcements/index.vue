@@ -4,8 +4,9 @@ import { useAnnouncements } from '~/api/announcements'
 const currentPage = ref(1)
 const perPage = ref(10)
 
-const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements } = useAnnouncements(currentPage.value, perPage.value)
-
+const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements }
+    = useAnnouncements(currentPage.value, perPage.value)
+console.log('Announcements:', response.value)
 const announcements = computed(() => response.value?.data || [])
 const pagination = computed(() => response.value?.pagination || {
   total: 0,
@@ -62,7 +63,6 @@ watch(currentPage, async (newPage) => {
               :total="pagination.total"
               :per-page="perPage"
               :ui="{
-              wrapper: 'flex items-center justify-center',
               base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
               default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
               active: 'text-primary-500 dark:text-primary-400',

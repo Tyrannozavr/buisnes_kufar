@@ -1,4 +1,5 @@
 import type { CompanyResponse, CompanyUpdate } from '~/types/company'
+import type { ProductResponse } from '~/types/product'  // Убедитесь, что этот тип определен
 import { useNuxtApp } from 'nuxt/app'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useCookie } from 'nuxt/app'
@@ -41,4 +42,16 @@ export const uploadCompanyLogo = async (file: File): Promise<CompanyResponse> =>
 export const createCompany = async (data: CompanyUpdate): Promise<CompanyResponse> => {
   const { $api } = useNuxtApp()
   return await $api.post('/v1/company/me', data)
-} 
+}
+
+export const getMyProducts = async (): Promise<ProductResponse> => {
+  const { $api } = useNuxtApp()
+  try {
+    return await $api.get('/v1/company/me/products')
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      throw new Error('PRODUCTS_NOT_FOUND')
+    }
+    throw error
+  }
+}

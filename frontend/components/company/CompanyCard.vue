@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
+import { getFullImageUrl } from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
 
@@ -58,7 +59,7 @@ const handleDelete = async () => {
     <!-- Company Logo -->
     <div class="flex-shrink-0">
       <NuxtImg
-        :src="partner.logo || '/images/default-company-logo.png'"
+        :src="getFullImageUrl(partner.logo) || '/images/default-company-logo.png'"
         :alt="partner.fullName"
         class="w-16 h-16 rounded-lg object-cover"
       />

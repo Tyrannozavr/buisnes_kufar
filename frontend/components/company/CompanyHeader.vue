@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { getFullImageUrl } from '~/types/company'
+
 interface CompanyHeaderProps {
-  logo: string
+  logo: string | null
   name: string
   country: string
   region: string
@@ -15,7 +17,7 @@ defineProps<CompanyHeaderProps>()
   <div class="bg-white rounded-lg p-6 shadow-sm">
     <div class="flex items-start gap-6">
       <UAvatar
-        :src="logo"
+        :src="getFullImageUrl(logo) || undefined"
         :alt="name"
         size="xl"
         class="flex-shrink-0"
@@ -41,7 +43,4 @@ defineProps<CompanyHeaderProps>()
 </template>
 
 <style scoped>
-.company-header {
-  @apply bg-white rounded-lg p-6 shadow-sm;
-}
 </style> 

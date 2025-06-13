@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List, Union
-from pydantic import BaseModel, EmailStr, HttpUrl, constr, conint
+from pydantic import BaseModel, EmailStr, HttpUrl, constr, conint, Field, model_serializer, ConfigDict, computed_field, \
+    model_validator
 from app.api.company.models.company import TradeActivity, BusinessType
 
 class CompanyOfficialBase(BaseModel):
@@ -87,7 +88,14 @@ class CompanyUpdate(BaseModel):
     # Contact information
     phone: Optional[constr(min_length=10, max_length=20)] = None
     email: Optional[EmailStr] = None
-    website: Optional[HttpUrl] = None
+    website: Optional[Union[HttpUrl, str]] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_website(cls, values):
+        if 'website' in values and isinstance(values['website'], HttpUrl):
+            values['website'] = str(values['website'])
+        return values
     
     # Officials
     officials: Optional[List[CompanyOfficialUpdate]] = None
@@ -137,6 +145,15 @@ class CompanyResponse(BaseModel):
     total_purchases: int
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def logo_url(self) -> Optional[str]:
+        if self.logo:
+            return f"http://localhost:8000{self.logo}"
+        return None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CompanyProfileResponse(BaseModel):
     """Response model that combines user and company data for profile display"""

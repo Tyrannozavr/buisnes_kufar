@@ -1,5 +1,7 @@
 import type { CompanyResponse, CompanyUpdate } from '~/types/company'
 import { useNuxtApp } from 'nuxt/app'
+import { useRuntimeConfig } from 'nuxt/app'
+import { useCookie } from 'nuxt/app'
 
 export const getMyCompany = async (): Promise<CompanyResponse> => {
   const { $api } = useNuxtApp()
@@ -19,13 +21,19 @@ export const updateCompany = async (data: CompanyUpdate): Promise<CompanyRespons
 }
 
 export const uploadCompanyLogo = async (file: File): Promise<CompanyResponse> => {
-  const { $api } = useNuxtApp()
+  const config = useRuntimeConfig()
+  const apiBaseUrl = config.public.apiBaseUrl
+  const accessToken = useCookie('access_token')
+
   const formData = new FormData()
   formData.append('file', file)
   
-  return await $api.post('/v1/company/me/logo', formData, {
+  return await $fetch<CompanyResponse>(`${apiBaseUrl}/v1/company/me/logo`, {
+    method: 'POST',
+    body: formData,
     headers: {
-      'Content-Type': 'multipart/form-data'
+      'Accept': 'application/json',
+      'Authorization': accessToken.value ? `Bearer ${accessToken.value}` : ''
     }
   })
 }

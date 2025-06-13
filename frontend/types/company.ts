@@ -129,6 +129,7 @@ export interface CompanyResponse {
   name: string
   full_name: string
   logo: string | null
+  logo_url: string | null
   type: string
   slug: string
   trade_activity: TradeActivity
@@ -179,6 +180,7 @@ export interface CompanyDataFormState {
   city?: LocationItem
   officials: CompanyOfficial[]
   logo: string | null
+  logo_url: string | null
 }
 
 export interface CompanyDataFormProps {
@@ -219,5 +221,24 @@ export interface CompanyProfile {
   inn: string
   position: string | null
   isCompanyCreated: boolean
+}
+
+// Функция для формирования полного URL изображения
+export const getFullImageUrl = (path: string | null): string | null => {
+  if (!path) return null
+  
+  const config = useRuntimeConfig()
+  const frontendUrl = config.public.frontendUrl || ''
+  
+  // Если путь уже полный URL, возвращаем как есть
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  
+  // Убираем начальный слеш, если он есть
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path
+  
+  // Формируем полный URL
+  return `${frontendUrl}/${cleanPath}`
 }
 

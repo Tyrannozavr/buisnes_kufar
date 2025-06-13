@@ -77,6 +77,13 @@ async def shutdown():
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+# Get the absolute path to the uploads directory
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+
+# Mount the static files directory
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):

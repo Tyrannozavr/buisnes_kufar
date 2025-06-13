@@ -1,4 +1,6 @@
 from typing import Optional, List
+
+from pydantic import HttpUrl
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload
@@ -73,6 +75,11 @@ class CompanyRepository:
     async def update(self, company_id: int, company_data: CompanyUpdate) -> Optional[Company]:
         # Update company fields
         update_data = company_data.model_dump(exclude_unset=True)
+
+        # Convert HttpUrl to string if present
+        if 'website' in update_data and isinstance(update_data['website'], HttpUrl):
+            update_data['website'] = str(update_data['website'])
+
         if 'officials' in update_data:
             officials_data = update_data.pop('officials')
             

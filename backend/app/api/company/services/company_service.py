@@ -105,7 +105,7 @@ class CompanyService:
                 detail="Company not found after logo update"
             )
         
-        return CompanyResponse.model_validate(updated_company)
+        return CompanyResponse.model_validate(updated_company.__dict__)
 
     async def get_or_create_company_by_user(self, user: User) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)

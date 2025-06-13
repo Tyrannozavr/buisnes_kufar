@@ -1,24 +1,29 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
-import type { 
-  CompanyResponse, 
-  CompanyUpdate, 
-  CompanyDataFormState, 
+import {onMounted, ref, watch} from 'vue'
+import type {
+  BusinessType,
   CompanyDataFormProps,
+  CompanyDataFormState,
   CompanyOfficial,
-  TradeActivity,
-  BusinessType
+  CompanyResponse,
+  CompanyUpdate,
+  TradeActivity
 } from '~/types/company'
-import type { LocationItem } from '~/types/location'
-import { useLocationsApi } from '~/api/locations'
+import type {LocationItem} from '~/types/location'
+import {useLocationsApi} from '~/api/locations'
+import {useUserStore} from '~/stores/user'
+import {uploadCompanyLogo} from '~/api/company'
 
 const props = defineProps<CompanyDataFormProps>()
 
 const emit = defineEmits<{
   (e: 'save', data: CompanyUpdate): void
   (e: 'logo-upload', file: File): void
+  (e: 'logo-updated', data: CompanyResponse): void
 }>()
 
+const userStore = useUserStore()
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const officials = ref<CompanyOfficial[]>(props.company?.officials || [])
 
@@ -139,7 +144,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       region: undefined,
       city: undefined,
       officials: [],
-      logo: null
+      logo: null,
+      logo_url: null
     }
   }
 
@@ -159,6 +165,7 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     production_address: productionAddressValue,
     officials: officialsValue,
     logo: logoValue,
+    logo_url: logoUrlValue,
     full_name: fullNameValue,
     inn: innValue,
     kpp: kppValue,
@@ -194,7 +201,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     region,
     city,
     officials: officialsValue,
-    logo: logoValue
+    logo: logoValue,
+    logo_url: logoUrlValue
   }
 }
 
@@ -335,21 +343,35 @@ const positions = [
   {label: 'Руководитель производства', value: 'Руководитель производства'}
 ]
 
-const addOfficial = () => {
-  officials.value.push({position: '', fullName: ''})
-}
-
-const removeOfficial = (index: number) => {
-  if (officials.value.length > 1) {
-    officials.value.splice(index, 1)
+const handleLogoUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+  
+  const file = input.files[0]
+  if (file) {
+    try {
+      const response = await uploadCompanyLogo(file)
+      if (response) {
+        formState.value.logo = response.logo_url
+        // Emit event with updated company data
+        emit('logo-updated', response)
+        useToast().add({
+          title: 'Успешно',
+          description: 'Логотип компании обновлен',
+          color: 'success'
+        })
+      }
+    } catch (error) {
+      useToast().add({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить логотип',
+        color: 'error'
+      })
+    }
   }
 }
 
-const handleSubmit = () => {
-  // Преобразуем дату в формат ISO
-  const registrationDate = formState.value.registrationDate 
-    ? new Date(formState.value.registrationDate).toISOString()
-    : undefined
+const handleSubmit = async () => {
 
   const data: CompanyUpdate = transformFormData(formState.value)
 
@@ -364,16 +386,6 @@ const handleSubmit = () => {
   }
 
   emit('save', data)
-}
-
-const handleLogoUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (!input.files?.length) return
-  
-  const file = input.files[0]
-  if (file) {
-    emit('logo-upload', file)
-  }
 }
 
 // Добавляем определение positionOptions
@@ -473,15 +485,22 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo || undefined"
+                :src="formState.logo_url || undefined"
                 size="xl"
                 :alt="formState.name"
+            />
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleLogoUpload"
             />
             <UButton
                 color="secondary"
                 variant="soft"
                 icon="i-heroicons-photo"
-                @click="handleLogoUpload"
+                @click="fileInputRef?.click()"
             >
               Загрузить логотип
             </UButton>
@@ -518,7 +537,7 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
           <div class="flex items-center gap-4">
             <UCombobox
                 v-model="formState.country"
-                :options="countries"
+                :items="countries"
                 label="Страна"
                 placeholder="Выберите страну"
                 @update:model-value="handleCountryChange"
@@ -526,21 +545,21 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
             <UCombobox
                 v-if="formState.country?.value === 'Россия'"
                 v-model="formState.federalDistrict"
-                :options="federalDistricts"
+                :items="federalDistricts"
                 label="Федеральный округ"
                 placeholder="Выберите федеральный округ"
                 @update:model-value="handleFederalDistrictChange"
             />
             <UCombobox
                 v-model="formState.region"
-                :options="regions"
+                :items="regions"
                 label="Регион"
                 placeholder="Выберите регион"
                 @update:model-value="handleRegionChange"
             />
             <UCombobox
                 v-model="formState.city"
-                :options="cities"
+                :items="cities"
                 label="Город"
                 :placeholder="isCityManuallyChanged ? 'Введите название города' : 'Город'"
                 :search-input="{

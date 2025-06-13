@@ -42,7 +42,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
-      - ./nginx/webroot:/var/www/html  # Add this volume
+      - ./nginx/webroot:/var/www/html
       - ./backend/uploads:/app/uploads
       - ./backend/app/static:/usr/share/nginx/html/static
     depends_on:
@@ -54,8 +54,6 @@ services:
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
       - ./nginx/webroot:/var/www/html
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
     command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive
     depends_on:
       - nginx

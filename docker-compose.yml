@@ -43,7 +43,7 @@ services:
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
       - ./nginx/webroot:/var/www/html  # Add this volume
-      - ./backend/uploads:/usr/share/nginx/html/uploads
+      - ./backend/uploads:/app/uploads
       - ./backend/app/static:/usr/share/nginx/html/static
     depends_on:
       - backend

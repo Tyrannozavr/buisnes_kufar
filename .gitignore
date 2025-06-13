@@ -2,3 +2,4 @@
 backend/cache/cache.db*
 /backend/cache/
 /backend/database.db
+/backend/cache/

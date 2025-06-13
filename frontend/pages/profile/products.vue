@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CompanyProducts from "~/components/company/CompanyProducts.vue"
-import {getMyProducts} from '~/api/company'
+import {getMyProducts} from '~/api/companyOwner'
 
 definePageMeta({
   layout: 'profile'

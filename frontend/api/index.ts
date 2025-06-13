@@ -1,6 +1,6 @@
 export * from './announcements'
 export * from './companies'
-export * from './company'
+export * from './companyOwner'
 export * from './suppliers'
 export * from './buyers'
 export * from './partners'

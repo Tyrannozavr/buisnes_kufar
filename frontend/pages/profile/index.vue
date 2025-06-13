@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { CompanyResponse, CompanyUpdate } from '~/types/company'
-import { getMyCompany, updateCompany, createCompany, uploadCompanyLogo } from '~/api/company'
+import { getMyCompany, updateCompany, createCompany, uploadCompanyLogo } from '~/api/companyOwner'
 import { useUserStore } from '~/stores/user'
 // Company data
 const company = ref<CompanyResponse | null>(null)

@@ -1,57 +1,42 @@
-import type { CompanyResponse, CompanyUpdate } from '~/types/company'
-import type { ProductResponse } from '~/types/product'  // Убедитесь, что этот тип определен
-import { useNuxtApp } from 'nuxt/app'
-import { useRuntimeConfig } from 'nuxt/app'
-import { useCookie } from 'nuxt/app'
+import type { CompanyResponse, CompanyProductsResponse, CompanyStatisticsResponse } from '~/types/company'
 
-export const getMyCompany = async (): Promise<CompanyResponse> => {
-  const { $api } = useNuxtApp()
-  try {
-    return await $api.get('/v1/company/me')
-  } catch (error: any) {
-    if (error.response?.status === 404) {
-      throw new Error('COMPANY_NOT_FOUND')
+export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyStatisticsResponse }> => {
+  // В реальном приложении здесь был бы API-запрос
+  return {
+    data: {
+      totalViews: 0,
+      monthlyViews: 0,
+      totalPurchases: 0,
+      // Добавьте другие статистические поля, если они есть в CompanyStatisticsResponse
     }
-    throw error
   }
 }
 
-export const updateCompany = async (data: CompanyUpdate): Promise<CompanyResponse> => {
-  const { $api } = useNuxtApp()
-  return await $api.put('/v1/company/me', data)
+export const getCompanyProducts = async (id: string): Promise<{ data: CompanyProductsResponse }> => {
+  // В реальном приложении здесь был бы API-запрос
+  return {
+    data: [] // Пустой массив продуктов
+  }
 }
 
-export const uploadCompanyLogo = async (file: File): Promise<CompanyResponse> => {
-  const config = useRuntimeConfig()
-  const apiBaseUrl = config.public.apiBaseUrl
-  const accessToken = useCookie('access_token')
-
-  const formData = new FormData()
-  formData.append('file', file)
-  
-  return await $fetch<CompanyResponse>(`${apiBaseUrl}/v1/company/me/logo`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'Accept': 'application/json',
-      'Authorization': accessToken.value ? `Bearer ${accessToken.value}` : ''
+export const getCompany = async (id: string): Promise<{ data: CompanyResponse }> => {
+  // В реальном приложении здесь был бы API-запрос
+  return {
+    data: {
+      id: id,
+      name: '',
+      description: '',
+      inn: '',
+      ogrn: '',
+      registrationDate: '',
+      kpp: '',
+      legalAddress: '',
+      productionAddress: '',
+      phone: '',
+      email: '',
+      website: '',
+      logo: null,
+      // Добавьте другие поля, которые могут быть в CompanyResponse
     }
-  })
-}
-
-export const createCompany = async (data: CompanyUpdate): Promise<CompanyResponse> => {
-  const { $api } = useNuxtApp()
-  return await $api.post('/v1/company/me', data)
-}
-
-export const getMyProducts = async (): Promise<ProductResponse> => {
-  const { $api } = useNuxtApp()
-  try {
-    return await $api.get('/v1/company/me/products')
-  } catch (error: any) {
-    if (error.response?.status === 404) {
-      throw new Error('PRODUCTS_NOT_FOUND')
-    }
-    throw error
   }
 }

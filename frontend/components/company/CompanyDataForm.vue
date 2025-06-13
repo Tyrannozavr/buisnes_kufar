@@ -12,7 +12,7 @@ import type {
 import type {LocationItem} from '~/types/location'
 import {useLocationsApi} from '~/api/locations'
 import {useUserStore} from '~/stores/user'
-import {uploadCompanyLogo} from '~/api/company'
+import {uploadCompanyLogo} from '~/api/companyOwner'
 
 const props = defineProps<CompanyDataFormProps>()
 

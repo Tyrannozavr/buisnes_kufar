@@ -4,3 +4,11 @@ backend/cache/cache.db*
 /backend/database.db
 backend/cache/cache.db-shm
 backend/cache/cache.db-wal
+postgres-data/
+/backend/cache/
+/backend/uploads/
+/logs/
+/nginx/letsencrypt/
+/backend/cache/
+/backend/uploads/
+/logs/

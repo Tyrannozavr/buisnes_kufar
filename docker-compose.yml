@@ -14,6 +14,8 @@ services:
       - ./logs/backend:/app/logging
       - ./backend/cache:/app/cache
       - ./backend/database.db:/app/database.db
+      - ./backend/uploads:/app/uploads
+      - ./backend/app/static:/app/app/static
     env_file:
       - ./backend/.env
 
@@ -41,6 +43,8 @@ services:
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
       - ./nginx/webroot:/var/www/html  # Add this volume
+      - ./backend/uploads:/usr/share/nginx/html/uploads
+      - ./backend/app/static:/usr/share/nginx/html/static
     depends_on:
       - backend
       - frontend

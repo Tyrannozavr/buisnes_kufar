@@ -1,2 +1,4 @@
 /nginx_dev/
 backend/cache/cache.db*
+/backend/cache/
+/backend/database.db

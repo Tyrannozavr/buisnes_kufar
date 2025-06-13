@@ -4,6 +4,9 @@ from pydantic import BaseModel, EmailStr, HttpUrl, constr, conint, Field, model_
     model_validator
 from app.api.company.models.company import TradeActivity, BusinessType
 
+from app.core.config import settings
+
+
 class CompanyOfficialBase(BaseModel):
     position: str
     full_name: str
@@ -150,7 +153,7 @@ class CompanyResponse(BaseModel):
     @property
     def logo_url(self) -> Optional[str]:
         if self.logo:
-            return f"http://localhost:8000{self.logo}"
+            return f"{settings.IMAGES_URL}{self.logo}"
         return None
 
     model_config = ConfigDict(from_attributes=True)

@@ -21,9 +21,9 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <UFormField label="Полное название организации" required>
         <UInput
-            :model-value="formState.companyName"
+            :model-value="formState.fullName"
             class="min-w-4/5"
-            @update:model-value="value => updateField('companyName', value)"
+            @update:model-value="value => updateField('fullName', value)"
         />
       </UFormField>
 

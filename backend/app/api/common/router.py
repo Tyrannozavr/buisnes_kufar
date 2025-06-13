@@ -78,6 +78,11 @@ async def get_cities_list(
     """Получить список городов по стране и региону"""
     country = "Беларусь"
     region = "Витебская область"
+    if name is None:
+        return {
+            "items": [],
+            "total": 0
+        }
     _, cities = await get_cached_cities(country_code=country, region=region)
     cities = [city for city in cities if city.get("label").lower().startswith(name.lower())]
     cities = await unify_list(cities)

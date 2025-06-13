@@ -199,11 +199,11 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
       <UFormField label="Описание организации" required
                   help="Опишите деятельность компании и ее основные достоинства" class="md:col-span-2">
         <UTextarea
-            :model-value="formState.companyDescription"
+            :model-value="formState.description"
             placeholder="Опишите деятельность компании и ее основные достоинства"
             :rows="4"
             class="min-w-2/5"
-            @update:model-value="value => updateField('companyDescription', value)"
+            @update:model-value="value => updateField('description', value)"
         />
       </UFormField>
 

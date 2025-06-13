@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.company.repositories.company_repository import CompanyRepository
-from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
+from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyProfileResponse
 from app.api.authentication.models import User
 import aiofiles
 import os
@@ -15,19 +15,29 @@ class CompanyService:
         self.db = db
         self.upload_dir = "uploads/company_logos"
 
-    async def get_company_by_user(self, user: User) -> Optional[CompanyResponse]:
+    async def get_company_by_user(self, user: User) -> CompanyProfileResponse:
+        """Get company profile data for user. If company doesn't exist, returns user data with default values."""
         company = await self.company_repository.get_by_user_id(user.id)
+        
+        # Always return a response with user data
         if not company:
-            return None
-        return CompanyResponse.model_validate(company)
+            return CompanyProfileResponse.create_default(user)
+            
+        # Return combined user and company data
+        return CompanyProfileResponse.create_with_company(company, user)
+
+    async def create_company(self, user: User, company_data: CompanyCreate) -> CompanyResponse:
+        company = await self.company_repository.create(company_data, user.id)
+        return CompanyResponse.model_validate(company.__dict__)
+
 
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)
         if not company:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Company not found"
-            )
+            print("Creating a new company for suer")
+            company_data = CompanyCreate(**company_data.model_dump())  # Convert to CompanyCreate if not provided
+            return await self.create_company(user, company_data)
+
         
         # Verify user owns the company
         if company.user_id != user.id:
@@ -43,7 +53,7 @@ class CompanyService:
                 detail="Company not found after update"
             )
         
-        return CompanyResponse.model_validate(updated_company)
+        return CompanyResponse.model_validate(updated_company.__dict__)
 
     async def upload_logo(self, user: User, file: UploadFile) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)
@@ -104,3 +114,13 @@ class CompanyService:
             empty_company_data = CompanyCreate(name="", description="")
             company = await self.company_repository.create(empty_company_data, user.id)
         return CompanyResponse.model_validate(company)
+
+    async def get_full_company(self, user: User) -> CompanyResponse:
+        """Get full company data for user."""
+        company = await self.company_repository.get_by_user_id(user.id)
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+        return CompanyResponse.model_validate(company.__dict__)

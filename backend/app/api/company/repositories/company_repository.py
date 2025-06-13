@@ -5,10 +5,38 @@ from sqlalchemy.orm import selectinload
 from app.api.company.models.company import Company
 from app.api.company.models.official import CompanyOfficial
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyOfficialUpdate
+from slugify import slugify
+import random
+import time
+
 
 class CompanyRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def create_company_slug(self, name: str) -> str:
+        base_slug = slugify(name)
+        slug = base_slug
+        attempt = 1
+
+        while True:
+            # Проверяем, существует ли уже компания с таким slug
+            query = select(Company).where(Company.slug == slug)
+            result = await self.session.execute(query)
+            existing_company = result.scalar_one_or_none()
+
+            if not existing_company:
+                return slug
+
+            # Если slug уже существует, добавляем случайные цифры
+            random_suffix = ''.join(str(random.randint(0, 9)) for _ in range(4))
+            slug = f"{base_slug}-{random_suffix}"
+            attempt += 1
+
+            if attempt > 10:
+                # Если после 10 попыток уникальный slug не найден, добавляем timestamp
+                slug = f"{base_slug}-{int(time.time())}"
+                return slug
 
     async def get_by_id(self, company_id: int) -> Optional[Company]:
         query = select(Company).options(
@@ -34,6 +62,7 @@ class CompanyRepository:
     async def create(self, company_data: CompanyCreate, user_id: int) -> Company:
         company = Company(
             **company_data.model_dump(),
+            slug=await self.create_company_slug(company_data.name),
             user_id=user_id
         )
         self.session.add(company)

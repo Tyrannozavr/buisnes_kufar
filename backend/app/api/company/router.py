@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Union
 
 from app.api.authentication.dependencies import CurrentUser
 from app.api.company.repositories.company_repository import CompanyRepository
-from app.api.company.schemas.company import CompanyUpdate, CompanyResponse
+from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse
 from app.api.company.services.company_service import CompanyService
 from app.db.base import get_async_db
 
@@ -15,13 +16,15 @@ async def get_company_service(db: AsyncSession = Depends(get_async_db)) -> Compa
     company_repository = CompanyRepository(db)
     return CompanyService(company_repository, db)
 
-@router.get("/me", response_model=CompanyResponse)
+@router.get("/me", response_model=Union[CompanyResponse, CompanyProfileResponse])
 async def get_my_company(
     current_user: CurrentUser,
     company_service: CompanyService = Depends(get_company_service)
 ):
-    """Это проверка компании текущего пользователя. Если компании нет, создается пустая запись."""
-    company = await company_service.get_or_create_company_by_user(current_user)
+    """Get company data for current user. Returns full company data if exists, otherwise returns profile data."""
+    company = await company_service.get_company_by_user(current_user)
+    if company.is_company_created:
+        return await company_service.get_full_company(current_user)
     return company
 
 @router.put("/me", response_model=CompanyResponse)

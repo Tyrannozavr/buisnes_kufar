@@ -1,163 +1,328 @@
 <script setup lang="ts">
-import type {Company, CompanyUpdate, CompanyDataFormProps, CompanyDataFormState, CompanyOfficial} from '~/types/company'
-import type {LocationItem} from '~/types/location'
-import {useLocationsApi} from '~/api/locations'
+import { ref, watch, onMounted } from 'vue'
+import type { 
+  CompanyResponse, 
+  CompanyUpdate, 
+  CompanyDataFormState, 
+  CompanyDataFormProps,
+  CompanyOfficial,
+  TradeActivity,
+  BusinessType
+} from '~/types/company'
+import type { LocationItem } from '~/types/location'
+import { useLocationsApi } from '~/api/locations'
 
-const props = defineProps<{
-  company?: Company
-  loading?: boolean
-}>()
+const props = defineProps<CompanyDataFormProps>()
 
 const emit = defineEmits<{
   (e: 'save', data: CompanyUpdate): void
   (e: 'logo-upload', file: File): void
 }>()
 
-// Определяем тип для значений формы
-interface Official {
-  position: string
-  fullName: string
-}
 
-const formState = ref<CompanyDataFormState>({
-  inn: '',
-  kpp: '',
-  ogrn: '',
-  registrationDate: '',
-  country: undefined,
-  federalDistrict: undefined,
-  region: undefined,
-  city: undefined,
-  productionAddress: '',
-  officials: [],
-  tradeActivity: '',
-  businessType: '',
-  activityType: '',
-  position: '',
-  name: '',
-  fullName: '',
-  companyDescription: '',
-  companyWebsite: '',
-  companyLogo: '',
-  companyAddress: '',
-  companyPhone: '',
-  companyEmail: ''
-})
+const officials = ref<CompanyOfficial[]>(props.company?.officials || [])
 
-// Initialize form state with company data if available
-watch(() => props.company, (newCompany) => {
-  if (newCompany) {
-    formState.value = {
-      inn: newCompany.inn ?? '',
-      kpp: newCompany.kpp ?? '',
-      ogrn: newCompany.ogrn ?? '',
-      registrationDate: newCompany.registrationDate ?? '',
-      country: undefined,
-      federalDistrict: undefined,
-      region: undefined,
-      city: undefined,
-      productionAddress: newCompany.productionAddress ?? '',
-      officials: newCompany.officials ?? [],
-      tradeActivity: newCompany.tradeActivity ?? '',
-      businessType: newCompany.businessType ?? '',
-      activityType: newCompany.activityType ?? '',
-      position: '',
-      name: newCompany.name ?? '',
-      fullName: newCompany.fullName ?? '',
-      companyDescription: newCompany.description ?? '',
-      companyWebsite: newCompany.website ?? '',
-      companyLogo: newCompany.logo ?? '',
-      companyAddress: newCompany.legalAddress ?? '',
-      companyPhone: newCompany.phone ?? '',
-      companyEmail: newCompany.email ?? ''
-    }
-  }
-}, { immediate: true })
-
-const tradeActivityOptions = [
-  {label: 'Покупатель', value: 'Покупатель'},
-  {label: 'Продавец', value: 'Продавец'},
-  {label: 'Покупатель и продавец', value: 'Покупатель и продавец'}
-]
-
-const businessTypeOptions = [
-  {label: 'Производство товаров', value: 'Производство товаров'},
-  {label: 'Оказание услуг', value: 'Оказание услуг'},
-  {label: 'Производство товаров и оказание услуг', value: 'Производство товаров и оказание услуг'}
-]
-
-const {
+const { 
   countryOptions,
   federalDistrictOptions,
   regionOptions,
   cityOptions,
-  countriesLoading,
-  federalDistrictsLoading,
-  regionsLoading,
-  citiesLoading,
-  countriesError,
-  federalDistrictsError,
-  regionsError,
-  citiesError,
+  loadCountries,
   loadFederalDistricts,
   loadRegions,
-  loadCities
+  loadCities,
+  searchCities
 } = useLocationsApi()
 
-// Watch для страны
-watch(() => formState.value.country, async (newCountry) => {
-  // Сбрасываем все зависимые поля
+// Загружаем списки локаций
+const countries = ref<LocationItem[]>([])
+const federalDistricts = ref<LocationItem[]>([])
+const regions = ref<LocationItem[]>([])
+const cities = ref<LocationItem[]>([])
+
+// Добавляем состояние для поискового запроса города
+const citySearchQuery = ref('')
+const citySearchTimeout = ref<NodeJS.Timeout | null>(null)
+
+// Добавляем состояние для отслеживания, был ли город выбран пользователем
+const isCityManuallyChanged = ref(false)
+
+// Функция для поиска городов с задержкой
+const handleCitySearch = async (query: string) => {
+  citySearchQuery.value = query // Обновляем значение поискового запроса
+  isCityManuallyChanged.value = true // Отмечаем, что пользователь начал изменять город
+
+  // Очищаем предыдущий таймаут
+  if (citySearchTimeout.value) {
+    clearTimeout(citySearchTimeout.value)
+  }
+
+  // Если запрос короче 2 символов, очищаем список городов
+  if (query.length < 2) {
+    cities.value = []
+    return
+  }
+
+  // Устанавливаем новый таймаут для поиска
+  citySearchTimeout.value = setTimeout(async () => {
+    try {
+      // Если есть выбранный регион, используем его для поиска
+      if (formState.value.region?.value) {
+        await loadCities(formState.value.country?.value || '', formState.value.region.value)
+      } else {
+        // Иначе используем поиск по имени
+        await searchCities(query)
+      }
+      cities.value = cityOptions.value
+    } catch (error) {
+      console.error('Error searching cities:', error)
+      cities.value = []
+    }
+  }, 300) // Задержка 300мс
+}
+
+// Загружаем страны при монтировании компонента
+onMounted(async () => {
+  await loadCountries()
+  countries.value = countryOptions.value
+  
+  // Если есть данные о стране, загружаем федеральные округа
+  if (props.company?.country) {
+    await loadFederalDistricts()
+    federalDistricts.value = federalDistrictOptions.value
+  }
+  
+  // Если есть данные о регионе, загружаем регионы
+  if (props.company?.region) {
+    await loadRegions(props.company.country, props.company.federal_district)
+    regions.value = regionOptions.value
+  }
+  
+  // Если есть данные о городе, устанавливаем его без дополнительных запросов
+  if (props.company?.city && props.company) {
+    citySearchQuery.value = props.company.city
+    // Создаем объект LocationItem для города
+    formState.value.city = {
+      label: props.company.city,
+      value: props.company.city
+    }
+  }
+})
+
+// Функция для преобразования строки в LocationItem
+const findLocationItem = (items: LocationItem[], value: string): LocationItem | undefined => {
+  return items.find(item => item.value === value)
+}
+
+// Transform company data from snake_case to camelCase
+const transformCompanyData = (companyData: CompanyResponse | undefined): CompanyDataFormState => {
+  if (!companyData) {
+    return {
+      name: '',
+      fullName: '',
+      inn: '',
+      kpp: '',
+      ogrn: '',
+      registrationDate: '',
+      type: 'company',
+      tradeActivity: 'Покупатель' as TradeActivity,
+      businessType: 'Производство товаров' as BusinessType,
+      activityType: null,
+      description: null,
+      website: null,
+      legalAddress: null,
+      phone: null,
+      email: null,
+      productionAddress: null,
+      country: undefined,
+      federalDistrict: undefined,
+      region: undefined,
+      city: undefined,
+      officials: [],
+      logo: null
+    }
+  }
+
+  const { 
+    country: countryValue, 
+    federal_district: federalDistrictValue, 
+    region: regionValue, 
+    city: cityValue,
+    trade_activity: tradeActivityValue,
+    business_type: businessTypeValue,
+    activity_type: activityTypeValue,
+    description: descriptionValue,
+    website: websiteValue,
+    legal_address: legalAddressValue,
+    phone: phoneValue,
+    email: emailValue,
+    production_address: productionAddressValue,
+    officials: officialsValue,
+    logo: logoValue,
+    full_name: fullNameValue,
+    inn: innValue,
+    kpp: kppValue,
+    ogrn: ogrnValue,
+    registration_date: registrationDateValue,
+    type: typeValue
+  } = companyData
+
+  const country = countryValue ? { label: countryValue, value: countryValue } : undefined
+  const federalDistrict = federalDistrictValue ? { label: federalDistrictValue, value: federalDistrictValue } : undefined
+  const region = regionValue ? { label: regionValue, value: regionValue } : undefined
+  const city = cityValue ? { label: cityValue, value: cityValue } : undefined
+
+  return {
+    name: companyData.name,
+    fullName: fullNameValue,
+    inn: innValue,
+    kpp: kppValue,
+    ogrn: ogrnValue,
+    registrationDate: registrationDateValue,
+    type: typeValue,
+    tradeActivity: tradeActivityValue,
+    businessType: businessTypeValue,
+    activityType: activityTypeValue,
+    description: descriptionValue,
+    website: websiteValue,
+    legalAddress: legalAddressValue,
+    phone: phoneValue,
+    email: emailValue,
+    productionAddress: productionAddressValue,
+    country,
+    federalDistrict,
+    region,
+    city,
+    officials: officialsValue,
+    logo: logoValue
+  }
+}
+
+// Transform form data back to snake_case for API
+const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
+  const { 
+    country: countryItem, 
+    federalDistrict: federalDistrictItem, 
+    region: regionItem, 
+    city: cityItem,
+    name: nameValue,
+    fullName: fullNameValue,
+    inn: innValue,
+    kpp: kppValue,
+    ogrn: ogrnValue,
+    registrationDate: registrationDateValue,
+    type: typeValue,
+    tradeActivity: tradeActivityValue,
+    businessType: businessTypeValue,
+    activityType: activityTypeValue,
+    description: descriptionValue,
+    website: websiteValue,
+    legalAddress: legalAddressValue,
+    phone: phoneValue,
+    email: emailValue,
+    productionAddress: productionAddressValue,
+    officials: officialsValue
+  } = formData
+
+  return {
+    name: nameValue,
+    full_name: fullNameValue,
+    inn: innValue,
+    kpp: kppValue,
+    ogrn: ogrnValue,
+    registration_date: registrationDateValue,
+    type: typeValue,
+    trade_activity: tradeActivityValue,
+    business_type: businessTypeValue,
+    activity_type: activityTypeValue,
+    description: descriptionValue,
+    website: websiteValue,
+    legal_address: legalAddressValue,
+    phone: phoneValue,
+    email: emailValue,
+    production_address: productionAddressValue,
+    country: (countryItem as LocationItem)?.value,
+    federal_district: (federalDistrictItem as LocationItem)?.value,
+    region: (regionItem as LocationItem)?.value,
+    city: (cityItem as LocationItem)?.value,
+    officials: officialsValue
+  }
+}
+
+// Инициализация состояния формы
+const formState = ref<CompanyDataFormState>(transformCompanyData(props.company))
+
+// Обновление формы при изменении props.company
+watch(() => props.company, (newCompany) => {
+  formState.value = transformCompanyData(newCompany)
+}, { immediate: true })
+
+// Следим за изменениями списков локаций и устанавливаем значения
+watch(countryOptions, (newCountries) => {
+  if (props.company?.country) {
+    formState.value.country = findLocationItem(newCountries, props.company.country)
+  }
+})
+
+watch(federalDistrictOptions, (newDistricts) => {
+  if (props.company?.federal_district) {
+    formState.value.federalDistrict = findLocationItem(newDistricts, props.company.federal_district)
+  }
+})
+
+watch(regionOptions, (newRegions) => {
+  if (props.company?.region) {
+    formState.value.region = findLocationItem(newRegions, props.company.region)
+  }
+})
+
+watch(cityOptions, (newCities) => {
+  if (props.company?.city) {
+    formState.value.city = findLocationItem(newCities, props.company.city)
+  }
+})
+
+// Обработчик изменения страны
+const handleCountryChange = async (country: LocationItem | undefined) => {
+  formState.value.country = country
   formState.value.federalDistrict = undefined
   formState.value.region = undefined
   formState.value.city = undefined
-
-  if (!newCountry) {
-    return
+  citySearchQuery.value = ''
+  cities.value = []
+  isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
+  
+  if (country?.value === 'Россия') {
+    await loadFederalDistricts()
+    federalDistricts.value = federalDistrictOptions.value
+  } else {
+    federalDistricts.value = []
   }
-
-  try {
-    // Загружаем федеральные округи только для России
-    if (newCountry.value === 'Россия') {
-      await loadFederalDistricts()
-    } else {
-      // Для других стран сразу загружаем регионы
-      await loadRegions(newCountry.value)
-    }
-  } catch (error) {
-    console.error('Error handling country change:', error)
+  
+  if (country?.value) {
+    await loadRegions(country.value)
+    regions.value = regionOptions.value
+  } else {
+    regions.value = []
   }
-})
+}
 
-// Watch для федерального округа
-watch(() => formState.value.federalDistrict, async (newFederalDistrict) => {
-  // Сбрасываем зависимые поля
+// Обработчик изменения федерального округа
+const handleFederalDistrictChange = async (district: LocationItem | undefined) => {
+  formState.value.federalDistrict = district
   formState.value.region = undefined
   formState.value.city = undefined
-
-  if (!newFederalDistrict || !formState.value.country || formState.value.country.value !== 'Россия') {
-    return
+  citySearchQuery.value = ''
+  cities.value = []
+  isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
+  
+  if (formState.value.country?.value && district?.value) {
+    await loadRegions(formState.value.country.value, district.value)
+    regions.value = regionOptions.value
+  } else {
+    regions.value = []
   }
-
-  try {
-    // Загружаем регионы только после выбора федерального округа для России
-    await loadRegions(formState.value.country.value, newFederalDistrict.value)
-  } catch (error) {
-    console.error('Error handling federal district change:', error)
-  }
-})
-
-// Watch для региона
-watch(() => formState.value.region, async (newRegion) => {
-  if (!newRegion || !formState.value.country) {
-    formState.value.city = undefined
-    return
-  }
-  try {
-    await loadCities(formState.value.country.value, newRegion.value, 1) // Pass region value as string and specify level 1 for major cities
-  } catch (error) {
-    console.error('Error handling region change:', error)
-  }
-})
+}
 
 const positions = [
   {label: 'Генеральный директор', value: 'Генеральный директор'},
@@ -170,8 +335,6 @@ const positions = [
   {label: 'Руководитель производства', value: 'Руководитель производства'}
 ]
 
-const officials = ref<CompanyOfficial[]>(props.company.officials || [{position: '', fullName: ''} as CompanyOfficial])
-
 const addOfficial = () => {
   officials.value.push({position: '', fullName: ''})
 }
@@ -182,44 +345,13 @@ const removeOfficial = (index: number) => {
   }
 }
 
-const handleSave = () => {
-  formState.value.officials = officials.value
-  emit('save', formState.value)
-}
-
-const handleLogoUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (!input.files?.length) return
-  
-  const file = input.files[0]
-  if (file) {
-    emit('logo-upload', file)
-  }
-}
-
 const handleSubmit = () => {
-  const data: CompanyUpdate = {
-    name: formState.value.name,
-    fullName: formState.value.fullName,
-    inn: formState.value.inn,
-    kpp: formState.value.kpp,
-    ogrn: formState.value.ogrn,
-    registrationDate: formState.value.registrationDate,
-    country: (formState.value.country as LocationItem)?.value,
-    federalDistrict: (formState.value.federalDistrict as LocationItem)?.value,
-    region: (formState.value.region as LocationItem)?.value,
-    city: (formState.value.city as LocationItem)?.value,
-    productionAddress: formState.value.productionAddress,
-    officials: formState.value.officials,
-    tradeActivity: formState.value.tradeActivity as CompanyUpdate['tradeActivity'],
-    businessType: formState.value.businessType as CompanyUpdate['businessType'],
-    activityType: formState.value.activityType,
-    description: formState.value.companyDescription,
-    website: formState.value.companyWebsite || undefined,
-    legalAddress: formState.value.companyAddress,
-    phone: formState.value.companyPhone,
-    email: formState.value.companyEmail
-  }
+  // Преобразуем дату в формат ISO
+  const registrationDate = formState.value.registrationDate 
+    ? new Date(formState.value.registrationDate).toISOString()
+    : undefined
+
+  const data: CompanyUpdate = transformFormData(formState.value)
 
   const errors = validateForm()
   if (errors.length > 0) {
@@ -232,6 +364,16 @@ const handleSubmit = () => {
   }
 
   emit('save', data)
+}
+
+const handleLogoUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+  
+  const file = input.files[0]
+  if (file) {
+    emit('logo-upload', file)
+  }
 }
 
 // Добавляем определение positionOptions
@@ -270,20 +412,38 @@ const validateForm = () => {
   if (!formState.value.activityType) {
     errors.push('Введите вид деятельности')
   }
-  if (!formState.value.companyAddress) {
+  if (!formState.value.legalAddress) {
     errors.push('Введите юридический адрес')
   }
   if (!formState.value.productionAddress) {
     errors.push('Введите адрес производства')
   }
-  if (!formState.value.companyPhone) {
+  if (!formState.value.phone) {
     errors.push('Введите телефон')
   }
-  if (!formState.value.companyEmail) {
+  if (!formState.value.email) {
     errors.push('Введите email')
   }
   
   return errors
+}
+
+// Обновляем обработчик изменения города
+const handleCityChange = (city: LocationItem | undefined) => {
+  formState.value.city = city
+  if (city) {
+    citySearchQuery.value = city.label
+    isCityManuallyChanged.value = true // Отмечаем, что пользователь выбрал город
+  }
+}
+
+// Обновляем обработчик изменения региона
+const handleRegionChange = async (region: LocationItem | undefined) => {
+  formState.value.region = region
+  formState.value.city = undefined
+  citySearchQuery.value = ''
+  cities.value = [] // Очищаем список городов при смене региона
+  isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
 }
 </script>
 
@@ -313,7 +473,7 @@ const validateForm = () => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.companyLogo || undefined"
+                :src="formState.logo || undefined"
                 size="xl"
                 :alt="formState.name"
             />
@@ -351,6 +511,48 @@ const validateForm = () => {
         <CompanyContactSection
             v-model:formState="formState"
         />
+
+        <!-- 6. Местоположение -->
+        <div>
+          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Местоположение</h4>
+          <div class="flex items-center gap-4">
+            <UCombobox
+                v-model="formState.country"
+                :options="countries"
+                label="Страна"
+                placeholder="Выберите страну"
+                @update:model-value="handleCountryChange"
+            />
+            <UCombobox
+                v-if="formState.country?.value === 'Россия'"
+                v-model="formState.federalDistrict"
+                :options="federalDistricts"
+                label="Федеральный округ"
+                placeholder="Выберите федеральный округ"
+                @update:model-value="handleFederalDistrictChange"
+            />
+            <UCombobox
+                v-model="formState.region"
+                :options="regions"
+                label="Регион"
+                placeholder="Выберите регион"
+                @update:model-value="handleRegionChange"
+            />
+            <UCombobox
+                v-model="formState.city"
+                :options="cities"
+                label="Город"
+                :placeholder="isCityManuallyChanged ? 'Введите название города' : 'Город'"
+                :search-input="{
+                  modelValue: citySearchQuery,
+                  'onUpdate:modelValue': handleCitySearch,
+                  placeholder: 'Поиск города...',
+                  icon: 'i-lucide-search'
+                }"
+                @update:model-value="handleCityChange"
+            />
+          </div>
+        </div>
       </div>
       <div class="flex">
         <UButton

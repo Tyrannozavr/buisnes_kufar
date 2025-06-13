@@ -55,11 +55,9 @@ services:
   certbot:
     image: certbot/certbot
     volumes:
-      - ./nginx/letsencrypt:/etc/letsencrypt
-      - ./nginx/webroot:/var/www/html
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive
+    command: certonly --webroot --webroot-path=/var/www/certbot -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive
     depends_on:
       - nginx
 

@@ -2,4 +2,5 @@
 backend/cache/cache.db*
 /backend/cache/
 /backend/database.db
-/backend/cache/
+backend/cache/cache.db-shm
+backend/cache/cache.db-wal

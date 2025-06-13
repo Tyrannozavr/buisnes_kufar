@@ -11,6 +11,10 @@ const isNewCompany = ref(false)
 
 const userStore = useUserStore()
 
+definePageMeta({
+  layout: 'profile'
+})
+
 // Load company data
 const loadCompany = async () => {
   loading.value = true

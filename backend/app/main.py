@@ -80,6 +80,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 # Get the absolute path to the uploads directory
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
+os.makedirs(uploads_dir, exist_ok=True)  # Create the uploads directory if it doesn't exist'
 # Mount the static files directory
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 

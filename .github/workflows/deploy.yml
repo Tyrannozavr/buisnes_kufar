@@ -7,63 +7,85 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      DOCKER_BUILDKIT: 1  # Включить кэширование слоёв
 
     steps:
       - uses: actions/checkout@v4
 
+      # Настройка SSH
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-          cat <<EOF >> ~/.ssh/config
-          Host target-server
-            HostName ${{ secrets.SERVER_IP }}
-            User root
-            IdentityFile ~/.ssh/id_ed25519
-            StrictHostKeyChecking no
-          EOF
+          echo "Host target-server" >> ~/.ssh/config
+          echo "  HostName ${{ secrets.SERVER_IP }}" >> ~/.ssh/config
+          echo "  User root" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Pre-cache Docker images
         run: |
-          ssh target-server "
-            echo '🔹 Загружаем образы в кэш...'
-            docker pull nginx:1.25 || true
-            docker pull python:3.12-slim || true
-            docker pull node:20-slim || true
-          "
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          echo "🔹 Предзагрузка Docker-образов..."
+          docker pull nginx:1.25 || true
+          docker pull python:3.12-slim || true
+          docker pull node:20-slim || true
+          echo "✅ Основные образы загружены в кэш."
+          EOF
 
       - name: Deploy with validation
         run: |
-          ssh target-server "
-            set -e
-            cd buisnes_kufar
-            git fetch origin
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          set -e
+          cd buisnes_kufar
+          
+          # Проверяем изменения
+          git fetch origin
+          if git diff --quiet HEAD origin/master; then
+            echo "✅ Нет новых изменений. Выходим."
+            exit 0
+          fi
+          
+          # Создаем точку отката
+          current_commit=$(git rev-parse HEAD)
+          
+          # Применяем изменения
+          git reset --hard origin/master
+          
+          # Пытаемся собрать и запустить контейнеры
+          if docker compose build --pull && docker compose up -d --force-recreate; then
+            # Даем время на запуск
+            sleep 15
+            
+            # Проверяем ОСНОВНЫЕ контейнеры
+            REQUIRED_CONTAINERS="backend frontend nginx"
+            running_containers=$(docker compose ps --services --filter "status=running")
+            
+            for container in $REQUIRED_CONTAINERS; do
+              if ! echo "$running_containers" | grep -q "^$container$"; then
+                echo "❌ Контейнер $container не запущен!"
+                echo "=== Логи контейнера ==="
+                docker compose logs $container
+                exit 1
+              fi
+            done
+            
+            echo "✅ Все контейнеры успешно запущены!"
+          else
+            echo "❌ Ошибка сборки/запуска контейнеров! Откатываем..."
+            git reset --hard $current_commit
+            docker compose down
+            docker compose up -d
+            exit 1
+          fi
+          EOF
 
-            if git diff --quiet HEAD origin/master; then
-              echo '✅ Нет изменений. Пропускаем деплой.'
-              exit 0
-            fi
-
-            current_commit=\$(git rev-parse HEAD)
-            git reset --hard origin/master
-
-            if docker compose build --pull && docker compose up -d --force-recreate; then
-              sleep 15
-              for container in backend frontend nginx; do
-                if ! docker compose ps --status running | grep -q \$container; then
-                  echo \"❌ \$container не запущен! Логи:\"
-                  docker compose logs \$container
-                  exit 1
-                fi
-              done
-              echo '✅ Деплой успешен!'
-            else
-              echo '❌ Ошибка! Откатываемся...'
-              git reset --hard \$current_commit
-              docker compose down
-              docker compose up -d
-              exit
+      - name: Clean up old images
+        if: success()
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          echo "🧹 Очистка неиспользуемых Docker образов..."
+          docker image prune -af
+          echo "✅ Очистка завершена."
+          EOF

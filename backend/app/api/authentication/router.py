@@ -53,7 +53,7 @@ async def verify_token(
         token: token_data_dep,
         company_service: company_service_dep,
 ) -> VerifyTokenResponse:
-    company = await company_service.get_company_by_user(token.user_id)
+    company = await company_service.get_company_by_user_id(token.user_id)
     return VerifyTokenResponse(
         is_valid=token.user_id is not None,
         logo=company.logo,

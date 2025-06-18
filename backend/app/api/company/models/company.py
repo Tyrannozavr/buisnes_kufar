@@ -74,3 +74,6 @@ class Company(Base):
     products: Mapped[List["Product"]] = relationship("Product", back_populates="company", cascade="all, delete-orphan")
     sent_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.from_company_id", back_populates="from_company")
     received_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.to_company_id", back_populates="to_company")
+
+    def __str__(self):
+        return self.name

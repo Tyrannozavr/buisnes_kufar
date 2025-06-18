@@ -18,7 +18,7 @@ class CompanyService:
         self.db = db
         self.upload_dir = "uploads/company_logos"
 
-    async def get_company_by_user(self, user_id: int) -> CompanyProfileResponse:
+    async def get_company_by_user_id(self, user_id: int) -> CompanyProfileResponse:
         """Get company profile data for user. If company doesn't exist, returns user data with default values."""
         company = await self.company_repository.get_by_user_id(user_id)
         user = await self.user_repository.get_user_by_id(user_id)

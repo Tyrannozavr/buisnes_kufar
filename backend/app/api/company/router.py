@@ -17,7 +17,7 @@ async def get_my_company(
         company_service: company_service_dep
 ):
     """Get company data for current user. Returns full company data if exists, otherwise returns profile data."""
-    company = await company_service.get_company_by_user(user_id=token_data.user_id)
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
     if company.is_company_created:
         return await company_service.get_full_company(token_data.user_id)
     return company
@@ -61,7 +61,8 @@ async def get_my_products(
 async def add_official(
         officials_repository: official_repository_dep,
         official_data: CompanyOfficialCreate,
-        current_user: current_user_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep
 ):
-    company_id = current_user.company_id
-    return await officials_repository.create(official_data, company_id=company_id)
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await officials_repository.create(official_data, company_id=company.id)

@@ -1,25 +1,20 @@
 import type {
+  ApiError,
   RegisterStep1Data,
-  RegisterStep1Response,
   RegisterStep2Data,
-  RegisterStep2Response,
   RegisterValidationResponse,
-  ApiError
+  VerifyTokenResponse
 } from '~/types/auth'
 
-import type {
-  ApiResponse,
-  EmailChangeParams,
-  PasswordChangeParams,
-  PasswordResetParams
-} from '~/types/api'
+import type {ApiResponse, EmailChangeParams, PasswordChangeParams, PasswordResetParams} from '~/types/api'
 
-import { useCookie } from 'nuxt/app'
+import {useCookie} from 'nuxt/app'
 
 export const AUTH_API = {
   REGISTER_STEP1: '/v1/auth/register/step1',
   REGISTER_STEP2: '/v1/auth/register/step2',
   VERIFY_TOKEN: '/v1/auth/verify-token',
+  VERIFY_REGISTRATION_TOKEN: '/v1/auth/registration/verify-token',
   RECOVER_PASSWORD: '/v1/auth/recover-password',
   VERIFY_CODE: '/v1/auth/verify-code',
   RESET_PASSWORD: '/v1/auth/reset-password',
@@ -27,8 +22,8 @@ export const AUTH_API = {
   CHANGE_PASSWORD: '/v1/auth/change-password',
   LOGIN: '/v1/auth/login',
   COMPANY_ME: '/v1/company/me'
-} as const 
 
+} as const 
 export const authApi = {
   // Восстановление пароля
   async sendRecoveryCode(email: string): Promise<ApiResponse> {
@@ -133,20 +128,22 @@ export function useAuthApi() {
 
   const validateRegistrationToken = async (token: string): Promise<RegisterValidationResponse> => {
     try {
-      console.log('Validating token in API:', token)
-      const response = await $fetch<RegisterValidationResponse>(`${apiBaseUrl}${AUTH_API.VERIFY_TOKEN}/${token}`, {
+      const response = await $fetch<RegisterValidationResponse>(`${apiBaseUrl}${AUTH_API.VERIFY_REGISTRATION_TOKEN}/${token}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       })
-      console.log('Token validation API response:', response)
       return response
     } catch (error: any) {
-      console.log('Token validation API error:', error)
       throw formatErrorResponse(error)
     }
+  }
+
+  const verifyToken = async (): Promise<VerifyTokenResponse> => {
+    const { $api } = useNuxtApp()
+    return await $api.post(AUTH_API.VERIFY_TOKEN)
   }
 
   const registerStep2 = async (data: RegisterStep2Data): Promise<{ message: string }> => {
@@ -220,6 +217,7 @@ export function useAuthApi() {
     validateRegistrationToken,
     registerStep2,
     login,
-    getCompanyInfo
+    getCompanyInfo,
+    verifyToken
   }
 } 

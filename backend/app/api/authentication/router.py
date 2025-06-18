@@ -49,7 +49,7 @@ async def register_step2(
     }
 
 
-@router.get("/verify-token/")
+@router.post("/verify-token/")
 async def verify_token(
         token: token_data_dep,
         company_service: company_service_dep,
@@ -60,7 +60,13 @@ async def verify_token(
         logo=company.logo,
         company_name=company.name,
     )
-
+@router.get("/registration/verify-token/{token}")
+async def verify_token(
+        token: str,
+        auth_service: AuthServiceDep
+) -> dict:
+    is_valid = await auth_service.verify_token(token)
+    return {"is_valid": is_valid}
 
 @router.post("/login", response_model=Token)
 async def login(

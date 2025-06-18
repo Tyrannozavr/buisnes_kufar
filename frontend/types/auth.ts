@@ -16,6 +16,12 @@ export interface RegisterStep2Data {
   token: string
 }
 
+export interface VerifyTokenResponse {
+  is_valid: boolean,
+  company_name: string,
+  logo_url: string
+}
+
 export interface RegisterStep1Response {
   statusCode: number
   message: string

@@ -122,7 +122,7 @@ const handleSubmit = async () => {
 
     
     // Update the store with user data
-    userStore.login(companyInfo.companyName, companyInfo.companyLogo)
+    await userStore.login()
 
     // Redirect to profile
     navigateTo("/")

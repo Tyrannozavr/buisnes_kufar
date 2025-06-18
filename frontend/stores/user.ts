@@ -1,4 +1,5 @@
-import { defineStore } from 'pinia'
+import {defineStore} from 'pinia'
+import {AUTH_API, useAuthApi} from "~/api/auth";
 
 interface UserState {
   isAuthenticated: boolean
@@ -15,10 +16,12 @@ export const useUserStore = defineStore('user', {
   }),
   
   actions: {
-    login(companyName: string, companyLogo: string) {
+    async login() {
+      const authApi = useAuthApi()
+      const tokenResponse = await authApi.verifyToken()
       this.isAuthenticated = true
-      this.companyName = companyName
-      this.companyLogo = companyLogo
+      this.companyName = tokenResponse.company_name
+      this.companyLogo = tokenResponse.logo_url
     },
     
     logout() {

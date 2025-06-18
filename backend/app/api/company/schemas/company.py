@@ -58,7 +58,7 @@ class CompanyCreate(CompanyBase):
     pass
 
 class CompanyLogoUrlMixin(BaseModel):
-    logo: Optional[str] = None
+    logo: Optional[str] = Field(default=None, exclude=True)
 
     @computed_field
     @property

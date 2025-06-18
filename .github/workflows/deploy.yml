@@ -51,54 +51,72 @@ jobs:
           set -e
           cd buisnes_kufar
           
-          # Проверяем изменения
+          # Check for changes
           git fetch origin
           if git diff --quiet HEAD origin/master; then
-            echo "✅ Нет новых изменений. Выходим."
+            echo "✅ No new changes. Exiting."
             exit 0
           fi
           
-          # Создаем точку отката
+          # Create rollback point
           current_commit=$(git rev-parse HEAD)
-          echo "Точка отката: $current_commit"
+          echo "Rollback point: $current_commit"
           
-          # Применяем изменения
+          # Apply changes
           git reset --hard origin/master
           
-          # Очищаем старые контейнеры и сети
+          # Ensure .env files exist
+          if [ ! -f "./backend/.env" ]; then
+            echo "⚠️ backend/.env not found, creating from template"
+            cp ./backend/.env.example ./backend/.env
+          fi
+          
+          if [ ! -f "./frontend/.env" ]; then
+            echo "⚠️ frontend/.env not found, creating from template"
+            cp ./frontend/.env.example ./frontend/.env
+          fi
+          
+          # Clean old containers
           docker compose down || true
           
-          # Пытаемся собрать и запустить с очисткой кеша
-          echo "🛠 Сборка и запуск контейнеров..."
+          # Build and run with health checks
+          echo "🛠 Building and starting containers..."
           if docker compose build --no-cache && docker compose up -d; then
-            # Даем время на запуск
-            sleep 20
+            # Wait for containers to initialize
+            sleep 30
             
-            # Проверяем ОСНОВНЫЕ контейнеры
-            REQUIRED_CONTAINERS="backend frontend nginx"
-            running_containers=$(docker compose ps --services --filter "status=running")
+            # Check container status with retries
+            REQUIRED_CONTAINERS="backend frontend nginx db"
             failed=false
             
             for container in $REQUIRED_CONTAINERS; do
-              if ! echo "$running_containers" | grep -q "^$container$"; then
-                echo "❌ Контейнер $container не запущен!"
-                echo "=== Логи контейнера ==="
-                docker compose logs $container
-                failed=true
-              fi
+              for i in {1..5}; do
+                if [ "$(docker compose ps -q $container)" ] && \
+                   [ "$(docker inspect -f '{{.State.Running}}' $(docker compose ps -q $container))" = "true" ]; then
+                  echo "✅ Container $container is running"
+                  break
+                else
+                  if [ $i -eq 5 ]; then
+                    echo "❌ Container $container failed to start after 5 attempts"
+                    docker compose logs $container
+                    failed=true
+                  else
+                    echo "⚠️ Container $container not ready, attempt $i/5"
+                    sleep 10
+                  fi
+                fi
+              done
             done
             
             if [ "$failed" = true ]; then
-              echo "❌ Не все контейнеры запущены! Откатываем..."
+              echo "❌ Not all containers started! Rolling back..."
               git reset --hard $current_commit
               docker compose down
               docker compose up -d
               exit 1
-            else
-              echo "✅ Все контейнеры успешно запущены!"
             fi
           else
-            echo "❌ Ошибка сборки/запуска контейнеров! Откатываем..."
+            echo "❌ Build/start failed! Rolling back..."
             git reset --hard $current_commit
             docker compose down
             docker compose up -d

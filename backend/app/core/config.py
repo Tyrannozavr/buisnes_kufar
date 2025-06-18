@@ -51,11 +51,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",  # Add this line
     ]
     
-    MAIL_USERNAME: str = None
-    MAIL_PASSWORD: str = None
-    MAIL_FROM: str = None
-    MAIL_PORT: str = None
-    MAIL_SERVER: str = None
+    MAIL_USERNAME: str|None = None
+    MAIL_PASSWORD: str|None = None
+    MAIL_FROM: str|None = None
+    MAIL_PORT: str|None = None
+    MAIL_SERVER: str|None = None
     
     # Static files
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

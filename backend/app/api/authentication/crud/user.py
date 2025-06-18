@@ -1,8 +1,10 @@
 from typing import Any, Dict, Optional, Union
+
+from app.api.authentication.core.security import get_password_hash, verify_password
 from sqlalchemy.orm import Session
 
 from app.api.authentication import models, schemas
-from app.api.authentication.core.security import get_password_hash, verify_password
+
 
 def get_by_email(db: Session, email: str) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.email == email).first()

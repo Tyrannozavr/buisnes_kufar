@@ -1,8 +1,10 @@
+import enum
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
+
 from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean, Float, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-import enum
+
 from app.db.base_class import Base
 
 if TYPE_CHECKING:

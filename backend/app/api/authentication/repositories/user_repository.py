@@ -1,7 +1,9 @@
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Optional
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
 from app.core.security import get_password_hash, verify_password

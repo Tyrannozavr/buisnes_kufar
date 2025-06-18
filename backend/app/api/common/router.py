@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Query, Path, HTTPException
 from typing import Optional
+
+from fastapi import APIRouter, Query, Path, HTTPException
 
 from .routes.locations import location_api
 from ..common.schemas.location import LocationResponse
+from ..common.utils.caching import get_cached_regions, get_cached_cities
 from ..common.utils.location_api import LocationAPIError
 from ..common.utils.location_data import (
     get_countries,
     get_federal_districts,
 )
-from ..common.utils.caching import get_cached_regions, get_cached_cities
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 

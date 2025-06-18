@@ -1,7 +1,9 @@
-from diskcache import Cache
 from typing import Optional, Tuple
-from ..utils.location_api import LocationAPI, LocationAPIError
+
+from diskcache import Cache
 from fastapi import HTTPException
+
+from ..utils.location_api import LocationAPI, LocationAPIError
 
 # Initialize the cache
 cache = Cache("./cache")

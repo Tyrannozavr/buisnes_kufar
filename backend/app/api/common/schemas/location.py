@@ -1,5 +1,7 @@
 from typing import List, Optional, Union
+
 from pydantic import BaseModel, Field
+
 
 class LocationItem(BaseModel):
     """Базовая модель для элементов локации (страны, регионы, города)"""

@@ -1,8 +1,13 @@
-from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.api.authentication import models, schemas
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from app.api.authentication import models, schemas
+
 
 def get_by_token(db: Session, token: str) -> Optional[models.RegistrationToken]:
     return db.query(models.RegistrationToken).filter(models.RegistrationToken.token == token).first()

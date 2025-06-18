@@ -1,15 +1,16 @@
-from typing import Optional, List
-
-from pydantic import HttpUrl
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
-from sqlalchemy.orm import selectinload
-from app.api.company.models.company import Company
-from app.api.company.models.official import CompanyOfficial
-from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyOfficialUpdate
-from slugify import slugify
 import random
 import time
+from typing import Optional
+
+from pydantic import HttpUrl
+from slugify import slugify
+from sqlalchemy import select, update, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.api.company.models.company import Company
+from app.api.company.models.official import CompanyOfficial
+from app.api.company.schemas.company import CompanyCreate, CompanyUpdate
 
 
 class CompanyRepository:

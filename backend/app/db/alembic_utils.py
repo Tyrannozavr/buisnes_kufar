@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
+
 from app.core.config import settings
-from app.db.base_class import Base
 
 # Create a synchronous engine specifically for Alembic
 sync_engine = create_engine(

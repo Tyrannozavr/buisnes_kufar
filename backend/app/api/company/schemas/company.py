@@ -1,30 +1,16 @@
 from datetime import datetime
 from typing import Optional, List, Union, TYPE_CHECKING
-from pydantic import BaseModel, EmailStr, HttpUrl, constr, conint, Field, model_serializer, ConfigDict, computed_field, \
-    model_validator
-from app.api.company.models.company import TradeActivity, BusinessType
 
+from pydantic import BaseModel, EmailStr, HttpUrl, constr, Field, ConfigDict, computed_field, \
+    model_validator
+
+from api.company.schemas.company_officials import CompanyOfficialUpdate, CompanyOfficial
+from app.api.company.models.company import TradeActivity, BusinessType
 from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.api.authentication.models.user import User
 
-class CompanyOfficialBase(BaseModel):
-    position: str
-    full_name: str
-
-class CompanyOfficialCreate(CompanyOfficialBase):
-    pass
-
-class CompanyOfficialUpdate(CompanyOfficialBase):
-    pass
-
-class CompanyOfficial(CompanyOfficialBase):
-    id: int
-    company_id: int
-
-    class Config:
-        from_attributes = True
 
 class CompanyBase(BaseModel):
     name: str

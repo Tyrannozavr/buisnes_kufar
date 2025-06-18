@@ -1,10 +1,9 @@
-import json
 from typing import Optional
 
 from fastapi import APIRouter, Response, HTTPException, status, Request, Form
 from fastapi.security import OAuth2PasswordBearer
 
-from app.api.authentication.dependencies import AuthServiceDep, current_user_dep, token_data_dep
+from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse
 from app.api.authentication.services.auth_service import AuthService

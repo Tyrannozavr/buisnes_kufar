@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
 from pathlib import Path
-import os
+from typing import Optional
+
+from pydantic_settings import BaseSettings
+
 
 def get_async_database_url(sync_url: str) -> str:
     """Convert sync database URL to async URL."""

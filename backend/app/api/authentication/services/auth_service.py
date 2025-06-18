@@ -1,14 +1,16 @@
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional
+
 from fastapi import HTTPException, status, Request
-from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, Token, UserInDB, RegistrationToken
+from sqlalchemy.orm import Session
+
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.core.security import create_access_token, decode_token
+from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User
 from app.core.config import settings
 from app.core.email_utils import send_verification_email
-from app_logging.logger import logger
-from sqlalchemy.orm import Session
+from app.core.security import create_access_token, decode_token
 from app.core.security import verify_password
+from app_logging.logger import logger
 
 
 class AuthService:

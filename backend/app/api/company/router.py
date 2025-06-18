@@ -1,18 +1,14 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Union
 
+from fastapi import APIRouter, UploadFile, File
+
+from api.company.schemas.company_officials import CompanyOfficialCreate
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
-from app.api.company.dependencies import company_service_dep
+from app.api.company.dependencies import company_service_dep, official_repository_dep
 from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse
 from app.api.company.schemas.products import ProductsResponse, PaginationInfo
-from app.api.company.services.company_service import CompanyService
-
 
 router = APIRouter(tags=["company"])
-
-
-
 
 
 @router.get("/me", response_model=Union[CompanyResponse, CompanyProfileResponse])
@@ -59,3 +55,13 @@ async def get_my_products(
             totalPages=20,
         )
     )
+
+
+@router.post("/me/officials")
+async def add_official(
+        officials_repository: official_repository_dep,
+        official_data: CompanyOfficialCreate,
+        current_user: current_user_dep,
+):
+    company_id = current_user.company_id
+    return await officials_repository.create(official_data, company_id=company_id)

@@ -1,5 +1,5 @@
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-from typing import Optional
+
 from app.core.config import settings
 from app_logging.logger import logger
 

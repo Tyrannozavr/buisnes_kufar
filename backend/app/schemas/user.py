@@ -1,7 +1,10 @@
-from fastapi import Form
-from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
+
+from pydantic import BaseModel, EmailStr, constr
 from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, constr
+
 
 class UserBase(BaseModel):
     inn: constr(min_length=9, max_length=12, pattern=r'^\d+$')

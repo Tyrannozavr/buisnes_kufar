@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Optional, Dict, Any
-from uuid import UUID, uuid4
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, constr
+from typing import Optional
+from uuid import uuid4
+
+from pydantic import BaseModel, EmailStr, ConfigDict, constr
 
 from api.company.schemas.company import CompanyLogoUrlMixin
 

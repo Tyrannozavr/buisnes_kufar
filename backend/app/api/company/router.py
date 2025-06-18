@@ -1,8 +1,9 @@
-from typing import Union
+from typing import Union, List, Dict, Any
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException, Body
 
-from api.company.schemas.company_officials import CompanyOfficialCreate
+from api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
+    CompanyOfficialPartialUpdate
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.company.dependencies import company_service_dep, official_repository_dep
 from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse
@@ -63,6 +64,64 @@ async def add_official(
         official_data: CompanyOfficialCreate,
         token_data: token_data_dep,
         company_service: company_service_dep
-):
+) -> CompanyOfficial:
     company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
     return await officials_repository.create(official_data, company_id=company.id)
+
+
+@router.get("/me/officials", response_model=List[CompanyOfficial])
+async def get_officials(
+    officials_repository: official_repository_dep,
+    token_data: token_data_dep,
+    company_service: company_service_dep
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await officials_repository.get_by_company_id(company_id=company.id)
+
+
+@router.put("/me/officials/{official_id}", response_model=CompanyOfficial)
+async def update_official(
+    official_id: int,
+    official_data: CompanyOfficialUpdate,
+    officials_repository: official_repository_dep,
+    token_data: token_data_dep,
+    company_service: company_service_dep
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    official = await officials_repository.get_by_id(official_id)
+    if not official or official.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Official not found")
+    return await officials_repository.update(official_id, official_data)
+
+
+@router.delete("/me/officials/{official_id}", response_model=dict)
+async def delete_official(
+    official_id: int,
+    officials_repository: official_repository_dep,
+    token_data: token_data_dep,
+    company_service: company_service_dep
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    official = await officials_repository.get_by_id(official_id)
+    if not official or official.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Official not found")
+    await officials_repository.delete(official_id)
+    return {"message": "Official successfully deleted"}
+
+
+@router.patch("/me/officials/{official_id}", response_model=CompanyOfficial)
+async def patch_official(
+    official_id: int,
+    officials_repository: official_repository_dep,
+    token_data: token_data_dep,
+    company_service: company_service_dep,
+    official_data: CompanyOfficialPartialUpdate,
+
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    official = await officials_repository.get_by_id(official_id)
+    if not official or official.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Official not found")
+
+    
+    return await officials_repository.partial_update(official_id, official_data)

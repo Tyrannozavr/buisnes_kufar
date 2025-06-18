@@ -35,7 +35,17 @@ export interface Company {
   updatedAt: string
 }
 
+// Base type for company officials
+export interface CompanyOfficialBase {
+  position: string
+  full_name: string
+}
 
+// Extended type for company officials with additional properties
+export interface CompanyOfficial extends CompanyOfficialBase {
+  id: number
+  company_id: number
+}
 
 // Type for partner company with only the required fields
 export interface PartnerCompany {
@@ -117,11 +127,6 @@ export interface CompanyFormProps {
     modelValue: CompanyFormState
     loading?: boolean
     error?: string | null
-}
-
-export interface CompanyOfficial {
-  position: string
-  fullName: string
 }
 
 export interface CompanyResponse {
@@ -241,4 +246,3 @@ export const getFullImageUrl = (path: string | null): string | null => {
   // Формируем полный URL
   return `${frontendUrl}/${cleanPath}`
 }
-

@@ -10,8 +10,13 @@ class CompanyOfficialCreate(CompanyOfficialBase):
     pass
 
 
-class CompanyOfficialUpdate(CompanyOfficialBase):
+class CompanyOfficialUpdate(BaseModel):
     pass
+
+
+class CompanyOfficialPartialUpdate(BaseModel):
+    position: str | None = None
+    full_name: str | None = None
 
 
 class CompanyOfficial(CompanyOfficialBase):

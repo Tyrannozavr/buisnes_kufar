@@ -13,6 +13,7 @@ import type {LocationItem} from '~/types/location'
 import {useLocationsApi} from '~/api/locations'
 import {useUserStore} from '~/stores/user'
 import {uploadCompanyLogo} from '~/api/companyOwner'
+import UCombobox from "~/components/ui/UCombobox.vue";
 
 const props = defineProps<CompanyDataFormProps>()
 
@@ -24,8 +25,6 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const fileInputRef = ref<HTMLInputElement | null>(null)
-
-const officials = ref<CompanyOfficial[]>(props.company?.officials || [])
 
 const { 
   countryOptions,
@@ -457,6 +456,11 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
   cities.value = [] // Очищаем список городов при смене региона
   isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
 }
+
+// Обработчик обновления должностных лиц
+const handleOfficialsUpdate = (officials: CompanyOfficial[]) => {
+  formState.value.officials = officials
+}
 </script>
 
 <template>
@@ -523,7 +527,8 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
 
         <!-- 4. Должностные лица -->
         <CompanyOfficialsSection
-            v-model:officials="officials"
+            v-model:officials="formState.officials"
+            @update:officials="handleOfficialsUpdate"
         />
 
         <!-- 5. Контактные данные -->

@@ -2,27 +2,16 @@
 import type { Announcement } from '~/types/announcement'
 import type { Company } from '~/types/company'
 import { computed } from 'vue'
+import { getLatestCompaniesSSR } from '~/api/companies'
+import { getLatestAnnouncementsSSR } from '~/api/announcements'
 
-// Use useFetch for server-side data fetching
-const { data: announcementsData } = await useFetch<{
-  data: Announcement[],
-  pagination: {
-    total: number,
-    page: number,
-    perPage: number,
-    totalPages: number
-  }
-}>('/api/announcements/latest', {
-  params: {
-    limit: 6
-  }
-})
+// Use SSR functions for server-side data fetching
+const announcementsData = await getLatestAnnouncementsSSR(6)
 
-const { data: companies } = await useFetch<Company[]>('/api/companies/latest', {
-  params: {
-    limit: 6
-  }
-})
+// Use SSR function for companies
+const response = await getLatestCompaniesSSR(6)
+
+const companies = computed(() => response?.data || [])
 
 // Format date for display
 const formatDate = (dateString: string) => {
@@ -35,9 +24,9 @@ const formatDate = (dateString: string) => {
 
 // Map announcement data to match AnnouncementCard requirements
 const mappedAnnouncements = computed(() => {
-  if (!announcementsData.value?.data) return []
+  if (!announcementsData?.data) return []
   
-  return announcementsData.value.data.map(announcement => ({
+  return announcementsData.data.map((announcement: Announcement) => ({
     id: announcement.id,
     image: announcement.images?.[0] || '/images/default-announcement.png',
     title: announcement.title,
@@ -126,7 +115,8 @@ const mappedAnnouncements = computed(() => {
           <div v-for="company in companies" :key="company.id" class="border rounded-lg p-4 hover:shadow-md transition-shadow">
             <div class="flex items-center">
               <div class="flex-shrink-0 mr-3">
-                <img :src="company.logo || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded">
+
+                <NuxtImg :src="company.logo_url || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded" />
               </div>
               <div>
                 <NuxtLink :to="`/company/${company.slug}`" class="font-medium hover:text-primary-600 transition-colors">

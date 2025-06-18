@@ -6,7 +6,7 @@ export type BusinessType = 'Производство товаров' | 'Оказ
 export interface Company {
   id: number
   name: string
-  logo: string | null
+  logo_url: string | null
   type: string
   slug: string
   tradeActivity: TradeActivity

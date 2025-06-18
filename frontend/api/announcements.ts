@@ -1,81 +1,50 @@
 import type { Announcement } from '~/types/announcement'
-import type { UseFetchOptions } from 'nuxt/app'
 import type { PaginationResponse } from '~/types/api'
+import { API_URLS } from '~/constants/urls'
 
 export const useAnnouncementsApi = () => {
-  const getAllAnnouncements = (options: UseFetchOptions<Announcement[]> = {}) => {
-    return useApi<Announcement[]>('/announcements', {
+  const { $api } = useNuxtApp()
+
+  const getAllAnnouncements = async (options: any = {}) => {
+    return await $api.get(API_URLS.ANNOUNCEMENTS, options)
+  }
+
+  const getAnnouncements = async (options: any = {}) => {
+    return await $api.get(API_URLS.ANNOUNCEMENTS, options)
+  }
+
+  const getLatestAnnouncements = async (limit: number = 5, options: any = {}) => {
+    return await $api.get(API_URLS.ANNOUNCEMENTS_LATEST, {
+      params: { limit },
       ...options
     })
   }
 
-  const getAnnouncements = (options: UseFetchOptions<Announcement[]> = {}) => {
-    return useApi<Announcement[]>('/announcements', {
-      transform: (data) =>
-        data
-          .filter(a => a.published)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-      ...options
-    })
+  const getAnnouncementById = async (id: string, options: any = {}) => {
+    return await $api.get(`${API_URLS.ANNOUNCEMENTS}/${id}`, options)
   }
 
-  const getLatestAnnouncements = (limit: number = 5, options: UseFetchOptions<Announcement[]> = {}) => {
-    return useApi<Announcement[]>('/announcements', {
-      transform: (data) =>
-        data
-          .filter(a => a.published)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, limit),
+  const getCompanyAnnouncements = async (page: number = 1, perPage: number = 10, options: any = {}) => {
+    return await $api.get(`${API_URLS.ANNOUNCEMENTS}/company`, {
+      params: { page, perPage },
       ...options
-    })
+    }) as PaginationResponse<Announcement>
   }
 
-  const getAnnouncementById = (id: string, options: UseFetchOptions<Announcement> = {}) => {
-    return useApi<Announcement>(`/announcements/${id}`, options)
+  const createAnnouncement = async (data: Partial<Announcement>, options: any = {}) => {
+    return await $api.post(API_URLS.ANNOUNCEMENTS, data, options)
   }
 
-  const getCompanyAnnouncements = (page: number = 1, perPage: number = 10, options: UseFetchOptions<PaginationResponse<Announcement>> = {}) => {
-    return useApi<PaginationResponse<Announcement>>(`/announcements/company?page=${page}&perPage=${perPage}`, {
-      lazy: true,
-      ...options
-    })
+  const updateAnnouncement = async (id: string, data: Partial<Announcement>, options: any = {}) => {
+    return await $api.put(`${API_URLS.ANNOUNCEMENTS}/${id}`, data, options)
   }
 
-  const createAnnouncement = (data: Partial<Announcement>, options: UseFetchOptions<Announcement> = {}) => {
-    return useApi<Announcement>('/announcements', {
-      method: 'POST',
-      body: data,
-      ...options
-    })
+  const deleteAnnouncement = async (id: string, options: any = {}) => {
+    return await $api.delete(`${API_URLS.ANNOUNCEMENTS}/${id}`, options)
   }
 
-  const updateAnnouncement = (id: string, data: Partial<Announcement>, options: UseFetchOptions<Announcement> = {}) => {
-    return useApi<Announcement>(`/announcements/${id}`, {
-      method: 'PUT',
-      body: data,
-      ...options
-    })
-  }
-
-  const publishAnnouncement = (id: string, options: UseFetchOptions<void> = {}) => {
-    return useApi<void>(`/announcements/${id}/publish`, {
-      method: 'PUT',
-      ...options
-    })
-  }
-
-  const unpublishAnnouncement = (id: string, options: UseFetchOptions<void> = {}) => {
-    return useApi<void>(`/announcements/${id}/unpublish`, {
-      method: 'PUT',
-      ...options
-    })
-  }
-
-  const deleteAnnouncement = (id: string, options: UseFetchOptions<void> = {}) => {
-    return useApi<void>(`/announcements/${id}`, {
-      method: 'DELETE',
-      ...options
-    })
+  const publishAnnouncement = async (id: string, options: any = {}) => {
+    return await $api.put(`${API_URLS.ANNOUNCEMENTS}/${id}/publish`, {}, options)
   }
 
   return {
@@ -86,10 +55,24 @@ export const useAnnouncementsApi = () => {
     getCompanyAnnouncements,
     createAnnouncement,
     updateAnnouncement,
-    publishAnnouncement,
-    unpublishAnnouncement,
-    deleteAnnouncement
+    deleteAnnouncement,
+    publishAnnouncement
   }
+}
+
+// SSR-ready functions
+export const getLatestAnnouncementsSSR = async (limit: number = 6) => {
+  const { $api } = useNuxtApp()
+  return await $api.get(API_URLS.ANNOUNCEMENTS_LATEST, {
+    params: { limit }
+  })
+}
+
+export const getCompanyAnnouncementsSSR = async (page: number = 1, perPage: number = 10) => {
+  const { $api } = useNuxtApp()
+  return await $api.get(`${API_URLS.ANNOUNCEMENTS}/company`, {
+    params: { page, perPage }
+  }) as PaginationResponse<Announcement>
 }
 
 export const useAnnouncements = (page: number, perPage: number) => {

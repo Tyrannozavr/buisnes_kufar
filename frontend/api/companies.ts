@@ -1,47 +1,94 @@
 import type {Company, CompanyShort, ManufacturersSearchParams} from '~/types/company'
-import type { UseFetchOptions } from 'nuxt/app'
-import { useApi } from '~/composables/useApi'
+import type { PaginationResponse } from '~/types/api'
+import { API_URLS } from '~/constants/urls'
 
 export const useCompaniesApi = () => {
-  const getCompanies = (options: UseFetchOptions<Company[]> = {}) => {
-    return useApi<Company[]>('/companies', {
-      transform: (data) =>
-        data.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime()),
-      ...options
-    })
+  const { $api } = useNuxtApp()
+
+  const getCompanies = async (params: {
+    page?: number
+    perPage?: number
+    limit?: number
+  } = {}) => {
+    const { page = 1, perPage = 10, limit } = params
+    
+    const queryParams: Record<string, any> = {
+      page,
+      perPage
+    }
+    
+    if (limit) {
+      queryParams.limit = limit
+    }
+
+    return await $api.get(API_URLS.COMPANIES, { params: queryParams })
   }
 
-  const getLatestCompanies = (limit: number = 5, options: UseFetchOptions<Company[]> = {}) => {
-    return useApi<Company[]>('/companies', {
-      transform: (data) =>
-        data
-          .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
-          .slice(0, limit),
-      ...options
-    })
+  const getCompaniesPaginated = async (page: number = 1, perPage: number = 10) => {
+    return await $api.get(API_URLS.COMPANIES, {
+      params: { page, perPage }
+    }) as PaginationResponse<Company>
   }
-  const searchManufacturers = async (params: ManufacturersSearchParams = {}) => {
-    return useApi<CompanyShort[]>('/manufacturers', {
-      query: params
-    });
+
+  const getLatestCompanies = async (limit: number = 6) => {
+    return await $api.get(API_URLS.COMPANIES, {
+      params: { limit }
+    }) as Company[]
   }
-  const searchServiceProviders = async (params: ManufacturersSearchParams = {}) => {
-    return useApi<CompanyShort[]>('/service-providers', {
-      query: params
-    });
+
+  const searchManufacturers = async (params: any = {}) => {
+    return await $api.get('/manufacturers', { params })
+  }
+
+  const searchServiceProviders = async (params: any = {}) => {
+    return await $api.get('/service-providers', { params })
   }
 
   const deletePartnerById = async (id: string) => {
-    return await useApi<void>(`/companies/${id}`, {
-      method: 'DELETE'
-    })
+    return await $api.delete(`/companies/${id}`)
   }
 
   return {
     getCompanies,
+    getCompaniesPaginated,
     getLatestCompanies,
     searchManufacturers,
     searchServiceProviders,
     deletePartnerById
   }
+}
+
+// SSR-ready functions
+export const getCompaniesSSR = async (params: {
+  page?: number
+  perPage?: number
+  limit?: number
+} = {}) => {
+  const { $api } = useNuxtApp()
+  const { page = 1, perPage = 10, limit } = params
+  
+  const queryParams: Record<string, any> = {
+    page,
+    perPage
+  }
+  
+  if (limit) {
+    queryParams.limit = limit
+  }
+
+  return await $api.get(API_URLS.COMPANIES, { params: queryParams })
+}
+
+export const getCompaniesPaginatedSSR = async (page: number = 1, perPage: number = 10) => {
+  const { $api } = useNuxtApp()
+  return await $api.get(API_URLS.COMPANIES, {
+    params: { page, perPage }
+  }) as PaginationResponse<Company>
+}
+
+export const getLatestCompaniesSSR = async (limit: number = 6) => {
+  const { $api } = useNuxtApp()
+  return await $api.get(API_URLS.COMPANIES, {
+    params: { limit }
+  }) as PaginationResponse<Company>
 } 

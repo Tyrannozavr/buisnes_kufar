@@ -14,8 +14,6 @@ services:
       - ./backend/database.db:/app/database.db
       - ./backend/uploads:/app/uploads
       - ./backend/app/static:/app/app/static
-    env_file:
-      - ./backend/.env
 
     depends_on:
       - db

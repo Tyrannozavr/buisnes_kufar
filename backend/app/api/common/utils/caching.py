@@ -7,7 +7,10 @@ from ..utils.location_api import LocationAPI, LocationAPIError
 
 # Initialize the cache
 cache = Cache("./cache")
+
 location_api = LocationAPI()
+
+
 
 async def get_cached_regions(country_code: str, federal_district: Optional[str] = None) -> Tuple[str, list]:
     """

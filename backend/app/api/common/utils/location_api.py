@@ -1,10 +1,11 @@
+import logging
 from typing import Dict, List, Optional, Union
 
 import httpx
 from pydantic import BaseModel
 
 from app.core.config import settings
-
+logger = logging.getLogger(__name__)
 
 class LocationAPIError(Exception):
     """Базовый класс для ошибок API локаций"""
@@ -84,7 +85,7 @@ class LocationAPI:
         self.base_url = "http://htmlweb.ru/geo/api.php"
         self.api_key = settings.LOCATION_API_KEY
         if not self.api_key:
-            raise LocationAPIConfigError("LOCATION_API_KEY не настроен")
+            logger.error("LOCATION_API_KEY не настроен")
         self.client = httpx.AsyncClient(timeout=10.0)
 
         # Фиксированный список стран для фронтенда

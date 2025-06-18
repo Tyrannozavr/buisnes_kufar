@@ -1,11 +1,18 @@
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load environment variables before anything else
+load_dotenv()
+
 from pydantic_settings import BaseSettings
 
 
 def get_async_database_url(sync_url: str) -> str:
     """Convert sync database URL to async URL."""
+    if sync_url is None:
+        sync_url = "sqlite:///./database.db"
     if sync_url.startswith('sqlite:'):
         return sync_url.replace('sqlite:', 'sqlite+aiosqlite:', 1)
     elif sync_url.startswith('postgresql:'):
@@ -35,7 +42,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "business_trade"
-    SQLALCHEMY_DATABASE_URI: Optional[str] = None
+    SQLALCHEMY_DATABASE_URL: Optional[str] = None
     
     # Настройки фронтенда
     FRONTEND_URL: str = "http://localhost:3000"
@@ -51,11 +58,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",  # Add this line
     ]
     
-    MAIL_USERNAME: str|None = None
-    MAIL_PASSWORD: str|None = None
-    MAIL_FROM: str|None = None
-    MAIL_PORT: str|None = None
-    MAIL_SERVER: str|None = None
+    MAIL_USERNAME: str|None = "mock_email@example.com"
+    MAIL_PASSWORD: str|None = "mock_password_here"
+    MAIL_FROM: str|None = "mock_email@example.com"
+    MAIL_PORT: int|None = 587
+    MAIL_SERVER: str|None = "smtp.gmail.com"
     
     # Static files
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -66,11 +73,11 @@ class Settings(BaseSettings):
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        return get_async_database_url(self.SQLALCHEMY_DATABASE_URI)
+        return get_async_database_url(self.SQLALCHEMY_DATABASE_URL)
 
     class Config:
         case_sensitive = True
-        env_file = ".env"
+        env_file = "../.env"
 
 
 settings = Settings()

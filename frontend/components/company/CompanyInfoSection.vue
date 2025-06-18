@@ -208,7 +208,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
       </UFormField>
 
       <UFormField label="Страна" required>
-        <USelectMenu
+        <UCombobox
             :model-value="formState.country"
             class="w-48"
             :items="countryOptions || []"
@@ -228,7 +228,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
       </UFormField>
 
       <UFormField label="Федеральный округ" required>
-        <USelectMenu
+        <UCombobox
             :model-value="formState.federalDistrict"
             :items="federalDistrictOptions || []"
             :loading="federalDistrictsLoading"
@@ -251,13 +251,13 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
       </UFormField>
 
       <UFormField label="Регион" required>
-        <USelectMenu
+        <UCombobox
             :model-value="formState.region"
             :items="regionOptions || []"
             :loading="regionsLoading"
             class="w-48"
-            :disabled="!formState.country || 
-                     (formState.country.value === 'Россия' && !formState.federalDistrict) || 
+            :disabled="!formState.country ||
+                     (formState.country.value === 'Россия' && !formState.federalDistrict) ||
                      regionsLoading"
             placeholder="Выберите регион"
             :search-input="{
@@ -271,8 +271,8 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
           Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
         </p>
         <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
-          {{ formState.country.value === 'Россия' 
-            ? 'Выберите федеральный округ для загрузки списка регионов' 
+          {{ formState.country.value === 'Россия'
+            ? 'Выберите федеральный округ для загрузки списка регионов'
             : 'Для выбранной страны регионы не требуются' }}
         </p>
       </UFormField>

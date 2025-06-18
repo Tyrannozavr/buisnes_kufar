@@ -535,48 +535,6 @@ const handleOfficialsUpdate = (officials: CompanyOfficial[]) => {
         <CompanyContactSection
             v-model:formState="formState"
         />
-
-        <!-- 6. Местоположение -->
-        <div>
-          <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Местоположение</h4>
-          <div class="flex items-center gap-4">
-            <UCombobox
-                v-model="formState.country"
-                :items="countries"
-                label="Страна"
-                placeholder="Выберите страну"
-                @update:model-value="handleCountryChange"
-            />
-            <UCombobox
-                v-if="formState.country?.value === 'Россия'"
-                v-model="formState.federalDistrict"
-                :items="federalDistricts"
-                label="Федеральный округ"
-                placeholder="Выберите федеральный округ"
-                @update:model-value="handleFederalDistrictChange"
-            />
-            <UCombobox
-                v-model="formState.region"
-                :items="regions"
-                label="Регион"
-                placeholder="Выберите регион"
-                @update:model-value="handleRegionChange"
-            />
-            <UCombobox
-                v-model="formState.city"
-                :items="cities"
-                label="Город"
-                :placeholder="isCityManuallyChanged ? 'Введите название города' : 'Город'"
-                :search-input="{
-                  modelValue: citySearchQuery,
-                  'onUpdate:modelValue': handleCitySearch,
-                  placeholder: 'Поиск города...',
-                  icon: 'i-lucide-search'
-                }"
-                @update:model-value="handleCityChange"
-            />
-          </div>
-        </div>
       </div>
       <div class="flex">
         <UButton

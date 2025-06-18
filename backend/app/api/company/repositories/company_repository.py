@@ -83,20 +83,7 @@ class CompanyRepository:
 
         if 'officials' in update_data:
             officials_data = update_data.pop('officials')
-            
-            # Delete existing officials
-            await self.session.execute(
-                delete(CompanyOfficial).where(CompanyOfficial.company_id == company_id)
-            )
-            
-            # Create new officials
-            if officials_data:
-                officials = [
-                    CompanyOfficial(**official.model_dump(), company_id=company_id)
-                    for official in officials_data
-                ]
-                self.session.add_all(officials)
-        
+
         # Update company
         if update_data:
             await self.session.execute(

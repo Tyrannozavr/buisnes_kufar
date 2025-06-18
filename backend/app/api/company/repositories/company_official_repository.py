@@ -3,7 +3,8 @@ from typing import Optional, Sequence
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate
+from api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, \
+    CompanyOfficialPartialUpdate
 from app.api.company.models.official import CompanyOfficial
 
 
@@ -29,6 +30,20 @@ class CompanyOfficialRepository:
         return official
 
     async def update(self, official_id: int, official_data: CompanyOfficialUpdate) -> Optional[CompanyOfficial]:
+        update_data = official_data.model_dump(exclude_unset=True)
+        if update_data:
+            await self.session.execute(
+                update(CompanyOfficial)
+                .where(CompanyOfficial.id == official_id)
+                .values(**update_data)
+            )
+            await self.session.commit()
+        return await self.get_by_id(official_id)
+
+    async def partial_update(self,
+                             official_id: int,
+                             official_data: CompanyOfficialPartialUpdate
+                             ) -> Optional[CompanyOfficial]:
         update_data = official_data.model_dump(exclude_unset=True)
         if update_data:
             await self.session.execute(

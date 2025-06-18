@@ -5,7 +5,7 @@ import aiofiles
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.authentication.repositories.user_repository import UserRepository
+from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.models import User
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyProfileResponse

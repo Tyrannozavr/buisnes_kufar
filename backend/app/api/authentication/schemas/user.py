@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, EmailStr, ConfigDict, constr
 
-from api.company.schemas.company import CompanyLogoUrlMixin
+from app.api.company.schemas.company import CompanyLogoUrlMixin
 
 
 class UserBase(BaseModel):

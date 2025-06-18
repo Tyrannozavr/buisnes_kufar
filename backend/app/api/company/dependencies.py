@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from api.company.repositories.company_official_repository import CompanyOfficialRepository
+from app.api.company.repositories.company_official_repository import CompanyOfficialRepository
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.services.company_service import CompanyService
 from app.db.dependencies import async_db_dep

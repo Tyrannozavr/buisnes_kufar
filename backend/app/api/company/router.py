@@ -2,7 +2,7 @@ from typing import Union, List, Dict, Any
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Body
 
-from api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
+from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
     CompanyOfficialPartialUpdate
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.company.dependencies import company_service_dep, official_repository_dep

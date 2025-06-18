@@ -4,7 +4,7 @@ from typing import Optional, List, Union, TYPE_CHECKING
 from pydantic import BaseModel, EmailStr, HttpUrl, constr, Field, ConfigDict, computed_field, \
     model_validator
 
-from api.company.schemas.company_officials import CompanyOfficialUpdate, CompanyOfficial
+from app.api.company.schemas.company_officials import CompanyOfficialUpdate, CompanyOfficial
 from app.api.company.models.company import TradeActivity, BusinessType
 from app.core.config import settings
 

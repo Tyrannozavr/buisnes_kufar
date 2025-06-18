@@ -4,8 +4,8 @@ from sqladmin import Admin
 
 
 def setup_admin(app, engine):
-    from api.admin.company import CompanyOfficialAdmin
-    from api.admin.company import CompanyAdmin
+    from app.api.admin.company import CompanyOfficialAdmin
+    from app.api.admin.company import CompanyAdmin
     from app.api.admin.auth import UserAdmin, RegistrationTokenAdmin
     admin = Admin(app, engine)
 

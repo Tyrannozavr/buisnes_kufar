@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import Form
 from pydantic import BaseModel, Field, ConfigDict
 
-from api.company.schemas.company import CompanyLogoUrlMixin
+from app.api.company.schemas.company import CompanyLogoUrlMixin
 from app.api.company.models.company import TradeActivity, BusinessType
 from app.api.company.schemas.company_officials import CompanyOfficial
 

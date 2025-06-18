@@ -1,6 +1,6 @@
 import type { LocationItem, LocationResponse } from '~/types/location'
 
-export const useCompaniesLocations = () => {
+export const useCompaniesLocations = (prefix: string = 'companies') => {
   const { $api } = useNuxtApp()
   const countriesLoading = ref(false)
   const federalDistrictsLoading = ref(false)
@@ -21,7 +21,7 @@ export const useCompaniesLocations = () => {
     countriesLoading.value = true
     countriesError.value = null
     try {
-      const response = await $api.get('/v1/companies/locations/countries')
+      const response = await $api.get(`/v1/${prefix}/locations/countries`)
       const data = response as LocationResponse
       countryOptions.value = data.items || []
     } catch (error) {
@@ -37,7 +37,7 @@ export const useCompaniesLocations = () => {
     federalDistrictsLoading.value = true
     federalDistrictsError.value = null
     try {
-      const response = await $api.get('/v1/companies/locations/federal-districts')
+      const response = await $api.get(`/v1/${prefix}/locations/federal-districts`)
       const data = response as LocationResponse
       federalDistrictOptions.value = data.items || []
     } catch (error) {
@@ -53,7 +53,7 @@ export const useCompaniesLocations = () => {
     regionsLoading.value = true
     regionsError.value = null
     try {
-      const response = await $api.get(`/v1/companies/locations/regions/${countryCode}`, {
+      const response = await $api.get(`/v1/${prefix}/locations/regions/${countryCode}`, {
         params: { federal_district: federalDistrict }
       })
       const data = response as LocationResponse
@@ -71,7 +71,7 @@ export const useCompaniesLocations = () => {
     citiesLoading.value = true
     citiesError.value = null
     try {
-      const response = await $api.get(`/v1/companies/locations/cities`, {
+      const response = await $api.get(`/v1/${prefix}/locations/cities`, {
         params: { 
           region: regionId, 
           country: countryCode

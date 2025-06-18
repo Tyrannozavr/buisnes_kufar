@@ -6,6 +6,7 @@ import { isLocationItem } from '~/types/filters'
 const props = defineProps<{
   type: 'products' | 'services'
   title: string
+  locationPrefix?: string
 }>()
 
 const emit = defineEmits<{
@@ -29,7 +30,7 @@ const {
   loadFederalDistricts,
   loadRegions,
   loadCities
-} = useCompaniesLocations()
+} = useCompaniesLocations(props.locationPrefix)
 
 // Search state
 const searchQuery = ref('')

@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-white dark:text-white">
+  <div class="min-h-screen bg-white dark:text-white pt-22">
     <AppHeader 
       :isSidebarOpen="isSidebarOpen"
       @update:isSidebarOpen="isSidebarOpen = $event"
     />
-    <AppNavigation 
+    <AppNavigation
       :isSidebarOpen="isSidebarOpen"
       @update:isSidebarOpen="isSidebarOpen = $event"
     />

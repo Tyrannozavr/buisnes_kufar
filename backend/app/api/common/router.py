@@ -11,7 +11,7 @@ from ..common.utils.location_data import (
     get_federal_districts,
 )
 
-router = APIRouter(prefix="/locations", tags=["locations"])
+router = APIRouter(tags=["locations"])
 
 async def unify_list(items: list) -> list:
     return [{"label": item.get("label"), "value": item.get("label")} for item in items]

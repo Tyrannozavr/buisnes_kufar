@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type {Region, City, FederalDistrict} from '~/types/location'
-import {useLocationsApi} from '~/api/locations'
-import type {FilterItem} from "~/types/Filter";
+import type {LocationItem} from '~/types/location'
+import {useCompaniesLocations} from '~/api/companies-locations'
 
 const emit = defineEmits<{
   (e: 'search', params: {
@@ -15,70 +14,69 @@ const emit = defineEmits<{
 }>()
 
 // API
-const {getCountries, getFederalDistricts, getRegions, getCities} = useLocationsApi()
+const {
+  countryOptions,
+  federalDistrictOptions,
+  regionOptions,
+  cityOptions,
+  countriesLoading,
+  federalDistrictsLoading,
+  regionsLoading,
+  citiesLoading,
+  countriesError,
+  federalDistrictsError,
+  regionsError,
+  citiesError,
+  loadFederalDistricts,
+  loadRegions,
+  loadCities
+} = useCompaniesLocations('companies')
 
 // Search state
 const searchQuery = ref('')
-const selectedCountry = ref<string | null>(null)
-const selectedFederalDistrict = ref<string | null>(null)
-const selectedRegion = ref<string | null>(null)
-const selectedCity = ref<string | null>(null)
+const selectedCountry = ref<LocationItem | undefined>(undefined)
+const selectedFederalDistrict = ref<LocationItem | undefined>(undefined)
+const selectedRegion = ref<LocationItem | undefined>(undefined)
+const selectedCity = ref<LocationItem | undefined>(undefined)
 const productQuery = ref('')
 
-// Loading states
-const loadingCountries = ref(true)
-const loadingFederalDistricts = ref(false)
-const loadingRegions = ref(false)
-const loadingCities = ref(false)
-
-
-const isSelectedCountry = computed(() => selectedCountry.value!== null)
-// Location data
-const {data: countries} = await getCountries()
-loadingCountries.value = false
-
-const federalDistricts = ref<FederalDistrict[]>([])
-const regions = ref<Region[]>([])
-const cities = ref<City[]>([])
+const isSelectedCountry = computed(() => selectedCountry.value !== undefined)
 
 // Computed properties
-const isRussia = computed(() => selectedCountry.value === 'Россия')
+const isRussia = computed(() => selectedCountry.value?.value === 'Россия')
 const showFederalDistricts = computed(() => isRussia.value)
 
 // Methods
 const loadLocations = async () => {
-  if (isRussia.value && !federalDistricts.value.length) {
-    loadingFederalDistricts.value = true
-    const {data} = await getFederalDistricts()
-    federalDistricts.value = data.value ?? []
-    loadingFederalDistricts.value = false
+  if (isRussia.value && !federalDistrictOptions.value.length) {
+    await loadFederalDistricts()
   }
-  if (!regions.value.length) {
-    loadingRegions.value = true
-    const {data} = await getRegions(selectedCountry.value || "", selectedFederalDistrict.value || undefined)
-    regions.value = data.value ?? []
-    loadingRegions.value = false
+  if (selectedCountry.value && !regionOptions.value.length) {
+    await loadRegions(selectedCountry.value.value, selectedFederalDistrict.value?.value)
   }
-  if (!cities.value.length) {
-    loadingCities.value = true
-    const {data} = await getCities(selectedCountry.value || "")
-    cities.value = data.value ?? []
-    loadingCities.value = false
+  if (selectedCountry.value && selectedRegion.value && !cityOptions.value.length) {
+    await loadCities(selectedCountry.value.value, selectedRegion.value.value)
   }
 }
 
-const handleCountryChange = async (country: FilterItem) => {
-  selectedCountry.value = country.value
+const handleCountryChange = async (country: LocationItem) => {
+  selectedCountry.value = country
+  selectedFederalDistrict.value = undefined
+  selectedRegion.value = undefined
+  selectedCity.value = undefined
   await loadLocations()
 }
 
-const handleFederalDistrictChange = async (district: FilterItem) => {
-  selectedFederalDistrict.value = district.value
+const handleFederalDistrictChange = async (district: LocationItem) => {
+  selectedFederalDistrict.value = district
+  selectedRegion.value = undefined
+  selectedCity.value = undefined
   await loadLocations()
 }
 
-const handleRegionChange = async (region: FilterItem) => {
-  selectedRegion.value = region.value
+const handleRegionChange = async (region: LocationItem) => {
+  selectedRegion.value = region
+  selectedCity.value = undefined
   await loadLocations()
 }
 
@@ -86,10 +84,10 @@ const handleSearch = () => {
   const params: Record<string, string> = {}
 
   if (searchQuery.value) params.search = searchQuery.value
-  if (selectedCountry.value) params.country = selectedCountry.value
-  if (selectedFederalDistrict.value) params.federalDistrict = selectedFederalDistrict.value
-  if (selectedRegion.value) params.region = selectedRegion.value
-  if (selectedCity.value) params.city = selectedCity.value
+  if (selectedCountry.value) params.country = selectedCountry.value.value
+  if (selectedFederalDistrict.value) params.federalDistrict = selectedFederalDistrict.value.value
+  if (selectedRegion.value) params.region = selectedRegion.value.value
+  if (selectedCity.value) params.city = selectedCity.value.value
   if (productQuery.value) params.product = productQuery.value
 
   emit('search', params)
@@ -112,14 +110,14 @@ loadLocations()
       <UFormField label="Страна">
         <USelectMenu
             v-model="selectedCountry"
-            :items="countries ?? []"
+            :items="countryOptions"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите страну"
             searchable
-            :loading="loadingCountries"
+            :loading="countriesLoading"
             @update:model-value="handleCountryChange"
         />
       </UFormField>
@@ -130,14 +128,14 @@ loadLocations()
       >
         <USelectMenu
             v-model="selectedFederalDistrict"
-            :items="federalDistricts"
+            :items="federalDistrictOptions"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите федеральный округ"
             searchable
-            :loading="loadingFederalDistricts"
+            :loading="federalDistrictsLoading"
             @update:model-value="handleFederalDistrictChange"
         />
       </UFormField>
@@ -145,14 +143,14 @@ loadLocations()
       <UFormField label="Регион">
         <USelectMenu
             v-model="selectedRegion"
-            :items="regions"
+            :items="regionOptions"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите регион"
             searchable
-            :loading="loadingRegions"
+            :loading="regionsLoading"
             @update:model-value="handleRegionChange"
         />
       </UFormField>
@@ -161,7 +159,7 @@ loadLocations()
       <UFormField label="Город">
         <USelectMenu
             v-model="selectedCity"
-            :items="cities"
+            :items="cityOptions"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
@@ -169,7 +167,7 @@ loadLocations()
             placeholder="Выберите город"
             searchable
             :disabled="!isSelectedCountry"
-            :loading="loadingCities"
+            :loading="citiesLoading"
         />
       </UFormField>
 

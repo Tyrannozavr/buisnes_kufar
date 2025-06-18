@@ -1,11 +1,13 @@
 from datetime import datetime
-from typing import Optional, List, Union
+from typing import Optional, List, Union, TYPE_CHECKING
 from pydantic import BaseModel, EmailStr, HttpUrl, constr, conint, Field, model_serializer, ConfigDict, computed_field, \
     model_validator
 from app.api.company.models.company import TradeActivity, BusinessType
 
 from app.core.config import settings
 
+if TYPE_CHECKING:
+    from app.api.authentication.models.user import User
 
 class CompanyOfficialBase(BaseModel):
     position: str
@@ -54,6 +56,16 @@ class CompanyBase(BaseModel):
 
 class CompanyCreate(CompanyBase):
     pass
+
+class CompanyLogoUrlMixin(BaseModel):
+    logo: Optional[str] = None
+
+    @computed_field
+    @property
+    def logo_url(self) -> Optional[str]:
+        if self.logo:
+            return f"{settings.IMAGES_URL}{self.logo}"
+        return None
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
@@ -118,11 +130,10 @@ class Company(CompanyBase):
     class Config:
         from_attributes = True
 
-class CompanyResponse(BaseModel):
+class CompanyResponse(CompanyLogoUrlMixin):
     id: int
     name: str
     slug: str
-    logo: Optional[str] = None
     type: str
     trade_activity: TradeActivity
     business_type: BusinessType
@@ -148,13 +159,6 @@ class CompanyResponse(BaseModel):
     total_purchases: int
     created_at: datetime
     updated_at: datetime
-
-    @computed_field
-    @property
-    def logo_url(self) -> Optional[str]:
-        if self.logo:
-            return f"{settings.IMAGES_URL}{self.logo}"
-        return None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -3,6 +3,8 @@ from typing import Optional, Dict, Any
 from uuid import UUID, uuid4
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, constr
 
+from api.company.schemas.company import CompanyLogoUrlMixin
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -43,8 +45,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-class TokenData(BaseModel):
-    email: Optional[str] = None
 
 class RegistrationTokenCreate(BaseModel):
     email: EmailStr
@@ -68,4 +68,11 @@ class RegistrationToken(BaseModel):
 
 class RegistrationStep2(BaseModel):
     token: uuid4
-    password: str 
+    password: str
+
+class TokenData(BaseModel):
+    user_id: int
+
+class VerifyTokenResponse(CompanyLogoUrlMixin):
+    is_valid: bool
+    company_name: str|None = None

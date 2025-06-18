@@ -4,10 +4,11 @@ from typing import Optional
 from fastapi import APIRouter, Response, HTTPException, status, Request, Form
 from fastapi.security import OAuth2PasswordBearer
 
-from app.api.authentication.dependencies import AuthServiceDep
+from app.api.authentication.dependencies import AuthServiceDep, current_user_dep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse
 from app.api.authentication.services.auth_service import AuthService
+from app.api.company.dependencies import company_service_dep
 from app.api.dependencies import async_db_dep
 from app.core.config import settings
 from app.core.security import create_access_token
@@ -48,13 +49,17 @@ async def register_step2(
     }
 
 
-@router.get("/verify-token/{token}")
+@router.get("/verify-token/")
 async def verify_token(
-        token: str,
-        auth_service: AuthServiceDep
-) -> dict:
-    is_valid = await auth_service.verify_token(token)
-    return {"is_valid": is_valid}
+        token: token_data_dep,
+        company_service: company_service_dep,
+) -> VerifyTokenResponse:
+    company = await company_service.get_company_by_user(token.user_id)
+    return VerifyTokenResponse(
+        is_valid=token.user_id is not None,
+        logo=company.logo,
+        company_name=company.name,
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -92,19 +97,17 @@ async def login(
     }
 
 
-@router.post("/auth/token", response_model=Token)
+@router.post("/token", response_model=Token)
 async def login(
-        db: get_async_db,
+        db: async_db_dep,
         username: str = Form(...),
-    password: str = Form(...),
-    grant_type: Optional[str] = Form(None),
+        password: str = Form(...),
+        grant_type: Optional[str] = Form(None),
 ):
     """
     Login user with username (INN) and password.
 
     """
-
-
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.authenticate_user_by_inn(username, password)
     if not user:

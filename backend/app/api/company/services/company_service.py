@@ -1,6 +1,8 @@
 from typing import Optional
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.authentication.repositories.user_repository import UserRepository
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyProfileResponse
 from app.api.authentication.models import User
@@ -12,13 +14,15 @@ import uuid
 class CompanyService:
     def __init__(self, company_repository: CompanyRepository, db: AsyncSession):
         self.company_repository = company_repository
+        self.user_repository = UserRepository(db)
         self.db = db
         self.upload_dir = "uploads/company_logos"
 
-    async def get_company_by_user(self, user: User) -> CompanyProfileResponse:
+    async def get_company_by_user(self, user_id: int) -> CompanyProfileResponse:
         """Get company profile data for user. If company doesn't exist, returns user data with default values."""
-        company = await self.company_repository.get_by_user_id(user.id)
-        
+        company = await self.company_repository.get_by_user_id(user_id)
+        user = await self.user_repository.get_user_by_id(user_id)
+
         # Always return a response with user data
         if not company:
             return CompanyProfileResponse.create_default(user)
@@ -34,7 +38,6 @@ class CompanyService:
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)
         if not company:
-            print("Creating a new company for suer")
             company_data = CompanyCreate(**company_data.model_dump())  # Convert to CompanyCreate if not provided
             return await self.create_company(user, company_data)
 
@@ -107,17 +110,10 @@ class CompanyService:
         
         return CompanyResponse.model_validate(updated_company.__dict__)
 
-    async def get_or_create_company_by_user(self, user: User) -> CompanyResponse:
-        company = await self.company_repository.get_by_user_id(user.id)
-        if not company:
-            # Create an empty company record
-            empty_company_data = CompanyCreate(name="", description="")
-            company = await self.company_repository.create(empty_company_data, user.id)
-        return CompanyResponse.model_validate(company)
 
-    async def get_full_company(self, user: User) -> CompanyResponse:
+    async def get_full_company(self, user_id: int) -> CompanyResponse:
         """Get full company data for user."""
-        company = await self.company_repository.get_by_user_id(user.id)
+        company = await self.company_repository.get_by_user_id(user_id)
         if not company:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

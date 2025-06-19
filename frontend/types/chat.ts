@@ -13,6 +13,10 @@ export interface Chat {
   updatedAt: string
 }
 
+export interface ChatId {
+  chat_id: number
+}
+
 export interface ChatFile {
   name: string
   url: string

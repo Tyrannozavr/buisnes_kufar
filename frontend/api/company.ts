@@ -1,6 +1,6 @@
-import type { CompanyResponse, CompanyProductsResponse, CompanyStatisticsResponse } from '~/types/company'
+import type { CompanyResponse, CompanyStatistics } from '~/types/company'
 
-export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyStatisticsResponse }> => {
+export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyStatistics }> => {
   // В реальном приложении здесь был бы API-запрос
   return {
     data: {
@@ -12,7 +12,7 @@ export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyS
   }
 }
 
-export const getCompanyProducts = async (id: string): Promise<{ data: CompanyProductsResponse }> => {
+export const getCompanyProducts = async (id: string): Promise<{ data: CompanyStatistics }> => {
   // В реальном приложении здесь был бы API-запрос
   return {
     data: [] // Пустой массив продуктов

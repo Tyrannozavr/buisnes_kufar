@@ -20,30 +20,25 @@ const {data: statistics} = await getCompanyStatistics(companyId)
 
 // Prepare company details
 const companyDetails = computed<CompanyDetails>(() => ({
-  description: company.value?.description ?? '',
-  inn: company.value?.inn ?? '',
-  ogrn: company.value?.ogrn ?? '',
-  ogrnDate: company.value?.registrationDate ?? '',
-  kpp: company.value?.kpp ?? '',
-  legalAddress: company.value?.legalAddress ?? '',
-  productionAddress: company.value?.productionAddress ?? '',
-  phone: company.value?.phone ?? '',
-  email: company.value?.email ?? '',
-  website: company.value?.website ?? ''
+  description: company?.description ?? '',
+  inn: company?.inn ?? '',
+  ogrn: company?.ogrn ?? '',
+  ogrnDate: company?.registration_date ?? '',
+  kpp: company?.kpp ?? '',
+  legalAddress: company?.legal_address ?? '',
+  productionAddress: company?.production_address ?? '',
+  phone: company?.phone ?? '',
+  email: company?.email ?? '',
+  website: company?.website ?? ''
 }))
 
 // Handle chat creation
 const handleCreateChat = async () => {
-  if (!company.value) return
-  
-  const { data: chat } = await createChat({
-    participantId: company.value.id,
-    participantName: company.value.name,
-    participantLogo: company.value.logo || undefined
-  })
-  
-  if (chat.value) {
-    navigateTo(`/profile/messages/${chat.value.id}`)
+  const { chat_id } = await createChat(company.id)
+  console.log(chat_id)
+
+  if (chat_id) {
+    navigateTo(`/profile/messages/${chat_id}`)
   }
 }
 </script>

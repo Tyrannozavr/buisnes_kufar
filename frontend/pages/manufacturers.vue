@@ -40,11 +40,14 @@ const handleSearch = async (params: {
 }
 
 // Initial data loading during SSR
-
-
-// Initial companies load
-const {data: initialManufacturers} = await searchManufacturers()
-manufacturers.value = initialManufacturers.value ?? []
+try {
+  // const { data: initialManufacturers } = await searchManufacturers()
+  const initialManufacturers = await searchManufacturers()
+  manufacturers.value = initialManufacturers ?? []
+} catch (error) {
+  manufacturersError.value = error as Error
+  manufacturers.value = []
+}
 
 // Check if there's a success message in the query parameters
 if (route.query.created === 'true') {

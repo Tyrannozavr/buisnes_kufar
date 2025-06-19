@@ -59,6 +59,8 @@ export interface PartnerCompany {
 }
 
 export interface CompanyDetails {
+  id: number
+  logo_url: string | null
   description: string
   inn: string
   ogrn: string
@@ -66,6 +68,7 @@ export interface CompanyDetails {
   kpp: string
   legalAddress: string
   productionAddress: string
+  registrationDate: string
   phone: string
   email: string
   website: string

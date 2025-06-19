@@ -1,5 +1,6 @@
-import type { Chat, ChatMessage } from '~/types/chat'
-import type { UseFetchOptions } from 'nuxt/app'
+import type {Chat, ChatId, ChatMessage} from '~/types/chat'
+import {type UseFetchOptions, useNuxtApp} from 'nuxt/app'
+import type {CompanyResponse} from "~/types/company";
 
 export const useChatsApi = () => {
   const getChats = (userId: string, options: UseFetchOptions<Chat[]> = {}) => {
@@ -37,12 +38,14 @@ export const useChatsApi = () => {
     })
   }
 
-  const createChat = (data: { participantId: string, participantName: string, participantLogo?: string }, options: UseFetchOptions<Chat> = {}) => {
-    return useApi<Chat>('/chats/create', {
-      method: 'POST',
-      body: data,
-      ...options
-    })
+  const createChat = async (participantId: number): Promise<ChatId> => {
+    const { $api } = useNuxtApp()
+    try {
+      return await $api.post('/v1/chats', { participant_id: participantId})
+    } catch (error: any) {
+      console.error('Error creating chat:', error)
+      throw error
+    }
   }
 
   return {

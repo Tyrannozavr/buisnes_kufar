@@ -1,8 +1,8 @@
 export interface Product {
-  id: string
-  companyId: string
+  id: number
+  company_id: number
   name: string
-  description: string
+  description?: string
   article: string
   type: 'Товар' | 'Услуга'
   price: number
@@ -11,17 +11,38 @@ export interface Product {
     name: string
     value: string
   }>
-  isHidden: boolean
-  isDeleted: boolean
+  is_hidden: boolean
+  is_deleted: boolean
   slug: string
+  unit_of_measurement?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface ProductResponse {
-  data: Product[]
-  pagination: {
-    total: number
-    page: number
-    perPage: number
-    totalPages: number
-  }
+  id: number
+  company_id: number
+  name: string
+  description?: string
+  article: string
+  type: 'Товар' | 'Услуга'
+  price: number
+  images: string[]
+  characteristics: Array<{
+    name: string
+    value: string
+  }>
+  is_hidden: boolean
+  is_deleted: boolean
+  slug: string
+  unit_of_measurement?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductListResponse {
+  products: ProductResponse[]
+  total: number
+  page: number
+  per_page: number
 } 

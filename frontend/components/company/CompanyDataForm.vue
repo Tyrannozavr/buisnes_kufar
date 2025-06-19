@@ -361,9 +361,13 @@ const handleLogoUpload = async (event: Event) => {
         })
       }
     } catch (error) {
+      let message = "Не удалось загрузить логотип"
+      if (error.statusCode === 404) {
+        message = "Сначала заполните и сохраните данные компании"
+      }
       useToast().add({
         title: 'Ошибка',
-        description: 'Не удалось загрузить логотип',
+        description: message,
         color: 'error'
       })
     }
@@ -525,7 +529,7 @@ const handleOfficialsUpdate = (officials: CompanyOfficial[]) => {
             v-model:formState="formState"
         />
 
-        <!-- 4. Должностные лица -->
+<!--         4. Должностные лица -->
         <CompanyOfficialsSection
             v-model:officials="formState.officials"
             @update:officials="handleOfficialsUpdate"

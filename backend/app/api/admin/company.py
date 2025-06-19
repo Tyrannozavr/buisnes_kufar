@@ -58,6 +58,7 @@ class CompanyAdmin(ModelView, model=Company):
     # Настройка детальной информации
     column_details_list = [
         Company.id,
+        Company.is_active,
         Company.name,
         Company.slug,
         Company.logo,

@@ -1,11 +1,26 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
+import type { ProductCreate, ProductUpdate } from '~/api/me/products'
+import { 
+  hideProduct as hideProductApi,
+  deleteProduct as deleteProductApi,
+  restoreProduct as restoreProductApi,
+  createProduct,
+  updateProduct,
+  toggleProductHidden
+} from '~/api/me/products'
 import ProductForm from "~/components/company/ProductForm.vue"
 import ProductsView from "~/components/company/ProductsView.vue"
 
+// Props
 const props = defineProps<{
   products: Product[]
   mode?: 'client' | 'owner'
+}>()
+
+// Emits
+const emit = defineEmits<{
+  refresh: []
 }>()
 
 // State
@@ -14,15 +29,15 @@ const selectedProduct = ref<Product | null>(null)
 
 // Computed properties for different product states
 const activeProducts = computed(() =>
-  props.products.filter(p => !p.isHidden && !p.isDeleted)
+  props.products.filter(p => !p.is_hidden && !p.is_deleted)
 )
 
 const hiddenProducts = computed(() =>
-  props.products.filter(p => p.isHidden && !p.isDeleted)
+  props.products.filter(p => p.is_hidden && !p.is_deleted)
 )
 
 const deletedProducts = computed(() =>
-  props.products.filter(p => p.isDeleted)
+  props.products.filter(p => p.is_deleted)
 )
 
 // Product management methods
@@ -42,14 +57,14 @@ const editProduct = (product: Product) => {
 
 const hideProduct = async (product: Product) => {
   try {
-    await useApi(`/products/${product.id}/hide`, {
-      method: 'PUT'
-    })
+    await hideProductApi(product.id)
     useToast().add({
       title: 'Успешно',
       description: 'Продукт скрыт',
       color: 'success'
     })
+    // Emit event to refresh products
+    emit('refresh')
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -61,14 +76,14 @@ const hideProduct = async (product: Product) => {
 
 const deleteProduct = async (product: Product) => {
   try {
-    await useApi(`/products/${product.id}/delete`, {
-      method: 'PUT'
-    })
+    await deleteProductApi(product.id)
     useToast().add({
       title: 'Успешно',
       description: 'Продукт удален',
       color: 'success'
     })
+    // Emit event to refresh products
+    emit('refresh')
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -80,14 +95,14 @@ const deleteProduct = async (product: Product) => {
 
 const restoreProduct = async (product: Product) => {
   try {
-    await useApi(`/products/${product.id}/restore`, {
-      method: 'PUT'
-    })
+    await restoreProductApi(product.id)
     useToast().add({
       title: 'Успешно',
       description: 'Продукт восстановлен',
       color: 'success'
     })
+    // Emit event to refresh products
+    emit('refresh')
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -97,14 +112,11 @@ const restoreProduct = async (product: Product) => {
   }
 }
 
-const saveProduct = async (productData: Partial<Product>) => {
+const saveProduct = async (productData: ProductCreate | ProductUpdate) => {
   try {
     if (selectedProduct.value) {
       // Update existing product
-      await useApi(`/products/${selectedProduct.value.id}`, {
-        method: 'PUT',
-        body: productData
-      })
+      await updateProduct(selectedProduct.value.id, productData as ProductUpdate)
       useToast().add({
         title: 'Успешно',
         description: 'Продукт обновлен',
@@ -112,10 +124,7 @@ const saveProduct = async (productData: Partial<Product>) => {
       })
     } else {
       // Create new product
-      await useApi('/products', {
-        method: 'POST',
-        body: productData
-      })
+      await createProduct(productData as ProductCreate)
       useToast().add({
         title: 'Успешно',
         description: 'Продукт добавлен',
@@ -123,6 +132,8 @@ const saveProduct = async (productData: Partial<Product>) => {
       })
     }
     closeProductForm()
+    // Emit event to refresh products
+    emit('refresh')
   } catch (error) {
     useToast().add({
       title: 'Ошибка',

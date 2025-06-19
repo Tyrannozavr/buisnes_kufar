@@ -78,7 +78,7 @@ const handleSave = async (data: CompanyUpdate) => {
     
     // Update user store with latest company data
     if (company.value) {
-      userStore.login(company.value.name, company.value.logo_url || '')
+      userStore.login()
     }
     
     useToast().add({
@@ -103,7 +103,7 @@ const handleLogoUpload = async (file: File) => {
     company.value = await uploadCompanyLogo(file)
     // Update user store with latest company data
     if (company.value) {
-      userStore.login(company.value.name, company.value.logo_url || "")
+      await userStore.login()
     }
     useToast().add({ title: 'Успешно', description: 'Логотип компании обновлен', color: 'success' })
   } catch (e: any) {
@@ -118,7 +118,7 @@ const handleLogoUpload = async (file: File) => {
 const handleLogoUpdated = (data: CompanyResponse) => {
   company.value = data
   // Update user store with latest company data
-  userStore.login(data.name, data.logo_url || "")
+  userStore.login()
 }
 
 // Load company data on mount

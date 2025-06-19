@@ -130,10 +130,8 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    console.log('Submitting registration form...')
     await authApi.registerStep1(form.value)
-    console.log('Registration successful, redirecting to success page...')
-    
+
     // Reset form after successful registration
     form.value = {
       firstName: '',

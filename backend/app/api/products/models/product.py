@@ -27,6 +27,7 @@ class Product(Base):
     characteristics: Mapped[List[dict]] = mapped_column(JSON, default=list)
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    unit_of_measurement: Mapped[str] = mapped_column(String(100))
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

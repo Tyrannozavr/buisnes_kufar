@@ -43,6 +43,35 @@ class CompanyBase(BaseModel):
 class CompanyCreate(CompanyBase):
     pass
 
+class CompanyCreateInactive(BaseModel):
+    """Схема для создания неактивной компании при регистрации пользователя"""
+    name: str = "Новая компания"
+    type: str = "ООО"
+    trade_activity: TradeActivity = TradeActivity.BOTH
+    business_type: BusinessType = BusinessType.BOTH
+    activity_type: str = "Деятельность не указана"
+    description: Optional[str] = None
+    
+    # Location - используем значения по умолчанию
+    country: str = "Россия"
+    federal_district: str = "Центральный федеральный округ"
+    region: str = "Москва"
+    city: str = "Москва"
+    
+    # Legal information - заполняем из данных пользователя
+    full_name: str
+    inn: str
+    ogrn: str = "000000000000000"  # Временное значение
+    kpp: str = "000000000"  # Временное значение
+    registration_date: datetime
+    legal_address: str = "Адрес не указан"
+    production_address: Optional[str] = None
+    
+    # Contact information - заполняем из данных пользователя
+    phone: str
+    email: str
+    website: Optional[str] = None
+
 class CompanyLogoUrlMixin(BaseModel):
     logo: Optional[str] = Field(default=None, exclude=True)
 
@@ -131,8 +160,8 @@ class CompanyResponse(CompanyLogoUrlMixin):
     city: str
     full_name: str
     inn: str
-    ogrn: str
-    kpp: str
+    ogrn: str | int
+    kpp: str | int
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None

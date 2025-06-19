@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.models import User
 from app.api.company.repositories.company_repository import CompanyRepository
-from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyProfileResponse
+from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyProfileResponse, CompanyCreateInactive
 
 
 class CompanyService:
@@ -34,6 +34,19 @@ class CompanyService:
         company = await self.company_repository.create(company_data, user.id)
         return CompanyResponse.model_validate(company.__dict__)
 
+    async def create_inactive_company(self, user: User) -> CompanyResponse:
+        """Создает неактивную компанию при регистрации пользователя"""
+        # Создаем данные для неактивной компании
+        company_data = CompanyCreateInactive(
+            full_name=f"ООО '{user.first_name or 'Компания'}'",
+            inn=user.inn,
+            registration_date=user.created_at,
+            phone=user.phone,
+            email=user.email
+        )
+        
+        company = await self.company_repository.create_inactive(company_data, user.id)
+        return CompanyResponse.model_validate(company.__dict__)
 
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)
@@ -56,7 +69,42 @@ class CompanyService:
                 detail="Company not found after update"
             )
         
+        # Проверяем, можно ли активировать компанию (все обязательные поля заполнены)
+        if not company.is_active and self._can_activate_company(updated_company):
+            updated_company = await self.company_repository.activate_company(company.id)
+        print(updated_company.__dict__)
         return CompanyResponse.model_validate(updated_company.__dict__)
+
+    def _can_activate_company(self, company) -> bool:
+        """Проверяет, можно ли активировать компанию (все обязательные поля заполнены)"""
+        required_fields = [
+            company.name, company.full_name, company.inn, company.ogrn, 
+            company.kpp, company.registration_date, company.legal_address,
+            company.phone, company.email, company.country, company.federal_district,
+            company.region, company.city, company.type, company.trade_activity,
+            company.business_type, company.activity_type
+        ]
+        
+        # Проверяем, что все обязательные поля заполнены и не являются значениями по умолчанию
+        default_values = {
+            'name': 'Новая компания',
+            'ogrn': '000000000000000',
+            'kpp': '000000000',
+            'legal_address': 'Адрес не указан',
+            'activity_type': 'Деятельность не указана'
+        }
+        
+        for field_name, field_value in zip([
+            'name', 'full_name', 'inn', 'ogrn', 'kpp', 'registration_date', 
+            'legal_address', 'phone', 'email', 'country', 'federal_district',
+            'region', 'city', 'type', 'trade_activity', 'business_type', 'activity_type'
+        ], required_fields):
+            if not field_value:
+                return False
+            if field_name in default_values and str(field_value) == default_values[field_name]:
+                return False
+        
+        return True
 
     async def upload_logo(self, user: User, file: UploadFile) -> CompanyResponse:
         company = await self.company_repository.get_by_user_id(user.id)

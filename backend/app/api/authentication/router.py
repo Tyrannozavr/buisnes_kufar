@@ -21,7 +21,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @router.post("/register/step1", status_code=status.HTTP_201_CREATED)
 async def register_step1(
         data: UserCreateStep1,
-        db: get_async_db
+        db: async_db_dep
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     await auth_service.register_step1(data)
@@ -31,7 +31,7 @@ async def register_step1(
 @router.post("/register/step2", status_code=status.HTTP_201_CREATED, response_model=Token)
 async def register_step2(
         data: UserCreateStep2,
-        db: get_async_db
+        db: async_db_dep
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.register_step2(data)
@@ -136,7 +136,7 @@ async def login(
 @router.get("/me", response_model=User)
 async def get_current_user(
     request: Request,
-    db: get_async_db
+    db: async_db_dep
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.get_current_user(request)

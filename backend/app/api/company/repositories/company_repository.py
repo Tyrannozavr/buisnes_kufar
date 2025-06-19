@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.company.models.company import Company
 from app.api.company.models.official import CompanyOfficial
-from app.api.company.schemas.company import CompanyCreate, CompanyUpdate
+from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyCreateInactive
 
 
 class CompanyRepository:
@@ -66,7 +66,21 @@ class CompanyRepository:
         company = Company(
             **company_data.model_dump(),
             slug=await self.create_company_slug(company_data.name),
-            user_id=user_id
+            user_id=user_id,
+            is_active=True  # Активная компания при создании через форму
+        )
+        self.session.add(company)
+        await self.session.commit()
+        await self.session.refresh(company)
+        return company
+
+    async def create_inactive(self, company_data: CompanyCreateInactive, user_id: int) -> Company:
+        """Создает неактивную компанию при регистрации пользователя"""
+        company = Company(
+            **company_data.model_dump(),
+            slug=await self.create_company_slug(company_data.name),
+            user_id=user_id,
+            is_active=False  # Неактивная компания при регистрации
         )
         self.session.add(company)
         await self.session.commit()
@@ -92,6 +106,16 @@ class CompanyRepository:
                 .values(**update_data)
             )
         
+        await self.session.commit()
+        return await self.get_by_id(company_id)
+
+    async def activate_company(self, company_id: int) -> Optional[Company]:
+        """Активирует компанию после заполнения всех обязательных полей"""
+        await self.session.execute(
+            update(Company)
+            .where(Company.id == company_id)
+            .values(is_active=True)
+        )
         await self.session.commit()
         return await self.get_by_id(company_id)
 

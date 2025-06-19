@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User
+from app.api.company.repositories.company_repository import CompanyRepository
+from app.api.company.services.company_service import CompanyService
 from app.core.config import settings
 from app.core.email_utils import send_verification_email
 from app.core.security import create_access_token, decode_token
@@ -76,6 +78,17 @@ class AuthService:
             )
         # Обновляем пользователя (ИНН, должность, пароль)
         updated_user = await self.user_repository.update_user_step2(db_user, user_data)
+        
+        # Создаем неактивную компанию для пользователя
+        try:
+            company_repository = CompanyRepository(session=self.db)
+            company_service = CompanyService(company_repository=company_repository, db=self.db)
+            await company_service.create_inactive_company(updated_user)
+            logger.info(f"Created inactive company for user {updated_user.id}")
+        except Exception as e:
+            logger.error(f"Failed to create inactive company for user {updated_user.id}: {str(e)}")
+            # Не прерываем регистрацию, если не удалось создать компанию
+        
         # Помечаем токен как использованный
         await self.user_repository.mark_token_as_used(user_data.token)
         return User.model_validate(updated_user)

@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, Text, DateTime
+from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -67,13 +67,16 @@ class Company(Base):
 
     # Foreign keys
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="company")
     officials: Mapped[List["CompanyOfficial"]] = relationship("CompanyOfficial", back_populates="company", cascade="all, delete-orphan")
     products: Mapped[List["Product"]] = relationship("Product", back_populates="company", cascade="all, delete-orphan")
+    # Relationships
     sent_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.from_company_id", back_populates="from_company")
     received_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.to_company_id", back_populates="to_company")
-
     def __str__(self):
         return self.name

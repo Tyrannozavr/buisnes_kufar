@@ -17,7 +17,7 @@ class CompaniesRepository:
         limit: Optional[int] = None
     ) -> Tuple[List[Company], int]:
         """
-        Получить компании с пагинацией, отсортированные по дате регистрации
+        Получить активные компании с пагинацией, отсортированные по дате регистрации
         
         Args:
             page: Номер страницы (начиная с 1)
@@ -25,15 +25,15 @@ class CompaniesRepository:
             limit: Ограничение общего количества (опционально)
             
         Returns:
-            Tuple[List[Company], int]: (список компаний, общее количество)
+            Tuple[List[Company], int]: (список активных компаний, общее количество)
         """
-        # Базовый запрос с загрузкой связанных данных
+        # Базовый запрос с загрузкой связанных данных и фильтром по активным компаниям
         base_query = select(Company).options(
             selectinload(Company.officials)
-        ).order_by(Company.registration_date.desc())
+        ).where(Company.is_active == True).order_by(Company.registration_date.desc())
         
-        # Получаем общее количество компаний
-        count_query = select(func.count(Company.id))
+        # Получаем общее количество активных компаний
+        count_query = select(func.count(Company.id)).where(Company.is_active == True)
         count_result = await self.session.execute(count_query)
         total_count = count_result.scalar()
         
@@ -54,17 +54,17 @@ class CompaniesRepository:
 
     async def get_latest_companies(self, limit: int = 6) -> List[Company]:
         """
-        Получить последние компании
+        Получить последние активные компании
         
         Args:
             limit: Количество компаний
             
         Returns:
-            List[Company]: Список последних компаний
+            List[Company]: Список последних активных компаний
         """
         query = select(Company).options(
             selectinload(Company.officials)
-        ).order_by(Company.registration_date.desc()).limit(limit)
+        ).where(Company.is_active == True).order_by(Company.registration_date.desc()).limit(limit)
         
         result = await self.session.execute(query)
         return list(result.scalars().all()) 

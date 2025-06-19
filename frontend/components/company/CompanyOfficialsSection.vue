@@ -43,9 +43,11 @@ const positionOptions = positions.map(pos => ({
 
 // Получаем все должностные лица (включая временные)
 const allOfficials = computed(() => {
+  if (props.officials === undefined) {
+    return tempOfficials.value
+  }
   return [...props.officials, ...tempOfficials.value]
 })
-
 // Загружаем должностных лиц при монтировании компонента
 onMounted(async () => {
   // Если officials уже есть в props, не загружаем их заново

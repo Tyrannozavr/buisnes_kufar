@@ -2,6 +2,7 @@
 import type {CompanyShort} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
+import {navigateToChat} from "~/composables/chat";
 
 const props = defineProps<{
   manufacturer: CompanyShort
@@ -12,23 +13,7 @@ const { createChat } = useChatsApi()
 const { deletePartnerById } = useCompaniesApi()
 
 const navigateToMessage = async () => {
-  try {
-    const { data: chat } = await createChat({
-      participantId: props.manufacturer.id,
-      participantName: props.manufacturer.name,
-      participantLogo: props.manufacturer.logo || undefined
-    })
-
-    if (chat.value) {
-      router.push(`/profile/messages/${chat.value.id}`)
-    }
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось создать чат',
-      color: 'error'
-    })
-  }
+  await navigateToChat(props.manufacturer.id)
 }
 
 // const handleDelete = async () => {

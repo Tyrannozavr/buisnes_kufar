@@ -175,12 +175,12 @@ class CompanyResponse(CompanyLogoUrlMixin):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True, orm_mode=True)
+    model_config = ConfigDict(from_attributes=True)
 
 class ShortCompanyResponse(CompanyLogoUrlMixin):
     name: str
 
-    model_config = ConfigDict(from_attributes=True, orm_mode=True)
+    model_config = ConfigDict(from_attributes=True)
 
 
 

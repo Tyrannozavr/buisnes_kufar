@@ -3,13 +3,13 @@ import type { PartnerCompany } from '~/types/company'
 import { getFullImageUrl } from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
+import {navigateToChatBySlug} from "~/composables/chat";
 
 const props = defineProps<{
   partner: PartnerCompany
 }>()
 
 const router = useRouter()
-const { createChat } = useChatsApi()
 const { deletePartnerById } = useCompaniesApi()
 
 const navigateToCompany = () => {
@@ -17,23 +17,7 @@ const navigateToCompany = () => {
 }
 
 const navigateToMessage = async () => {
-  try {
-    const { data: chat } = await createChat({
-      participantId: props.partner.slug,
-      participantName: props.partner.fullName,
-      participantLogo: props.partner.logo || undefined
-    })
-
-    if (chat.value) {
-      router.push(`/profile/messages/${chat.value.id}`)
-    }
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось создать чат',
-      color: 'error'
-    })
-  }
+  await navigateToChatBySlug(props.partner.slug)
 }
 
 const handleDelete = async () => {

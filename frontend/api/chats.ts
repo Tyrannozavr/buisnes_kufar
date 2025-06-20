@@ -38,16 +38,24 @@ export const useChatsApi = () => {
     })
   }
 
-  const createChat = async (participantId: number): Promise<ChatId> => {
-    const { $api } = useNuxtApp()
-    try {
-      return await $api.post('/v1/chats', { participant_id: participantId})
-    } catch (error: any) {
-      console.error('Error creating chat:', error)
-      throw error
-    }
+const createChat = async (params: { participantId?: number; participantSlug?: string }): Promise<ChatId> => {
+  const { $api } = useNuxtApp()
+  
+  if (!params.participantId && !params.participantSlug) {
+    throw new Error('Either participantId or participantSlug must be provided')
   }
 
+  try {
+    const payload = params.participantId 
+      ? { participant_id: params.participantId }
+      : { participant_slug: params.participantSlug }
+
+    return await $api.post('/v1/chats', payload)
+  } catch (error: any) {
+    console.error('Error creating chat:', error)
+    throw error
+  }
+}
   return {
     getChats,
     getChatById,

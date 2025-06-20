@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {CompanyShort} from '~/types/company'
-import {useCompaniesApi} from "~/api";
+import {searchServiceProvidersSSR} from "~/api";
 
 const route = useRoute()
 const title = 'Поставщики услуг'
@@ -9,13 +9,32 @@ const title = 'Поставщики услуг'
 const showSuccessMessage = ref(false)
 const successMessage = ref('')
 
-// API
-const { searchServiceProviders } = useCompaniesApi()
+// Pagination state
+const currentPage = ref(1)
+const perPage = ref(10)
 
-// Manufacturers data
-const manufacturers = ref<CompanyShort[]>([])
+// Fetch service providers with pagination using SSR function
+const response = await searchServiceProvidersSSR(currentPage.value, perPage.value)
+
+// Computed properties
+const manufacturers = computed(() => response?.data || [])
+const pagination = computed(() => response?.pagination || {
+  total: 0,
+  page: 1,
+  perPage: 10,
+  totalPages: 1
+})
+
 const manufacturersPending = ref(false)
 const manufacturersError = ref<Error | null>(null)
+
+// Watch for page changes
+watch(currentPage, async (newPage) => {
+  // Refresh data when page changes
+  const newResponse = await searchServiceProvidersSSR(newPage, perPage.value)
+  // Update the response data
+  Object.assign(response, newResponse)
+})
 
 const handleSearch = async (params: {
   search?: string
@@ -29,8 +48,9 @@ const handleSearch = async (params: {
   manufacturersError.value = null
 
   try {
-    const {data} = await searchServiceProviders(params)
-    manufacturers.value = data.value ?? []
+    const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, params)
+    // Update the response data
+    Object.assign(response, newResponse)
   } catch (error) {
     console.error('Search error:', error)
     manufacturersError.value = error as Error
@@ -39,16 +59,9 @@ const handleSearch = async (params: {
   }
 }
 
-// Initial data loading during SSR
-
-
-// Initial companies load
-const {data: initialManufacturers} = await searchServiceProviders()
-manufacturers.value = initialManufacturers.value ?? []
-
 // Check if there's a success message in the query parameters
 if (route.query.created === 'true') {
-  successMessage.value = 'Производитель успешно добавлен'
+  successMessage.value = 'Поставщик услуг успешно добавлен'
   showSuccessMessage.value = true
 
   // Auto-hide the message after 5 seconds
@@ -89,12 +102,47 @@ if (route.query.created === 'true') {
 
     <!-- Search Form -->
     <CompaniesFilter @search="handleSearch"/>
-    <!-- Manufacturers List -->
-    <CompaniesList
-        :manufacturers="manufacturers"
-        :pending="manufacturersPending"
-        :error="manufacturersError"
-    />
+    
+    <!-- Loading state -->
+    <section v-if="manufacturersPending" class="bg-white rounded-lg p-6 shadow-sm">
+      <div class="flex justify-center py-8">
+        <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
+      </div>
+    </section>
+
+    <!-- Error state -->
+    <UAlert v-else-if="manufacturersError" color="error" variant="soft" class="mb-4">
+      Не удалось загрузить данные о поставщиках услуг. Пожалуйста, попробуйте позже.
+    </UAlert>
+
+    <!-- Empty state -->
+    <section v-else-if="manufacturers.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
+      <div class="text-center py-8">
+        <UIcon name="i-heroicons-building-office" class="h-12 w-12 mx-auto text-gray-400" />
+        <h3 class="mt-4 text-lg font-medium text-gray-900">Поставщики услуг не найдены</h3>
+        <p class="mt-2 text-sm text-gray-500">
+          На данный момент нет доступных поставщиков услуг
+        </p>
+      </div>
+    </section>
+
+    <!-- Service Providers List -->
+    <section v-else>
+      <CompaniesList
+          :manufacturers="manufacturers"
+          :pending="manufacturersPending"
+          :error="manufacturersError"
+      />
+
+      <!-- Pagination -->
+      <div class="mt-8 flex justify-center">
+        <UPagination
+          v-model="currentPage"
+          :total="pagination.total"
+          :per-page="perPage"
+        />
+      </div>
+    </section>
   </div>
 </template>
 

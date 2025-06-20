@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
 import { getCompaniesPaginatedSSR } from '~/api/companies'
-import {navigateToChat} from "~/composables/chat";
+import {navigateToChatById} from "~/composables/chat";
 
 // Pagination state
 const currentPage = ref(1)
@@ -50,7 +50,7 @@ const getActivityColor = (tradeActivity: string) => {
   }
 }
 const handleMessageClick = async (companyId: number) => {
-  await navigateToChat(companyId)
+  await navigateToChatById(companyId)
 }
 </script>
 

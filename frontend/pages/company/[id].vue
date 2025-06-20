@@ -3,7 +3,7 @@ import type {CompanyDetails} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 
 import { getCompany, getCompanyProducts, getCompanyStatistics } from '~/api/company'
-import {navigateToChat} from "~/composables/chat";
+import {navigateToChatById} from "~/composables/chat";
 
 const { createChat } = useChatsApi()
 // Get company ID from route
@@ -35,7 +35,7 @@ const companyDetails = computed<CompanyDetails>(() => ({
 
 // Handle chat creation
 const handleCreateChat = async () => {
-  await navigateToChat(company.id)
+  await navigateToChatById(company.id)
 }
 </script>
 

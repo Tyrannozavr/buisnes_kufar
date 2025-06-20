@@ -2,7 +2,7 @@
 import type {CompanyShort} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
-import {navigateToChat} from "~/composables/chat";
+import {navigateToChatById} from "~/composables/chat";
 
 const props = defineProps<{
   manufacturer: CompanyShort
@@ -13,7 +13,7 @@ const { createChat } = useChatsApi()
 const { deletePartnerById } = useCompaniesApi()
 
 const navigateToMessage = async () => {
-  await navigateToChat(props.manufacturer.id)
+  await navigateToChatById(props.manufacturer.id)
 }
 
 // const handleDelete = async () => {

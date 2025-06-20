@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type {CompanyShort} from '~/types/company'
-import {useCompaniesApi} from "~/api";
+import {searchManufacturersSSR} from "~/api";
 
 const route = useRoute()
 const title = 'Производители товаров'
@@ -10,12 +9,33 @@ const showSuccessMessage = ref(false)
 const successMessage = ref('')
 
 // API
-const {searchManufacturers} = useCompaniesApi()
 
-// Manufacturers data
-const manufacturers = ref<CompanyShort[]>([])
+// Pagination state
+const currentPage = ref(1)
+const perPage = ref(10)
+
+// Fetch manufacturers with pagination using SSR function
+const response = await searchManufacturersSSR(currentPage.value, perPage.value)
+
+// Computed properties
+const manufacturers = computed(() => response?.data || [])
+const pagination = computed(() => response?.pagination || {
+  total: 0,
+  page: 1,
+  perPage: 10,
+  totalPages: 1
+})
+
 const manufacturersPending = ref(false)
 const manufacturersError = ref<Error | null>(null)
+
+// Watch for page changes
+watch(currentPage, async (newPage) => {
+  // Refresh data when page changes
+  const newResponse = await searchManufacturersSSR(newPage, perPage.value)
+  // Update the response data
+  Object.assign(response, newResponse)
+})
 
 const handleSearch = async (params: {
   search?: string
@@ -29,24 +49,15 @@ const handleSearch = async (params: {
   manufacturersError.value = null
 
   try {
-    const {data} = await searchManufacturers(params)
-    manufacturers.value = data.value ?? []
+    const newResponse = await searchManufacturersSSR(currentPage.value, perPage.value, params)
+    // Update the response data
+    Object.assign(response, newResponse)
   } catch (error) {
     console.error('Search error:', error)
     manufacturersError.value = error as Error
   } finally {
     manufacturersPending.value = false
   }
-}
-
-// Initial data loading during SSR
-try {
-  // const { data: initialManufacturers } = await searchManufacturers()
-  const initialManufacturers = await searchManufacturers()
-  manufacturers.value = initialManufacturers ?? []
-} catch (error) {
-  manufacturersError.value = error as Error
-  manufacturers.value = []
 }
 
 // Check if there's a success message in the query parameters
@@ -92,12 +103,47 @@ if (route.query.created === 'true') {
 
     <!-- Search Form -->
     <CompaniesFilter @search="handleSearch"/>
+    
+    <!-- Loading state -->
+    <section v-if="manufacturersPending" class="bg-white rounded-lg p-6 shadow-sm">
+      <div class="flex justify-center py-8">
+        <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
+      </div>
+    </section>
+
+    <!-- Error state -->
+    <UAlert v-else-if="manufacturersError" color="error" variant="soft" class="mb-4">
+      Не удалось загрузить данные о производителях. Пожалуйста, попробуйте позже.
+    </UAlert>
+
+    <!-- Empty state -->
+    <section v-else-if="manufacturers.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
+      <div class="text-center py-8">
+        <UIcon name="i-heroicons-building-office" class="h-12 w-12 mx-auto text-gray-400" />
+        <h3 class="mt-4 text-lg font-medium text-gray-900">Производители не найдены</h3>
+        <p class="mt-2 text-sm text-gray-500">
+          На данный момент нет доступных производителей
+        </p>
+      </div>
+    </section>
+
     <!-- Manufacturers List -->
-    <CompaniesList
-        :manufacturers="manufacturers"
-        :pending="manufacturersPending"
-        :error="manufacturersError"
-    />
+    <section v-else>
+      <CompaniesList
+          :manufacturers="manufacturers"
+          :pending="manufacturersPending"
+          :error="manufacturersError"
+      />
+
+      <!-- Pagination -->
+      <div class="mt-8 flex justify-center">
+        <UPagination
+          v-model="currentPage"
+          :total="pagination.total"
+          :per-page="perPage"
+        />
+      </div>
+    </section>
   </div>
 </template>
 

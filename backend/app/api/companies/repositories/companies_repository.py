@@ -1,9 +1,9 @@
 from typing import Optional, Tuple, List
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.company.models.company import Company
+from app.api.company.models.company import Company, BusinessType
 
 
 class CompaniesRepository:
@@ -83,3 +83,95 @@ class CompaniesRepository:
         ).where(Company.id == company_id).where(Company.is_active == True)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_services_companies(
+        self, 
+        page: int = 1, 
+        per_page: int = 10
+    ) -> Tuple[List[Company], int]:
+        """
+        Получить компании, предоставляющие услуги (включая те, что делают оба)
+        
+        Args:
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            
+        Returns:
+            Tuple[List[Company], int]: (список компаний, общее количество)
+        """
+        base_query = select(Company).options(
+            selectinload(Company.officials)
+        ).where(
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.SERVICES,
+                Company.business_type == BusinessType.BOTH
+            )
+        ).order_by(Company.registration_date.desc())
+        
+        # Получаем общее количество
+        count_query = select(func.count(Company.id)).where(
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.SERVICES,
+                Company.business_type == BusinessType.BOTH
+            )
+        )
+        count_result = await self.session.execute(count_query)
+        total_count = count_result.scalar()
+        
+        # Применяем пагинацию
+        offset = (page - 1) * per_page
+        paginated_query = base_query.offset(offset).limit(per_page)
+        
+        # Выполняем запрос
+        result = await self.session.execute(paginated_query)
+        companies = result.scalars().all()
+        
+        return list(companies), total_count
+
+    async def get_product_companies(
+        self, 
+        page: int = 1, 
+        per_page: int = 10
+    ) -> Tuple[List[Company], int]:
+        """
+        Получить компании, производящие товары (включая те, что делают оба)
+        
+        Args:
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            
+        Returns:
+            Tuple[List[Company], int]: (список компаний, общее количество)
+        """
+        base_query = select(Company).options(
+            selectinload(Company.officials)
+        ).where(
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.GOODS,
+                Company.business_type == BusinessType.BOTH
+            )
+        ).order_by(Company.registration_date.desc())
+        
+        # Получаем общее количество
+        count_query = select(func.count(Company.id)).where(
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.GOODS,
+                Company.business_type == BusinessType.BOTH
+            )
+        )
+        count_result = await self.session.execute(count_query)
+        total_count = count_result.scalar()
+        
+        # Применяем пагинацию
+        offset = (page - 1) * per_page
+        paginated_query = base_query.offset(offset).limit(per_page)
+        
+        # Выполняем запрос
+        result = await self.session.execute(paginated_query)
+        companies = result.scalars().all()
+        
+        return list(companies), total_count

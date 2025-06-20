@@ -37,11 +37,11 @@ export const useCompaniesApi = () => {
   }
 
   const searchManufacturers = async (params: any = {}) => {
-    return await $api.get('/manufacturers', { params })
+    return await $api.get('/v1/companies/products', { params })
   }
 
   const searchServiceProviders = async (params: any = {}) => {
-    return await $api.get('/service-providers', { params })
+    return await $api.get('/v1/companies/services', { params })
   }
 
   const deletePartnerById = async (id: string) => {
@@ -98,4 +98,28 @@ export const getLatestCompaniesSSR = async (limit: number = 6) => {
   return await $api.get(API_URLS.COMPANIES, {
     params: { limit }
   }) as PaginationResponse<Company>
+}
+
+export const searchManufacturersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
+  const { $api } = useNuxtApp()
+  const queryParams = {
+    page,
+    perPage,
+    ...params
+  }
+  return await $api.get('/v1/companies/products', {
+    params: queryParams
+  }) as PaginationResponse<CompanyShort>
+}
+
+export const searchServiceProvidersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
+  const { $api } = useNuxtApp()
+  const queryParams = {
+    page,
+    perPage,
+    ...params
+  }
+  return await $api.get('/v1/companies/services', {
+    params: queryParams
+  }) as PaginationResponse<CompanyShort>
 } 

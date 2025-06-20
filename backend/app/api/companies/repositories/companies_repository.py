@@ -67,4 +67,19 @@ class CompaniesRepository:
         ).where(Company.is_active == True).order_by(Company.registration_date.desc()).limit(limit)
         
         result = await self.session.execute(query)
-        return list(result.scalars().all()) 
+        return list(result.scalars().all())
+
+    async def get_company_by_id(self, company_id: int) -> Optional[Company]:
+        """
+        Получить компанию по ID
+
+        Args:
+            company_id: ID компании
+        Returns:
+            Optional[Company]: Компания или None
+        """
+        query = select(Company).options(
+            selectinload(Company.officials)
+        ).where(Company.id == company_id).where(Company.is_active == True)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()

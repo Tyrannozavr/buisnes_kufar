@@ -86,6 +86,13 @@ class ProductService:
             return ProductResponse.model_validate(product)
         return None
 
+    async def partial_update_my_product(self, product_id: int, product_data: ProductUpdate, user_id: int) -> Optional[ProductResponse]:
+        """Частично обновить продукт, только если он принадлежит компании пользователя"""
+        product = await self.my_products_repo.partial_update(product_id, product_data, user_id)
+        if product:
+            return ProductResponse.model_validate(product)
+        return None
+
     async def delete_my_product(self, product_id: int, user_id: int) -> bool:
         """Удалить продукт (мягкое удаление), только если он принадлежит компании пользователя"""
         return await self.my_products_repo.delete(product_id, user_id)
@@ -297,4 +304,4 @@ class ProductService:
     ) -> List[ProductResponse]:
         """Получить последние добавленные продукты"""
         products = await self.company_products_repo.get_latest_products(limit, include_hidden)
-        return [ProductResponse.model_validate(product) for product in products] 
+        return [ProductResponse.model_validate(product) for product in products]

@@ -99,6 +99,21 @@ async def update_my_product(
     return product
 
 
+@owner_router.patch("/{product_id}", response_model=ProductResponse)
+async def update_my_product(
+    product_id: int,
+    product_data: ProductUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_service: product_service_dep
+):
+    """Обновить продукт, только если он принадлежит компании пользователя"""
+    print("Got request with ", product_data)
+    product = await product_service.partial_update_my_product(product_id, product_data, current_user.id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
 @owner_router.delete("/{product_id}")
 async def delete_my_product(
     product_id: int,

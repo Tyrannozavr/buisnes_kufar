@@ -28,6 +28,7 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = Field(None, gt=0)
     unit_of_measurement: Optional[str] = Field(None, max_length=100)
     is_hidden: Optional[bool] = None
+    is_deleted: Optional[bool] = None
     images: Optional[List[str]] = None
     characteristics: Optional[List[dict]] = None
 

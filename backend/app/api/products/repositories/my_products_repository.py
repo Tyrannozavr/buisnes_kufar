@@ -169,6 +169,34 @@ class MyProductsRepository:
             return None
 
         # Подготавливаем данные для обновления
+        update_data = product_data.model_dump(exclude_unset=False)
+        
+        # Если изменяется название, генерируем новый slug
+        if 'name' in update_data:
+            update_data['slug'] = await self.create_product_slug(update_data['name'], company.id)
+
+        # Обновляем продукт
+        await self.session.execute(
+            update(Product)
+            .where(Product.id == product_id)
+            .values(**update_data)
+        )
+        
+        await self.session.commit()
+        return await self.get_by_id(product_id, user_id)
+
+    async def partial_update(self, product_id: int, product_data: ProductUpdate, user_id: int) -> Optional[Product]:
+        """Частично обновить продукт, только если он принадлежит компании пользователя"""
+        company = await self.get_company_by_user_id(user_id)
+        if not company:
+            return None
+
+        # Проверяем, что продукт принадлежит компании
+        existing_product = await self.get_by_id(product_id, user_id)
+        if not existing_product:
+            return None
+
+        # Подготавливаем данные для обновления
         update_data = product_data.model_dump(exclude_unset=True)
         
         # Если изменяется название, генерируем новый slug
@@ -258,4 +286,4 @@ class MyProductsRepository:
             .values(images=images)
         )
         await self.session.commit()
-        return await self.get_by_id(product_id, user_id) 
+        return await self.get_by_id(product_id, user_id)

@@ -42,22 +42,6 @@ async def upload_company_logo(
     return await company_service.upload_logo(current_user, file)
 
 
-@router.get("/me/products", response_model=ProductsResponse)
-async def get_my_products(
-        current_user: current_user_dep,
-        company_service: company_service_dep
-):
-    return ProductsResponse(
-        data=[],
-        pagination=PaginationInfo(
-            total=0,
-            page=1,
-            perPage=10,
-            totalPages=20,
-        )
-    )
-
-
 @router.post("/me/officials")
 async def add_official(
         officials_repository: official_repository_dep,

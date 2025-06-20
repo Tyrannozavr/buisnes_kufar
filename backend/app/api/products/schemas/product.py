@@ -64,9 +64,35 @@ class ProductResponse(ProductBase):
         populate_by_name=True
     )
 
+class ProductPublicItemResponse(ProductBase):
+    is_deleted: bool|None  = Field(exclude=True)
+    is_hidden: bool|None = Field(exclude=True)
+    slug: str
+    raw_images: List[str] = Field(alias="images", exclude=True)
+
+    @computed_field
+    @property
+    def logo_url(self) -> Optional[str]:
+        if hasattr(self, 'raw_images') and self.raw_images:
+            return f"{settings.BASE_IMAGE_URL}{self.raw_images[0]}"
+        else:
+            return None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
+
 
 class ProductListResponse(BaseModel):
     products: List[ProductResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class ProductListPublicResponse(BaseModel):
+    products: List[ProductPublicItemResponse]
     total: int
     page: int
     per_page: int

@@ -45,4 +45,21 @@ export interface ProductListResponse {
   total: number
   page: number
   per_page: number
-} 
+}
+export interface ProductItemPublic {
+  name: string
+  logo_url: string | null
+  slug: string
+  description: string,
+  article: string,
+  type: string,
+  price: number,
+  unit_of_measurement: string
+}
+
+export interface ProductPaginatedPublicResponse {
+  products: ProductItemPublic[]
+  total: number
+  page: number
+  per_page: number
+}

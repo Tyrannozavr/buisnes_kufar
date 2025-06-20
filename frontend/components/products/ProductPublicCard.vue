@@ -38,15 +38,15 @@ const truncateName = (name: string, maxLength: number) => {
     <div class="product-actions">
       <div v-if="quantity > 0" class="quantity-controls">
         <QuantityControls
-          :quantity="quantity"
-          @update:quantity="(qty: number) => updateQuantity(product.slug, qty)"
-          @remove="() => handleDecreaseQuantity(product.slug, quantity)"
+            :quantity="quantity"
+            @update:quantity="(qty: number) => updateQuantity(product.slug, qty)"
+            @remove="() => handleDecreaseQuantity(product.slug, quantity)"
         />
       </div>
-      <button 
-        v-else 
-        class="action-btn add-to-cart"
-        @click.stop="handleAddToCart(product)"
+      <button
+          v-else
+          class="action-btn add-to-cart"
+          @click.stop="handleAddToCart(product)"
       >
         Добавить в корзину
       </button>

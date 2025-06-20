@@ -6,12 +6,12 @@ import QuantityControls from '~/components/ui/QuantityControls.vue'
 const cartStore = useCartStore()
 const userStore = useUserStore()
 
-const handleUpdateQuantity = (productId: string, quantity: number) => {
-  cartStore.updateQuantity(productId, quantity)
+const handleUpdateQuantity = (productSlug: string, quantity: number) => {
+  cartStore.updateQuantity(productSlug, quantity)
 }
 
-const handleRemoveItem = (productId: string) => {
-  cartStore.removeFromCart(productId)
+const handleRemoveItem = (productSlug: string) => {
+  cartStore.removeFromCart(productSlug)
 }
 
 const handleClearCart = () => {
@@ -43,18 +43,18 @@ const handleClearCart = () => {
           <div class="divide-y divide-gray-200">
             <div
                 v-for="item in cartStore.items"
-                :key="item.product.id"
+                :key="item.product.slug"
                 class="p-6"
             >
               <div class="flex flex-col">
                 <!-- Product Image and Info -->
                 <div class="flex items-start space-x-4">
                   <NuxtLink
-                      :to="`/catalog/products/${item.product.id}`"
+                      :to="`/catalog/items/${item.product.slug}`"
                       class="w-24 h-24 flex-shrink-0"
                   >
                     <NuxtImg
-                        :src="item.product.images[0]"
+                        :src="item.product.logo_url || '/images/placeholder.png'"
                         :alt="item.product.name"
                         class="w-full h-full object-cover rounded-lg"
                     />
@@ -63,7 +63,7 @@ const handleClearCart = () => {
                   <!-- Product Info -->
                   <div class="flex-grow">
                     <NuxtLink
-                        :to="`/catalog/products/${item.product.id}`"
+                        :to="`/catalog/items/${item.product.slug}`"
                         class="text-lg font-medium text-gray-900 hover:text-primary-600"
                     >
                       {{ item.product.name }}
@@ -81,14 +81,14 @@ const handleClearCart = () => {
                 <div class="mt-4 flex items-center justify-between">
                   <QuantityControls
                     :quantity="item.quantity"
-                    @update:quantity="(qty) => handleUpdateQuantity(item.product.id, qty)"
-                    @remove="() => handleRemoveItem(item.product.id)"
+                    @update:quantity="(qty) => handleUpdateQuantity(item.product.slug, qty)"
+                    @remove="() => handleRemoveItem(item.product.slug)"
                   />
                   <UButton
                       color="error"
                       variant="ghost"
                       icon="i-heroicons-trash"
-                      @click="handleRemoveItem(item.product.id)"
+                      @click="handleRemoveItem(item.product.slug)"
                   />
                 </div>
               </div>

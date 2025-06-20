@@ -4,15 +4,18 @@ import json
 
 from app.api.products.dependencies import product_service_dep
 from app.api.products.schemas.product import (
-    ProductCreate, 
-    ProductUpdate, 
-    ProductResponse, 
+    ProductCreate,
+    ProductUpdate,
+    ProductResponse,
     ProductListResponse,
-    ProductCreateWithFiles
+    ProductCreateWithFiles, ProductListPublicResponse
 )
 from app.api.products.models.product import ProductType
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
+from app.api.products.schemas.products import ProductsResponse
+from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+from app.api.products.dependencies import get_company_products_repository
 
 owner_router = APIRouter(tags=["products"])
 
@@ -228,6 +231,7 @@ async def toggle_my_product_hidden(
 
 # Эндпоинты для работы с продуктами компаний (публичные)
 public_router = APIRouter()
+
 @public_router.get("/", response_model=ProductListResponse)
 async def get_all_products(
     product_service: product_service_dep,
@@ -261,21 +265,21 @@ async def get_all_goods(
     return await product_service.get_all_goods(skip, limit, include_hidden)
 
 
-@public_router.get("/company/{company_id}", response_model=ProductListResponse)
+@public_router.get("/company/{company_slug}", response_model=ProductListPublicResponse)
 async def get_products_by_company_id(
-    company_id: int,
+    company_slug: str,
     product_service: product_service_dep,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     include_hidden: bool = Query(False)
 ):
     """Получить все продукты конкретной компании"""
-    return await product_service.get_products_by_company_id(
-        company_id, skip, limit, include_hidden
+    return await product_service.get_products_by_company_slug(
+        company_slug, skip, limit, include_hidden
     )
 
 
-@public_router.get("/company/{company_id}/services", response_model=ProductListResponse)
+@public_router.get("/company/{company_id}/services", response_model=ProductListPublicResponse)
 async def get_services_by_company_id(
     company_id: int,
     product_service: product_service_dep,
@@ -289,7 +293,7 @@ async def get_services_by_company_id(
     )
 
 
-@public_router.get("/company/{company_id}/goods", response_model=ProductListResponse)
+@public_router.get("/company/{company_id}/goods", response_model=ProductListPublicResponse)
 async def get_goods_by_company_id(
     company_id: int,
     product_service: product_service_dep,
@@ -314,6 +318,7 @@ async def get_product_by_id(
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
+
 @public_router.get("/slug/{product_slug}", response_model=ProductResponse)
 async def get_product_by_slug(
     product_slug: str,
@@ -324,7 +329,6 @@ async def get_product_by_slug(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
-
 
 
 @public_router.get("/search", response_model=ProductListResponse)
@@ -363,4 +367,33 @@ async def get_latest_products(
     include_hidden: bool = Query(False)
 ):
     """Получить последние добавленные продукты"""
-    return await product_service.get_latest_products(limit, include_hidden) 
+    return await product_service.get_latest_products(limit, include_hidden)
+
+
+# router = APIRouter(tags=["company_products"])
+#
+# @router.get("/company/{company_id}/products", response_model=ProductsResponse)
+# async def get_company_products_by_id(
+#     company_id: int,
+#     page: int = Query(1, ge=1),
+#     per_page: int = Query(10, ge=1, le=100),
+#     products_repository: CompanyProductsRepository = Depends(get_company_products_repository)
+# ):
+#     return await products_repository.get_company_paginated_products(
+#         company_id=company_id,
+#         page=page,
+#         per_page=per_page
+#     )
+#
+# @router.get("/company/{company_slug}/products", response_model=ProductsResponse)
+# async def get_company_products_by_slug(
+#     company_slug: str,
+#     page: int = Query(1, ge=1),
+#     per_page: int = Query(10, ge=1, le=100),
+#     products_repository: CompanyProductsRepository = Depends(get_company_products_repository)
+# ):
+#     return await products_repository.get_company_paginated_products(
+#         company_slug=company_slug,
+#         page=page,
+#         per_page=per_page
+#     )

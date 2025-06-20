@@ -8,7 +8,7 @@
           class="w-full h-full object-cover rounded-t-lg"
         />
         <UBadge 
-          v-if="product.isHidden"
+          v-if="product.is_hidden"
           color="neutral"
           class="absolute top-2 right-2"
         >
@@ -19,11 +19,11 @@
 
     <div class="space-y-2">
       <h3 class="text-lg font-semibold">{{ product.name }}</h3>
-      <div v-if="!product.isHidden" class="text-xl font-bold text-primary">
+      <div v-if="!product.is_hidden" class="text-xl font-bold text-primary">
         {{ formatPrice(product.price) }} ₽
       </div>
       <div class="text-sm text-gray-500">
-        {{ getCompanyName(product.companyId) }}
+        {{ getCompanyName(product.company_id) }}
       </div>
     </div>
 
@@ -32,12 +32,12 @@
         <UButton
           color="primary"
           variant="ghost"
-          :to="`/products/${product.id}`"
+          :to="`/catalog/items/${product.slug}`"
         >
           Подробнее
         </UButton>
         <UButton
-          v-if="!product.isHidden"
+          v-if="!product.is_hidden"
           color="primary"
           @click="$emit('add-to-cart', product)"
         >
@@ -50,7 +50,6 @@
 
 <script setup lang="ts">
 import type { Product } from '~/types/product'
-import { mockCompanies } from '~/utils/mockData'
 
 const props = defineProps<{
   product: Product
@@ -64,8 +63,8 @@ const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price)
 }
 
-const getCompanyName = (companyId: string) => {
-  const company = mockCompanies.find(c => c.id === companyId)
-  return company?.name || 'Неизвестная компания'
+const getCompanyName = (companyId: number) => {
+  // TODO: Implement proper company lookup
+  return 'Неизвестная компания'
 }
 </script> 

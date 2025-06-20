@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.products.models.product import Product, ProductType
 from app.api.company.models.company import Company
+from app.api.products.schemas.products import ProductsResponse, ProductListItem, PaginationInfo
 
 
 class CompanyProductsRepository:
@@ -26,7 +27,7 @@ class CompanyProductsRepository:
         return result.scalar_one_or_none()
 
     async def get_by_slug(self, slug: str) -> Optional[Product]:
-        """Получить продукт по slug и company_id (только активные и не скрытые)"""
+        """Получить продукт по slug (только активные и не скрытые)"""
         query = select(Product).options(
             selectinload(Product.company)
         ).where(
@@ -41,7 +42,7 @@ class CompanyProductsRepository:
 
     async def get_by_company_id(
         self, 
-        company_id: int, 
+        company_id: int,
         skip: int = 0, 
         limit: int = 100,
         include_hidden: bool = False
@@ -53,6 +54,40 @@ class CompanyProductsRepository:
         ).where(
             and_(
                 Product.company_id == company_id,
+                Product.is_deleted == False
+            )
+        )
+
+        # Добавляем фильтр по видимости
+        if not include_hidden:
+            base_query = base_query.where(Product.is_hidden == False)
+
+        # Получаем общее количество
+        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_result = await self.session.execute(count_query)
+        total = count_result.scalar()
+
+        # Получаем продукты с пагинацией
+        query = base_query.offset(skip).limit(limit)
+        result = await self.session.execute(query)
+        products = result.scalars().all()
+
+        return list(products), total
+
+    async def get_by_company_slug(
+        self, 
+        company_slug: str,
+        skip: int = 0, 
+        limit: int = 100,
+        include_hidden: bool = False
+    ) -> Tuple[List[Product], int]:
+        """Получить все продукты компании по slug с пагинацией"""
+        # Базовый запрос с join на компанию
+        base_query = select(Product).options(
+            selectinload(Product.company)
+        ).join(Company).where(
+            and_(
+                Company.slug == company_slug,
                 Product.is_deleted == False
             )
         )
@@ -166,6 +201,7 @@ class CompanyProductsRepository:
         goods = result.scalars().all()
 
         return list(goods), total
+
 
     async def get_services_by_company_id(
         self, 
@@ -335,4 +371,88 @@ class CompanyProductsRepository:
         result = await self.session.execute(query)
         products = result.scalars().all()
 
-        return list(products) 
+        return list(products)
+
+    async def get_company_products(
+        self,
+        company_id: Optional[int] = None,
+        company_slug: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 10
+    ) -> Tuple[List[Product], int]:
+        """
+        Получить продукты компании с пагинацией
+        
+        Args:
+            company_id: ID компании (опционально)
+            company_slug: Slug компании (опционально)
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            
+        Returns:
+            Tuple[List[Product], int]: (список продуктов, общее количество)
+        """
+        if company_id is None and company_slug is None:
+            raise ValueError("Необходимо указать либо company_id, либо company_slug")
+
+        # Базовый запрос
+        base_query = select(Product).join(Company)
+        if company_id:
+            base_query = base_query.where(Company.id == company_id)
+        else:
+            base_query = base_query.where(Company.slug == company_slug)
+
+        base_query = base_query.where(Product.is_deleted == False, Product.is_hidden == False)
+
+        # Получаем общее количество
+        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_result = await self.session.execute(count_query)
+        total_count = count_result.scalar()
+
+        # Применяем пагинацию
+        offset = (page - 1) * per_page
+        paginated_query = base_query.offset(offset).limit(per_page)
+
+        # Выполняем запрос
+        result = await self.session.execute(paginated_query)
+        products = result.scalars().all()
+
+        return list(products), total_count
+
+    async def get_company_paginated_products(
+        self,
+        company_id: Optional[int] = None,
+        company_slug: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 10
+    ) -> ProductsResponse:
+        """
+        Получить пагинированный ответ с продуктами компании
+        
+        Args:
+            company_id: ID компании (опционально)
+            company_slug: Slug компании (опционально)
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            
+        Returns:
+            ProductsResponse: Ответ с списком продуктов и информацией о пагинации
+        """
+        products, total_count = await self.get_company_products(
+            company_id=company_id,
+            company_slug=company_slug,
+            page=page,
+            per_page=per_page
+        )
+
+        total_pages = (total_count + per_page - 1) // per_page
+
+        return ProductsResponse(
+            data=[ProductListItem.model_validate(product) for product in products],
+            pagination=PaginationInfo(
+                total=total_count,
+                page=page,
+                perPage=per_page,
+                totalPages=total_pages
+            )
+        )

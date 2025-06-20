@@ -12,6 +12,7 @@ import {
 } from '~/api/me/products'
 import ProductForm from "~/components/company/ProductForm.vue"
 import ProductsView from "~/components/company/ProductsView.vue"
+import ProductsPublicView from "~/components/products/ProductsPublicView.vue";
 
 // Props
 const props = defineProps<{
@@ -175,7 +176,7 @@ const saveProduct = async (productData: ProductCreate | ProductUpdate | (Product
   <div class="company-products">
     <!-- Client Mode -->
     <template v-if="mode === 'client'">
-      <ProductsView
+      <ProductsPublicView
         :products="activeProducts"
         title="Продукция"
       />

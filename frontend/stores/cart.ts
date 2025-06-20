@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
-import type { Product } from '~/types/product'
+import type {Product, ProductItemPublic} from '~/types/product'
 
 interface CartItem {
-  product: Product
+  product: ProductItemPublic
   quantity: number
 }
 
@@ -34,8 +34,8 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
-    addToCart(product: Product) {
-      const existingItem = this.items.find(item => item.product.id === product.id)
+    addToCart(product: ProductItemPublic) {
+      const existingItem = this.items.find(item => item.product.slug === product.slug)
       
       if (existingItem) {
         existingItem.quantity++
@@ -49,8 +49,8 @@ export const useCartStore = defineStore('cart', {
       console.log('Cart after adding:', [...this.items])
     },
 
-    removeFromCart(productId: string) {
-      const index = this.items.findIndex(item => item.product.id === productId)
+    removeFromCart(productSlug: string) {
+      const index = this.items.findIndex(item => item.product.slug === productSlug)
       if (index > -1) {
         this.items.splice(index, 1)
         this.saveToStorage()
@@ -58,12 +58,12 @@ export const useCartStore = defineStore('cart', {
       console.log('Cart after removing:', [...this.items])
     },
 
-    updateQuantity(productId: string, quantity: number) {
-      const item = this.items.find(item => item.product.id === productId)
+    updateQuantity(productSlug: string, quantity: number) {
+      const item = this.items.find(item => item.product.slug === productSlug)
       if (item) {
         item.quantity = Math.max(0, quantity)
         if (item.quantity === 0) {
-          this.removeFromCart(productId)
+          this.removeFromCart(productSlug)
         } else {
           this.saveToStorage()
         }

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
-import type { Product } from '~/types/product'
+import type {Product, ProductItemPublic} from '~/types/product'
 
 const cart = ref<Map<string, number>>(new Map())
 
@@ -10,7 +10,7 @@ export const useCart = () => {
   const userStore = useUserStore()
   const toast = useToast()
 
-  const handleAddToCart = async (product: Product) => {
+  const handleAddToCart = async (product: ProductItemPublic) => {
     if (!userStore.isAuthenticated) {
       toast.add({
         title: 'Требуется авторизация',
@@ -36,28 +36,28 @@ export const useCart = () => {
     }
   }
 
-  const handleIncreaseQuantity = (productId: string, currentQuantity: number) => {
-    cartStore.updateQuantity(productId, currentQuantity + 1)
+  const handleIncreaseQuantity = (productSlug: string, currentQuantity: number) => {
+    cartStore.updateQuantity(productSlug, currentQuantity + 1)
   }
 
-  const handleDecreaseQuantity = (productId: string, currentQuantity: number) => {
+  const handleDecreaseQuantity = (productSlug: string, currentQuantity: number) => {
     if (currentQuantity > 1) {
-      cartStore.updateQuantity(productId, currentQuantity - 1)
+      cartStore.updateQuantity(productSlug, currentQuantity - 1)
     } else {
-      cartStore.removeFromCart(productId)
+      cartStore.removeFromCart(productSlug)
     }
   }
 
-  const updateQuantity = (productId: string, newQuantity: number) => {
+  const updateQuantity = (productSlug: string, newQuantity: number) => {
     if (newQuantity > 0) {
-      cartStore.updateQuantity(productId, newQuantity)
+      cartStore.updateQuantity(productSlug, newQuantity)
     } else {
-      cartStore.removeFromCart(productId)
+      cartStore.removeFromCart(productSlug)
     }
   }
 
-  const getQuantity = (productId: string) => {
-    const item = cartStore.items.find(item => item.product.id === productId)
+  const getQuantity = (productSlug: string) => {
+    const item = cartStore.items.find(item => item.product.slug === productSlug)
     return item?.quantity ?? 0
   }
 

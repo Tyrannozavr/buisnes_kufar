@@ -5,9 +5,10 @@ import uuid
 import aiofiles
 from fastapi import HTTPException, status, UploadFile
 
+from api.company.repositories.company_repository import CompanyRepository
 from app.api.products.repositories.my_products_repository import MyProductsRepository
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, ProductCreateWithFiles
+from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, ProductCreateWithFiles, ProductListPublicResponse
 from app.api.products.models.product import ProductType
 
 
@@ -15,6 +16,7 @@ class ProductService:
     def __init__(self, my_products_repo: MyProductsRepository, company_products_repo: CompanyProductsRepository, session: AsyncSession):
         self.my_products_repo = my_products_repo
         self.company_products_repo = company_products_repo
+        self.company_repo = CompanyRepository(session)
         self.session = session
         self.upload_dir = "uploads/product_images"
 
@@ -270,21 +272,22 @@ class ProductService:
             return ProductResponse.model_validate(product)
         return None
 
-    async def get_products_by_company_id(
+    async def get_products_by_company_slug(
         self, 
-        company_id: int, 
+        company_slug: str,
         skip: int = 0, 
         limit: int = 100,
         include_hidden: bool = False
-    ) -> ProductListResponse:
+    ) -> ProductListPublicResponse:
         """Получить все продукты компании с пагинацией"""
-        products, total = await self.company_products_repo.get_by_company_id(
-            company_id, skip, limit, include_hidden
+        products, total = await self.company_products_repo.get_by_company_slug(
+            company_slug, skip, limit, include_hidden
         )
         
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        from app.api.products.schemas.product import ProductPublicItemResponse
+        product_responses = [ProductPublicItemResponse.model_validate(product) for product in products]
         
-        return ProductListResponse(
+        return ProductListPublicResponse(
             products=product_responses,
             total=total,
             page=skip // limit + 1,

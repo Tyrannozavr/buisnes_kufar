@@ -1,29 +1,42 @@
 <script setup lang="ts">
-import type {CompanyDetails, CompanyResponse} from '~/types/company'
+import type {CompanyDetails} from '~/types/company'
 //
-import { getCompany, getCompanyProducts, getCompanyStatistics } from '~/api/company'
-import {navigateToChatById} from "~/composables/chat";
+import {getCompany, getCompanyProductsPaginated, getCompanyStatistics} from '~/api/company'
+import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
 //
 // const { createChat } = useChatsApi()
 // // Get company ID from route
 const route = useRoute()
 const companySlug = route.params.slug as string
-//
-// // Fetch company data
-const { data: company } = await getCompany(companySlug) as { data: Ref<CompanyResponse | null> }//
-// Fetch company products
-const {data: products} = await getCompanyProducts(companySlug)
-//
+
+// Pagination state
+const currentPage = ref(1)
+const perPage = 12
+
+// Watch for page changes
+watch(currentPage, async (newPage) => {
+  await refreshProducts()
+})
+
+// Fetch company data
+const {data: company, error: companyError} = await getCompany(companySlug)
+
+// Fetch company products with pagination
+const {data: productsResponse, refresh: refreshProducts} = await getCompanyProductsPaginated(companySlug, currentPage.value, perPage)
+
 // Fetch company statistics
 const {data: statistics} = await getCompanyStatistics(companySlug)
 //
 // Prepare company details
-const companyDetails = computed<CompanyDetails>(() => (
+const companyDetails = computed(() => (
     {
-      description: company.value?.description,
+      id: company.value?.id || 0,
+      logo_url: company.value?.logo_url || null,
+      description: company.value?.description || '',
       inn: company.value?.inn ?? '',
       ogrn: company.value?.ogrn ?? '',
       ogrnDate: company.value?.registration_date ?? '',
+      registrationDate: company.value?.registration_date ?? '',
       kpp: company.value?.kpp ?? '',
       legalAddress: company.value?.legal_address ?? '',
       productionAddress: company.value?.production_address ?? '',
@@ -37,6 +50,12 @@ const companyDetails = computed<CompanyDetails>(() => (
 const handleCreateChat = async () => {
   await navigateToChatBySlug(companySlug)
 }
+
+// Handle page change
+const handlePageChange = (page: number) => {
+  currentPage.value = page
+}
+
 </script>
 
 <template>
@@ -46,9 +65,9 @@ const handleCreateChat = async () => {
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-3xl font-bold">{{ company?.name }}</h1>
         <UButton
-          v-if="company"
-          color="primary"
-          @click="handleCreateChat"
+            v-if="company"
+            color="primary"
+            @click="handleCreateChat"
         >
           Написать сообщение
         </UButton>
@@ -68,12 +87,21 @@ const handleCreateChat = async () => {
 
       <!-- Продукция -->
       <h2 class="text-2xl font-bold mb-4 mt-8">Продукция компании</h2>
-      <CompanyProducts
+      <CompanyProductsPublic
           class="mt-6"
-          mode="client"
-          :products="products || []"
+          :products="productsResponse?.products || []"
       />
-      {{products}}
+
+      <!-- Пагинация -->
+      <div v-if="productsResponse && productsResponse.total > perPage" class="mt-6 flex justify-center">
+        <UPagination
+            v-model="currentPage"
+            :total="productsResponse.total"
+            :page-count="Math.ceil(productsResponse.total / perPage)"
+            :per-page="perPage"
+            @update:model-value="handlePageChange"
+        />
+      </div>
     </UContainer>
   </div>
 </template>

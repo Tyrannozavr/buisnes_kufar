@@ -15,7 +15,6 @@ export default defineNuxtPlugin((nuxtApp) => {
     credentials: 'include',
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/json',
     },
     // Add CORS mode
     mode: 'cors',
@@ -58,8 +57,15 @@ export default defineNuxtPlugin((nuxtApp) => {
         mode: 'cors',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
           ...(options.headers || {})
+        }
+      }
+
+      // Only set Content-Type to application/json if it's not FormData
+      if (!(options.body instanceof FormData)) {
+        mergedOptions.headers = {
+          ...mergedOptions.headers,
+          'Content-Type': 'application/json'
         }
       }
 

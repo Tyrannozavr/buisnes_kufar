@@ -6,6 +6,7 @@ import {
   deleteProduct as deleteProductApi,
   restoreProduct as restoreProductApi,
   createProduct,
+  createProductWithImages,
   updateProduct,
   toggleProductHidden
 } from '~/api/me/products'
@@ -113,7 +114,7 @@ const restoreProduct = async (product: Product) => {
   }
 }
 
-const saveProduct = async (productData: ProductCreate | ProductUpdate) => {
+const saveProduct = async (productData: ProductCreate | ProductUpdate | (ProductCreate & { files?: File[] })) => {
   try {
     if (selectedProduct.value) {
       // Update existing product
@@ -123,16 +124,41 @@ const saveProduct = async (productData: ProductCreate | ProductUpdate) => {
         description: 'Продукт обновлен',
         color: 'success'
       })
+      closeProductForm()
     } else {
       // Create new product
-      await createProduct(productData as ProductCreate)
-      useToast().add({
-        title: 'Успешно',
-        description: 'Продукт добавлен',
-        color: 'success'
-      })
+      const data = productData as ProductCreate & { files?: File[] }
+      const files = data.files || []
+      
+      if (files.length > 0) {
+        // Создаем продукт с изображениями
+        const { files: _, ...productDataWithoutFiles } = data
+        const newProduct = await createProductWithImages(productDataWithoutFiles, files)
+        useToast().add({
+          title: 'Успешно',
+          description: 'Продукт с изображениями добавлен',
+          color: 'success'
+        })
+        closeProductForm()
+      } else {
+        // Создаем продукт без изображений
+        const { files: _, ...productDataWithoutFiles } = data
+        const newProduct = await createProduct(productDataWithoutFiles)
+        useToast().add({
+          title: 'Успешно',
+          description: 'Продукт добавлен. Теперь вы можете загрузить изображения.',
+          color: 'success'
+        })
+        
+        // Если это новый продукт, открываем форму для загрузки изображений
+        if (newProduct) {
+          selectedProduct.value = newProduct
+          // Не закрываем форму, чтобы пользователь мог загрузить изображения
+          return
+        }
+        closeProductForm()
+      }
     }
-    closeProductForm()
     // Emit event to refresh products
     emit('refresh')
   } catch (error) {
@@ -213,6 +239,7 @@ const saveProduct = async (productData: ProductCreate | ProductUpdate) => {
         v-model="showProductForm"
         :product="selectedProduct"
         @save="saveProduct"
+        @done="closeProductForm"
       />
     </template>
   </div>

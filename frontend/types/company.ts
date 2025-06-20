@@ -9,6 +9,7 @@ export interface Company {
   logo_url: string | null
   type: string
   slug: string
+  company_id: number
   tradeActivity: TradeActivity
   businessType: BusinessType
   activityType: string

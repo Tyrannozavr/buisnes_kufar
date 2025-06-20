@@ -1,9 +1,13 @@
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
+import os
+import uuid
+import aiofiles
+from fastapi import HTTPException, status, UploadFile
 
 from app.api.products.repositories.my_products_repository import MyProductsRepository
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
+from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, ProductCreateWithFiles
 from app.api.products.models.product import ProductType
 
 
@@ -12,6 +16,7 @@ class ProductService:
         self.my_products_repo = my_products_repo
         self.company_products_repo = company_products_repo
         self.session = session
+        self.upload_dir = "uploads/product_images"
 
     # Методы для работы с собственными продуктами (MyProductsRepository)
     
@@ -21,6 +26,55 @@ class ProductService:
         if product:
             return ProductResponse.model_validate(product)
         return None
+
+    async def create_my_product_with_images(self, product_data: ProductCreateWithFiles, files: List[UploadFile], user_id: int) -> Optional[ProductResponse]:
+        """Создать новый продукт с изображениями в одном запросе"""
+        # Сначала создаем продукт
+        product = await self.my_products_repo.create(product_data, user_id)
+        if not product:
+            return None
+        
+        # Если есть файлы, загружаем их
+        if files:
+            uploaded_images = []
+            
+            # Создаем директорию для загрузки, если она не существует
+            os.makedirs(self.upload_dir, exist_ok=True)
+            
+            for file in files:
+                # Проверяем тип файла
+                if not file.content_type.startswith('image/'):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File {file.filename} must be an image"
+                    )
+                
+                # Генерируем уникальное имя файла
+                file_ext = os.path.splitext(file.filename)[1]
+                filename = f"{uuid.uuid4()}{file_ext}"
+                filepath = os.path.join(self.upload_dir, filename)
+                
+                # Сохраняем файл
+                try:
+                    async with aiofiles.open(filepath, 'wb') as out_file:
+                        content = await file.read()
+                        await out_file.write(content)
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to save file {file.filename}: {str(e)}"
+                    )
+                
+                # Добавляем путь к изображению в список
+                image_url = f"/uploads/product_images/{filename}"
+                uploaded_images.append(image_url)
+            
+            # Обновляем продукт с изображениями
+            updated_product = await self.my_products_repo.update_images(product.id, uploaded_images, user_id)
+            if updated_product:
+                return ProductResponse.model_validate(updated_product)
+        
+        return ProductResponse.model_validate(product)
 
     async def get_my_product_by_id(self, product_id: int, user_id: int) -> Optional[ProductResponse]:
         """Получить продукт по ID, только если он принадлежит компании пользователя"""
@@ -115,6 +169,91 @@ class ProductService:
             return ProductResponse.model_validate(product)
         return None
 
+    async def upload_product_images(self, product_id: int, files: List[UploadFile], user_id: int) -> Optional[ProductResponse]:
+        """Загрузить изображения для продукта"""
+        # Получаем продукт и проверяем права доступа
+        product = await self.my_products_repo.get_by_id(product_id, user_id)
+        if not product:
+            return None
+        
+        # Создаем директорию для загрузки, если она не существует
+        os.makedirs(self.upload_dir, exist_ok=True)
+        
+        uploaded_images = []
+        
+        for file in files:
+            # Проверяем тип файла
+            if not file.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File {file.filename} must be an image"
+                )
+            
+            # Генерируем уникальное имя файла
+            file_ext = os.path.splitext(file.filename)[1]
+            filename = f"{uuid.uuid4()}{file_ext}"
+            filepath = os.path.join(self.upload_dir, filename)
+            
+            # Сохраняем файл
+            try:
+                async with aiofiles.open(filepath, 'wb') as out_file:
+                    content = await file.read()
+                    await out_file.write(content)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to save file {file.filename}: {str(e)}"
+                )
+            
+            # Добавляем путь к изображению в список
+            image_url = f"/uploads/product_images/{filename}"
+            uploaded_images.append(image_url)
+        
+        # Обновляем изображения продукта
+        current_images = product.images or []
+        updated_images = current_images + uploaded_images
+        
+        updated_product = await self.my_products_repo.update_images(product_id, updated_images, user_id)
+        if updated_product:
+            return ProductResponse.model_validate(updated_product)
+        return None
+
+    async def delete_product_image(self, product_id: int, image_index: int, user_id: int) -> Optional[ProductResponse]:
+        """Удалить изображение продукта по индексу"""
+        # Получаем продукт и проверяем права доступа
+        product = await self.my_products_repo.get_by_id(product_id, user_id)
+        if not product:
+            return None
+        
+        current_images = product.images or []
+        
+        # Проверяем, что индекс существует
+        if image_index < 0 or image_index >= len(current_images):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid image index"
+            )
+        
+        # Удаляем файл с диска
+        image_path = current_images[image_index]
+        if image_path.startswith('/uploads/'):
+            file_path = image_path[1:]  # Убираем начальный слеш
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                # Логируем ошибку, но не прерываем выполнение
+                print(f"Failed to delete file {file_path}: {str(e)}")
+        
+        # Удаляем изображение из списка
+        updated_images = current_images[:image_index] + current_images[image_index + 1:]
+        
+        # Обновляем продукт
+        updated_product = await self.my_products_repo.update_images(product_id, updated_images, user_id)
+        if updated_product:
+            return ProductResponse.model_validate(updated_product)
+        return None
+
     # Методы для работы с продуктами компаний (CompanyProductsRepository)
 
     async def get_product_by_id(self, product_id: int) -> Optional[ProductResponse]:
@@ -124,9 +263,9 @@ class ProductService:
             return ProductResponse.model_validate(product)
         return None
 
-    async def get_product_by_slug(self, slug: str, company_id: int) -> Optional[ProductResponse]:
+    async def get_product_by_slug(self, slug: str) -> Optional[ProductResponse]:
         """Получить продукт по slug и company_id (только активные и не скрытые)"""
-        product = await self.company_products_repo.get_by_slug(slug, company_id)
+        product = await self.company_products_repo.get_by_slug(slug)
         if product:
             return ProductResponse.model_validate(product)
         return None

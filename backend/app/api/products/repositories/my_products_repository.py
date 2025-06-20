@@ -174,7 +174,7 @@ class MyProductsRepository:
         # Если изменяется название, генерируем новый slug
         if 'name' in update_data:
             update_data['slug'] = await self.create_product_slug(update_data['name'], company.id)
-
+        print(update_data, "D")
         # Обновляем продукт
         await self.session.execute(
             update(Product)

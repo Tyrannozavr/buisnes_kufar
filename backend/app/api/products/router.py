@@ -1,12 +1,14 @@
 from typing import Annotated, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile, Form
+import json
 
 from app.api.products.dependencies import product_service_dep
 from app.api.products.schemas.product import (
     ProductCreate, 
     ProductUpdate, 
     ProductResponse, 
-    ProductListResponse
+    ProductListResponse,
+    ProductCreateWithFiles
 )
 from app.api.products.models.product import ProductType
 from app.api.authentication.dependencies import get_current_user
@@ -27,6 +29,78 @@ async def create_my_product(
     product = await product_service.create_my_product(product_data, current_user.id)
     if not product:
         raise HTTPException(status_code=404, detail="Company not found for this user")
+    return product
+
+
+@owner_router.post("/with-images", response_model=ProductResponse)
+async def create_my_product_with_images(
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_service: product_service_dep,
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    article: str = Form(...),
+    type: str = Form(...),
+    price: float = Form(...),
+    unit_of_measurement: Optional[str] = Form(None),
+    is_hidden: bool = Form(False),
+    characteristics: str = Form("[]"),  # JSON string
+    files: list[UploadFile] = File([])
+):
+    """Создать новый продукт с изображениями в одном запросе"""
+    try:
+        # Парсим характеристики из JSON строки
+        characteristics_list = json.loads(characteristics) if characteristics else []
+        
+        # Создаем объект продукта
+        product_data = ProductCreateWithFiles(
+            name=name,
+            description=description,
+            article=article,
+            type=ProductType(type),
+            price=price,
+            unit_of_measurement=unit_of_measurement,
+            is_hidden=is_hidden,
+            characteristics=characteristics_list
+        )
+        
+        # Создаем продукт с изображениями
+        product = await product_service.create_my_product_with_images(
+            product_data, files, current_user.id
+        )
+        if not product:
+            raise HTTPException(status_code=404, detail="Company not found for this user")
+        return product
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid characteristics JSON")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@owner_router.post("/{product_id}/images", response_model=ProductResponse)
+async def upload_product_images(
+    product_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_service: product_service_dep,
+    files: list[UploadFile] = File(...)
+):
+    """Загрузить изображения для продукта"""
+    product = await product_service.upload_product_images(product_id, files, current_user.id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@owner_router.delete("/{product_id}/images/{image_index}", response_model=ProductResponse)
+async def delete_product_image(
+    product_id: int,
+    image_index: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    product_service: product_service_dep
+):
+    """Удалить изображение продукта по индексу"""
+    product = await product_service.delete_product_image(product_id, image_index, current_user.id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
     return product
 
 
@@ -107,7 +181,6 @@ async def update_my_product(
     product_service: product_service_dep
 ):
     """Обновить продукт, только если он принадлежит компании пользователя"""
-    print("Got request with ", product_data)
     product = await product_service.partial_update_my_product(product_id, product_data, current_user.id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -241,18 +314,17 @@ async def get_product_by_id(
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-
-@public_router.get("/company/{company_id}/slug/{slug}", response_model=ProductResponse)
+@public_router.get("/slug/{product_slug}", response_model=ProductResponse)
 async def get_product_by_slug(
-    company_id: int,
-    slug: str,
+    product_slug: str,
     product_service: product_service_dep
 ):
-    """Получить продукт по slug и company_id (только активные и не скрытые)"""
-    product = await product_service.get_product_by_slug(slug, company_id)
+    """Получить продукт по ID (только активные и не скрытые)"""
+    product = await product_service.get_product_by_slug(product_slug)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
+
 
 
 @public_router.get("/search", response_model=ProductListResponse)

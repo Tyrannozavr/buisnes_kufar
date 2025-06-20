@@ -3,6 +3,7 @@ import type { Product } from '~/types/product'
 import type { Service } from '~/types/service'
 import type { Company } from '~/types/company'
 import { useCart } from '~/composables/useCart'
+import {useCompaniesApi} from "~/api";
 
 const route = useRoute()
 const slug = route.params.slug
@@ -12,10 +13,36 @@ const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuan
 const quantity = computed(() => getQuantity(slug as string))
 
 // Fetch item data
-const { data: item, error: itemError, pending: itemPending } = await useApi<Product | Service>(`/items/${slug}`)
+const { data: item, error: itemError, pending: itemPending } = await useApi<Product | Service>(`/v1/products/slug/${slug}`)
 
-// Fetch company data
-const { data: company, error: companyError } = await useApi<Company>(`/companies/${item.value?.companyId}`)
+// Fetch company data only after item is loaded
+const companyId = computed(() => {
+  if (!item.value) return null
+  // Handle both Product and Service types
+  return item.value.company_id
+})
+
+const { data: company, error: companyError, refresh: companyRefresh } = await useAsyncData(
+    'company',
+    async () => {
+      if (companyId.value) {
+        const { getCompanyById } = useCompaniesApi()
+        return await getCompanyById(companyId.value)
+      }
+      return null
+    },
+    {
+      watch: [companyId],
+      immediate: false
+    }
+)
+
+watchEffect(() => {
+  if (companyId.value) {
+    console.log('Company data refreshed', companyId.value)
+    companyRefresh()
+  }
+})
 
 // Format price
 const formatPrice = (price: number) => {
@@ -30,6 +57,13 @@ const formatPrice = (price: number) => {
 const currentImageIndex = ref(0)
 const setCurrentImage = (index: number) => {
   currentImageIndex.value = index
+}
+
+// Handle add to cart
+const handleAddToCartClick = () => {
+  if (item.value) {
+    handleAddToCart(item.value as Product)
+  }
 }
 </script>
 
@@ -98,7 +132,7 @@ const setCurrentImage = (index: number) => {
                 class="flex items-center gap-3"
             >
               <NuxtImg
-                :src="company.logo || '/images/default-company.png'"
+                :src="company.logo_url || '/images/default-company.png'"
                 :alt="company.name"
                 class="w-12 h-12 rounded-lg object-cover"
               />
@@ -138,7 +172,7 @@ const setCurrentImage = (index: number) => {
                     color="primary"
                     class="cursor-pointer"
                     size="sm"
-                    @click="() => item && handleAddToCart(item)"
+                    @click="handleAddToCartClick"
                   >
                     Добавить в корзину
                   </UButton>

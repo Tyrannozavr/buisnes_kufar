@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field, ConfigDict
+from fastapi import UploadFile
 
 from app.api.products.models.product import ProductType
+from app.core.config import settings
 
 
 class ProductBase(BaseModel):
@@ -16,7 +18,18 @@ class ProductBase(BaseModel):
 
 
 class ProductCreate(ProductBase):
-    images: List[str] = []
+    characteristics: List[dict] = []
+
+
+class ProductCreateWithFiles(BaseModel):
+    """Схема для создания продукта с файлами"""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    article: str = Field(..., min_length=1, max_length=100)
+    type: ProductType
+    price: float = Field(..., gt=0)
+    unit_of_measurement: Optional[str] = Field(None, max_length=100)
+    is_hidden: bool = False
     characteristics: List[dict] = []
 
 
@@ -27,28 +40,33 @@ class ProductUpdate(BaseModel):
     type: Optional[ProductType] = None
     price: Optional[float] = Field(None, gt=0)
     unit_of_measurement: Optional[str] = Field(None, max_length=100)
-    is_hidden: Optional[bool] = None
-    is_deleted: Optional[bool] = None
-    images: Optional[List[str]] = None
+    is_hidden: Optional[bool] = False
+    is_deleted: Optional[bool] = False
     characteristics: Optional[List[dict]] = None
 
 
 class ProductResponse(ProductBase):
     id: int
     slug: str
-    images: List[str]
+    raw_images: List[str] = Field(alias="images")
     characteristics: List[dict]
     is_deleted: bool
     company_id: int
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    @computed_field
+    def images(self) -> List[str]:
+        return [f"{settings.BASE_IMAGE_URL}{image}" for image in self.raw_images]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class ProductListResponse(BaseModel):
     products: List[ProductResponse]
     total: int
     page: int
-    per_page: int 
+    per_page: int

@@ -79,7 +79,7 @@ class CompanyLogoUrlMixin(BaseModel):
     @property
     def logo_url(self) -> Optional[str]:
         if self.logo:
-            return f"{settings.IMAGES_URL}{self.logo}"
+            return f"{settings.BASE_IMAGE_URL}{self.logo}"
         return None
 
 class CompanyUpdate(BaseModel):
@@ -175,7 +175,14 @@ class CompanyResponse(CompanyLogoUrlMixin):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, orm_mode=True)
+
+class ShortCompanyResponse(CompanyLogoUrlMixin):
+    name: str
+
+    model_config = ConfigDict(from_attributes=True, orm_mode=True)
+
+
 
 class CompanyProfileResponse(BaseModel):
     """Response model that combines user and company data for profile display"""

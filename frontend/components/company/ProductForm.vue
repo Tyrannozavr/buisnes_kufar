@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Product } from '~/types/product'
+import { uploadProductImages, deleteProductImage, createProductWithImages } from '~/api/me/products'
 
 const props = defineProps({
   product: {
@@ -12,23 +13,27 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['save', 'update:modelValue']);
+const emit = defineEmits(['save', 'update:modelValue', 'done']);
 
 // Form data with default values
 const formData = ref({
-  type: 'Товар',
+  type: 'Товар' as 'Товар' | 'Услуга',
   article: '',
   name: '',
   description: '',
-  price: 0,
-  unitCategory: 'economic',
+  price: 0 as number,
+  unitCategory: 'economic' as string,
   unit_of_measurement: 'шт',
-  characteristics: [],
-  images: []
+  characteristics: [] as Array<{ name: string; value: string }>,
+  images: [] as string[],
+  selectedFiles: [] as File[]
 });
+
+const loading = ref(false);
 const productTypeItems = ['Товар', 'Услуга'];
+
 // Units mapping based on category
-const unititems = {
+const unititems: Record<string, Array<{ value: string; label: string }>> = {
   economic: [
     { value: 'шт', label: 'Штука' },
     { value: 'упак', label: 'Упаковка' },
@@ -54,22 +59,7 @@ const unititems = {
     { value: 'т', label: 'Тонна' }
   ]
 };
-// const availableUnitsForCategory = computed(() => {
-//   const unitMeasurement = formData.value.unit_of_measurement;
-//   let category = formData.value.unitCategory;
-//
-//   // Find the category that contains the current unit_of_measurement
-//   for (const [key, units] of Object.entries(unititems)) {
-//     if (units.some(unit => unit.value === unitMeasurement)) {
-//       category = key;
-//       break;
-//     }
-//   }
-//
-//   // Update the formData unitCategory
-//   formData.value.unitCategory = category;
-//   return unititems[category] || [];
-// });
+
 const unitCategoryNameByItem = (unitName: string) => {
   let category = formData.value.unitCategory;
   for (const [key, units] of Object.entries(unititems)) {
@@ -83,7 +73,6 @@ const unitCategoryNameByItem = (unitName: string) => {
 
 // Computed property to get available units based on selected category
 const availableUnits = computed(() => {
-  // if (!formData.value.unitCategory) return availableUnitsForCategory;
   return unititems[formData.value.unitCategory] || [];
 });
 
@@ -99,7 +88,8 @@ watch(() => props.product, (newProduct) => {
       unit_of_measurement: newProduct.unit_of_measurement || 'шт',
       unitCategory: unitCategoryNameByItem(newProduct.unit_of_measurement || ''),
       characteristics: [...(newProduct.characteristics || [])],
-      images: [...(newProduct.images || [])]
+      images: [...(newProduct.images || [])],
+      selectedFiles: []
     };
   } else {
     // Reset form for new product
@@ -108,11 +98,12 @@ watch(() => props.product, (newProduct) => {
       article: '',
       name: '',
       description: '',
-      price: '',
+      price: 0,
       unitCategory: 'economic',
       unit_of_measurement: 'шт',
       characteristics: [],
-      images: []
+      images: [],
+      selectedFiles: []
     };
   }
 }, { immediate: true });
@@ -123,36 +114,110 @@ const addCharacteristic = () => {
 };
 
 // Remove a characteristic field
-const removeCharacteristic = (index) => {
+const removeCharacteristic = (index: number) => {
   formData.value.characteristics.splice(index, 1);
 };
 
-// Handle image upload
-const handleImageUpload = (event) => {
-  const files = event.target.files;
+// Handle image upload for new products
+const handleImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const files = target.files;
   if (!files || files.length === 0) return;
 
-  for (const file of files) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      formData.value.images.push(e.target.result);
-    };
-    reader.readAsDataURL(file);
+  if (props.product?.id) {
+    // Для существующих продуктов - загружаем через API
+    loading.value = true;
+    try {
+      const fileArray = Array.from(files) as File[];
+      const response = await uploadProductImages(props.product.id, fileArray);
+      
+      if (response) {
+        formData.value.images = response.images;
+        useToast().add({
+          title: 'Успешно',
+          description: 'Изображения загружены',
+          color: 'success'
+        });
+      }
+    } catch (error) {
+      useToast().add({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить изображения',
+        color: 'error'
+      });
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // Для новых продуктов - добавляем в локальный массив
+    const fileArray = Array.from(files) as File[];
+    formData.value.selectedFiles.push(...fileArray);
+    
+    // Создаем превью для отображения
+    for (const file of fileArray) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        formData.value.images.push(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   }
 };
 
 // Remove an image
-const removeImage = (index) => {
-  formData.value.images.splice(index, 1);
+const removeImage = async (index: number) => {
+  if (props.product?.id) {
+    // Для существующих продуктов - удаляем через API
+    loading.value = true;
+    try {
+      const response = await deleteProductImage(props.product.id, index);
+      
+      if (response) {
+        formData.value.images = response.images;
+        useToast().add({
+          title: 'Успешно',
+          description: 'Изображение удалено',
+          color: 'success'
+        });
+      }
+    } catch (error) {
+      useToast().add({
+        title: 'Ошибка',
+        description: 'Не удалось удалить изображение',
+        color: 'error'
+      });
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // Для новых продуктов - удаляем из локальных массивов
+    formData.value.images.splice(index, 1);
+    formData.value.selectedFiles.splice(index, 1);
+  }
 };
 
 // Submit form
 const handleSubmit = () => {
-  emit('save', { ...formData.value });
+  // Убираем images и selectedFiles из данных формы
+  const { images, selectedFiles, ...submitData } = formData.value;
+  
+  if (props.product?.id) {
+    // Для существующих продуктов - отправляем только данные
+    emit('save', submitData);
+  } else {
+    // Для новых продуктов - отправляем данные с файлами
+    emit('save', { ...submitData, files: selectedFiles });
+  }
+};
+
+// Handle done button for new products
+const handleDone = () => {
+  emit('done');
+  emit('update:modelValue', false);
 };
 
 // Reference to the file input element
-const fileInputRef = ref(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 // Trigger file input click
 const triggerFileInput = () => {
@@ -186,6 +251,7 @@ const handleClose = () => {
     <template #body>
       <div class="p-4">
         <form class="space-y-6" @submit.prevent="handleSubmit">
+          <!-- Изображения (для всех продуктов) -->
           <UFormField label="Изображения">
             <div class="space-y-4">
               <!-- Hidden file input -->
@@ -214,6 +280,7 @@ const handleClose = () => {
                         size="xs"
                         icon="i-heroicons-trash"
                         class="opacity-0 group-hover:opacity-100 transform transition-all"
+                        :loading="loading"
                         @click="removeImage(index)"
                     />
                   </div>
@@ -345,6 +412,16 @@ const handleClose = () => {
         >
           Отмена
         </UButton>
+        
+        <!-- Show "Done" button for new products that have been created -->
+        <UButton
+          v-if="product?.id && (!product.images || product.images.length === 0)"
+          color="success"
+          @click="handleDone"
+        >
+          Готово
+        </UButton>
+        
         <UButton
           color="primary"
           @click="handleSubmit"

@@ -10,7 +10,6 @@ export interface ProductCreate {
   price: number
   unit_of_measurement?: string
   is_hidden?: boolean
-  images?: string[]
   characteristics?: Array<{
     name: string
     value: string
@@ -25,7 +24,6 @@ export interface ProductUpdate {
   price?: number
   unit_of_measurement?: string
   is_hidden?: boolean
-  images?: string[]
   characteristics?: Array<{
     name: string
     value: string
@@ -35,11 +33,13 @@ export interface ProductUpdate {
 // URL-адреса API
 const API_URLS = {
   BASE: '/v1/me/products',
+  WITH_IMAGES: '/v1/me/products/with-images',
   BY_ID: (id: number) => `/v1/me/products/${id}`,
   BY_SLUG: (slug: string) => `/v1/me/products/slug/${slug}`,
   BY_TYPE: (type: string) => `/v1/me/products/type/${type}`,
   TOGGLE_HIDDEN: (id: number) => `/v1/me/products/${id}`,
   IMAGES: (id: number) => `/v1/me/products/${id}/images`,
+  DELETE_IMAGE: (id: number, index: number) => `/v1/me/products/${id}/images/${index}`,
   RESTORE: (id: number) => `/v1/me/products/${id}`,
   HIDE: (id: number) => `/v1/me/products/${id}`,
   SHOW: (id: number) => `/v1/me/products/${id}/show`,
@@ -102,6 +102,29 @@ export const createProduct = async (productData: ProductCreate): Promise<Product
   return await $api.post(API_URLS.BASE, productData)
 }
 
+// Создать новый продукт с изображениями
+export const createProductWithImages = async (productData: ProductCreate, files: File[]): Promise<ProductResponse> => {
+  const { $api } = useNuxtApp()
+  const formData = new FormData()
+  
+  // Добавляем данные продукта
+  formData.append('name', productData.name)
+  formData.append('description', productData.description || '')
+  formData.append('article', productData.article)
+  formData.append('type', productData.type)
+  formData.append('price', productData.price.toString())
+  formData.append('unit_of_measurement', productData.unit_of_measurement || '')
+  formData.append('is_hidden', productData.is_hidden?.toString() || 'false')
+  formData.append('characteristics', JSON.stringify(productData.characteristics || []))
+  
+  // Добавляем файлы
+  files.forEach((file) => {
+    formData.append('files', file)
+  })
+  
+  return await $api.post(API_URLS.WITH_IMAGES, formData)
+}
+
 // Обновить продукт
 export const updateProduct = async (productId: number, productData: ProductUpdate): Promise<ProductResponse> => {
   const { $api } = useNuxtApp()
@@ -126,7 +149,25 @@ export const toggleProductHidden = async (productId: number): Promise<ProductRes
   return await $api.put(API_URLS.TOGGLE_HIDDEN(productId))
 }
 
-// Обновить изображения продукта
+// Загрузить изображения продукта
+export const uploadProductImages = async (productId: number, files: File[]): Promise<ProductResponse> => {
+  const { $api } = useNuxtApp()
+  const formData = new FormData()
+  
+  files.forEach((file) => {
+    formData.append('files', file)
+  })
+  
+  return await $api.post(API_URLS.IMAGES(productId), formData)
+}
+
+// Удалить изображение продукта
+export const deleteProductImage = async (productId: number, imageIndex: number): Promise<ProductResponse> => {
+  const { $api } = useNuxtApp()
+  return await $api.delete(API_URLS.DELETE_IMAGE(productId, imageIndex))
+}
+
+// Обновить изображения продукта (устаревший метод, оставлен для совместимости)
 export const updateProductImages = async (productId: number, images: string[]): Promise<ProductResponse> => {
   const { $api } = useNuxtApp()
   return await $api.put(API_URLS.IMAGES(productId), { images })

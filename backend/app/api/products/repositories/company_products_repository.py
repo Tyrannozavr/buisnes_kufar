@@ -25,14 +25,13 @@ class CompanyProductsRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_slug(self, slug: str, company_id: int) -> Optional[Product]:
+    async def get_by_slug(self, slug: str) -> Optional[Product]:
         """Получить продукт по slug и company_id (только активные и не скрытые)"""
         query = select(Product).options(
             selectinload(Product.company)
         ).where(
             and_(
                 Product.slug == slug,
-                Product.company_id == company_id,
                 Product.is_deleted == False,
                 Product.is_hidden == False
             )

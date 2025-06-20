@@ -48,13 +48,20 @@ export const useCompaniesApi = () => {
     return await $api.delete(`/companies/${id}`)
   }
 
+  const getCompanyById = async (id: string | number, short: boolean = true) => {
+    return await $api.get(`${API_URLS.COMPANIES}/${id}`, {
+      params: { short }
+    }) as Company
+  }
+
   return {
     getCompanies,
     getCompaniesPaginated,
     getLatestCompanies,
     searchManufacturers,
     searchServiceProviders,
-    deletePartnerById
+    deletePartnerById,
+    getCompanyById,
   }
 }
 

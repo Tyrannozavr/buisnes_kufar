@@ -19,27 +19,27 @@
       <div class="product-actions">
         <template v-if="!isDeleted">
           <template v-if="!isHidden">
-            <button class="action-btn edit" @click="$emit('edit', product)">
+            <button class="action-btn edit" @click.prevent="$emit('edit', product)">
               Редактировать
             </button>
-            <button class="action-btn hide" @click="$emit('hide', product)">
+            <button class="action-btn hide" @click.prevent="$emit('hide', product)">
               Скрыть
             </button>
-            <button class="action-btn delete" @click="$emit('delete', product)">
+            <button class="action-btn delete" @click.prevent="$emit('delete', product)">
               Удалить
             </button>
           </template>
           <template v-else>
-            <button class="action-btn restore" @click="$emit('restore', product)">
+            <button class="action-btn restore" @click.prevent="$emit('restore', product)">
               Восстановить
             </button>
-            <button class="action-btn delete" @click="$emit('delete', product)">
+            <button class="action-btn delete" @click.prevent="$emit('delete', product)">
               Удалить
             </button>
           </template>
         </template>
         <template v-else>
-          <button class="action-btn restore" @click="$emit('restore', product)">
+          <button class="action-btn restore" @click.prevent="$emit('restore', product)">
             Восстановить
           </button>
         </template>

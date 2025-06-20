@@ -20,9 +20,9 @@ const formData = ref({
   article: '',
   name: '',
   description: '',
-  price: '',
+  price: 0,
   unitCategory: 'economic',
-  unit: 'шт',
+  unit_of_measurement: 'шт',
   characteristics: [],
   images: []
 });
@@ -54,9 +54,36 @@ const unititems = {
     { value: 'т', label: 'Тонна' }
   ]
 };
+// const availableUnitsForCategory = computed(() => {
+//   const unitMeasurement = formData.value.unit_of_measurement;
+//   let category = formData.value.unitCategory;
+//
+//   // Find the category that contains the current unit_of_measurement
+//   for (const [key, units] of Object.entries(unititems)) {
+//     if (units.some(unit => unit.value === unitMeasurement)) {
+//       category = key;
+//       break;
+//     }
+//   }
+//
+//   // Update the formData unitCategory
+//   formData.value.unitCategory = category;
+//   return unititems[category] || [];
+// });
+const unitCategoryNameByItem = (unitName: string) => {
+  let category = formData.value.unitCategory;
+  for (const [key, units] of Object.entries(unititems)) {
+    if (units.some(unit => unit.value === unitName)) {
+      category = key;
+      break;
+    }
+  }
+  return category;
+}
 
 // Computed property to get available units based on selected category
 const availableUnits = computed(() => {
+  // if (!formData.value.unitCategory) return availableUnitsForCategory;
   return unititems[formData.value.unitCategory] || [];
 });
 
@@ -68,9 +95,9 @@ watch(() => props.product, (newProduct) => {
       article: newProduct.article || '',
       name: newProduct.name || '',
       description: newProduct.description || '',
-      price: newProduct.price || '',
-      unitCategory: newProduct.unitCategory || 'economic',
-      unit: newProduct.unit || 'шт',
+      price: newProduct.price || 0,
+      unit_of_measurement: newProduct.unit_of_measurement || 'шт',
+      unitCategory: unitCategoryNameByItem(newProduct.unit_of_measurement || ''),
       characteristics: [...(newProduct.characteristics || [])],
       images: [...(newProduct.images || [])]
     };
@@ -83,7 +110,7 @@ watch(() => props.product, (newProduct) => {
       description: '',
       price: '',
       unitCategory: 'economic',
-      unit: 'шт',
+      unit_of_measurement: 'шт',
       characteristics: [],
       images: []
     };
@@ -142,7 +169,7 @@ const handleClose = () => {
 
 
 <template>
-  <UModal :open="modelValue" @update:open="emit('update:modelValue', $event)" :ui="{ width: 'max-w-3xl' }">
+  <UModal :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <template #header>
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-semibold">
@@ -236,7 +263,7 @@ const handleClose = () => {
               v-model="formData.description"
               placeholder="Введите описание продукта"
               class="min-w-full"
-              rows="4"
+              :rows="4"
             />
           </UFormField>
 
@@ -264,13 +291,12 @@ const handleClose = () => {
                 placeholder="Выберите категорию"
               />
               <USelect
-                v-model="formData.unit"
+                v-model="formData.unit_of_measurement"
                 :items="availableUnits"
                 placeholder="Выберите единицу"
               />
             </div>
           </UFormField>
-
           <div class="space-y-4">
             <div class="flex justify-between items-center">
               <h4 class="font-medium text-lg">Характеристики</h4>

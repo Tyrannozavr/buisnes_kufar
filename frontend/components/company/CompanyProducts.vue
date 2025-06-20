@@ -104,6 +104,7 @@ const restoreProduct = async (product: Product) => {
     // Emit event to refresh products
     emit('refresh')
   } catch (error) {
+    console.error(error)
     useToast().add({
       title: 'Ошибка',
       description: 'Не удалось восстановить продукт',

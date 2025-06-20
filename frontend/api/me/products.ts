@@ -38,10 +38,10 @@ const API_URLS = {
   BY_ID: (id: number) => `/v1/me/products/${id}`,
   BY_SLUG: (slug: string) => `/v1/me/products/slug/${slug}`,
   BY_TYPE: (type: string) => `/v1/me/products/type/${type}`,
-  TOGGLE_HIDDEN: (id: number) => `/v1/me/products/${id}/toggle-hidden`,
+  TOGGLE_HIDDEN: (id: number) => `/v1/me/products/${id}`,
   IMAGES: (id: number) => `/v1/me/products/${id}/images`,
-  RESTORE: (id: number) => `/v1/me/products/${id}/restore`,
-  HIDE: (id: number) => `/v1/me/products/${id}/hide`,
+  RESTORE: (id: number) => `/v1/me/products/${id}`,
+  HIDE: (id: number) => `/v1/me/products/${id}`,
   SHOW: (id: number) => `/v1/me/products/${id}/show`,
   HARD_DELETE: (id: number) => `/v1/me/products/${id}/hard`,
 }
@@ -135,13 +135,13 @@ export const updateProductImages = async (productId: number, images: string[]): 
 // Восстановить продукт (из удаленных)
 export const restoreProduct = async (productId: number): Promise<ProductResponse> => {
   const { $api } = useNuxtApp()
-  return await $api.put(API_URLS.RESTORE(productId))
+  return await $api.patch(API_URLS.RESTORE(productId), {is_deleted: false, is_hidden: false})
 }
 
 // Скрыть продукт
 export const hideProduct = async (productId: number): Promise<ProductResponse> => {
   const { $api } = useNuxtApp()
-  return await $api.put(API_URLS.HIDE(productId))
+  return await $api.patch(API_URLS.HIDE(productId), {is_hidden: true})
 }
 
 // Показать продукт

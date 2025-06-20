@@ -100,7 +100,11 @@ export default defineNuxtPlugin((nuxtApp) => {
     put: (url: string, data = {}, options: FetchOptions = {}) => {
       return fetchWithCache(url, { method: 'PUT', body: data, ...options })
     },
-    
+        // PUT request
+    patch: (url: string, data = {}, options: FetchOptions = {}) => {
+      return fetchWithCache(url, { method: 'PATCH', body: data, ...options })
+    },
+
     // DELETE request
     delete: (url: string, options: FetchOptions = {}) => {
       return fetchWithCache(url, { method: 'DELETE', ...options })
@@ -123,6 +127,7 @@ declare module 'nuxt/app' {
       get: (url: string, options?: FetchOptions) => Promise<any>
       post: (url: string, data?: Record<string, any>, options?: FetchOptions) => Promise<any>
       put: (url: string, data?: Record<string, any>, options?: FetchOptions) => Promise<any>
+      patch: (url: string, data?: Record<string, any>, options?: FetchOptions) => Promise<any>
       delete: (url: string, options?: FetchOptions) => Promise<any>
       clearCache: () => void
     }

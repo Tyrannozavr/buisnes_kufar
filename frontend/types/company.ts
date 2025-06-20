@@ -95,7 +95,8 @@ export interface ManufacturersSearchParams {
 // Define a simple manufacturer type
 export interface CompanyShort {
   id: number
-  logo: string | null
+  logo_url: string | null
+  slug: string
   name: string
   country: string
   region: string

@@ -113,7 +113,7 @@ const handleMessageClick = async (companyId: number) => {
                     <!-- Company Name and Type -->
                     <div class="flex items-center gap-3 mb-2">
                       <NuxtLink 
-                        :to="`/company/${company.slug}`" 
+                        :to="`/companies/${company.slug}`"
                         class="text-xl font-semibold text-gray-900 hover:text-primary-600 transition-colors"
                       >
                         {{ company.name }}

@@ -1,6 +1,8 @@
 import type { CompanyResponse, CompanyStatistics } from '~/types/company'
+import type {UseFetchOptions} from "nuxt/app";
+import type { CompanyProducts } from "~/components/company/CompanyProducts.vue";
 
-export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyStatistics }> => {
+export const getCompanyStatistics = async (slug: string): Promise<{ data: CompanyStatistics }> => {
   // В реальном приложении здесь был бы API-запрос
   return {
     data: {
@@ -12,31 +14,17 @@ export const getCompanyStatistics = async (id: string): Promise<{ data: CompanyS
   }
 }
 
-export const getCompanyProducts = async (id: string): Promise<{ data: CompanyStatistics }> => {
+export const getCompanyProducts = async (slug: string): Promise<{ data: CompanyStatistics }> => {
   // В реальном приложении здесь был бы API-запрос
-  return {
-    data: [] // Пустой массив продуктов
-  }
+  return useApi<CompanyProducts>(`/v1/companies/slug/${slug}`, {
+    method: 'GET',
+    ...options
+  })
 }
 
-export const getCompany = async (id: string): Promise<{ data: CompanyResponse }> => {
-  // В реальном приложении здесь был бы API-запрос
-  return {
-    data: {
-      id: id,
-      name: '',
-      description: '',
-      inn: '',
-      ogrn: '',
-      registrationDate: '',
-      kpp: '',
-      legalAddress: '',
-      productionAddress: '',
-      phone: '',
-      email: '',
-      website: '',
-      logo: null,
-      // Добавьте другие поля, которые могут быть в CompanyResponse
-    }
-  }
+export const getCompany = async (slug: string, options: UseFetchOptions<void> = {}): Promise<{ data: CompanyResponse }> => {
+  return useApi<CompanyResponse>(`/v1/companies/slug/${slug}`, {
+    method: 'GET',
+    ...options
+  })
 }

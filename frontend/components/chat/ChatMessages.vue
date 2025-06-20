@@ -61,7 +61,7 @@ watch(() => props.messages, () => {
     <!-- Chat Header -->
     <div v-if="otherParticipant" class="border-b p-4">
       <NuxtLink 
-        :to="`/companies/${otherParticipant.id}`"
+        :to="`/companies/${otherParticipant.slug}`"
         class="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
       >
         <img

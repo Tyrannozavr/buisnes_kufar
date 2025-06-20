@@ -17,7 +17,7 @@ defineProps<{
         />
         <div>
           <h2 class="text-xl font-semibold">
-            <NuxtLink :to="`/company/${item.companySlug}`" class="hover:text-primary-500">
+            <NuxtLink :to="`/companies/${item.companySlug}`" class="hover:text-primary-500">
               {{ item.title }}
             </NuxtLink>
           </h2>
@@ -36,7 +36,7 @@ defineProps<{
         <UButton
           color="primary"
           variant="ghost"
-          :to="`/company/${item.companySlug}`"
+          :to="`/companies/${item.companySlug}`"
         >
           Перейти к компании
         </UButton>

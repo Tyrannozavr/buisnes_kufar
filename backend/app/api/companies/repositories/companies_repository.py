@@ -84,6 +84,23 @@ class CompaniesRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_company_by_slug(self, company_slug: str) -> Optional[Company]:
+        """
+        Получить компанию по ID
+
+        Args:
+            company_id: ID компании
+        Returns:
+            Optional[Company]: Компания или None
+        """
+        query = select(Company).options(
+            selectinload(Company.officials)
+        ).where(Company.slug == company_slug).where(Company.is_active == True)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+
+
     async def get_services_companies(
         self, 
         page: int = 1, 

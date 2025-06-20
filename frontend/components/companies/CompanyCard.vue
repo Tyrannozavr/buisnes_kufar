@@ -39,10 +39,10 @@ const navigateToMessage = async () => {
     <div class="flex items-start gap-4">
       <!-- Logo -->
       <NuxtLink
-          :to="`/company/${manufacturer.id}`"
+          :to="`/companies/${manufacturer.slug}`"
           class="w-24 h-24 flex-shrink-0">
         <NuxtImg
-          :src="manufacturer.logo || undefined"
+          :src="manufacturer.logo_url || undefined"
           :alt="manufacturer.name"
           class="w-full h-full object-cover rounded-lg"
         />
@@ -53,7 +53,7 @@ const navigateToMessage = async () => {
         <div class="flex justify-between items-start">
           <div>
             <NuxtLink
-                :to="`/company/${manufacturer.id}`"
+                :to="`/companies/${manufacturer.slug}`"
                 class="text-lg font-medium">{{ manufacturer.name }}</NuxtLink>
             <p class="text-gray-600">{{ manufacturer.description }}</p>
           </div>

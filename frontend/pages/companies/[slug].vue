@@ -1,41 +1,41 @@
 <script setup lang="ts">
-import type {CompanyDetails} from '~/types/company'
-import { useChatsApi } from '~/api/chats'
-
+import type {CompanyDetails, CompanyResponse} from '~/types/company'
+//
 import { getCompany, getCompanyProducts, getCompanyStatistics } from '~/api/company'
 import {navigateToChatById} from "~/composables/chat";
-
-const { createChat } = useChatsApi()
-// Get company ID from route
+//
+// const { createChat } = useChatsApi()
+// // Get company ID from route
 const route = useRoute()
-const companyId = route.params.id as string
-
-// Fetch company data
-const {data: company} = await getCompany(companyId)
-
+const companySlug = route.params.slug as string
+//
+// // Fetch company data
+const { data: company } = await getCompany(companySlug) as { data: Ref<CompanyResponse | null> }//
 // Fetch company products
-const {data: products} = await getCompanyProducts(companyId)
-
+const {data: products} = await getCompanyProducts(companySlug)
+//
 // Fetch company statistics
-const {data: statistics} = await getCompanyStatistics(companyId)
-
+const {data: statistics} = await getCompanyStatistics(companySlug)
+//
 // Prepare company details
-const companyDetails = computed<CompanyDetails>(() => ({
-  description: company?.description ?? '',
-  inn: company?.inn ?? '',
-  ogrn: company?.ogrn ?? '',
-  ogrnDate: company?.registration_date ?? '',
-  kpp: company?.kpp ?? '',
-  legalAddress: company?.legal_address ?? '',
-  productionAddress: company?.production_address ?? '',
-  phone: company?.phone ?? '',
-  email: company?.email ?? '',
-  website: company?.website ?? ''
-}))
+const companyDetails = computed<CompanyDetails>(() => (
+    {
+      description: company.value?.description,
+      inn: company.value?.inn ?? '',
+      ogrn: company.value?.ogrn ?? '',
+      ogrnDate: company.value?.registration_date ?? '',
+      kpp: company.value?.kpp ?? '',
+      legalAddress: company.value?.legal_address ?? '',
+      productionAddress: company.value?.production_address ?? '',
+      phone: company.value?.phone ?? '',
+      email: company.value?.email ?? '',
+      website: company.value?.website ?? ''
+    }
+))
 
-// Handle chat creation
+// // Handle chat creation
 const handleCreateChat = async () => {
-  await navigateToChatById(company.id)
+  await navigateToChatBySlug(companySlug)
 }
 </script>
 
@@ -73,6 +73,7 @@ const handleCreateChat = async () => {
           mode="client"
           :products="products || []"
       />
+      {{products}}
     </UContainer>
   </div>
 </template>

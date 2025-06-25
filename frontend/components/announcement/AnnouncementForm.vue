@@ -35,6 +35,7 @@ const saving = computed(() => props.loading);
 const formTouched = ref(false);
 const attemptedSubmit = ref(false);
 const showPublishConfirm = ref(false);
+const actionType = ref<'publish' | 'draft'>('publish');
 
 const form = ref<AnnouncementFormData>({
   ...props.initialData,
@@ -171,7 +172,15 @@ const validationSummary = computed(() => {
   return errors;
 });
 
+// Computed property to determine if we're publishing or unpublishing
+const isPublishing = computed(() => {
+  // Если действие - публикация, то isPublishing = true
+  // Если действие - сохранение черновика, то isPublishing = false
+  return actionType.value === 'publish';
+});
+
 const confirmPublish = () => {
+  actionType.value = 'publish';
   showPublishConfirm.value = true;
 };
 
@@ -180,7 +189,18 @@ const closePublishModal = () => {
 };
 
 const handlePublishConfirm = () => {
-  handleSave(true);
+  handleSave(actionType.value === 'publish');
+};
+
+const confirmSaveDraft = () => {
+  // Если объявление уже опубликовано, показываем модальное окно подтверждения
+  if (form.value.published) {
+    actionType.value = 'draft';
+    showPublishConfirm.value = true;
+  } else {
+    // Если объявление не опубликовано, сохраняем сразу
+    handleSave(false);
+  }
 };
 
 const handleSave = async (publish = false) => {
@@ -488,7 +508,7 @@ const removeImage = (index: number, isExistingImage: boolean = false) => {
         color="primary"
         :disabled="!isFormValid || saving"
         class="mr-2 cursor-pointer"
-        @click="() => handleSave(false)"
+        @click="confirmSaveDraft"
       >
         Сохранить черновик
       </UButton>
@@ -507,7 +527,8 @@ const removeImage = (index: number, isExistingImage: boolean = false) => {
   <!-- Используем новый компонент для модального окна -->
   <PublishConfirmModal
     :open="showPublishConfirm"
-    :saving="loading"
+    :saving="saving"
+    :is-publishing="isPublishing"
     :notify-options="notifyOptions"
     @close="closePublishModal"
     @confirm="handlePublishConfirm"

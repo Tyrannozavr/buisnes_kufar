@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { authApi } from '~/api/auth'
 
 definePageMeta({
   layout: 'profile'
 })
 
+const { $api } = useNuxtApp()
 const toast = useToast()
 
 // Email change form state
 const newEmail = ref('')
+const emailPassword = ref('')
 const emailCode = ref('')
 const isEmailCodeSent = ref(false)
 const isEmailCodeVerified = ref(false)
@@ -41,21 +42,25 @@ const showErrorToast = (message: string) => {
 
 // Email change handlers
 const sendEmailCode = async () => {
-  if (!newEmail.value) {
-    showErrorToast('Введите новый email')
+  if (!newEmail.value || !emailPassword.value) {
+    showErrorToast('Введите новый email и пароль')
     return
   }
 
   try {
     isEmailLoading.value = true
-    const response = await authApi.sendEmailChangeCode(newEmail.value)
+    const response = await $api.post('/v1/auth/request-email-change', {
+      new_email: newEmail.value,
+      password: emailPassword.value
+    })
     
-    if (response.success) {
+    if (response.message) {
       isEmailCodeSent.value = true
-      showSuccessToast(response.message)
+      showSuccessToast('Код подтверждения отправлен на новый email')
     }
-  } catch (error) {
-    showErrorToast('Произошла ошибка при отправке кода')
+  } catch (error: any) {
+    const errorMessage = error.response?._data?.detail || error.response?._data?.message || 'Произошла ошибка при отправке кода'
+    showErrorToast(errorMessage)
   } finally {
     isEmailLoading.value = false
   }
@@ -69,23 +74,24 @@ const verifyEmailCode = async () => {
 
   try {
     isEmailLoading.value = true
-    const response = await authApi.changeEmail({
-      email: newEmail.value,
-      code: emailCode.value
+    const response = await $api.post('/v1/auth/confirm-email-change', {
+      token: emailCode.value
     })
     
-    if (response.success) {
+    if (response.message) {
       isEmailCodeVerified.value = true
-      showSuccessToast(response.message)
+      showSuccessToast('Email успешно изменен')
       // Очищаем поля после успешной смены
       newEmail.value = ''
+      emailPassword.value = ''
       emailCode.value = ''
-    } else {
-      showErrorToast(response.message)
-      emailCode.value = ''
+      isEmailCodeSent.value = false
+      isEmailCodeVerified.value = false
     }
-  } catch (error) {
-    showErrorToast('Произошла ошибка при проверке кода')
+  } catch (error: any) {
+    const errorMessage = error.response?._data?.detail || error.response?._data?.message || 'Произошла ошибка при проверке кода'
+    showErrorToast(errorMessage)
+    emailCode.value = ''
   } finally {
     isEmailLoading.value = false
   }
@@ -105,22 +111,21 @@ const changePassword = async () => {
 
   try {
     isPasswordLoading.value = true
-    const response = await authApi.changePassword({
-      oldPassword: oldPassword.value,
-      newPassword: newPassword.value
+    const response = await $api.post('/v1/auth/change-password', {
+      current_password: oldPassword.value,
+      new_password: newPassword.value
     })
     
-    if (response.success) {
-      showSuccessToast(response.message)
+    if (response.message) {
+      showSuccessToast('Пароль успешно изменен')
       // Очищаем поля после успешной смены
       oldPassword.value = ''
       newPassword.value = ''
       confirmPassword.value = ''
-    } else {
-      showErrorToast(response.message)
     }
-  } catch (error) {
-    showErrorToast('Произошла ошибка при смене пароля')
+  } catch (error: any) {
+    const errorMessage = error.response?._data?.detail || error.response?._data?.message || 'Произошла ошибка при смене пароля'
+    showErrorToast(errorMessage)
   } finally {
     isPasswordLoading.value = false
   }
@@ -146,6 +151,21 @@ const changePassword = async () => {
               :disabled="isEmailCodeSent"
               placeholder="Введите новый email"
             />
+          </div>
+
+          <div class="form-group">
+            <label for="emailPassword">Текущий пароль</label>
+            <input
+              id="emailPassword"
+              v-model="emailPassword"
+              type="password"
+              required
+              :disabled="isEmailCodeSent"
+              placeholder="Введите текущий пароль"
+            />
+          </div>
+
+          <div class="form-group">
             <button
               v-if="!isEmailCodeSent"
               type="button"
@@ -153,22 +173,22 @@ const changePassword = async () => {
               :disabled="isEmailLoading"
               class="btn btn-primary"
             >
-              Получить код
+              {{ isEmailLoading ? 'Отправка...' : 'Отправить код подтверждения' }}
             </button>
           </div>
 
-          <div v-if="isEmailCodeSent" class="form-group">
+          <div v-if="isEmailCodeSent && !isEmailCodeVerified" class="form-group">
             <label for="emailCode">Код подтверждения</label>
+            <p class="help-text">Введите 6-значный код, отправленный на новый email</p>
             <input
               id="emailCode"
               v-model="emailCode"
               type="text"
               required
-              :disabled="isEmailCodeVerified"
+              maxlength="6"
               placeholder="Введите код из письма"
             />
             <button
-              v-if="!isEmailCodeVerified"
               type="button"
               @click="verifyEmailCode"
               :disabled="isEmailLoading"
@@ -176,6 +196,10 @@ const changePassword = async () => {
             >
               {{ isEmailLoading ? 'Проверка...' : 'Подтвердить код' }}
             </button>
+          </div>
+
+          <div v-if="isEmailCodeVerified" class="success-message">
+            <p>✅ Email успешно изменен!</p>
           </div>
         </form>
       </div>
@@ -319,5 +343,25 @@ h1 {
   margin-bottom: 2rem;
   color: #333;
   font-size: 1.75rem;
+}
+
+.help-text {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #c3e6cb;
+  margin-top: 1rem;
+}
+
+.success-message p {
+  margin: 0;
+  font-weight: 500;
 }
 </style> 

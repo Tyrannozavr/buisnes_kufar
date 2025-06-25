@@ -9,6 +9,7 @@ import type {
 import type {ApiResponse, EmailChangeParams, PasswordChangeParams, PasswordResetParams} from '~/types/api'
 
 import {useCookie} from 'nuxt/app'
+import { AUTH_URLS } from '~/constants/urls'
 
 export const AUTH_API = {
   REGISTER_STEP1: '/v1/auth/register/step1',
@@ -27,21 +28,21 @@ export const AUTH_API = {
 export const authApi = {
   // Восстановление пароля
   async sendRecoveryCode(email: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/recover-password', {
+    return await $fetch<ApiResponse>('/v1/auth/recover-password', {
       method: 'POST',
       body: { email }
     })
   },
 
   async verifyRecoveryCode(email: string, code: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/verify-code', {
+    return await $fetch<ApiResponse>('/v1/auth/verify-code', {
       method: 'POST',
       body: { email, code }
     })
   },
 
   async resetPassword(params: PasswordResetParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/reset-password', {
+    return await $fetch<ApiResponse>('/v1/auth/reset-password', {
       method: 'POST',
       body: params
     })
@@ -49,14 +50,14 @@ export const authApi = {
 
   // Смена email
   async sendEmailChangeCode(email: string): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/recover-password', {
+    return await $fetch<ApiResponse>('/v1/auth/recover-password', {
       method: 'POST',
       body: { email }
     })
   },
 
   async changeEmail(params: EmailChangeParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/change-email', {
+    return await $fetch<ApiResponse>('/v1/auth/change-email', {
       method: 'POST',
       body: params
     })
@@ -64,7 +65,7 @@ export const authApi = {
 
   // Смена пароля
   async changePassword(params: PasswordChangeParams): Promise<ApiResponse> {
-    return await $fetch<ApiResponse>('/auth/change-password', {
+    return await $fetch<ApiResponse>('/v1/auth/change-password', {
       method: 'POST',
       body: params
     })
@@ -102,6 +103,7 @@ export function useAuthApi() {
   const config = useRuntimeConfig()
   const apiBaseUrl = config.public.apiBaseUrl
   const accessToken = useCookie('access_token')
+  const { $api } = useNuxtApp()
 
   const registerStep1 = async (data: RegisterStep1Data): Promise<void> => {
     try {
@@ -142,7 +144,6 @@ export function useAuthApi() {
   }
 
   const verifyToken = async (): Promise<VerifyTokenResponse> => {
-    const { $api } = useNuxtApp()
     return await $api.post(AUTH_API.VERIFY_TOKEN)
   }
 
@@ -212,12 +213,52 @@ export function useAuthApi() {
     }
   }
 
+  // Смена пароля
+  const changePassword = async (params: PasswordChangeParams): Promise<ApiResponse> => {
+    return await $api.post(AUTH_URLS.CHANGE_PASSWORD, params)
+  }
+
+  // Смена email - запрос
+  const requestEmailChange = async (newEmail: string, password: string): Promise<ApiResponse> => {
+    return await $api.post(AUTH_URLS.REQUEST_EMAIL_CHANGE, {
+      new_email: newEmail,
+      password: password
+    })
+  }
+
+  // Смена email - подтверждение
+  const confirmEmailChange = async (token: string): Promise<ApiResponse> => {
+    return await $api.post(AUTH_URLS.CONFIRM_EMAIL_CHANGE, {
+      token: token
+    })
+  }
+
+  // Сброс пароля - запрос
+  const requestPasswordReset = async (email: string): Promise<ApiResponse> => {
+    return await $api.post(AUTH_URLS.REQUEST_PASSWORD_RESET, {
+      email: email
+    })
+  }
+
+  // Сброс пароля - подтверждение
+  const confirmPasswordReset = async (token: string, newPassword: string): Promise<ApiResponse> => {
+    return await $api.post(AUTH_URLS.CONFIRM_PASSWORD_RESET, {
+      token: token,
+      new_password: newPassword
+    })
+  }
+
   return {
     registerStep1,
     validateRegistrationToken,
     registerStep2,
     login,
     getCompanyInfo,
-    verifyToken
+    verifyToken,
+    changePassword,
+    requestEmailChange,
+    confirmEmailChange,
+    requestPasswordReset,
+    confirmPasswordReset
   }
 } 

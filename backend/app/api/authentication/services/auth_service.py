@@ -5,11 +5,11 @@ from fastapi import HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User
+from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.services.company_service import CompanyService
 from app.core.config import settings
-from app.core.email_utils import send_verification_email
+from app.core.email_utils import send_verification_email, send_password_reset_email, send_email_change_confirmation, send_email_change_code
 from app.core.security import create_access_token, decode_token
 from app.core.security import verify_password
 from app_logging.logger import logger
@@ -150,4 +150,204 @@ class AuthService:
             return None
         if not verify_password(password, user.hashed_password):
             return None
-        return User.model_validate(user) 
+        return User.model_validate(user)
+
+    async def change_password(self, user_id: int, password_data: ChangePasswordRequest) -> bool:
+        """Change user password"""
+        # Get current user
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Verify current password
+        if not verify_password(password_data.current_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+        
+        # Update password
+        success = await self.user_repository.update_user_password(user_id, password_data.new_password)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        logger.info(f"Password changed for user {user_id}")
+        return True
+
+    async def request_password_reset(self, email: str) -> bool:
+        """Request password reset"""
+        # Check if user exists
+        user = await self.user_repository.get_user_by_email(email)
+        if not user:
+            # Don't reveal if user exists or not for security
+            return True
+        
+        # Generate reset token
+        import secrets
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        
+        # Create reset token
+        success = await self.user_repository.create_password_reset_token(email, token, expires_at)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create password reset token"
+            )
+        
+        # Send reset email
+        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+        email_sent = await send_password_reset_email(email, reset_url)
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password reset email"
+            )
+        
+        logger.info(f"Password reset requested for {email}")
+        return True
+
+    async def confirm_password_reset(self, token: str, new_password: str) -> bool:
+        """Confirm password reset"""
+        # Get reset token
+        reset_token = await self.user_repository.get_password_reset_token(token)
+        if not reset_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid reset token"
+            )
+        
+        if reset_token.is_used:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset token already used"
+            )
+        
+        if reset_token.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset token expired"
+            )
+        
+        # Get user by email
+        user = await self.user_repository.get_user_by_email(reset_token.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update password
+        success = await self.user_repository.update_user_password(user.id, new_password)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        # Mark token as used
+        await self.user_repository.mark_password_reset_token_as_used(token)
+        
+        logger.info(f"Password reset completed for user {user.id}")
+        return True
+
+    async def request_email_change(self, user_id: int, email_data: ChangeEmailRequest) -> bool:
+        """Request email change"""
+        # Get current user
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Verify current password
+        if not verify_password(email_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is incorrect"
+            )
+        
+        # Check if new email already exists
+        email_exists = await self.user_repository.check_email_exists(email_data.new_email)
+        if email_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
+        
+        # Generate confirmation code (6 digits)
+        import random
+        code = str(random.randint(100000, 999999))
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        
+        # Create change token with code
+        success = await self.user_repository.create_email_change_token(
+            user_id, email_data.new_email, code, expires_at
+        )
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create email change token"
+            )
+        
+        # Send confirmation code
+        email_sent = await send_email_change_code(email_data.new_email, code)
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send email change confirmation"
+            )
+        
+        logger.info(f"Email change code sent for user {user_id} to {email_data.new_email}")
+        return True
+
+    async def confirm_email_change(self, token: str) -> bool:
+        """Confirm email change"""
+        # Get change token
+        change_token = await self.user_repository.get_email_change_token(token)
+        if not change_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid change token"
+            )
+        
+        if change_token.is_used:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Change token already used"
+            )
+        
+        if change_token.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Change token expired"
+            )
+        
+        # Check if new email already exists
+        email_exists = await self.user_repository.check_email_exists(change_token.new_email)
+        if email_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
+        
+        # Update email
+        success = await self.user_repository.update_user_email(change_token.user_id, change_token.new_email)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update email"
+            )
+        
+        # Mark token as used
+        await self.user_repository.mark_email_change_token_as_used(token)
+        
+        logger.info(f"Email changed for user {change_token.user_id} to {change_token.new_email}")
+        return True 

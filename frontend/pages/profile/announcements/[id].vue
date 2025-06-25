@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {ref} from 'vue';
 import { useAnnouncementsApi } from '~/api/me/announcements'
+import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -8,7 +9,8 @@ const id = parseInt(route.params.id as string);
 
 const {
   getAnnouncementById,
-  deleteAnnouncement
+  deleteAnnouncement,
+  toggleAnnouncementPublish
 } = useAnnouncementsApi()
 
 const {
@@ -20,6 +22,16 @@ const {
 
 const processingAction = ref(false);
 const showDeleteConfirm = ref(false);
+const showPublishConfirm = ref(false);
+const processingPublish = ref(false);
+
+// Состояние для опций уведомлений
+const notifyOptions = ref({
+  notify: false,
+  partners: false,
+  customers: false,
+  suppliers: false
+});
 
 // Format date for display
 const formatDate = (dateString: string) => {
@@ -62,6 +74,56 @@ const handleDeleteAnnouncement = async () => {
 // Navigate to edit page
 const editAnnouncement = () => {
   router.push(`/profile/announcements/edit/${id}`);
+};
+
+// Функция для открытия модального окна подтверждения публикации
+const openPublishConfirm = () => {
+  // Установка опций уведомлений из объявления, если они есть
+  if (announcement.value?.notifications) {
+    notifyOptions.value.notify = true;
+    notifyOptions.value.partners = announcement.value.notifications.partners;
+    notifyOptions.value.customers = announcement.value.notifications.customers;
+    notifyOptions.value.suppliers = announcement.value.notifications.suppliers;
+  } else {
+    // Значения по умолчанию, если уведомления не настроены
+    notifyOptions.value.notify = false;
+    notifyOptions.value.partners = false;
+    notifyOptions.value.customers = false;
+    notifyOptions.value.suppliers = false;
+  }
+
+  showPublishConfirm.value = true;
+};
+
+// Функция для закрытия модального окна
+const closePublishModal = () => {
+  showPublishConfirm.value = false;
+};
+
+// Функция для подтверждения публикации
+const confirmPublish = async () => {
+  if (!announcement.value) return;
+  
+  processingPublish.value = true;
+  try {
+    await toggleAnnouncementPublish(announcement.value.id);
+    await refresh(); // Обновляем данные объявления
+    
+    useToast().add({
+      title: 'Успешно',
+      description: announcement.value.published ? 'Объявление снято с публикации' : 'Объявление опубликовано',
+      color: 'success'
+    });
+  } catch (error) {
+    useToast().add({
+      title: 'Ошибка',
+      description: error instanceof Error ? error.message : 'Не удалось изменить статус объявления',
+      color: 'error'
+    });
+  } finally {
+    processingPublish.value = false;
+    closePublishModal();
+  }
 };
 </script>
 
@@ -169,13 +231,32 @@ const editAnnouncement = () => {
 
             <div class="flex gap-2">
               <UButton
-                  v-if="!announcement.published"
                   color="primary"
                   icon="i-heroicons-pencil"
                   class="cursor-pointer"
                   @click="editAnnouncement"
               >
                 Редактировать
+              </UButton>
+
+              <UButton
+                  v-if="!announcement.published"
+                  color="success"
+                  icon="i-heroicons-megaphone"
+                  class="cursor-pointer"
+                  @click="openPublishConfirm"
+              >
+                Опубликовать
+              </UButton>
+
+              <UButton
+                  v-else
+                  color="warning"
+                  icon="i-heroicons-eye-slash"
+                  class="cursor-pointer"
+                  @click="openPublishConfirm"
+              >
+                Снять с публикации
               </UButton>
 
               <UButton
@@ -218,6 +299,16 @@ const editAnnouncement = () => {
           </div>
         </template>
       </UModal>
+
+      <!-- Модальное окно подтверждения публикации -->
+      <PublishConfirmModal
+        :open="showPublishConfirm"
+        :saving="processingPublish"
+        :is-publishing="!announcement?.published"
+        :notify-options="notifyOptions"
+        @close="closePublishModal"
+        @confirm="confirmPublish"
+      />
     </template>
   </div>
 </template>

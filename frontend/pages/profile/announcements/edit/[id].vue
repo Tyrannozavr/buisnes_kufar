@@ -27,7 +27,8 @@ const initialFormData = computed<AnnouncementFormData>(() => {
       content: '',
       images: [],
       image_urls: [],
-      category: ''
+      category: '',
+      published: false
     };
   }
 
@@ -37,6 +38,7 @@ const initialFormData = computed<AnnouncementFormData>(() => {
     images: [], // New images will be uploaded separately
     image_urls: announcement.value.image_urls || [],
     category: announcement.value.category,
+    published: announcement.value.published || false
   };
 });
 

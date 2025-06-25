@@ -9,8 +9,8 @@ export interface EmailChangeParams {
 }
 
 export interface PasswordChangeParams {
-  oldPassword: string
-  newPassword: string
+  current_password: string
+  new_password: string
 }
 
 export interface PasswordResetParams {

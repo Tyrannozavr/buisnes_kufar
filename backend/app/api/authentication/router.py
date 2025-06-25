@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest
 from app.api.authentication.services.auth_service import AuthService
 from app.api.company.dependencies import company_service_dep
 from app.api.dependencies import async_db_dep
@@ -164,3 +164,86 @@ async def logout(response: Response):
         samesite="lax"
     )
     return {"message": "Successfully logged out"}
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    password_data: ChangePasswordRequest,
+    request: Request,
+    db: async_db_dep
+):
+    """
+    Change user password (requires authentication)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    user = await auth_service.get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    success = await auth_service.change_password(user.id, password_data)
+    return {"message": "Password changed successfully"}
+
+
+@router.post("/request-email-change", status_code=status.HTTP_200_OK)
+async def request_email_change(
+    email_data: ChangeEmailRequest,
+    request: Request,
+    db: async_db_dep
+):
+    """
+    Request email change (requires authentication)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    user = await auth_service.get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    success = await auth_service.request_email_change(user.id, email_data)
+    return {"message": "Email change confirmation sent"}
+
+
+@router.post("/confirm-email-change", status_code=status.HTTP_200_OK)
+async def confirm_email_change(
+    confirm_data: ChangeEmailConfirmRequest,
+    db: async_db_dep
+):
+    """
+    Confirm email change (no authentication required, uses token)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.confirm_email_change(confirm_data.token)
+    return {"message": "Email changed successfully"}
+
+
+@router.post("/request-password-reset", status_code=status.HTTP_200_OK)
+async def request_password_reset(
+    reset_data: PasswordResetRequest,
+    db: async_db_dep
+):
+    """
+    Request password reset (no authentication required)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.request_password_reset(reset_data.email)
+    return {"message": "Password reset email sent"}
+
+
+@router.post("/confirm-password-reset", status_code=status.HTTP_200_OK)
+async def confirm_password_reset(
+    reset_data: PasswordResetConfirmRequest,
+    db: async_db_dep
+):
+    """
+    Confirm password reset (no authentication required, uses token)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.confirm_password_reset(reset_data.token, reset_data.new_password)
+    return {"message": "Password reset successfully"}

@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken
+from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, EmailChangeToken
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
 from app.core.security import get_password_hash, verify_password
 from app_logging.logger import logger
@@ -102,4 +102,105 @@ class UserRepository:
             return None
         if not verify_password(password, user.hashed_password):
             return None
-        return user 
+        return user
+
+    async def update_user_password(self, user_id: int, new_password: str) -> bool:
+        """Update user password"""
+        hashed_password = get_password_hash(new_password)
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(hashed_password=hashed_password, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def update_user_email(self, user_id: int, new_email: str) -> bool:
+        """Update user email"""
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(email=new_email, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def create_password_reset_token(self, email: str, token: str, expires_at: datetime) -> bool:
+        """Create password reset token"""
+        db_token = PasswordResetToken(
+            email=email,
+            token=token,
+            created_at=datetime.utcnow(),
+            expires_at=expires_at,
+            is_used=False
+        )
+        self.session.add(db_token)
+        try:
+            await self.session.commit()
+            await self.session.refresh(db_token)
+            return True
+        except Exception as e:
+            logger.error(f"Error creating password reset token for {email}: {str(e)}")
+            await self.session.rollback()
+            return False
+
+    async def get_password_reset_token(self, token: str) -> Optional[PasswordResetToken]:
+        """Get password reset token"""
+        result = await self.session.execute(
+            select(PasswordResetToken).where(PasswordResetToken.token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_password_reset_token_as_used(self, token: str) -> bool:
+        """Mark password reset token as used"""
+        result = await self.session.execute(
+            update(PasswordResetToken)
+            .where(PasswordResetToken.token == token)
+            .values(is_used=True)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def create_email_change_token(self, user_id: int, new_email: str, token: str, expires_at: datetime) -> bool:
+        """Create email change token"""
+        db_token = EmailChangeToken(
+            user_id=user_id,
+            new_email=new_email,
+            token=token,
+            created_at=datetime.utcnow(),
+            expires_at=expires_at,
+            is_used=False
+        )
+        self.session.add(db_token)
+        try:
+            await self.session.commit()
+            await self.session.refresh(db_token)
+            return True
+        except Exception as e:
+            logger.error(f"Error creating email change token for user {user_id}: {str(e)}")
+            await self.session.rollback()
+            return False
+
+    async def get_email_change_token(self, token: str) -> Optional[EmailChangeToken]:
+        """Get email change token"""
+        result = await self.session.execute(
+            select(EmailChangeToken).where(EmailChangeToken.token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_email_change_token_as_used(self, token: str) -> bool:
+        """Mark email change token as used"""
+        result = await self.session.execute(
+            update(EmailChangeToken)
+            .where(EmailChangeToken.token == token)
+            .values(is_used=True)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def check_email_exists(self, email: str) -> bool:
+        """Check if email already exists"""
+        result = await self.session.execute(
+            select(User).where(User.email == email)
+        )
+        return result.scalar_one_or_none() is not None 

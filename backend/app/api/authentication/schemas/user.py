@@ -77,3 +77,26 @@ class TokenData(BaseModel):
 class VerifyTokenResponse(CompanyLogoUrlMixin):
     is_valid: bool
     company_name: str|None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: constr(min_length=8)
+
+
+class ChangeEmailRequest(BaseModel):
+    new_email: EmailStr
+    password: str
+
+
+class ChangeEmailConfirmRequest(BaseModel):
+    token: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str
+    new_password: constr(min_length=8)

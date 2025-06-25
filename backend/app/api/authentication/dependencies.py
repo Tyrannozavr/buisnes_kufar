@@ -10,8 +10,7 @@ from app.api.authentication.schemas.user import TokenData
 from app.api.authentication.services.auth_service import AuthService
 from app.core.config import settings
 from app.core.security import decode_token
-from app.db.base import get_async_db
-from app.db.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep, get_async_db
 
 # Create OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(

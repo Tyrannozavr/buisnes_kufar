@@ -14,7 +14,15 @@ from app.core.config import settings
 from app.db.base_class import Base  # noqa
 from app_logging.logger import logger
 
-engine = create_async_engine(settings.ASYNC_DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(
+    settings.ASYNC_DATABASE_URL, 
+    echo=False, 
+    future=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_recycle=3600
+)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -22,18 +30,5 @@ async def create_db_and_tables():
     logger.info("Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
-    """Корректный генератор сессии"""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
 
 

@@ -3,8 +3,7 @@ import type { UseFetchOptions } from 'nuxt/app'
 
 export const useCategoriesApi = () => {
   const getCategories = (options: UseFetchOptions<Category[]> = {}) => {
-    return useApi<Category[]>('/categories', {
-      lazy: true,
+    return useApi<Category[]>('/v1/company/announcements/categories', {
       ...options
     })
   }

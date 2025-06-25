@@ -1,11 +1,12 @@
 export interface Announcement {
-  id: string;
-  companyId: number;
+  id: number;
+  company_id: number;
   title: string;
   content: string;
   images: string[];
-  createdAt: string;
-  updatedAt: string;
+  image_urls: string[];
+  created_at: string;
+  updated_at: string;
   category: string;
   published: boolean;
   notifications?: {
@@ -14,18 +15,25 @@ export interface Announcement {
     suppliers: boolean;
     sent: boolean;
   };
-  companyName: string;
-  companyLogo: string;
-  date: string;
-  topic: string;
-  image: string;
+  company_name?: string;
+  company_logo?: string;
+  date?: string;
+  topic?: string;
+  image?: string;
 }
 
 export interface AnnouncementFormData {
   title: string;
   content: string;
   images: string[];
+  image_urls: string[];
   category: string;
+  published?: boolean;
+  notifications?: {
+    partners: boolean;
+    customers: boolean;
+    suppliers: boolean;
+  };
 }
 
 export interface AnnouncementCard {
@@ -33,4 +41,17 @@ export interface AnnouncementCard {
   image: string;
   title: string;
   date: string;
+}
+
+export interface AnnouncementCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface AnnouncementListResponse {
+  announcements: Announcement[];
+  total: number;
+  page: number;
+  per_page: number;
 }

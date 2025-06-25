@@ -11,7 +11,6 @@ from app.api.company.dependencies import company_service_dep
 from app.api.dependencies import async_db_dep
 from app.core.config import settings
 from app.core.security import create_access_token
-from app.db.base import get_async_db
 from app.schemas.user import UserLogin
 
 router = APIRouter()
@@ -63,6 +62,8 @@ async def verify_token(
         logo=company.logo,
         company_name=company.name,
     )
+
+
 @router.get("/registration/verify-token/{token}")
 async def verify_token(
         token: str,
@@ -71,10 +72,11 @@ async def verify_token(
     is_valid = await auth_service.verify_token(token)
     return {"is_valid": is_valid}
 
+
 @router.post("/login", response_model=Token)
 async def login(
-    user_data: UserLogin,
-    db: async_db_dep
+        user_data: UserLogin,
+        db: async_db_dep
 ):
     """
     Login user with INN and password.
@@ -85,7 +87,7 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters long"
         )
-    
+
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.authenticate_user_by_inn(user_data.inn, user_data.password)
     if not user:
@@ -94,12 +96,12 @@ async def login(
             detail="Incorrect INN or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    
+
     return {
         "access_token": access_token,
         "token_type": "bearer"
@@ -139,8 +141,8 @@ async def login(
 
 @router.get("/me", response_model=User)
 async def get_current_user(
-    request: Request,
-    db: async_db_dep
+        request: Request,
+        db: async_db_dep
 ):
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.get_current_user(request)

@@ -33,6 +33,10 @@ async def register_step2(
         data: UserCreateStep2,
         db: async_db_dep
 ):
+    """
+    Завершение регистрации пользователя.
+    Создает пользователя с паролем и ИНН, а также создает компанию по умолчанию.
+    """
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     user = await auth_service.register_step2(data)
 

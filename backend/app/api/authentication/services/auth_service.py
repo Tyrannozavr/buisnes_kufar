@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status, Request
@@ -33,7 +33,7 @@ class AuthService:
         # Создаем токен регистрации
         import secrets
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         await self.user_repository.create_registration_token(
             email=user_data.email,
             token=token,
@@ -64,7 +64,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Registration token already used"
             )
-        if registration_token.expires_at < datetime.utcnow():
+        if registration_token.expires_at < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Registration token expired"
@@ -79,14 +79,13 @@ class AuthService:
         # Обновляем пользователя (ИНН, должность, пароль)
         updated_user = await self.user_repository.update_user_step2(db_user, user_data)
         
-        # Создаем неактивную компанию для пользователя
+        # Создаем компанию по умолчанию для пользователя
         try:
             company_repository = CompanyRepository(session=self.db)
-            company_service = CompanyService(company_repository=company_repository, db=self.db)
-            await company_service.create_inactive_company(updated_user)
-            logger.info(f"Created inactive company for user {updated_user.id}")
+            await company_repository.create_by_default(updated_user)
+            logger.info(f"Created default company for user {updated_user.id}")
         except Exception as e:
-            logger.error(f"Failed to create inactive company for user {updated_user.id}: {str(e)}")
+            logger.error(f"Failed to create default company for user {updated_user.id}: {str(e)}")
             # Не прерываем регистрацию, если не удалось создать компанию
         
         # Помечаем токен как использованный
@@ -99,7 +98,7 @@ class AuthService:
             return False
         if registration_token.is_used:
             return False
-        if registration_token.expires_at < datetime.utcnow():
+        if registration_token.expires_at < datetime.now(timezone.utc):
             return False
         return True
 

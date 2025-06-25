@@ -1,5 +1,6 @@
 import random
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import HttpUrl
@@ -63,8 +64,13 @@ class CompanyRepository:
         return result.scalar_one_or_none()
 
     async def create(self, company_data: CompanyCreate, user_id: int) -> Company:
+        data = company_data.model_dump()
+        # Ensure all datetime fields are naive (no tzinfo)
+        for field in ["registration_date", "created_at", "updated_at"]:
+            if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
+                data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
         company = Company(
-            **company_data.model_dump(),
+            **data,
             slug=await self.create_company_slug(company_data.name),
             user_id=user_id,
             is_active=True  # Активная компания при создании через форму
@@ -76,8 +82,13 @@ class CompanyRepository:
 
     async def create_inactive(self, company_data: CompanyCreateInactive, user_id: int) -> Company:
         """Создает неактивную компанию при регистрации пользователя"""
+        data = company_data.model_dump()
+        # Ensure all datetime fields are naive (no tzinfo)
+        for field in ["registration_date", "created_at", "updated_at"]:
+            if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
+                data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
         company = Company(
-            **company_data.model_dump(),
+            **data,
             slug=await self.create_company_slug(company_data.name),
             user_id=user_id,
             is_active=False  # Неактивная компания при регистрации
@@ -134,3 +145,80 @@ class CompanyRepository:
         )
         await self.session.commit()
         return await self.get_by_id(company_id)
+
+    async def create_by_default(self, user) -> Company:
+        """
+        Создает компанию с данными по умолчанию на основе данных пользователя.
+        ИНН берется из данных пользователя, остальные поля заполняются значениями по умолчанию.
+        Также создает запись в CompanyOfficial для текущего пользователя.
+        """
+        from app.api.authentication.models import User
+        from app.api.company.models.official import CompanyOfficial
+        from app.api.company.models.company import TradeActivity, BusinessType
+        
+        # Формируем полное имя пользователя
+        full_name_parts = []
+        if user.first_name:
+            full_name_parts.append(user.first_name)
+        if user.last_name:
+            full_name_parts.append(user.last_name)
+        if user.patronymic:
+            full_name_parts.append(user.patronymic)
+        
+        user_full_name = " ".join(full_name_parts) if full_name_parts else "Не указано"
+        
+        # Создаем компанию с данными по умолчанию
+        company = Company(
+            name="Новая компания",
+            slug=await self.create_company_slug("Новая компания"),
+            type="ООО",
+            trade_activity=TradeActivity.BOTH,
+            business_type=BusinessType.BOTH,
+            activity_type="Деятельность не указана",
+            description=None,
+            
+            # Location - значения по умолчанию
+            country="Россия",
+            federal_district="Центральный федеральный округ",
+            region="Москва",
+            city="Москва",
+            
+            # Legal information
+            full_name="Полное наименование не указано",
+            inn=user.inn or "000000000000",  # ИНН из данных пользователя
+            ogrn="000000000000000",  # Временное значение
+            kpp="000000000",  # Временное значение
+            registration_date=datetime.now(),
+            legal_address="Адрес не указан",
+            production_address=None,
+            
+            # Contact information - из данных пользователя
+            phone=user.phone,
+            email=user.email,
+            website=None,
+            
+            # Статистика
+            total_views=0,
+            monthly_views=0,
+            total_purchases=0,
+            
+            # Связи и статус
+            user_id=user.id,
+            is_active=False  # Компания неактивна по умолчанию
+        )
+        
+        self.session.add(company)
+        await self.session.commit()
+        await self.session.refresh(company)
+        
+        # Создаем запись в CompanyOfficial для текущего пользователя
+        official = CompanyOfficial(
+            position=user.position or "Руководитель",
+            full_name=user_full_name,
+            company_id=company.id
+        )
+        
+        self.session.add(official)
+        await self.session.commit()
+        
+        return company

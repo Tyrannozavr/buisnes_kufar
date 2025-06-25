@@ -1,31 +1,13 @@
 <script setup lang="ts">
 import type {CompanyShort} from '~/types/company'
-import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
-import {navigateToChatById} from "~/composables/chat";
-import { useUserStore } from '~/stores/user'
-import { computed } from 'vue'
 
 const props = defineProps<{
   manufacturer: CompanyShort
 }>()
 
 const router = useRouter()
-const userStore = useUserStore()
-const { createChat } = useChatsApi()
 const { deletePartnerById } = useCompaniesApi()
-
-// Проверяем, что пользователь не смотрит на свою компанию
-const isOwnCompany = computed(() => {
-  if (!userStore.isAuthenticated) return false
-  // Сравниваем по ID или по названию компании
-  return props.manufacturer.id === userStore.companyId || 
-         props.manufacturer.name === userStore.companyName
-})
-
-const navigateToMessage = async () => {
-  await navigateToChatById(props.manufacturer.id)
-}
 
 // const handleDelete = async () => {
 //   try {
@@ -69,15 +51,14 @@ const navigateToMessage = async () => {
             <p class="text-gray-600">{{ manufacturer.description }}</p>
           </div>
           <div class="flex gap-2">
-            <UButton
-              v-if="!isOwnCompany && userStore.isAuthenticated"
+            <MessageButton
+              :company-id="manufacturer.id"
+              :company-name="manufacturer.name"
               color="primary"
               variant="soft"
-              class="cursor-pointer h-10 flex-shrink-0"
-              @click="navigateToMessage"
-            >
-              Написать сообщение
-            </UButton>
+              size="md"
+              custom-text="Написать сообщение"
+            />
 <!--            <UButton-->
 <!--              color="error"-->
 <!--              variant="soft"-->

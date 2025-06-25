@@ -189,6 +189,7 @@ class CompanyProfileResponse(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
     logo: Optional[str] = None
+    slug: Optional[str] = None
     email: str
     inn: str
     position: Optional[str] = None

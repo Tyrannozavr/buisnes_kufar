@@ -1,5 +1,5 @@
 from sqladmin import ModelView, action
-from app.api.authentication.models.user import User, RegistrationToken
+from app.api.authentication.models.user import User, RegistrationToken, PasswordRecoveryCode
 from app.core.security import get_password_hash
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -202,6 +202,91 @@ class RegistrationTokenAdmin(ModelView, model=RegistrationToken):
     column_default_sort = (RegistrationToken.created_at, True)
     can_create = False
     can_edit = True  # Разрешаем редактирование
+    can_delete = True
+    can_view_details = True
+
+
+class PasswordRecoveryCodeAdmin(ModelView, model=PasswordRecoveryCode):
+    name = "Код восстановления пароля"
+    name_plural = "Коды восстановления пароля"
+    icon = "fa-solid fa-unlock"
+    
+    # Настройка отображаемых колонок
+    column_list = [
+        PasswordRecoveryCode.id,
+        PasswordRecoveryCode.email,
+        PasswordRecoveryCode.code,
+        PasswordRecoveryCode.created_at,
+        PasswordRecoveryCode.expires_at,
+        PasswordRecoveryCode.is_used
+    ]
+    
+    # Настройка поиска
+    column_searchable_list = [
+        PasswordRecoveryCode.email,
+        PasswordRecoveryCode.code
+    ]
+    
+    # Настройка фильтров
+    column_filters = [
+        PasswordRecoveryCode.is_used,
+        PasswordRecoveryCode.created_at,
+        PasswordRecoveryCode.expires_at
+    ]
+    
+    # Настройка сортировки
+    column_sortable_list = [
+        PasswordRecoveryCode.id,
+        PasswordRecoveryCode.email,
+        PasswordRecoveryCode.created_at,
+        PasswordRecoveryCode.expires_at,
+        PasswordRecoveryCode.is_used
+    ]
+    
+    # Настройка детальной информации
+    column_details_list = [
+        PasswordRecoveryCode.id,
+        PasswordRecoveryCode.email,
+        PasswordRecoveryCode.code,
+        PasswordRecoveryCode.created_at,
+        PasswordRecoveryCode.expires_at,
+        PasswordRecoveryCode.is_used
+    ]
+    
+    # Настройка формы редактирования
+    form_columns = [
+        PasswordRecoveryCode.email,
+        PasswordRecoveryCode.code,
+        PasswordRecoveryCode.expires_at,
+        PasswordRecoveryCode.is_used
+    ]
+    
+    # Настройка отображения в списке
+    column_labels = {
+        PasswordRecoveryCode.id: "ID",
+        PasswordRecoveryCode.email: "Email",
+        PasswordRecoveryCode.code: "Код",
+        PasswordRecoveryCode.created_at: "Дата создания",
+        PasswordRecoveryCode.expires_at: "Срок действия",
+        PasswordRecoveryCode.is_used: "Использован"
+    }
+    
+    # Настройка форматирования
+    column_formatters = {
+        PasswordRecoveryCode.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
+        PasswordRecoveryCode.expires_at: lambda m, a: m.expires_at.strftime("%Y-%m-%d %H:%M:%S") if m.expires_at else None
+    }
+    
+    # Настройка валидации формы
+    form_widget_args = {
+        "email": {"readonly": True},  # Email нельзя менять
+        "code": {"readonly": True},  # Код нельзя менять
+        "created_at": {"readonly": True},  # Дата создания только для чтения
+    }
+    
+    column_default_sort = (PasswordRecoveryCode.created_at, True)
+    can_create = False
+    can_edit = True
     can_delete = True
     can_view_details = True
 

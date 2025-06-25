@@ -289,3 +289,41 @@ async def reset_password_with_code(
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     success = await auth_service.reset_password_with_code(reset_data.email, reset_data.code, reset_data.newPassword)
     return {"success": True, "message": "Пароль успешно изменен"}
+
+
+# Тестовый эндпоинт для отладки (удалить в продакшене)
+@router.get("/debug/password-hash/{inn}")
+async def debug_password_hash(
+    inn: str,
+    password: str,
+    db: async_db_dep
+):
+    """
+    Debug endpoint to check password hashing (remove in production)
+    """
+    from app.core.security import get_password_hash, verify_password
+    
+    user_repo = UserRepository(session=db)
+    user = await user_repo.get_user_by_inn(inn)
+    
+    if not user:
+        return {"error": "User not found"}
+    
+    if not user.hashed_password:
+        return {"error": "User has no password hash"}
+    
+    # Проверяем текущий пароль
+    current_verify = verify_password(password, user.hashed_password)
+    
+    # Создаем новый хеш для сравнения
+    new_hash = get_password_hash(password)
+    
+    return {
+        "user_id": user.id,
+        "user_email": user.email,
+        "user_inn": user.inn,
+        "current_hash": user.hashed_password,
+        "new_hash": new_hash,
+        "current_verify": current_verify,
+        "new_verify": verify_password(password, new_hash)
+    }

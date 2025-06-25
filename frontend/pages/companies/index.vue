@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Company } from '~/types/company'
 import { getCompaniesPaginatedSSR } from '~/api/companies'
-import {navigateToChatById} from "~/composables/chat";
 
 // Pagination state
 const currentPage = ref(1)
@@ -48,9 +47,6 @@ const getActivityColor = (tradeActivity: string) => {
     default:
       return 'neutral'
   }
-}
-const handleMessageClick = async (companyId: number) => {
-  await navigateToChatById(companyId)
 }
 </script>
 
@@ -164,15 +160,13 @@ const handleMessageClick = async (companyId: number) => {
                     >
                       Подробнее
                     </UButton>
-                    <UButton
-                      color="neutral"
+                    <MessageButton
+                      :company-id="company.id"
+                      :company-name="company.name"
                       variant="ghost"
                       size="sm"
-                      icon="i-heroicons-envelope"
-                      @click="handleMessageClick(company.id)"
-                    >
-                      Написать
-                    </UButton>
+                      custom-text="Написать"
+                    />
                   </div>
                 </div>
               </div>

@@ -143,13 +143,24 @@ class AuthService:
 
     async def authenticate_user_by_inn(self, inn: str, password: str) -> Optional[User]:
         """Authenticate user by INN and password"""
+        logger.info(f"Attempting authentication for INN: {inn}")
+        
         user = await self.user_repository.get_user_by_inn(inn)
         if not user:
+            logger.error(f"User not found for INN: {inn}")
             return None
+        
+        logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
+        
         if not user.hashed_password:
+            logger.error(f"User {user.id} has no password hash")
             return None
+        
         if not verify_password(password, user.hashed_password):
+            logger.error(f"Password verification failed for user {user.id}")
             return None
+        
+        logger.info(f"Authentication successful for user {user.id}")
         return User.model_validate(user)
 
     async def change_password(self, user_id: int, password_data: ChangePasswordRequest) -> bool:
@@ -406,15 +417,21 @@ class AuthService:
 
     async def reset_password_with_code(self, email: str, code: str, new_password: str) -> bool:
         """Reset password using recovery code"""
+        logger.info(f"Starting password reset process for email: {email}")
+        
         # Get recovery code
         recovery_code = await self.user_repository.get_password_recovery_code(email, code)
         if not recovery_code:
+            logger.error(f"Invalid recovery code for email: {email}, code: {code}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid recovery code"
             )
         
+        logger.info(f"Recovery code found for email: {email}, expires at: {recovery_code.expires_at}")
+        
         if recovery_code.expires_at < datetime.now(timezone.utc):
+            logger.error(f"Recovery code expired for email: {email}, expires at: {recovery_code.expires_at}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Recovery code expired"
@@ -423,21 +440,31 @@ class AuthService:
         # Get user by email
         user = await self.user_repository.get_user_by_email(email)
         if not user:
+            logger.error(f"User not found for email: {email}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
         
+        logger.info(f"User found: ID={user.id}, email={user.email}")
+        
         # Update password
         success = await self.user_repository.update_user_password(user.id, new_password)
         if not success:
+            logger.error(f"Failed to update password for user ID: {user.id}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update password"
             )
         
-        # Mark code as used
-        await self.user_repository.mark_password_recovery_code_as_used(email, code)
+        logger.info(f"Password successfully updated for user ID: {user.id}")
         
-        logger.info(f"Password reset completed for user {user.id}")
+        # Mark code as used
+        mark_success = await self.user_repository.mark_password_recovery_code_as_used(email, code)
+        if not mark_success:
+            logger.warning(f"Failed to mark recovery code as used for email: {email}")
+        else:
+            logger.info(f"Recovery code marked as used for email: {email}")
+        
+        logger.info(f"Password reset completed successfully for user {user.id}")
         return True 

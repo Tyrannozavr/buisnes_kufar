@@ -4,7 +4,7 @@ import type {CompanyDetails} from '~/types/company'
 import {getCompany, getCompanyProductsPaginated, getCompanyStatistics} from '~/api/company'
 import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
 import { useUserStore } from '~/stores/user'
-import { navigateToChatBySlug, createChatForCompany } from '~/composables/chat'
+import { createChatForCompany } from '~/composables/chat'
 //
 // const { createChat } = useChatsApi()
 // // Get company ID from route
@@ -63,19 +63,6 @@ const companyDetails = computed(() => (
     }
 ))
 
-// Проверяем, что пользователь не смотрит на свою компанию
-const isOwnCompany = computed(() => {
-  if (!userStore.isAuthenticated || !company.value) return false
-  // Сравниваем по slug или по названию компании
-  return company.value.slug === userStore.companySlug || 
-         company.value.name === userStore.companyName
-})
-
-// // Handle chat creation
-const handleCreateChat = async () => {
-  await navigateToChatBySlug(companySlug)
-}
-
 // Handle page change
 const handlePageChange = (page: number) => {
   currentPage.value = page
@@ -89,13 +76,15 @@ const handlePageChange = (page: number) => {
       <!-- Заголовок -->
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-3xl font-bold">{{ company?.name }}</h1>
-        <UButton
-            v-if="company && !isOwnCompany && userStore.isAuthenticated"
-            color="primary"
-            @click="handleCreateChat"
-        >
-          Написать сообщение
-        </UButton>
+        <MessageButtonBySlug
+          v-if="company"
+          :company-slug="company.slug"
+          :company-name="company.name"
+          color="primary"
+          variant="solid"
+          size="md"
+          custom-text="Написать сообщение"
+        />
       </div>
 
       <!-- Основная информация -->

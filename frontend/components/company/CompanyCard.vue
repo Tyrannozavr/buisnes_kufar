@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import { getFullImageUrl } from '~/types/company'
-import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
-import {navigateToChatBySlug} from "~/composables/chat";
 
 const props = defineProps<{
   partner: PartnerCompany
@@ -14,10 +12,6 @@ const { deletePartnerById } = useCompaniesApi()
 
 const navigateToCompany = () => {
   router.push(`/company/${props.partner.slug}`)
-}
-
-const navigateToMessage = async () => {
-  await navigateToChatBySlug(props.partner.slug)
 }
 
 const handleDelete = async () => {
@@ -65,12 +59,13 @@ const handleDelete = async () => {
           <p class="text-gray-700 mt-1">{{ partner.businessType }}</p>
         </div>
         <div class="flex space-x-2">
-          <button
-            @click="navigateToMessage"
-            class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            Написать сообщение
-          </button>
+          <MessageButtonBySlug
+            :company-slug="partner.slug"
+            :company-name="partner.fullName"
+            variant="ghost"
+            size="sm"
+            custom-text="Написать сообщение"
+          />
           <button
             @click="handleDelete"
             class="text-red-600 hover:text-red-800 text-sm font-medium"

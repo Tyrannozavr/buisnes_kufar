@@ -55,10 +55,19 @@ class UserRepository:
 
     async def get_user_by_inn(self, inn: str) -> Optional[User]:
         """Get user by INN"""
+        logger.info(f"Searching for user with INN: {inn}")
+        
         result = await self.session.execute(
             select(User).where(User.inn == inn)
         )
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        
+        if user:
+            logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
+        else:
+            logger.warning(f"No user found with INN: {inn}")
+        
+        return user
 
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
         db_token = DBRegistrationToken(
@@ -106,14 +115,25 @@ class UserRepository:
 
     async def update_user_password(self, user_id: int, new_password: str) -> bool:
         """Update user password"""
+        logger.info(f"Updating password for user ID: {user_id}")
+        
         hashed_password = get_password_hash(new_password)
+        logger.info(f"Password hashed successfully for user ID: {user_id}")
+        
         result = await self.session.execute(
             update(User)
             .where(User.id == user_id)
             .values(hashed_password=hashed_password, updated_at=datetime.utcnow())
         )
         await self.session.commit()
-        return result.rowcount > 0
+        
+        success = result.rowcount > 0
+        if success:
+            logger.info(f"Password updated successfully for user ID: {user_id}, rows affected: {result.rowcount}")
+        else:
+            logger.error(f"Failed to update password for user ID: {user_id}, rows affected: {result.rowcount}")
+        
+        return success
 
     async def update_user_email(self, user_id: int, new_email: str) -> bool:
         """Update user email"""

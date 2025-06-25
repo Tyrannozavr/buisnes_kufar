@@ -9,9 +9,10 @@ const cartStore = useCartStore()
 const totalItems = computed(() => cartStore.totalUniqueItems)
 const route = useRoute()
 
-const handleLogout = () => {
-  userStore.logout()
-  // navigateTo('/auth/login')
+const handleLogout = async () => {
+  await userStore.logout()
+  cartStore.clearCart()
+  navigateTo('/auth/login')
 }
 
 // Props for sidebar state

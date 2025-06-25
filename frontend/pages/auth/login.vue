@@ -112,18 +112,43 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
+    console.log('🔐 Starting login process...')
+    console.log('📝 Form data:', { inn: form.value.inn, password: '***' })
+    
     const authApi = useAuthApi()
     
     // Login to get the token
+    console.log('🚀 Calling authApi.login...')
     await authApi.login(form.value.inn, form.value.password)
+    console.log('✅ Login successful, token should be set in cookie')
+    
+    // Check if token is in cookie
+    const accessToken = useCookie('access_token')
+    console.log('🍪 Access token in cookie after login:', accessToken.value ? 'Present' : 'Missing')
+    if (accessToken.value) {
+      console.log('🔍 Token preview:', accessToken.value.substring(0, 20) + '...')
+    }
+    
+    // Add a small delay to ensure cookie is properly set
+    await new Promise(resolve => setTimeout(resolve, 100))
     
     // Update the store with user data
+    console.log('👤 Calling userStore.login() to verify token...')
     await userStore.login()
+    console.log('✅ User store updated successfully')
 
     // Redirect to profile
+    console.log('🔄 Redirecting to home page...')
     navigateTo("/")
   } catch (error: any) {
-    console.error('Login error:', error)
+    console.error('❌ Login error:', error)
+    console.error('📊 Error details:', {
+      message: error.message,
+      status: error.status,
+      statusCode: error.statusCode,
+      response: error.response?._data,
+      data: error.data
+    })
     
     const errorMessage = error.response?._data?.detail || error.detail || error.message
     

@@ -51,11 +51,12 @@ async def register_step2(
     }
 
 
-@router.post("/verify-token/")
+@router.post("/verify-token")
 async def verify_token(
         token: token_data_dep,
         company_service: company_service_dep,
 ) -> VerifyTokenResponse:
+    print("Token is ", token)
     company = await company_service.get_company_by_user_id(token.user_id)
     return VerifyTokenResponse(
         is_valid=token.user_id is not None,

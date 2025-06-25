@@ -69,6 +69,7 @@ class ChatRepository:
         return result.unique().scalars().all()
 
     async def find_existing_chat(self, company1_id: int, company2_id: int) -> Optional[Chat]:
+        print(company1_id, company2_id)
         """Находит существующий чат между двумя компаниями"""
         # Находим чаты, где участвуют обе компании
         subquery = select(ChatParticipant.chat_id).where(

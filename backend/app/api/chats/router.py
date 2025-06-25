@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.authentication.dependencies import token_data_dep
+from app.api.authentication.dependencies import token_data_dep, current_user_dep
 from app.api.authentication.models import User
 from app.api.chats.schemas.chat import ChatCreate, ChatResponse, ChatListResponse
 from app.api.chats.schemas.chat_participant import ChatParticipantResponse
@@ -22,15 +22,11 @@ router = APIRouter()
 async def create_chat(
         chat_data: ChatCreate,
         db: async_db_dep,
-        token_data: token_data_dep,
+        current_user: current_user_dep,
 
 ):
     """Создает новый чат или возвращает существующий"""
     # Получаем пользователя по ID из токена
-    result = await db.execute(
-        select(User).where(User.id == token_data.user_id)
-    )
-    current_user = result.scalar_one_or_none()
 
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -56,16 +52,10 @@ async def create_chat(
 async def create_chat_by_slug(
         participant_slug: str,
         db: async_db_dep,
-        token_data: token_data_dep,
+        current_user: current_user_dep,
 
 ):
     """Создает чат по slug участника"""
-    # Получаем пользователя по ID из токена
-    result = await db.execute(
-        select(User).where(User.id == token_data.user_id)
-    )
-    current_user = result.scalar_one_or_none()
-
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
 

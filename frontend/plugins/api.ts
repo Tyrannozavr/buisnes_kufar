@@ -24,6 +24,10 @@ export default defineNuxtPlugin((nuxtApp) => {
         const headers = new Headers(options.headers as HeadersInit)
         headers.set('Authorization', `Bearer ${accessToken.value}`)
         options.headers = headers
+        console.log('🔑 Adding Authorization header to request')
+        console.log('🔍 Token preview in request:', accessToken.value.substring(0, 20) + '...')
+      } else {
+        console.log('⚠️ No access token available for request')
       }
     },
     // Add global error handler
@@ -74,6 +78,10 @@ export default defineNuxtPlugin((nuxtApp) => {
         const headers = new Headers(mergedOptions.headers as HeadersInit)
         headers.set('Authorization', `Bearer ${accessToken.value}`)
         mergedOptions.headers = headers
+        console.log('🔑 fetchWithCache: Adding Authorization header')
+        console.log('🔍 fetchWithCache: Token preview:', accessToken.value.substring(0, 20) + '...')
+      } else {
+        console.log('⚠️ fetchWithCache: No access token available')
       }
       
       const response = await apiFetch(url, mergedOptions)

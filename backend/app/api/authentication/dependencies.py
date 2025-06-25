@@ -71,7 +71,6 @@ async def get_token_data(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")

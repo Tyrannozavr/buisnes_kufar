@@ -16,16 +16,23 @@ class ChatService:
         """Создает новый чат или возвращает существующий"""
         # Проверяем, существует ли уже чат между этими компаниями
         existing_chat = await self.repository.find_existing_chat(current_company_id, chat_data.participant_company_id)
-        
+
         if existing_chat:
             return await self._format_chat_response(existing_chat, current_company_id)
+
+        # Получаем компанию-участника для определения владельца
+        participant_company = await self.repository.get_company_by_id(chat_data.participant_company_id)
+        if not participant_company:
+            raise ValueError(f"Company with ID {chat_data.participant_company_id} not found")
 
         # Создаем новый чат
         chat = await self.repository.create_chat(title=chat_data.title)
         
         # Добавляем участников
+        # Первый участник - текущий пользователь и его компания
         await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        await self.repository.add_participant(chat.id, chat_data.participant_company_id, current_user_id)
+        # Второй участник - владелец компании-участника
+        await self.repository.add_participant(chat.id, chat_data.participant_company_id, participant_company.user_id)
         
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)
@@ -60,8 +67,10 @@ class ChatService:
         chat = await self.repository.create_chat()
         
         # Добавляем участников
+        # Первый участник - текущий пользователь и его компания
         await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        await self.repository.add_participant(chat.id, participant_company.id, current_user_id)
+        # Второй участник - владелец компании-участника
+        await self.repository.add_participant(chat.id, participant_company.id, participant_company.user_id)
         
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)

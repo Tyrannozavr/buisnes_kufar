@@ -15,7 +15,7 @@ const navigationItems = [
   { name: 'Услуги', path: '/service-providers' },
   { name: 'О нас', path: '/about' },
   { name: 'Объявления', path: '/announcements' },
-  { name: 'Новости', path: '/news' }
+  { name: 'Новости', path: '/companies' }
 ]
 
 // Function to check if a navigation item is active

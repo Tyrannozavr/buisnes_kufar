@@ -97,7 +97,7 @@ const handleMessageClick = async (companyId: number) => {
             <div class="flex items-start gap-6">
               <!-- Company Logo -->
               <div class="flex-shrink-0">
-                <NuxtLink :to="`/company/${company.slug}`" class="block">
+                <NuxtLink :to="`/companies/${company.slug}`" class="block">
                   <NuxtImg
                     :src="company.logo_url || '/images/default-company.png'"
                     :alt="company.name"
@@ -157,7 +157,7 @@ const handleMessageClick = async (companyId: number) => {
                   <!-- Action Buttons -->
                   <div class="flex flex-col gap-2 ml-4">
                     <UButton
-                      :to="`/company/${company.slug}`"
+                      :to="`/companies/${company.slug}`"
                       color="primary"
                       variant="soft"
                       size="sm"

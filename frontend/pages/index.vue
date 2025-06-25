@@ -28,7 +28,7 @@ const mappedAnnouncements = computed(() => {
   
   return announcementsData.announcements.map((announcement: Announcement) => ({
     id: announcement.id,
-    image: announcement.image_url || '/images/default-announcement.png',
+    image: announcement.image_url,
     title: announcement.title,
     date: announcement.created_at
   }))

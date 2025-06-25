@@ -30,12 +30,15 @@ const navigateToAnnouncement = (id: string) => {
     class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex px-2"
     @click="navigateToAnnouncement(announcement.id)"
   >
-    <div class="w-24 h-24 flex-shrink-0">
+    <div class="w-24 h-24 flex-shrink-0" v-if="announcement.image">
       <NuxtImg
         :src="announcement.image"
         :alt="announcement.title"
         class="w-full h-full object-cover rounded-l-lg"
       />
+    </div>
+    <div v-else class="announcement-image w-full md:w-20 h-32 md:h-16 flex-shrink-0 bg-gray-100 flex items-center justify-center rounded-md">
+      <UIcon name="i-heroicons-photo" class="h-10 w-10 text-gray-400" />
     </div>
     <div class="p-4 flex-1">
       <h2 class="text-lg font-semibold mb-2 line-clamp-2">{{ announcement.title }}</h2>

@@ -46,6 +46,7 @@ export interface ProductListResponse {
   page: number
   per_page: number
 }
+
 export interface ProductItemPublic {
   name: string
   logo_url: string | null
@@ -58,6 +59,14 @@ export interface ProductItemPublic {
 }
 
 export interface ProductPaginatedPublicResponse {
+  products: ProductItemPublic[]
+  total: number
+  page: number
+  per_page: number
+}
+
+// Новый тип для каталога
+export interface ProductListPublicResponse {
   products: ProductItemPublic[]
   total: number
   page: number

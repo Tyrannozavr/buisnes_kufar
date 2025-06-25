@@ -2,7 +2,7 @@
 import ProductCard from "~/components/catalog/ProductCard.vue";
 import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 import { useProductsApi } from '~/api/products'
-import type { ProductSearchParams, ServiceSearchParams } from '~/types/filters'
+import type { ProductItemPublic, ProductListPublicResponse } from '~/types/product'
 
 const props = defineProps<{
   type: 'products' | 'services'
@@ -10,38 +10,59 @@ const props = defineProps<{
 }>()
 
 // API
-const { searchProducts, searchServices } = useProductsApi()
+const { getAllGoods, getAllServices } = useProductsApi()
 const currentPage = ref(1)
-
-// Search state
-const search = ref<ProductSearchParams | ServiceSearchParams>({
-  search: '',
-  country: '',
-  federalDistrict: '',
-  region: '',
-  city: '',
-  type: '',
-  minPrice: undefined,
-  maxPrice: undefined,
-  inStock: undefined
-})
 
 // Loading and error states
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-// Load items
-const { data: items, pending: isPending } = await (props.type === 'products' ? searchProducts : searchServices)(search.value)
+// Convert ProductResponse to ProductItemPublic
+const convertToProductItemPublic = (product: any): ProductItemPublic => {
+  return {
+    name: product.name,
+    logo_url: product.images?.[0] || null,
+    slug: product.slug,
+    description: product.description || '',
+    article: product.article,
+    type: product.type,
+    price: product.price,
+    unit_of_measurement: product.unit_of_measurement || 'шт'
+  }
+}
 
-// Handle search updates
-const handleSearch = async (newSearch: ProductSearchParams | ServiceSearchParams) => {
-  search.value = newSearch
-  loading.value = true
-  try {
-    const { data } = await (props.type === 'products' ? searchProducts : searchServices)(newSearch)
-    if (data.value) {
-      items.value = data.value
+// Load items based on type
+const { data: items, pending: isPending, refresh } = await useAsyncData<ProductListPublicResponse>(
+  `catalog-${props.type}`,
+  async () => {
+    if (props.type === 'products') {
+      const result = await getAllGoods({ skip: 0, limit: 20 })
+      return {
+        products: result.products.map(convertToProductItemPublic),
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page
+      }
+    } else {
+      const result = await getAllServices({ skip: 0, limit: 20 })
+      return {
+        products: result.products.map(convertToProductItemPublic),
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page
+      }
     }
+  }
+)
+
+// Handle search updates (simplified for now)
+const handleSearch = async (newSearch: any) => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    // For now, just refresh the data
+    await refresh()
   } catch (e) {
     error.value = `Failed to load ${props.type}`
     console.error(e)
@@ -49,6 +70,38 @@ const handleSearch = async (newSearch: ProductSearchParams | ServiceSearchParams
     loading.value = false
   }
 }
+
+// Handle pagination
+const handlePageChange = async (page: number) => {
+  currentPage.value = page
+  const skip = (page - 1) * 20
+  
+  try {
+    if (props.type === 'products') {
+      const result = await getAllGoods({ skip, limit: 20 })
+      items.value = {
+        products: result.products.map(convertToProductItemPublic),
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page
+      }
+    } else {
+      const result = await getAllServices({ skip, limit: 20 })
+      items.value = {
+        products: result.products.map(convertToProductItemPublic),
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page
+      }
+    }
+  } catch (e) {
+    error.value = `Failed to load ${props.type}`
+    console.error(e)
+  }
+}
+
+// Search state (simplified)
+const search = ref<any>({})
 </script>
 
 <template>
@@ -65,7 +118,7 @@ const handleSearch = async (newSearch: ProductSearchParams | ServiceSearchParams
         @search="handleSearch"
       />
 
-      <div v-if="isPending" class="flex justify-center items-center h-64">
+      <div v-if="isPending || loading" class="flex justify-center items-center h-64">
         <ULoadingIcon />
       </div>
 
@@ -74,20 +127,24 @@ const handleSearch = async (newSearch: ProductSearchParams | ServiceSearchParams
       </div>
 
       <div v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div v-if="!items?.products || items.products.length === 0" class="text-center text-gray-500 py-8">
+          {{ type === 'products' ? 'Товары не найдены' : 'Услуги не найдены' }}
+        </div>
+        
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <ProductCard
-            v-for="item in items?.data"
-            :key="item.id"
+            v-for="item in items.products"
+            :key="item.slug"
             :product="item"
           />
         </div>
 
-        <div v-if="items?.pagination" class="mt-6 flex justify-center">
+        <div v-if="items?.total && items.total > 20" class="mt-6 flex justify-center">
           <UPagination
             v-model="currentPage"
-            :total="items.pagination.total"
-            :page-count="items.pagination.totalPages"
-            :per-page="items.pagination.perPage"
+            :total="items.total"
+            :per-page="20"
+            @update:model-value="handlePageChange"
           />
         </div>
       </div>

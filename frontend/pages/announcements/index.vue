@@ -1,23 +1,35 @@
 <script setup lang="ts">
-import { useAnnouncements } from '~/api/announcements'
+import { usePublicAnnouncementsApi } from '~/api/announcements'
 
 const currentPage = ref(1)
 const perPage = ref(10)
 
+const { getAllAnnouncements } = usePublicAnnouncementsApi()
+
 const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements }
-    = useAnnouncements(currentPage.value, perPage.value)
-const announcements = computed(() => response.value?.data || [])
-const pagination = computed(() => response.value?.pagination || {
-  total: 0,
-  page: 1,
-  perPage: 10,
-  totalPages: 1
-})
+    = await useAsyncData('announcements', () => getAllAnnouncements(currentPage.value, perPage.value))
+
+const announcements = computed(() => response.value?.announcements || [])
+const pagination = computed(() => ({
+  total: response.value?.total || 0,
+  page: response.value?.page || 1,
+  perPage: response.value?.per_page || 10,
+  totalPages: Math.ceil((response.value?.total || 0) / perPage.value)
+}))
 
 // Watch for page changes
 watch(currentPage, async (newPage) => {
   await refreshAnnouncements()
 })
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
 </script>
 
 <template>
@@ -48,11 +60,24 @@ watch(currentPage, async (newPage) => {
       <!-- Announcements List -->
       <section v-else>
         <div class="space-y-4">
-          <AnnouncementCard
+          <div
               v-for="announcement in announcements"
               :key="announcement.id"
-              :announcement="announcement"
-          />
+              class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex px-2"
+              @click="navigateTo(`/announcements/${announcement.id}`)"
+          >
+            <div class="w-24 h-24 flex-shrink-0">
+              <NuxtImg
+                :src="announcement.image_url || '/default-announcement.jpg'" 
+                :alt="announcement.title"
+                class="w-full h-full object-cover rounded-l-lg"
+              />
+            </div>
+            <div class="p-4 flex-1">
+              <h2 class="text-lg font-semibold mb-2 line-clamp-2">{{ announcement.title }}</h2>
+              <p class="text-sm text-gray-500">{{ formatDate(announcement.created_at) }}</p>
+            </div>
+          </div>
         </div>
 
         <!-- Pagination -->
@@ -61,12 +86,6 @@ watch(currentPage, async (newPage) => {
               v-model="currentPage"
               :total="pagination.total"
               :per-page="perPage"
-              :ui="{
-              base: 'flex items-center justify-center min-w-[32px] h-8 px-3 text-sm rounded-md',
-              default: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-              active: 'text-primary-500 dark:text-primary-400',
-              disabled: 'opacity-50 cursor-not-allowed'
-            }"
           />
         </div>
       </section>

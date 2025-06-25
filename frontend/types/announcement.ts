@@ -1,3 +1,10 @@
+export interface CompanyInfo {
+  id: number;
+  name: string;
+  logo?: string;
+  logo_url?: string;
+}
+
 export interface Announcement {
   id: number;
   company_id: number;
@@ -5,10 +12,12 @@ export interface Announcement {
   content: string;
   images: string[];
   image_urls: string[];
+  image_url?: string;
   created_at: string;
   updated_at: string;
   category: string;
   published: boolean;
+  company?: CompanyInfo;
   notifications?: {
     partners: boolean;
     customers: boolean;

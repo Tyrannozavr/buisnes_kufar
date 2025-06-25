@@ -5,8 +5,9 @@ export const API_URLS = {
   COMPANIES_LATEST: '/v1/companies/latest',
   
   // Announcements
-  ANNOUNCEMENTS: '/announcements',
-  ANNOUNCEMENTS_LATEST: '/announcements/latest',
+  ANNOUNCEMENTS: '/v1/announcements',
+  ANNOUNCEMENTS_LATEST: '/v1/announcements',
+  ANNOUNCEMENTS_CATEGORIES: '/v1/announcements/categories/list',
   
   // Products
   PRODUCTS: '/api/products',

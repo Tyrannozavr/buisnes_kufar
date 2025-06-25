@@ -24,13 +24,13 @@ const formatDate = (dateString: string) => {
 
 // Map announcement data to match AnnouncementCard requirements
 const mappedAnnouncements = computed(() => {
-  if (!announcementsData?.data) return []
+  if (!announcementsData?.announcements) return []
   
-  return announcementsData.data.map((announcement: Announcement) => ({
+  return announcementsData.announcements.map((announcement: Announcement) => ({
     id: announcement.id,
-    image: announcement.images?.[0] || '/images/default-announcement.png',
+    image: announcement.image_url || '/images/default-announcement.png',
     title: announcement.title,
-    date: announcement.date
+    date: announcement.created_at
   }))
 })
 </script>
@@ -79,11 +79,9 @@ const mappedAnnouncements = computed(() => {
             Все объявления
           </UButton>
         </div>
-
         <div v-if="!mappedAnnouncements.length" class="text-gray-500 mb-4 text-center">
           Нет доступных объявлений
         </div>
-
         <div v-else class="space-y-4">
           <AnnouncementCard
             v-for="announcement in mappedAnnouncements"

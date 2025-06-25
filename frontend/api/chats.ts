@@ -7,19 +7,19 @@ export const useChatsApi = () => {
     return useApi<Chat[]>('/v1/chats', options)
   }
 
-  const getChatById = (chatId: string, options: UseFetchOptions<Chat> = {}) => {
+  const getChatById = (chatId: number, options: UseFetchOptions<Chat> = {}) => {
     return useApi<Chat>(`/v1/chats/${chatId}`, options)
   }
 
-  const getChatMessages = (chatId: string, options: UseFetchOptions<ChatMessage[]> = {}) => {
+  const getChatMessages = (chatId: number, options: UseFetchOptions<ChatMessage[]> = {}) => {
     return useApi<ChatMessage[]>(`/v1/chats/${chatId}/messages`, options)
   }
 
-  const getChatFiles = (chatId: string, options: UseFetchOptions<any[]> = {}) => {
+  const getChatFiles = (chatId: number, options: UseFetchOptions<any[]> = {}) => {
     return useApi<any[]>(`/v1/chats/${chatId}/files`, options)
   }
 
-  const sendMessage = (chatId: string, data: { senderId: string, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
+  const sendMessage = (chatId: number, data: { senderId: number, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
     const formData = new FormData()
     formData.append('content', data.content)
     if (data.file) {
@@ -58,7 +58,7 @@ export const useChatsApi = () => {
       
       // Возвращаем только необходимые данные для перехода к чату
       return {
-        id: response.id.toString(),
+        id: response.id,
         title: response.title || null,
         participantLogo: response.participants?.find((p: any) => p.company_id !== response.current_company_id)?.company_logo_url,
         participantName: response.participants?.find((p: any) => p.company_id !== response.current_company_id)?.company_name

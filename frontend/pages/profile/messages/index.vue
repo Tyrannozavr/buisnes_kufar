@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Chat } from '~/types/chat'
 import { useChatsApi } from '~/api/chats'
+import { useUserStore } from '~/stores/user'
 
 definePageMeta({
   layout: 'profile'
@@ -8,14 +9,33 @@ definePageMeta({
 
 const router = useRouter()
 const { getChats } = useChatsApi()
+const userStore = useUserStore()
 
-// TODO: Заменить на реальный ID пользователя
-const userId = 'company1'
+// Получаем ID текущей компании из store
+const currentCompanyId = userStore.companyId
 
-const { data: chats, pending, error } = await getChats(userId)
+const { data: chats, pending, error } = await getChats()
 
-const handleChatSelect = (chatId: string) => {
+const handleChatSelect = (chatId: number) => {
   router.push(`/profile/messages/${chatId}`)
+}
+
+// Функция для получения собеседника (не текущая компания)
+const getOtherParticipant = (chat: any) => {
+  return chat.participants.find((p: any) => p.company_id !== currentCompanyId)
+}
+
+// Функция для форматирования даты
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      return 'Нет даты'
+    }
+    return date.toLocaleDateString('ru-RU')
+  } catch {
+    return 'Нет даты'
+  }
 }
 </script>
 
@@ -51,22 +71,22 @@ const handleChatSelect = (chatId: string) => {
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
               <LazyNuxtImg
-                :src="chat.participants.find(p => p.id !== userId)?.logo || '/images/default-company-logo.png'"
-                :alt="chat.participants.find(p => p.id !== userId)?.name"
+                :src="getOtherParticipant(chat)?.company_logo_url || '/images/default-company-logo.png'"
+                :alt="getOtherParticipant(chat)?.company_name"
                 class="w-12 h-12 rounded-full object-cover"
               />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-start">
                 <h3 class="text-sm font-medium text-gray-900 truncate">
-                  {{ chat.participants.find(p => p.id !== userId)?.name }}
+                  {{ getOtherParticipant(chat)?.company_name || 'Неизвестная компания' }}
                 </h3>
                 <span class="text-xs text-gray-500">
-                  {{ new Date(chat.updatedAt).toLocaleDateString('ru-RU') }}
+                  {{ formatDate(chat.updated_at) }}
                 </span>
               </div>
               <p class="text-sm text-gray-500 truncate">
-                {{ chat.lastMessage?.content || 'Нет сообщений' }}
+                {{ chat.last_message?.content || 'Нет сообщений' }}
               </p>
             </div>
           </div>

@@ -12,12 +12,13 @@ export interface ChatParticipant {
 }
 
 export interface Chat {
-  id: string
-  title?: string
+  id: number
+  title?: string | null
+  is_group: boolean
   participants: ChatParticipant[]
-  lastMessage?: ChatMessage
-  createdAt: string
-  updatedAt: string
+  last_message?: ChatMessage | null
+  created_at: string
+  updated_at: string
 }
 
 export interface ChatId {
@@ -32,10 +33,10 @@ export interface ChatFile {
 }
 
 export interface ChatMessage {
-  id: string
-  chat_id: string
-  sender_company_id: string
-  sender_user_id: string
+  id: number
+  chat_id: number
+  sender_company_id: number
+  sender_user_id: number
   content: string
   file_path?: string
   file_name?: string
@@ -47,8 +48,8 @@ export interface ChatMessage {
 }
 
 export interface CreateChatResponse {
-  id: string
-  title?: string
+  id: number
+  title?: string | null
   participantLogo?: string
   participantName: string
 } 

@@ -10,7 +10,7 @@ definePageMeta({
 const currentPage = ref(1)
 const perPage = ref(10)
 
-const { getAnnouncements, deleteAnnouncement } = useAnnouncementsApi()
+const { getAnnouncements, deleteAnnouncement, toggleAnnouncementPublish } = useAnnouncementsApi()
 
 const { data: announcementsData, pending: loadingAnnouncements, refresh: refreshAnnouncements } = await useAsyncData(
   'announcements',
@@ -71,6 +71,24 @@ const confirmDelete = async () => {
   }
 }
 
+const handlePublishAnnouncement = async (announcementId: string) => {
+  try {
+    await toggleAnnouncementPublish(parseInt(announcementId))
+    await refreshAnnouncements()
+    useToast().add({
+      title: 'Успешно',
+      description: 'Статус объявления изменен',
+      color: 'primary'
+    })
+  } catch (e) {
+    useToast().add({
+      title: 'Ошибка',
+      description: e instanceof Error ? e.message : 'Не удалось изменить статус объявления',
+      color: 'error'
+    })
+  }
+}
+
 const cancelDelete = () => {
   showDeleteConfirm.value = false
   selectedAnnouncement.value = null
@@ -84,6 +102,7 @@ const cancelDelete = () => {
         :announcements="formattedAnnouncements"
         :loading="loadingAnnouncements"
         @delete="handleDeleteAnnouncement"
+        @publish="handlePublishAnnouncement"
         @page-change="handlePageChange"
       />
     </div>

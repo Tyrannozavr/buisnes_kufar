@@ -2,6 +2,7 @@
 defineProps<{
   open: boolean
   saving: boolean
+  isPublishing: boolean // true для публикации, false для снятия с публикации
   notifyOptions: {
     notify: boolean
     partners: boolean
@@ -17,12 +18,14 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <UModal :open="open" :ui="{ width: 'sm:max-w-md' }" @close="emit('close')">
+  <UModal :open="open" @close="emit('close')">
     <template #content>
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900">Подтверждение публикации</h3>
+            <h3 class="text-lg font-semibold text-gray-900">
+              {{ isPublishing ? 'Подтверждение публикации' : 'Подтверждение снятия с публикации' }}
+            </h3>
             <UButton
                 color="neutral"
                 variant="ghost"
@@ -35,10 +38,13 @@ const emit = defineEmits<{
 
         <div class="py-4">
           <p class="text-gray-700">
-            Вы уверены, что хотите опубликовать это объявление? После публикации оно станет доступно всем пользователям.
+            {{ isPublishing 
+              ? 'Вы уверены, что хотите опубликовать это объявление? После публикации оно станет доступно всем пользователям.'
+              : 'Вы уверены, что хотите снять это объявление с публикации? После этого оно станет недоступно для просмотра.'
+            }}
           </p>
 
-          <div v-if="notifyOptions.notify" class="mt-4 p-3 bg-gray-50 rounded-lg">
+          <div v-if="isPublishing && notifyOptions.notify" class="mt-4 p-3 bg-gray-50 rounded-lg">
             <p class="font-medium text-gray-700 mb-2">Будут отправлены уведомления:</p>
             <ul class="list-disc pl-5 text-sm text-gray-600">
               <li v-if="notifyOptions.partners">Партнерам</li>
@@ -58,11 +64,11 @@ const emit = defineEmits<{
               Отмена
             </UButton>
             <UButton
-                color="success"
+                :color="isPublishing ? 'success' : 'warning'"
                 :loading="saving"
                 @click="emit('confirm')"
             >
-              Опубликовать
+              {{ isPublishing ? 'Опубликовать' : 'Снять с публикации' }}
             </UButton>
           </div>
         </template>

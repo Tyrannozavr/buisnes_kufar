@@ -105,7 +105,7 @@ class AnnouncementService:
         )
         return AnnouncementResponse.model_validate(announcement)
 
-    async def get_announcement(self, announcement_id: int) -> AnnouncementResponse:
+    async def get_announcement(self, user: User, announcement_id: int) -> AnnouncementResponse:
         """Получить объявление по ID"""
         announcement = await self.announcement_repository.get_by_id(announcement_id)
         if not announcement:
@@ -113,6 +113,20 @@ class AnnouncementService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Announcement not found"
             )
+        
+        # Получаем компанию пользователя через существующую сессию
+        from app.api.company.repositories.company_repository import CompanyRepository
+        
+        # Используем ту же сессию, что и в announcement_repository
+        company_repository = CompanyRepository(session=self.announcement_repository.session)
+        company = await company_repository.get_by_user_id(user.id)
+        
+        if not company or announcement.company_id != company.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this announcement"
+            )
+        
         return AnnouncementResponse.model_validate(announcement)
 
     async def get_company_announcements(self, user: User, page: int = 1, per_page: int = 10) -> AnnouncementListResponse:
@@ -273,5 +287,41 @@ class AnnouncementService:
         # Обновляем объявление
         update_data = AnnouncementUpdate(images=current_images)
         updated_announcement = await self.announcement_repository.update(announcement_id, update_data)
+        
+        return AnnouncementResponse.model_validate(updated_announcement)
+
+    async def toggle_publish_status(self, user: User, announcement_id: int) -> AnnouncementResponse:
+        """Опубликовать или снять с публикации объявление"""
+        # Проверяем, что объявление принадлежит компании пользователя
+        announcement = await self.announcement_repository.get_by_id(announcement_id)
+        if not announcement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Announcement not found"
+            )
+        
+        # Получаем компанию пользователя через существующую сессию
+        from app.api.company.repositories.company_repository import CompanyRepository
+        
+        # Используем ту же сессию, что и в announcement_repository
+        company_repository = CompanyRepository(session=self.announcement_repository.session)
+        company = await company_repository.get_by_user_id(user.id)
+        
+        if not company or announcement.company_id != company.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to modify this announcement"
+            )
+        
+        # Переключаем статус публикации
+        new_published_status = not announcement.published
+        update_data = AnnouncementUpdate(published=new_published_status)
+        
+        updated_announcement = await self.announcement_repository.update(announcement_id, update_data)
+        if not updated_announcement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Announcement not found after update"
+            )
         
         return AnnouncementResponse.model_validate(updated_announcement) 

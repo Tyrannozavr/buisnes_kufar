@@ -14,9 +14,9 @@ const { getAnnouncementById, updateAnnouncement, getAnnouncementCategories, uplo
 // Fetch announcement data
 const { data: announcement, error: fetchError, pending: loading } = await useAsyncData(`announcement-${id}`, () => getAnnouncementById(id));
 
-// Check if announcement exists and is not published
+// Check if announcement exists
 const canEdit = computed(() => {
-  return announcement.value && !announcement.value.published;
+  return announcement.value !== null;
 });
 
 // Initial form data
@@ -167,7 +167,7 @@ const handleCancel = () => {
       <UAlert
         color="warning"
         title="Редактирование недоступно"
-        description="Объявление не найдено или уже опубликовано"
+        description="Объявление не найдено"
         icon="i-heroicons-exclamation-triangle"
       >
         <template #footer>

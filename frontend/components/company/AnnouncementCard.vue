@@ -60,6 +60,16 @@ const router = useRouter();
               Опубликовать
             </UButton>
             <UButton
+              v-else
+              size="sm"
+              color="warning"
+              variant="soft"
+              class="cursor-pointer"
+              @click="emit('publish', announcement)"
+            >
+              Снять с публикации
+            </UButton>
+            <UButton
               size="sm"
               color="neutral"
               variant="soft"
@@ -68,7 +78,6 @@ const router = useRouter();
               Просмотр
             </UButton>
             <UButton
-              v-if="!announcement.published"
               size="sm"
               color="neutral"
               variant="soft"

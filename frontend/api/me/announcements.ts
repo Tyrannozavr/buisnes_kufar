@@ -4,6 +4,7 @@ export const ANNOUNCEMENTS_API = {
     ANNOUNCEMENTS: '/v1/company/announcements',
     ANNOUNCEMENT: '/v1/company/announcements/{announcement_id}',
     ANNOUNCEMENT_IMAGE: '/v1/company/announcements/{announcement_id}/images',
+    ANNOUNCEMENT_PUBLISH: '/v1/company/announcements/{announcement_id}/publish',
     CATEGORIES: '/v1/company/announcements/categories',
 } as const
 
@@ -67,6 +68,12 @@ export const useAnnouncementsApi = () => {
         return await $api.get(ANNOUNCEMENTS_API.CATEGORIES)
     }
 
+    // Publish or unpublish an announcement
+    const toggleAnnouncementPublish = async (announcementId: number): Promise<Announcement> => {
+        const url = ANNOUNCEMENTS_API.ANNOUNCEMENT_PUBLISH.replace('{announcement_id}', announcementId.toString())
+        return await $api.put(url)
+    }
+
     return {
         getAnnouncements,
         createAnnouncement,
@@ -75,6 +82,7 @@ export const useAnnouncementsApi = () => {
         getAnnouncementById,
         uploadAnnouncementImage,
         uploadAnnouncementImages,
-        getAnnouncementCategories
+        getAnnouncementCategories,
+        toggleAnnouncementPublish
     }
 } 

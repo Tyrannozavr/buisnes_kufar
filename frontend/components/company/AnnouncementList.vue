@@ -28,6 +28,7 @@ const emit = defineEmits<{
 // Состояние для модального окна
 const showPublishConfirm = ref(false)
 const selectedAnnouncementId = ref<string | null>(null)
+const selectedAnnouncement = ref<Announcement | null>(null)
 const processingPublish = ref(false)
 
 // Состояние для опций уведомлений
@@ -77,6 +78,7 @@ const getStatusLabel = (published: boolean) => {
 // Функция для открытия модального окна подтверждения публикации
 const openPublishConfirm = (announcement: Announcement) => {
   selectedAnnouncementId.value = announcement.id.toString()
+  selectedAnnouncement.value = announcement
 
   // Установка опций уведомлений из объявления, если они есть
   if (announcement.notifications) {
@@ -99,6 +101,7 @@ const openPublishConfirm = (announcement: Announcement) => {
 const closePublishModal = () => {
   showPublishConfirm.value = false
   selectedAnnouncementId.value = null
+  selectedAnnouncement.value = null
 }
 
 // Функция для подтверждения публикации
@@ -181,6 +184,7 @@ const handleDelete = (announcement: Announcement) => {
     <PublishConfirmModal
       :open="showPublishConfirm"
       :saving="processingPublish"
+      :is-publishing="!selectedAnnouncement?.published"
       :notify-options="notifyOptions"
       @close="closePublishModal"
       @confirm="confirmPublish"

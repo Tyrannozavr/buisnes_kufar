@@ -4,7 +4,6 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
 from fastapi import status
 
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
-from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models import User
 from app.api.company.dependencies import company_service_dep, official_repository_dep
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
@@ -163,7 +162,7 @@ async def get_announcements_categories():
 async def create_announcement(
     db: async_db_dep,
     announcement_data: AnnouncementCreate,
-    current_user: User = Depends(get_current_user)
+    current_user: current_user_dep
 ):
     """Создать новое объявление для компании"""
     announcement_repository = AnnouncementRepository(session=db)
@@ -182,7 +181,7 @@ async def create_announcement(
 @router.get("/announcements", response_model=AnnouncementListResponse)
 async def get_company_announcements(
     db: async_db_dep,
-    current_user: User = Depends(get_current_user),
+    current_user: current_user_dep,
     page: int = Query(1, ge=1, description="Номер страницы"),
     per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице")
 ):
@@ -197,13 +196,13 @@ async def get_company_announcements(
 async def get_announcement(
     db: async_db_dep,
     announcement_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: current_user_dep
 ):
     """Получить объявление по ID"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
     
-    return await announcement_service.get_announcement(announcement_id)
+    return await announcement_service.get_announcement(current_user, announcement_id)
 
 
 @router.put("/announcements/{announcement_id}", response_model=AnnouncementResponse)
@@ -211,7 +210,7 @@ async def update_announcement(
     db: async_db_dep,
     announcement_id: int,
     announcement_data: AnnouncementUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: current_user_dep
 ):
     """Обновить объявление"""
     announcement_repository = AnnouncementRepository(session=db)
@@ -224,7 +223,7 @@ async def update_announcement(
 async def delete_announcement(
     db: async_db_dep,
     announcement_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: current_user_dep
 ):
     """Удалить объявление"""
     announcement_repository = AnnouncementRepository(session=db)
@@ -241,15 +240,28 @@ async def delete_announcement(
 @router.post("/announcements/{announcement_id}/images", response_model=AnnouncementResponse)
 async def upload_announcement_image(
     db: async_db_dep,
+    current_user: current_user_dep,
     announcement_id: int,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
 ):
     """Загрузить изображение для объявления"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
     
     return await announcement_service.upload_announcement_image(current_user, announcement_id, file)
+
+
+@router.put("/announcements/{announcement_id}/publish", response_model=AnnouncementResponse)
+async def toggle_announcement_publish(
+    db: async_db_dep,
+    announcement_id: int,
+    current_user: current_user_dep
+):
+    """Опубликовать или снять с публикации объявление"""
+    announcement_repository = AnnouncementRepository(session=db)
+    announcement_service = AnnouncementService(announcement_repository=announcement_repository)
+    
+    return await announcement_service.toggle_publish_status(current_user, announcement_id)
 
 
 # Public routes for announcements

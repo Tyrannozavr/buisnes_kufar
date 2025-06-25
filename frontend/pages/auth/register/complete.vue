@@ -3,6 +3,7 @@ import type {RegisterStep2Data, ApiError} from '~/types/auth'
 import {useAuthApi} from '~/api/auth'
 import {useUserStore} from "~/stores/user"
 import type {CompanyInfo} from "~/types/company";
+import UCombobox from "~/components/ui/UCombobox.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +31,23 @@ const confirmPasswordError = ref('')
 const isLoading = ref(false)
 const isTokenValid = ref(false)
 const isTokenChecking = ref(true)
+
+// Опции должностей (такие же как в CompanyOfficialsSection)
+const positions = [
+  {label: 'Генеральный директор', value: 'Генеральный директор'},
+  {label: 'Финансовый директор', value: 'Финансовый директор'},
+  {label: 'Главный бухгалтер', value: 'Главный бухгалтер'},
+  {label: 'Коммерческий директор', value: 'Коммерческий директор'},
+  {label: 'Технический директор', value: 'Технический директор'},
+  {label: 'Руководитель отдела продаж', value: 'Руководитель отдела продаж'},
+  {label: 'Руководитель отдела закупок', value: 'Руководитель отдела закупок'},
+  {label: 'Руководитель производства', value: 'Руководитель производства'}
+]
+
+const positionOptions = positions.map(pos => ({
+  label: pos.label,
+  value: pos.value
+}))
 
 const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
@@ -148,9 +166,7 @@ onMounted(async () => {
   form.value.token = token
 
   try {
-    console.log('Validating token:', token)
     const response = await authApi.validateRegistrationToken(token)
-    console.log('Token validation response:', response)
     isTokenValid.value = response.is_valid
     if (!response.is_valid) {
       console.log('Token is invalid')
@@ -182,9 +198,7 @@ const handleSubmit = async () => {
 
     // After successful registration, get company info
     try {
-      const companyInfo = await authApi.getCompanyInfo()  as CompanyInfo
-      // Update user store with company info
-      userStore.login(companyInfo.companyName, companyInfo.companyLogo)
+      await userStore.login()
     } catch (error) {
       console.error('Error fetching company info:', error)
       // Continue with redirect even if company info fetch fails
@@ -250,11 +264,12 @@ const handleSubmit = async () => {
             />
             <p v-if="innError" class="mt-1 text-sm text-red-500">{{ innError }}</p>
           </UFormField>
+
           <UFormField label="Должность">
-            <UInput
+            <UCombobox
                 v-model="form.position"
-                type="text"
-                placeholder="Введите должность"
+                :items="positionOptions"
+                placeholder="Выберите должность"
                 :color="positionError ? 'error' : undefined"
                 @update:model-value="validatePosition"
                 class="w-full"

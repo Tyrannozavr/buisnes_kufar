@@ -2,21 +2,34 @@ import {useChatsApi} from "~/api/chats";
 
 const { createChat } = useChatsApi()
 
-
 export async function navigateToChatById(companyId: number) {
-    const { chat_id } = await createChat({
+    const chatData = await createChat({
         participantId: companyId,
     })
-    if (chat_id) {
-        navigateTo(`/profile/messages/${chat_id}`)
+    if (chatData.id) {
+        navigateTo(`/profile/messages/${chatData.id}`)
     }
 }
 
 export async function navigateToChatBySlug(companySlug: string) {
-    const { chat_id } = await createChat({
+    const chatData = await createChat({
         participantSlug: companySlug,
     })
-    if (chat_id) {
-        navigateTo(`/profile/messages/${chat_id}`)
+    if (chatData.id) {
+        navigateTo(`/profile/messages/${chatData.id}`)
+    }
+}
+
+export async function createChatForCompany(companySlug: string, companyName: string, companyLogo?: string | null) {
+    try {
+        const chatData = await createChat({
+            participantSlug: companySlug,
+            participantName: companyName,
+            participantLogo: companyLogo || undefined
+        })
+        return chatData
+    } catch (error) {
+        console.error('Failed to create chat:', error)
+        throw error
     }
 }

@@ -154,7 +154,7 @@ export function useAuthApi() {
         body: {
           token: data.token,
           inn: data.inn,
-          position: data.position,
+          position: data.position.value,
           password: data.password
         },
         credentials: 'include',

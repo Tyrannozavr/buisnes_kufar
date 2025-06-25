@@ -62,4 +62,15 @@ class EmailChangeToken(Base):
     is_used = Column(Boolean, default=False)
 
     # Relationships
-    user = relationship("User") 
+    user = relationship("User")
+
+
+class PasswordRecoveryCode(Base):
+    __tablename__ = "password_recovery_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False, index=True)
+    code = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    is_used = Column(Boolean, default=False) 

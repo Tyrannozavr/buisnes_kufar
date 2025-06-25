@@ -10,7 +10,10 @@ export interface RegisterStep1Data {
 
 export interface RegisterStep2Data {
   inn: string
-  position: string
+  position: {
+    label: string,
+    value: string,
+  }
   password: string
   confirmPassword: string
   token: string
@@ -19,7 +22,9 @@ export interface RegisterStep2Data {
 export interface VerifyTokenResponse {
   is_valid: boolean,
   company_name: string,
-  logo_url: string
+  logo_url: string,
+  company_slug?: string,
+  company_id?: number
 }
 
 export interface RegisterStep1Response {

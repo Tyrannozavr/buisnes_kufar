@@ -13,6 +13,7 @@ from app.api.authentication.models import *
 from app.api.common.models import *
 from app.api.company.models import *
 from app.api.messages.models import *
+from app.api.chats.models import *
 from app.api.products.models import *
 
 # this is the Alembic Config object, which provides

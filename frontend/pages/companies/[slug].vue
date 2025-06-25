@@ -3,11 +3,14 @@ import type {CompanyDetails} from '~/types/company'
 //
 import {getCompany, getCompanyProductsPaginated, getCompanyStatistics} from '~/api/company'
 import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
+import { useUserStore } from '~/stores/user'
+import { navigateToChatBySlug, createChatForCompany } from '~/composables/chat'
 //
 // const { createChat } = useChatsApi()
 // // Get company ID from route
 const route = useRoute()
 const companySlug = route.params.slug as string
+const userStore = useUserStore()
 
 // Pagination state
 const currentPage = ref(1)
@@ -26,6 +29,20 @@ const {data: productsResponse, refresh: refreshProducts} = await getCompanyProdu
 
 // Fetch company statistics
 const {data: statistics} = await getCompanyStatistics(companySlug)
+
+// Автоматически создаем чат при переходе на страницу компании (если пользователь авторизован и это не его компания)
+if (userStore.isAuthenticated && company.value && company.value.slug !== userStore.companySlug) {
+  try {
+    await createChatForCompany(
+      company.value.slug,
+      company.value.name,
+      company.value.logo_url || undefined
+    )
+  } catch (error) {
+    console.error('Failed to create chat:', error)
+  }
+}
+
 //
 // Prepare company details
 const companyDetails = computed(() => (
@@ -46,6 +63,14 @@ const companyDetails = computed(() => (
     }
 ))
 
+// Проверяем, что пользователь не смотрит на свою компанию
+const isOwnCompany = computed(() => {
+  if (!userStore.isAuthenticated || !company.value) return false
+  // Сравниваем по slug или по названию компании
+  return company.value.slug === userStore.companySlug || 
+         company.value.name === userStore.companyName
+})
+
 // // Handle chat creation
 const handleCreateChat = async () => {
   await navigateToChatBySlug(companySlug)
@@ -65,7 +90,7 @@ const handlePageChange = (page: number) => {
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-3xl font-bold">{{ company?.name }}</h1>
         <UButton
-            v-if="company"
+            v-if="company && !isOwnCompany && userStore.isAuthenticated"
             color="primary"
             @click="handleCreateChat"
         >

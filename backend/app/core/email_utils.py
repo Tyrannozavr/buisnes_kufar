@@ -75,6 +75,42 @@ async def send_password_reset_email(email: str, reset_url: str) -> bool:
         return False
 
 
+async def send_password_recovery_code(email: str, code: str) -> bool:
+    """
+    Send password recovery code to user
+    """
+    try:
+        # Создаем уникальную ссылку для восстановления пароля
+        recovery_url = f"{settings.FRONTEND_URL}/auth/recover-password?email={email}&code={code}"
+        
+        message = MessageSchema(
+            subject="Password Recovery",
+            recipients=[email],
+            body=f"""
+            <html>
+                <body>
+                    <h2>Password Recovery</h2>
+                    <p>You have requested to recover your password. Use the code below to proceed:</p>
+                    <h3 style="font-size: 24px; color: #4CAF50; text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px; margin: 20px 0;">{code}</h3>
+                    <p>Or click the link below to go directly to the password reset page:</p>
+                    <p><a href="{recovery_url}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+                    <p>If you did not request this password recovery, please ignore this email.</p>
+                    <p>This code will expire in 15 minutes.</p>
+                </body>
+            </html>
+            """,
+            subtype="html"
+        )
+        
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        logger.info(f"Password recovery code sent to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send password recovery code to {email}: {str(e)}")
+        return False
+
+
 async def send_email_change_confirmation(email: str, confirmation_url: str) -> bool:
     """
     Send email change confirmation email to user

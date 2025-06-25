@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, EmailChangeToken
+from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, EmailChangeToken, PasswordRecoveryCode
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
 from app.core.security import get_password_hash, verify_password
 from app_logging.logger import logger
@@ -203,4 +203,56 @@ class UserRepository:
         result = await self.session.execute(
             select(User).where(User.email == email)
         )
-        return result.scalar_one_or_none() is not None 
+        return result.scalar_one_or_none() is not None
+
+    # Методы для работы с кодами восстановления пароля
+    async def create_password_recovery_code(self, email: str, code: str, expires_at: datetime) -> bool:
+        """Create password recovery code"""
+        # Удаляем старые коды для этого email
+        await self.session.execute(
+            update(PasswordRecoveryCode)
+            .where(PasswordRecoveryCode.email == email)
+            .values(is_used=True)
+        )
+        
+        db_code = PasswordRecoveryCode(
+            email=email,
+            code=code,
+            created_at=datetime.utcnow(),
+            expires_at=expires_at,
+            is_used=False
+        )
+        self.session.add(db_code)
+        try:
+            await self.session.commit()
+            await self.session.refresh(db_code)
+            return True
+        except Exception as e:
+            logger.error(f"Error creating password recovery code for {email}: {str(e)}")
+            await self.session.rollback()
+            return False
+
+    async def get_password_recovery_code(self, email: str, code: str) -> Optional[PasswordRecoveryCode]:
+        """Get password recovery code"""
+        result = await self.session.execute(
+            select(PasswordRecoveryCode)
+            .where(
+                PasswordRecoveryCode.email == email,
+                PasswordRecoveryCode.code == code,
+                PasswordRecoveryCode.is_used == False
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_password_recovery_code_as_used(self, email: str, code: str) -> bool:
+        """Mark password recovery code as used"""
+        result = await self.session.execute(
+            update(PasswordRecoveryCode)
+            .where(
+                PasswordRecoveryCode.email == email,
+                PasswordRecoveryCode.code == code
+            )
+            .values(is_used=True)
+        )
+        await self.session.commit()
+        return result.rowcount > 0 

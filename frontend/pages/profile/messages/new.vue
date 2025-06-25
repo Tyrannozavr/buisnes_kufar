@@ -18,15 +18,25 @@ const toCompanyName = route.query.name as string
 const toCompanyLogo = route.query.logo as string
 
 // Create new chat and redirect
-const { data: chat, pending, error } = await createChat({
-  participantId: toCompanySlug,
-  participantName: toCompanyName,
-  participantLogo: toCompanyLogo
-})
+const pending = ref(true)
+const error = ref<Error | null>(null)
+let chat: Chat | null = null
+
+try {
+  chat = await createChat({
+    participantSlug: toCompanySlug,
+    participantName: toCompanyName,
+    participantLogo: toCompanyLogo
+  })
+  pending.value = false
+} catch (err) {
+  error.value = err as Error
+  pending.value = false
+}
 
 // Immediately redirect to the chat if it was created
-if (chat.value) {
-  router.push(`/profile/messages/${chat.value.id}`)
+if (chat) {
+  router.push(`/profile/messages/${chat.id}`)
 }
 
 // Handle error

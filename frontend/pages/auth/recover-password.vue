@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { authApi } from '~/api/auth'
+import { ref, onMounted } from 'vue'
+import { useNuxtApp } from 'nuxt/app'
+import { useRoute } from 'nuxt/app'
 
 const toast = useToast()
+const { $api } = useNuxtApp()
+const route = useRoute()
 
 const email = ref('')
 const code = ref('')
@@ -12,6 +15,26 @@ const isCodeSent = ref(false)
 const isCodeVerified = ref(false)
 const isLoading = ref(false)
 const router = useRouter()
+
+// Проверяем параметры из URL при загрузке страницы
+onMounted(() => {
+  const urlEmail = route.query.email as string
+  const urlCode = route.query.code as string
+  
+  if (urlEmail) {
+    email.value = urlEmail
+    isCodeSent.value = true
+  }
+  
+  if (urlCode) {
+    code.value = urlCode
+    // Автоматически проверяем код, если он есть в URL
+    if (urlEmail) {
+      verifyCode()
+    }
+  }
+})
+
 const showSuccessToast = (message: string) => {
   toast.add({
     title: 'Успешно',
@@ -33,7 +56,7 @@ const showErrorToast = (message: string) => {
 const sendCode = async () => {
   try {
     isLoading.value = true
-    const response = await authApi.sendRecoveryCode(email.value)
+    const response = await $api.post('/v1/auth/recover-password', { email: email.value })
     
     if (response.success) {
       isCodeSent.value = true
@@ -54,7 +77,10 @@ const verifyCode = async () => {
 
   try {
     isLoading.value = true
-    const response = await authApi.verifyRecoveryCode(email.value, code.value)
+    const response = await $api.post('/v1/auth/verify-code', { 
+      email: email.value, 
+      code: code.value 
+    })
     
     if (response.success) {
       isCodeVerified.value = true
@@ -78,7 +104,7 @@ const resetPassword = async () => {
   
   try {
     isLoading.value = true
-    const response = await authApi.resetPassword({
+    const response = await $api.post('/v1/auth/reset-password', {
       email: email.value,
       code: code.value,
       newPassword: newPassword.value

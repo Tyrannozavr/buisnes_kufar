@@ -77,6 +77,8 @@ class TokenData(BaseModel):
 class VerifyTokenResponse(CompanyLogoUrlMixin):
     is_valid: bool
     company_name: str|None = None
+    company_slug: str|None = None
+    company_id: int|None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -100,3 +102,19 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirmRequest(BaseModel):
     token: str
     new_password: constr(min_length=8)
+
+
+# Новые схемы для восстановления пароля с кодами
+class PasswordRecoveryRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordRecoveryVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class PasswordRecoveryResetRequest(BaseModel):
+    email: EmailStr
+    code: str
+    newPassword: constr(min_length=8)

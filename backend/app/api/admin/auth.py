@@ -1,5 +1,9 @@
-from sqladmin import ModelView
+from sqladmin import ModelView, action
 from app.api.authentication.models.user import User, RegistrationToken
+from app.core.security import get_password_hash
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+import secrets
 
 
 class UserAdmin(ModelView, model=User):
@@ -92,7 +96,7 @@ class UserAdmin(ModelView, model=User):
     # Настройка форматирования
     column_formatters = {
         User.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
-        User.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None
+        User.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None,
     }
     
     # Настройка валидации формы
@@ -107,6 +111,7 @@ class UserAdmin(ModelView, model=User):
     can_edit = True
     can_delete = True
     can_view_details = True
+
 
 
 class RegistrationTokenAdmin(ModelView, model=RegistrationToken):

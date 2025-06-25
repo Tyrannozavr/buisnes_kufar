@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
 from app.api.authentication.services.auth_service import AuthService
 from app.api.company.dependencies import company_service_dep
 from app.api.dependencies import async_db_dep
@@ -61,6 +61,8 @@ async def verify_token(
         is_valid=token.user_id is not None,
         logo=company.logo,
         company_name=company.name,
+        company_slug=company.slug,
+        company_id=company.id,
     )
 
 
@@ -247,3 +249,43 @@ async def confirm_password_reset(
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     success = await auth_service.confirm_password_reset(reset_data.token, reset_data.new_password)
     return {"message": "Password reset successfully"}
+
+
+# Новые эндпоинты для восстановления пароля с кодами
+@router.post("/recover-password", status_code=status.HTTP_200_OK)
+async def recover_password(
+    recovery_data: PasswordRecoveryRequest,
+    db: async_db_dep
+):
+    """
+    Request password recovery with code (no authentication required)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.request_password_recovery(recovery_data.email)
+    return {"success": True, "message": "Код восстановления отправлен на ваш email"}
+
+
+@router.post("/verify-code", status_code=status.HTTP_200_OK)
+async def verify_recovery_code(
+    verify_data: PasswordRecoveryVerifyRequest,
+    db: async_db_dep
+):
+    """
+    Verify password recovery code (no authentication required)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.verify_password_recovery_code(verify_data.email, verify_data.code)
+    return {"success": True, "message": "Код подтвержден"}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password_with_code(
+    reset_data: PasswordRecoveryResetRequest,
+    db: async_db_dep
+):
+    """
+    Reset password using recovery code (no authentication required)
+    """
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    success = await auth_service.reset_password_with_code(reset_data.email, reset_data.code, reset_data.newPassword)
+    return {"success": True, "message": "Пароль успешно изменен"}

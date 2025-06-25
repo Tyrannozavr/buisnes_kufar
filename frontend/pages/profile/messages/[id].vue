@@ -13,13 +13,13 @@ const route = useRoute()
 const router = useRouter()
 const chatId = route.params.id as string
 
-// TODO: Заменить на реальный ID пользователя
-const userId = 'company1'
+// Получаем данные пользователя из store
+const userStore = useUserStore()
 
 const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles} = useChatsApi()
 
 // Получаем список всех чатов для боковой панели
-const {data: chats, pending: chatsPending} = await getChats(userId)
+const {data: chats, pending: chatsPending} = await getChats()
 
 // Получаем информацию о текущем чате
 const {data: chat, pending: chatPending} = await getChatById(chatId)
@@ -37,7 +37,7 @@ const selectedFile = ref<File | null>(null)
 
 const otherParticipant = computed(() => {
   if (!chat.value) return null
-  return chat.value.participants.find((p: ChatParticipant) => p.id !== userId)
+  return chat.value.participants.find((p: ChatParticipant) => p.company_id !== userStore.companyId)
 })
 
 const handleFileSelect = (event: Event) => {
@@ -52,7 +52,7 @@ const handleSendMessage = async () => {
 
   try {
     await sendMessage(chatId, {
-      senderId: userId,
+      senderId: userStore.companyId?.toString() || '',
       content: newMessage.value,
       file: selectedFile.value || undefined
     })
@@ -103,47 +103,37 @@ const formatFileSize = (bytes: number) => {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-16rem)] flex">
-    <!-- Chat list sidebar -->
-    <div class="w-1/3 border-r border-gray-200 overflow-y-auto">
-      <div v-if="chatsPending" class="flex items-center justify-center h-full">
-        <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500"/>
+  <div class="flex h-[calc(100vh-16rem)]">
+    <!-- Боковая панель с чатами -->
+    <div class="w-80 border-r border-gray-200 flex flex-col">
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold">Сообщения</h2>
       </div>
-
-      <div v-else-if="!chats?.length" class="flex items-center justify-center h-full">
-        <div class="text-center text-gray-500">
-          <UIcon name="i-heroicons-chat-bubble-left-right" class="h-12 w-12 mx-auto mb-2"/>
-          <p>У вас пока нет сообщений</p>
-        </div>
+      
+      <div v-if="chatsPending" class="flex-1 flex items-center justify-center">
+        <UIcon name="i-heroicons-arrow-path" class="animate-spin h-6 w-6 text-gray-500"/>
       </div>
-
-      <div v-else class="space-y-1">
+      
+      <div v-else class="flex-1 overflow-y-auto">
         <div
-            v-for="chatItem in chats"
-            :key="chatItem.id"
-            class="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-            :class="{ 'bg-gray-50': chatItem.id === chatId }"
-            @click="handleChatSelect(chatItem.id)"
+          v-for="chatItem in chats"
+          :key="chatItem.id"
+          class="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+          :class="{ 'bg-blue-50 border-blue-200': chatItem.id === chatId }"
+          @click="handleChatSelect(chatItem.id)"
         >
-          <div class="flex items-start space-x-3">
-            <div class="flex-shrink-0">
-              <LazyNuxtImg
-                  :src="chatItem.participants.find(p => p.id !== userId)?.logo || '/images/default-company-logo.png'"
-                  :alt="chatItem.participants.find(p => p.id !== userId)?.name"
-                  class="w-12 h-12 rounded-full object-cover"
-              />
-            </div>
+          <div class="flex items-center space-x-3">
+            <img
+              :src="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_logo_url || '/images/default-company-logo.png'"
+              :alt="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name"
+              class="w-10 h-10 rounded-full object-cover"
+            />
             <div class="flex-1 min-w-0">
-              <div class="flex justify-between items-start">
-                <h3 class="text-sm font-medium text-gray-900 truncate">
-                  {{ chatItem.participants.find(p => p.id !== userId)?.name }}
-                </h3>
-                <span class="text-xs text-gray-500">
-                  {{ new Date(chatItem.updatedAt).toLocaleDateString('ru-RU') }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-500 truncate">
-                {{ chatItem.lastMessage?.content || 'Нет сообщений' }}
+              <p class="font-medium text-sm truncate">
+                {{ chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name }}
+              </p>
+              <p v-if="chatItem.lastMessage" class="text-xs text-gray-500 truncate">
+                {{ chatItem.lastMessage.content }}
               </p>
             </div>
           </div>
@@ -151,72 +141,22 @@ const formatFileSize = (bytes: number) => {
       </div>
     </div>
 
-    <!-- Messages area -->
+    <!-- Основная область чата -->
     <div class="flex-1 flex flex-col">
-      <!-- Chat header -->
-      <div v-if="chat && otherParticipant" class="flex items-center justify-between border-b px-6 py-4 bg-white">
-        <NuxtLink
-            :to="`/company/${otherParticipant.slug || otherParticipant.id}`"
-            class="text-lg font-semibold text-blue-600 hover:underline truncate"
-        >
-          {{ otherParticipant.name }}
-        </NuxtLink>
-        <div class="flex items-center gap-2">
-            <!-- Files Modal -->
-            <UModal
-                title="Файлы в чате"
-            >
-              <UButton
-                  icon="i-heroicons-document"
-                  class="p-2 rounded-full hover:bg-gray-100 border-none hover:border cursor-pointer"
-                  color="neutral"
-                  variant="outline"
-              >Файлы</UButton>
-              <template #content>
-                <div class="p-4">
-                  <div v-if="filesPending" class="flex items-center justify-center py-8">
-                    <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500"/>
-                  </div>
-
-                  <div v-else-if="!files?.length" class="text-center py-8 text-gray-500">
-                    <UIcon name="i-heroicons-document" class="h-12 w-12 mx-auto mb-2"/>
-                    <p>В этом чате пока нет файлов</p>
-                  </div>
-
-                  <div v-else class="space-y-4">
-                    <div
-                        v-for="file in files"
-                        :key="file.messageId"
-                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div class="flex items-center gap-3">
-                        <UIcon
-                            :name="getFileIcon(file.type)"
-                            class="w-6 h-6 text-gray-500"
-                        />
-                        <div>
-                          <p class="text-sm font-medium">{{ file.name }}</p>
-                          <p class="text-xs text-gray-500">
-                            Отправлено {{ new Date(file.createdAt).toLocaleString('ru-RU') }}
-                          </p>
-                        </div>
-                      </div>
-                      <a
-                          :href="file.url"
-                          target="_blank"
-                          class="text-blue-600 hover:text-blue-800"
-                      >
-                        <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5"/>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-            </UModal>
+      <!-- Заголовок чата -->
+      <div v-if="chat" class="p-4 border-b border-gray-200 bg-white">
+        <div class="flex items-center space-x-3">
+          <img
+            :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
+            :alt="otherParticipant?.company_name"
+            class="w-10 h-10 rounded-full object-cover"
+          />
+          <div>
+            <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
+            <p class="text-sm text-gray-500">Онлайн</p>
+          </div>
         </div>
       </div>
-<!--      class="p-2 rounded-full hover:bg-gray-100 border-none hover:border cursor-pointer"-->
 
       <div v-if="chatPending || messagesPending" class="flex-1 flex items-center justify-center">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500"/>
@@ -228,37 +168,37 @@ const formatFileSize = (bytes: number) => {
               v-for="message in messages"
               :key="message.id"
               class="flex"
-              :class="{ 'justify-end': message.sender.id === userId }"
+              :class="{ 'justify-end': message.sender_company_id?.toString() === userStore.companyId?.toString() }"
           >
             <div
                 class="max-w-[70%] p-4 rounded-lg"
-                :class="message.sender.id === userId ? 'bg-blue-500 text-white' : 'bg-gray-100'"
+                :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
               <div v-if="message.content" class="mb-2">
                 {{ message.content }}
               </div>
-              <div v-if="message.file" class="mt-2">
+              <div v-if="message.file_path" class="mt-2">
                 <a
-                    :href="message.file.url"
+                    :href="message.file_path"
                     target="_blank"
                     class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
-                    :class="message.sender.id === userId ? 'text-blue-100' : 'text-blue-600'"
+                    :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'text-blue-100' : 'text-blue-600'"
                 >
                   <UIcon
-                      :name="getFileIcon(message.file.type)"
+                      :name="getFileIcon(message.file_type || '')"
                       class="w-5 h-5 flex-shrink-0"
                   />
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate">{{ message.file.name }}</p>
+                    <p class="text-sm font-medium truncate">{{ message.file_name }}</p>
                     <p class="text-xs opacity-75">
-                      {{ formatFileSize(message.file.size) }}
+                      {{ formatFileSize(message.file_size || 0) }}
                     </p>
                   </div>
                   <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0"/>
                 </a>
               </div>
-              <p class="text-xs mt-2" :class="message.sender.id === userId ? 'text-blue-100' : 'text-gray-500'">
-                {{ new Date(message.createdAt).toLocaleTimeString() }}
+              <p class="text-xs mt-2" :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'text-blue-100' : 'text-gray-500'">
+                {{ new Date(message.created_at).toLocaleTimeString() }}
               </p>
             </div>
           </div>
@@ -309,24 +249,8 @@ const formatFileSize = (bytes: number) => {
       </template>
 
       <div v-else class="flex-1 flex items-center justify-center">
-        <UAlert
-            color="error"
-            title="Чат не найден"
-            description="Запрашиваемый чат не существует или был удален"
-            icon="i-heroicons-exclamation-circle"
-        >
-          <template #footer>
-            <UButton
-                color="error"
-                variant="ghost"
-                @click="router.push('/profile/messages')"
-            >
-              Вернуться к списку чатов
-            </UButton>
-          </template>
-        </UAlert>
+        <p class="text-gray-500">Чат не найден</p>
       </div>
     </div>
   </div>
-
 </template>

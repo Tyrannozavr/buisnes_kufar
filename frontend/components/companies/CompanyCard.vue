@@ -3,14 +3,25 @@ import type {CompanyShort} from '~/types/company'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
 import {navigateToChatById} from "~/composables/chat";
+import { useUserStore } from '~/stores/user'
+import { computed } from 'vue'
 
 const props = defineProps<{
   manufacturer: CompanyShort
 }>()
 
 const router = useRouter()
+const userStore = useUserStore()
 const { createChat } = useChatsApi()
 const { deletePartnerById } = useCompaniesApi()
+
+// Проверяем, что пользователь не смотрит на свою компанию
+const isOwnCompany = computed(() => {
+  if (!userStore.isAuthenticated) return false
+  // Сравниваем по ID или по названию компании
+  return props.manufacturer.id === userStore.companyId || 
+         props.manufacturer.name === userStore.companyName
+})
 
 const navigateToMessage = async () => {
   await navigateToChatById(props.manufacturer.id)
@@ -59,9 +70,10 @@ const navigateToMessage = async () => {
           </div>
           <div class="flex gap-2">
             <UButton
+              v-if="!isOwnCompany && userStore.isAuthenticated"
               color="primary"
               variant="soft"
-              class="cursor-pointer"
+              class="cursor-pointer h-10 flex-shrink-0"
               @click="navigateToMessage"
             >
               Написать сообщение

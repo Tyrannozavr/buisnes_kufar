@@ -5,6 +5,8 @@ interface UserState {
   isAuthenticated: boolean
   companyName: string
   companyLogo: string
+  companySlug: string
+  companyId: number
 }
 
 export const useUserStore = defineStore('user', {
@@ -12,6 +14,8 @@ export const useUserStore = defineStore('user', {
     isAuthenticated: false,
     companyName: '',
     companyLogo: '',
+    companySlug: '',
+    companyId: 0,
     // Add other user-related state as needed
   }),
   
@@ -22,12 +26,16 @@ export const useUserStore = defineStore('user', {
       this.isAuthenticated = true
       this.companyName = tokenResponse.company_name
       this.companyLogo = tokenResponse.logo_url
+      this.companySlug = tokenResponse.company_slug || ''
+      this.companyId = tokenResponse.company_id || 0
     },
     
     logout() {
       this.isAuthenticated = false
       this.companyName = ''
       this.companyLogo = ''
+      this.companySlug = ''
+      this.companyId = 0
       // Clear any other user data as needed
     }
   },

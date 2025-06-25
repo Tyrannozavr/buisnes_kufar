@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 # Import all models here to ensure they are registered with SQLAlchemy metadata
-from app.api.authentication.models.user import User  # noqa
+from app.api.authentication.models.user import User, RegistrationToken, PasswordResetToken, EmailChangeToken, PasswordRecoveryCode  # noqa
 from app.api.company.models.company import Company  # noqa
 from app.api.company.models.official import CompanyOfficial  # noqa
 from app.api.messages.models.message import Message  # noqa
+from app.api.chats.models.chat import Chat  # noqa
+from app.api.chats.models.chat_participant import ChatParticipant  # noqa
 from app.api.products.models.product import Product  # noqa
 from app.core.config import settings
 from app.db.base_class import Base  # noqa

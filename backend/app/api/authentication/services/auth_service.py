@@ -5,11 +5,11 @@ from fastapi import HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest
+from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.services.company_service import CompanyService
 from app.core.config import settings
-from app.core.email_utils import send_verification_email, send_password_reset_email, send_email_change_confirmation, send_email_change_code
+from app.core.email_utils import send_verification_email, send_password_reset_email, send_email_change_confirmation, send_email_change_code, send_password_recovery_code
 from app.core.security import create_access_token, decode_token
 from app.core.security import verify_password
 from app_logging.logger import logger
@@ -330,16 +330,16 @@ class AuthService:
                 detail="Change token expired"
             )
         
-        # Check if new email already exists
-        email_exists = await self.user_repository.check_email_exists(change_token.new_email)
-        if email_exists:
+        # Get user
+        user = await self.user_repository.get_user_by_id(change_token.user_id)
+        if not user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already exists"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
             )
         
         # Update email
-        success = await self.user_repository.update_user_email(change_token.user_id, change_token.new_email)
+        success = await self.user_repository.update_user_email(user.id, change_token.new_email)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -349,5 +349,95 @@ class AuthService:
         # Mark token as used
         await self.user_repository.mark_email_change_token_as_used(token)
         
-        logger.info(f"Email changed for user {change_token.user_id} to {change_token.new_email}")
+        logger.info(f"Email changed for user {user.id}")
+        return True
+
+    # Новые методы для восстановления пароля с кодами
+    async def request_password_recovery(self, email: str) -> bool:
+        """Request password recovery with code"""
+        # Check if user exists
+        user = await self.user_repository.get_user_by_email(email)
+        if not user:
+            # Don't reveal if user exists or not for security
+            return True
+        
+        # Generate 6-digit code
+        import random
+        code = str(random.randint(100000, 999999))
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        
+        # Create recovery code
+        success = await self.user_repository.create_password_recovery_code(email, code, expires_at)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create password recovery code"
+            )
+        
+        # Send recovery code email
+        email_sent = await send_password_recovery_code(email, code)
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password recovery code"
+            )
+        
+        logger.info(f"Password recovery code sent to {email}")
+        return True
+
+    async def verify_password_recovery_code(self, email: str, code: str) -> bool:
+        """Verify password recovery code"""
+        # Get recovery code
+        recovery_code = await self.user_repository.get_password_recovery_code(email, code)
+        if not recovery_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid recovery code"
+            )
+        
+        if recovery_code.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recovery code expired"
+            )
+        
+        logger.info(f"Password recovery code verified for {email}")
+        return True
+
+    async def reset_password_with_code(self, email: str, code: str, new_password: str) -> bool:
+        """Reset password using recovery code"""
+        # Get recovery code
+        recovery_code = await self.user_repository.get_password_recovery_code(email, code)
+        if not recovery_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid recovery code"
+            )
+        
+        if recovery_code.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recovery code expired"
+            )
+        
+        # Get user by email
+        user = await self.user_repository.get_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update password
+        success = await self.user_repository.update_user_password(user.id, new_password)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        # Mark code as used
+        await self.user_repository.mark_password_recovery_code_as_used(email, code)
+        
+        logger.info(f"Password reset completed for user {user.id}")
         return True 

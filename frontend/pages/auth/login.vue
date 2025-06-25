@@ -117,10 +117,6 @@ const handleSubmit = async () => {
     // Login to get the token
     await authApi.login(form.value.inn, form.value.password)
     
-    // Then get company info
-    const companyInfo = await authApi.getCompanyInfo() as CompanyInfo
-
-    
     // Update the store with user data
     await userStore.login()
 

@@ -128,7 +128,7 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       kpp: '',
       ogrn: '',
       registrationDate: '',
-      type: 'company',
+      type: 'ООО',
       tradeActivity: 'Покупатель' as TradeActivity,
       businessType: 'Производство товаров' as BusinessType,
       activityType: null,
@@ -402,6 +402,9 @@ const validateForm = () => {
   
   if (!formState.value.name) {
     errors.push('Введите название организации')
+  }
+  if (!formState.value.type) {
+    errors.push('Выберите тип организации')
   }
   if (!formState.value.fullName) {
     errors.push('Введите полное юридическое название организации')

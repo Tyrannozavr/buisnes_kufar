@@ -101,6 +101,7 @@ class CompanyRepository:
     async def update(self, company_id: int, company_data: CompanyUpdate) -> Optional[Company]:
         # Update company fields
         update_data = company_data.model_dump(exclude_unset=True)
+        print("Update data is ", update_data)
 
         # Convert HttpUrl to string if present
         if 'website' in update_data and isinstance(update_data['website'], HttpUrl):
@@ -108,6 +109,26 @@ class CompanyRepository:
 
         if 'officials' in update_data:
             officials_data = update_data.pop('officials')
+
+        # Convert ogrn and kpp to strings if present
+        for field in ["ogrn", "kpp"]:
+            if field in update_data and update_data[field] is not None:
+                update_data[field] = str(update_data[field])
+
+        # Check if company should be activated
+        company = await self.get_by_id(company_id)
+        default_name = "Новая компания"
+        default_inn = "0000000000"
+        if (
+            ("name" in update_data and update_data["name"] != default_name) or (company and company.name != default_name)
+        ) and (
+            ("inn" in update_data and update_data["inn"] != default_inn) or (company and company.inn != default_inn)
+        ):
+            update_data["is_active"] = True
+
+        # If name is being updated and is different, update slug as well
+        if "name" in update_data and company and update_data["name"] != company.name:
+            update_data["slug"] = await self.create_company_slug(update_data["name"])
 
         # Update company
         if update_data:

@@ -3,6 +3,7 @@ import type { CompanyDataFormState } from '~/types/company'
 import type { LocationItem } from '~/types/location'
 import { useLocationsApi } from '~/api/locations'
 import UCombobox from '~/components/ui/UCombobox.vue'
+import CompanyTypeSelect from '~/components/company/CompanyTypeSelect.vue'
 
 const props = defineProps<{
   formState: CompanyDataFormState
@@ -176,6 +177,12 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             @update:model-value="value => updateField('name', value)"
         />
       </UFormField>
+
+      <CompanyTypeSelect
+          :model-value="formState.type"
+          required
+          @update:model-value="value => updateField('type', value)"
+      />
 
       <UFormField label="Полное юридическое название" required help="Полное название организации с указанием организационно-правовой формы">
         <UInput

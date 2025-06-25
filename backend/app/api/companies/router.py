@@ -1,7 +1,7 @@
 from typing import Optional, Any, Coroutine, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Body
 
-from api.company.schemas.company import CompanyResponse, ShortCompanyResponse
+from app.api.company.schemas.company import CompanyResponse, ShortCompanyResponse
 from app.api.companies.dependencies import companies_repository_dep
 from app.api.companies.repositories.companies_repository import CompaniesRepository
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo

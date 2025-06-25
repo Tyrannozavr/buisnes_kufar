@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import {ref} from 'vue';
-import { useAnnouncementsApi } from '~/api'
+import { useAnnouncementsApi } from '~/api/me/announcements'
 
 const route = useRoute();
 const router = useRouter();
-const id = route.params.id as string;
+const id = parseInt(route.params.id as string);
 
 const {
   getAnnouncementById,
-  publishAnnouncement,
-  unpublishAnnouncement,
   deleteAnnouncement
 } = useAnnouncementsApi()
 
@@ -18,7 +16,7 @@ const {
   error: fetchError,
   pending: loading,
   refresh
-} = await getAnnouncementById(id);
+} = await useAsyncData(`announcement-${id}`, () => getAnnouncementById(id));
 
 const processingAction = ref(false);
 const showDeleteConfirm = ref(false);
@@ -35,52 +33,6 @@ const formatDate = (dateString: string) => {
   }).format(date);
 };
 
-// Handle publishing announcement
-const handlePublishAnnouncement = async () => {
-  processingAction.value = true;
-  try {
-    await publishAnnouncement(id);
-    await refresh();
-
-    useToast().add({
-      title: 'Успешно',
-      description: 'Объявление опубликовано',
-      color: 'success'
-    });
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: error instanceof Error ? error.message : 'Не удалось опубликовать объявление',
-      color: 'error'
-    });
-  } finally {
-    processingAction.value = false;
-  }
-};
-
-// Handle unpublishing announcement
-const handleUnpublishAnnouncement = async () => {
-  processingAction.value = true;
-  try {
-    await unpublishAnnouncement(id);
-    await refresh();
-
-    useToast().add({
-      title: 'Успешно',
-      description: 'Объявление снято с публикации',
-      color: 'success'
-    });
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: error instanceof Error ? error.message : 'Не удалось снять объявление с публикации',
-      color: 'error'
-    });
-  } finally {
-    processingAction.value = false;
-  }
-};
-
 // Handle deleting announcement
 const handleDeleteAnnouncement = async () => {
   processingAction.value = true;
@@ -93,8 +45,8 @@ const handleDeleteAnnouncement = async () => {
       color: 'success'
     });
 
-    // Redirect back to profile page
-    router.push('/profile');
+    // Redirect back to announcements list
+    router.push('/profile/announcements');
   } catch (error) {
     useToast().add({
       title: 'Ошибка',
@@ -140,9 +92,9 @@ const editAnnouncement = () => {
           <UButton
               color="error"
               variant="ghost"
-              to="/profile"
+              to="/profile/announcements"
           >
-            Вернуться к профилю
+            Вернуться к объявлениям
           </UButton>
         </template>
       </UAlert>
@@ -159,9 +111,9 @@ const editAnnouncement = () => {
           <UButton
               color="warning"
               variant="ghost"
-              to="/profile"
+              to="/profile/announcements"
           >
-            Вернуться к профилю
+            Вернуться к объявлениям
           </UButton>
         </template>
       </UAlert>
@@ -175,10 +127,10 @@ const editAnnouncement = () => {
               <h1 class="text-2xl font-bold">{{ announcement.title }}</h1>
               <div class="flex items-center mt-2 text-sm text-gray-500">
                 <UIcon name="i-heroicons-calendar" class="mr-1"/>
-                <span>Создано: {{ formatDate(announcement.createdAt) }}</span>
+                <span>Создано: {{ formatDate(announcement.created_at) }}</span>
                 <span class="mx-2">•</span>
                 <UIcon name="i-heroicons-clock" class="mr-1"/>
-                <span>Обновлено: {{ formatDate(announcement.updatedAt) }}</span>
+                <span>Обновлено: {{ formatDate(announcement.updated_at) }}</span>
               </div>
             </div>
             <UBadge :color="announcement.published ? 'success' : 'neutral'">
@@ -190,8 +142,8 @@ const editAnnouncement = () => {
         <!-- Announcement content -->
         <div class="space-y-6">
           <!-- Images gallery -->
-          <div v-if="announcement.images && announcement.images.length" class="mb-6">
-            <UCarousel :items="announcement.images.map(img => ({ src: img }))" class="rounded-lg overflow-hidden">
+          <div v-if="announcement.image_urls && announcement.image_urls.length" class="mb-6">
+            <UCarousel :items="announcement.image_urls.map(img => ({ src: img }))" class="rounded-lg overflow-hidden">
               <template #default="{ item }">
                 <NuxtImg :src="item.src" class="w-full h-64 object-contain bg-gray-100"/>
               </template>
@@ -224,28 +176,6 @@ const editAnnouncement = () => {
                   @click="editAnnouncement"
               >
                 Редактировать
-              </UButton>
-
-              <UButton
-                  v-if="!announcement.published"
-                  color="success"
-                  icon="i-heroicons-paper-airplane"
-                  :loading="processingAction"
-                  class="cursor-pointer"
-                  @click="handlePublishAnnouncement"
-              >
-                Опубликовать
-              </UButton>
-
-              <UButton
-                  v-if="announcement.published"
-                  color="warning"
-                  icon="i-heroicons-archive-box"
-                  :loading="processingAction"
-                  class="cursor-pointer"
-                  @click="handleUnpublishAnnouncement"
-              >
-                Снять с публикации
               </UButton>
 
               <UButton

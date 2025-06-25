@@ -101,7 +101,6 @@ class CompanyRepository:
     async def update(self, company_id: int, company_data: CompanyUpdate) -> Optional[Company]:
         # Update company fields
         update_data = company_data.model_dump(exclude_unset=True)
-        print("Update data is ", update_data)
 
         # Convert HttpUrl to string if present
         if 'website' in update_data and isinstance(update_data['website'], HttpUrl):

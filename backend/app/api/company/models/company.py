@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.api.authentication.models import User
     from app.api.products.models import Product
     from app.api.messages.models import Message
+    from app.api.company.models.announcement import Announcement
 
 class Company(Base):
     __tablename__ = "companies"
@@ -75,6 +76,7 @@ class Company(Base):
     user: Mapped["User"] = relationship("User", back_populates="company")
     officials: Mapped[List["CompanyOfficial"]] = relationship("CompanyOfficial", back_populates="company", cascade="all, delete-orphan")
     products: Mapped[List["Product"]] = relationship("Product", back_populates="company", cascade="all, delete-orphan")
+    announcements: Mapped[List["Announcement"]] = relationship("Announcement", back_populates="company", cascade="all, delete-orphan")
     # Relationships
     sent_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.from_company_id", back_populates="from_company")
     received_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.to_company_id", back_populates="to_company")

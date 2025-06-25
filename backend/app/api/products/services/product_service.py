@@ -5,7 +5,7 @@ import uuid
 import aiofiles
 from fastapi import HTTPException, status, UploadFile
 
-from api.company.repositories.company_repository import CompanyRepository
+from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.products.repositories.my_products_repository import MyProductsRepository
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
 from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, ProductCreateWithFiles, ProductListPublicResponse

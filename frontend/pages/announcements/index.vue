@@ -6,7 +6,6 @@ const perPage = ref(10)
 
 const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements }
     = useAnnouncements(currentPage.value, perPage.value)
-console.log('Announcements:', response.value)
 const announcements = computed(() => response.value?.data || [])
 const pagination = computed(() => response.value?.pagination || {
   total: 0,

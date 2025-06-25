@@ -21,6 +21,7 @@ const router = useRouter()
 
 const emit = defineEmits<{
   publish: [id: string]
+  delete: [announcement: Announcement]
   pageChange: [page: number]
 }>()
 
@@ -75,7 +76,7 @@ const getStatusLabel = (published: boolean) => {
 
 // Функция для открытия модального окна подтверждения публикации
 const openPublishConfirm = (announcement: Announcement) => {
-  selectedAnnouncementId.value = announcement.id
+  selectedAnnouncementId.value = announcement.id.toString()
 
   // Установка опций уведомлений из объявления, если они есть
   if (announcement.notifications) {
@@ -109,6 +110,11 @@ const confirmPublish = () => {
     closePublishModal()
   }
 }
+
+// Функция для удаления объявления
+const handleDelete = (announcement: Announcement) => {
+  emit('delete', announcement)
+}
 </script>
 
 <template>
@@ -140,6 +146,7 @@ const confirmPublish = () => {
           :get-status-label="getStatusLabel"
           :format-date="formatDate"
           @publish="openPublishConfirm"
+          @delete="handleDelete"
         />
         <!-- Pagination -->
         <div class="mt-6 flex justify-center">

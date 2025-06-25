@@ -16,7 +16,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
         finally:
-            await session.close()
+            pass
 
 # Правильная аннотация зависимости
 async_db_dep = Annotated[AsyncSession, Depends(get_async_db)]

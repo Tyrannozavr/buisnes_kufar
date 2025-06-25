@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { Announcement, AnnouncementFormData } from '~/types/announcement';
-import type {Category} from "~/types/category";
-import { useAnnouncementsApi } from '~/api'
-import { useCategoriesApi } from '~/api'
+import type { AnnouncementCategory } from '~/types/announcement';
+import { useAnnouncementsApi } from '~/api/me/announcements'
 
 const route = useRoute();
 const router = useRouter();
-const id = route.params.id as string;
+const id = parseInt(route.params.id as string);
 
 const saving = ref(false);
-const { getAnnouncementById, updateAnnouncement } = useAnnouncementsApi()
-const { getCategories } = useCategoriesApi()
+const { getAnnouncementById, updateAnnouncement, getAnnouncementCategories, uploadAnnouncementImages } = useAnnouncementsApi()
 
 // Fetch announcement data
-const { data: announcement, error: fetchError, pending: loading } = await getAnnouncementById(id);
+const { data: announcement, error: fetchError, pending: loading } = await useAsyncData(`announcement-${id}`, () => getAnnouncementById(id));
 
 // Check if announcement exists and is not published
 const canEdit = computed(() => {
@@ -28,6 +26,7 @@ const initialFormData = computed<AnnouncementFormData>(() => {
       title: '',
       content: '',
       images: [],
+      image_urls: [],
       category: ''
     };
   }
@@ -35,21 +34,66 @@ const initialFormData = computed<AnnouncementFormData>(() => {
   return {
     title: announcement.value.title,
     content: announcement.value.content,
-    images: announcement.value.images || [],
+    images: [], // New images will be uploaded separately
+    image_urls: announcement.value.image_urls || [],
     category: announcement.value.category,
   };
 });
 
 // Fetch categories from API
-const { data: categories, error: categoriesError } = await getCategories()
+const { data: categories, error: categoriesError } = await useAsyncData('announcement-categories', () => getAnnouncementCategories())
 
 const handleSave = async (formData: AnnouncementFormData, publish = false) => {
   saving.value = true;
   try {
-    await updateAnnouncement(id, {
-      ...formData,
-      published: publish
+    // Extract images from formData for separate upload
+    const { images, ...announcementData } = formData;
+    
+    // Update announcement first
+    const updatedAnnouncement = await updateAnnouncement(id, {
+      ...announcementData,
+      images: [], // Keep existing images, new ones will be uploaded separately
+      published: publish, // Set published status based on button clicked
+      notifications: {
+        partners: true,
+        customers: true,
+        suppliers: true
+      }
     });
+
+    // If there are new images to upload, upload them
+    if (images && images.length > 0) {
+      try {
+        // Convert base64 data URLs to File objects
+        const files: File[] = [];
+        for (const imageData of images) {
+          try {
+            // Convert base64 to blob
+            const response = await fetch(imageData);
+            const blob = await response.blob();
+            
+            // Create file from blob
+            const file = new File([blob], `image-${Date.now()}.jpg`, { type: blob.type });
+            files.push(file);
+          } catch (convertError) {
+            console.error('Error converting image:', convertError);
+            continue; // Skip this image and continue with others
+          }
+        }
+        
+        if (files.length > 0) {
+          // Upload images
+          await uploadAnnouncementImages(id, files);
+        }
+      } catch (imageError) {
+        console.error('Error uploading images:', imageError);
+        useToast().add({
+          title: 'Предупреждение',
+          description: 'Объявление обновлено, но не удалось загрузить новые изображения',
+          color: 'warning'
+        });
+      }
+    }
 
     useToast().add({
       title: 'Успешно',

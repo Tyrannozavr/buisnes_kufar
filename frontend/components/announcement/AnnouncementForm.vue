@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, computed, watch } from 'vue';
-import type { AnnouncementFormData } from '~/types/announcement';
-import type { Category } from '~/types/category';
+import type { AnnouncementFormData, AnnouncementCategory } from '~/types/announcement';
 import PublishConfirmModal from '~/components/announcement/PublishConfirmModal.vue';
 
 const props = defineProps({
@@ -11,7 +10,9 @@ const props = defineProps({
       title: '',
       content: '',
       images: [],
-      category: ''
+      image_urls: [],
+      category: '',
+      published: false
     })
   },
   isEdit: {
@@ -23,7 +24,7 @@ const props = defineProps({
     default: false
   },
   categories: {
-    type: Array as () => Category[],
+    type: Array as () => AnnouncementCategory[],
     default: () => []
   }
 });
@@ -36,7 +37,8 @@ const attemptedSubmit = ref(false);
 const showPublishConfirm = ref(false);
 
 const form = ref<AnnouncementFormData>({
-  ...props.initialData
+  ...props.initialData,
+  published: props.initialData.published || false
 });
 
 // Notification options
@@ -113,7 +115,8 @@ const validateContent = () => {
 const validateImages = () => {
   touchedFields.value.images = true;
 
-  if (form.value.images.length > 10) {
+  const totalImages = form.value.images.length + form.value.image_urls.length;
+  if (totalImages > 10) {
     imagesError.value = 'Максимальное количество изображений - 10';
     return false;
   }
@@ -131,7 +134,7 @@ watch(() => form.value.content, () => {
   if (touchedFields.value.content) validateContent();
 });
 
-watch(() => form.value.images, () => {
+watch([() => form.value.images, () => form.value.image_urls], () => {
   if (touchedFields.value.images) validateImages();
 }, { deep: true });
 
@@ -231,7 +234,8 @@ const handleImageUpload = (event: Event) => {
   touchedFields.value.images = true;
 
   // Check if adding these files would exceed the limit
-  if (form.value.images.length + target.files.length > 10) {
+  const totalImages = form.value.images.length + form.value.image_urls.length;
+  if (totalImages + target.files.length > 10) {
     imagesError.value = 'Максимальное количество изображений - 10';
     useToast().add({
       title: 'Превышен лимит',
@@ -263,7 +267,7 @@ const handleImageUpload = (event: Event) => {
 
     reader.onload = (e) => {
       if (e.target?.result) {
-        // Add the data URL to the images array
+        // Add the data URL to the images array (new uploaded files)
         form.value.images.push(e.target.result.toString());
       }
     };
@@ -276,9 +280,16 @@ const handleImageUpload = (event: Event) => {
   target.value = '';
 };
 
-const removeImage = (index: number) => {
+const removeImage = (index: number, isExistingImage: boolean = false) => {
   touchedFields.value.images = true;
-  form.value.images = form.value.images.filter((_, i) => i !== index);
+  
+  if (isExistingImage) {
+    // Remove from existing image_urls
+    form.value.image_urls = form.value.image_urls.filter((_, i) => i !== index);
+  } else {
+    // Remove from new uploaded images
+    form.value.images = form.value.images.filter((_, i) => i !== index);
+  }
 };
 </script>
 
@@ -354,12 +365,31 @@ const removeImage = (index: number) => {
           </div>
         </template>
       </UFormField>
-
       <UFormField label="Изображения" class="font-medium" :error="touchedFields.images ? imagesError : ''">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <!-- Existing images (image_urls) -->
+          <div
+            v-for="(image, index) in form.image_urls"
+            :key="`existing-${index}`"
+            class="relative aspect-square rounded-lg border overflow-hidden group shadow-sm hover:shadow-md transition-shadow"
+          >
+            <NuxtImg :src="image" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-transparent group-hover:bg-black/30 transition-all flex items-center justify-center">
+              <UButton
+                color="error"
+                variant="solid"
+                size="xs"
+                icon="i-heroicons-trash"
+                class="opacity-0 group-hover:opacity-100 transform transition-all"
+                @click="removeImage(index, true)"
+              />
+            </div>
+          </div>
+
+          <!-- New uploaded images (images) -->
           <div
             v-for="(image, index) in form.images"
-            :key="index"
+            :key="`new-${index}`"
             class="relative aspect-square rounded-lg border overflow-hidden group shadow-sm hover:shadow-md transition-shadow"
           >
             <img :src="image" class="w-full h-full object-cover" />
@@ -370,13 +400,14 @@ const removeImage = (index: number) => {
                 size="xs"
                 icon="i-heroicons-trash"
                 class="opacity-0 group-hover:opacity-100 transform transition-all"
-                @click="removeImage(index)"
+                @click="removeImage(index, false)"
               />
             </div>
           </div>
 
+          <!-- Add new image button -->
           <div
-            v-if="form.images.length < 10"
+            v-if="(form.images.length + form.image_urls.length) < 10"
             class="aspect-square rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center
             cursor-pointer hover:bg-gray-50 transition-colors"
           >
@@ -389,17 +420,33 @@ const removeImage = (index: number) => {
             <input id="file-upload" type="file" accept="image/*" multiple @change="handleImageUpload" class="hidden" />
           </div>
         </div>
+        
+        <!-- Image count hint -->
+        <template #hint>
+          <div class="flex justify-between text-sm text-gray-500">
+            <span>Максимум 10 изображений</span>
+            <span>{{ form.images.length + form.image_urls.length }}/10</span>
+          </div>
+        </template>
       </UFormField>
       <!-- Category selection -->
       <UFormField label="Категория">
-        <USelectMenu
+        <select
             v-model="form.category"
-            :items="categories.map(category => category.name)"
-            option-attribute="name"
-            value-attribute="id"
-            placeholder="Выберите категорию"
-            class="min-w-1/2"
-        />
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        >
+          <option value="">Выберите категорию</option>
+          <option 
+            v-for="category in categories" 
+            :key="category.id" 
+            :value="category.id"
+          >
+            {{ category.name }}
+          </option>
+        </select>
+        <template #hint v-if="form.category">
+          <span>{{ categories.find(c => c.id === form.category)?.description || '' }}</span>
+        </template>
       </UFormField>
       <!-- Notification options -->
       <UFormField label="Настройки уведомлений" class="font-medium">
@@ -441,7 +488,7 @@ const removeImage = (index: number) => {
         color="primary"
         :disabled="!isFormValid || saving"
         class="mr-2 cursor-pointer"
-        @click="handleSave"
+        @click="() => handleSave(false)"
       >
         Сохранить черновик
       </UButton>

@@ -438,8 +438,8 @@ const removeImage = (index: number, isExistingImage: boolean = false) => {
           <option value="">Выберите категорию</option>
           <option 
             v-for="category in categories" 
-            :key="category.id" 
-            :value="category.id"
+            :key="category.name"
+            :value="category.name"
           >
             {{ category.name }}
           </option>

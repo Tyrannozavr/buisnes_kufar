@@ -42,26 +42,31 @@ services:
     depends_on:
       - backend
       - frontend
-
+      -
   certbot:
-    image: certbot/certbot
-    restart: unless-stopped
-    volumes:
-      - ./nginx/letsencrypt:/etc/letsencrypt
-      - ./nginx/webroot:/var/www/html
-    command: certonly --webroot --webroot-path=/var/www/html -d tradesynergy.ru -d www.tradesynergy.ru --email evgenijsemakin001@mail.ru --agree-tos --non-interactive --keep-until-expiring --cert-name tradesynergy.ru
-    depends_on:
-      nginx:
-        condition: service_started
-
-  pgadmin:
-    image: dpage/pgadmin4
-    restart: unless-stopped
     ports:
-      - "5050:5050"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: dmitriy40647274@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: adminKufar2398
+      - "6000:80"
+    env_file:
+      - .env
+    # и снова мониторуем директорию nginx
+    volumes:
+      - ./nginx/:/etc/nginx/
+    build:
+      context: ./certbot
+      dockerfile: Dockerfile
+      # задаем переменные среды
+      args:
+        DOMAIN_EMAIL: Dmitriy40647274@gmail.com
+        DOMAIN_URL: https://tradesynergy.ru
+
+#  pgadmin:
+#    image: dpage/pgadmin4
+#    restart: unless-stopped
+#    ports:
+#      - "5050:5050"
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: dmitriy40647274@gmail.com
+#      PGADMIN_DEFAULT_PASSWORD: adminKufar2398
 
   db:
     image: postgres:17-alpine

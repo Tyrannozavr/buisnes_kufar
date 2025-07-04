@@ -56,6 +56,8 @@ services:
     environment:
       - DOMAIN_EMAIL=${DOMAIN_EMAIL}
       - DOMAIN_URL=${DOMAIN_URL}
+    env_file:
+      - ./certbot/.env
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
       - ./nginx/webroot:/var/www/html

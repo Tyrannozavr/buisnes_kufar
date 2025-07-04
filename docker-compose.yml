@@ -48,19 +48,18 @@ services:
       - frontend
   certbot:
     ports:
-      - "6000:80"
+      - "80:80"
     env_file:
       - ./certbot/.env
-    # и снова мониторуем директорию nginx
+    environment:
+      DOMAIN_EMAIL: "Dmitriy40647274@gmail.com"
+      DOMAIN_URL: "tradesynergy.ru"
     volumes:
-      - ./nginx/:/etc/nginx/
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/webroot:/var/www/html
     build:
       context: ./certbot
       dockerfile: Dockerfile
-      # задаем переменные среды
-      args:
-        DOMAIN_EMAIL: Dmitriy40647274@gmail.com
-        DOMAIN_URL: https://tradesynergy.ru
 
 #  pgadmin:
 #    image: dpage/pgadmin4

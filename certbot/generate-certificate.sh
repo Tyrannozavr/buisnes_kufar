@@ -14,7 +14,7 @@ rm -rf /etc/letsencrypt/live/certfolder*
 echo "Старые сертификаты удалены."
 
 # выдаем себе сертификат
-certbot certonly --standalone --email "$DOMAIN_EMAIL" -d "$DOMAIN_URL" --cert-name=certfolder --key-type rsa --agree-tos
+certbot certonly --webroot --webroot-path=/var/www/html --email "$DOMAIN_EMAIL" -d "$DOMAIN_URL" --cert-name=certfolder --key-type rsa --agree-tos
 
 echo "Сертификат успешно получен."
 

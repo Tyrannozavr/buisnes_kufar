@@ -7,13 +7,16 @@ from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.authentication.models import User
 from app.api.company.dependencies import company_service_dep, official_repository_dep
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
+from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.announcements import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse, \
     AnnouncementListResponse
-from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse
+from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse, CompanyRelationCreate, \
+    CompanyRelationResponse, CompanyRelationType
 from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
     CompanyOfficialPartialUpdate
 from app.api.company.services.announcement_service import AnnouncementService
 from app.api.dependencies import async_db_dep
+from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
 
 router = APIRouter(tags=["company"])
 
@@ -298,3 +301,121 @@ async def get_public_announcement(
         )
     
     return AnnouncementResponse.model_validate(announcement)
+
+
+@router.post("/me/relations", response_model=CompanyRelationResponse)
+async def add_company_relation(
+    data: CompanyRelationCreate,
+    current_user: current_user_dep,
+    company_service: company_service_dep,
+    db: async_db_dep
+):
+    """Добавить связь (поставщик, покупатель, партнер) для своей компании"""
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    repo = CompanyRelationsRepository(db)
+    relation = await repo.add_relation(company.id, data)
+    return relation
+
+
+@router.delete("/me/relations", response_model=dict)
+async def remove_company_relation(
+    related_company_id: int,
+    relation_type: CompanyRelationType,
+    current_user: current_user_dep,
+    company_service: company_service_dep,
+    db: async_db_dep
+):
+    """Удалить связь (поставщик, покупатель, партнер) для своей компании"""
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    repo = CompanyRelationsRepository(db)
+    success = await repo.remove_relation(company.id, related_company_id, relation_type)
+    return {"success": success}
+
+
+@router.get("/me/relations", response_model=list[CompanyRelationResponse])
+async def get_company_relations(
+    relation_type: CompanyRelationType = None,
+    current_user: current_user_dep = None,
+    company_service: company_service_dep = None,
+    db: async_db_dep = None
+):
+    """Получить связи (поставщики, покупатели, партнеры) своей компании"""
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    repo = CompanyRelationsRepository(db)
+    relations = await repo.get_relations(company.id, relation_type)
+    return relations
+
+
+@router.get("/me/partners", response_model=CompaniesResponse)
+async def get_my_partners(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    current_user: current_user_dep = None,
+    company_service: company_service_dep = None,
+    db: async_db_dep = None
+):
+    company = await company_service.get_company_by_user_id(current_user.id)
+    repo = CompanyRelationsRepository(db)
+    companies, total = await repo.get_related_companies(company.id, CompanyRelationType.PARTNER, page, per_page)
+    total_pages = (total + per_page - 1) // per_page
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages
+        )
+    )
+
+
+@router.get("/me/suppliers", response_model=CompaniesResponse)
+async def get_my_suppliers(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    current_user: current_user_dep = None,
+    company_service: company_service_dep = None,
+    db: async_db_dep = None
+):
+    company = await company_service.get_company_by_user_id(current_user.id)
+    repo = CompanyRelationsRepository(db)
+    companies, total = await repo.get_related_companies(company.id, CompanyRelationType.SUPPLIER, page, per_page)
+    total_pages = (total + per_page - 1) // per_page
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages
+        )
+    )
+
+
+@router.get("/me/buyers", response_model=CompaniesResponse)
+async def get_my_buyers(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    current_user: current_user_dep = None,
+    company_service: company_service_dep = None,
+    db: async_db_dep = None
+):
+    company = await company_service.get_company_by_user_id(current_user.id)
+    repo = CompanyRelationsRepository(db)
+    companies, total = await repo.get_related_companies(company.id, CompanyRelationType.BUYER, page, per_page)
+    total_pages = (total + per_page - 1) // per_page
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages
+        )
+    )

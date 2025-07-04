@@ -38,5 +38,6 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app /app/app
 COPY --from=builder /app/app_logging /app/app_logging
+COPY --from=builder /app/alembic.ini /app/alembic.ini
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

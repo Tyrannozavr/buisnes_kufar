@@ -17,6 +17,7 @@ from app.api.messages.models.message import Message
 from app.db.dependencies import async_db_dep, get_async_db
 from app.api.chats.websocket_manager import chat_manager
 from app.core.security import decode_token
+from app.core.config import settings
 from app_logging.logger import logger
 
 router = APIRouter()
@@ -142,7 +143,7 @@ async def get_chat_messages(
             "sender_company_id": m.sender_company_id,
             "sender_user_id": m.sender_user_id,
             "content": m.content,
-            "file_path": m.file_path,
+            "file_path": f"{settings.BASE_FILES_URL}/{m.file_path}" if m.file_path else None,
             "file_name": m.file_name,
             "file_size": m.file_size,
             "file_type": m.file_type,
@@ -282,7 +283,7 @@ async def send_message(
         "sender_company_id": message.sender_company_id,
         "sender_user_id": message.sender_user_id,
         "content": message.content,
-        "file_path": message.file_path,
+        "file_path": f"{settings.BASE_FILES_URL}/{message.file_path}" if message.file_path else None,
         "file_name": message.file_name,
         "file_size": message.file_size,
         "file_type": message.file_type,

@@ -47,7 +47,9 @@ class Settings(BaseSettings):
     # Настройки фронтенда
     FRONTEND_URL: str = "http://localhost:3000"
     BASE_IMAGE_URL: str = "http://localhost:8000"
-    
+
+    BASE_FILES_URL: str = "http://localhost:8000"
+
     # CORS настройки
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

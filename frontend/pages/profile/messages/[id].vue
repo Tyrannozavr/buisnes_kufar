@@ -282,8 +282,11 @@ const formatFileSize = (bytes: number) => {
     <div class="flex-1 flex flex-col">
       <!-- Заголовок чата -->
       <div v-if="chat" class="p-4 border-b border-gray-200 bg-white">
-        <div class="flex items-center space-x-3">
-          <img
+        <NuxtLink
+            :to="`/companies/${otherParticipant?.company_slug}`"
+            class="flex items-center space-x-3"
+        >
+          <NuxtImg
             :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
             :alt="otherParticipant?.company_name"
             class="w-10 h-10 rounded-full object-cover"
@@ -305,7 +308,7 @@ const formatFileSize = (bytes: number) => {
               </span>
             </div>
           </div>
-        </div>
+        </NuxtLink>
       </div>
 
       <div v-if="chatPending || messagesPending" class="flex-1 flex items-center justify-center">

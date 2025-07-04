@@ -4,8 +4,10 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
       DEV_REDIRECT_URL: "http://frontend:3000"
     volumes:
       - ./logs/backend:/app/logging
@@ -42,7 +44,6 @@ services:
     depends_on:
       - backend
       - frontend
-      -
   certbot:
     ports:
       - "6000:80"

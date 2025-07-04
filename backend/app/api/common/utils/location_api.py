@@ -84,6 +84,7 @@ class LocationAPI:
         """Инициализация клиента API"""
         self.base_url = "http://htmlweb.ru/geo/api.php"
         self.api_key = settings.LOCATION_API_KEY
+        logger.error(f"Settings are {settings.__dict__}")
         if not self.api_key:
             logger.error("LOCATION_API_KEY не настроен")
         self.client = httpx.AsyncClient(timeout=10.0)

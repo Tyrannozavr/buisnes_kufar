@@ -7,56 +7,43 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      # Настройка SSH
+      # Настройка SSH (оптимизированная версия)
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-          echo "Host target-server" >> ~/.ssh/config
+          echo "${{ secrets.SERVER_IP }} ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkm5YLr4GqQd6k1P1n1uUVUjOZiVXyZpeYzi2NABqXZNZg8X1u8uW2/2QY=" >> ~/.ssh/known_hosts
+          echo "Host target-server" > ~/.ssh/config
           echo "  HostName ${{ secrets.SERVER_IP }}" >> ~/.ssh/config
           echo "  User root" >> ~/.ssh/config
           echo "  IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
-      - name: Pre-cache Docker images with retries
+      - name: Check for changes
+        id: check-changes
         run: |
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
-          echo "🔹 Предзагрузка Docker-образов с повторами..."
-          for image in nginx:1.25 python:3.12-slim node:20-slim; do
-            for i in {1..3}; do
-              if docker pull $image; then
-                echo "✅ Успешно загружен $image"
-                break
-              else
-                echo "⚠️ Попытка $i/3 не удалась для $image"
-                if [ $i -eq 3 ]; then
-                  echo "❌ Не удалось загрузить $image после 3 попыток"
-                  # Не выходим с ошибкой, так как образы могут быть пересобраны
-                fi
-                sleep 5
-              fi
-            done
-          done
-          EOF
+          changes=$(ssh target-server "cd buisnes_kufar && git fetch origin && git diff --name-only HEAD origin/master")
+          if [ -z "$changes" ]; then
+            echo "::set-output name=has_changes::false"
+            echo "✅ No changes detected"
+          else
+            echo "::set-output name=has_changes::true"
+            echo "🔴 Changes detected:"
+            echo "$changes"
+          fi
 
-      - name: Deploy with validation and rollback
+      - name: Deploy application
+        if: steps.check-changes.outputs.has_changes == 'true'
         run: |
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          ssh target-server << 'EOF'
           set -e
           cd buisnes_kufar
-          
-          # Check for changes
-          git fetch origin
-          if git diff --quiet HEAD origin/master; then
-            echo "✅ No new changes. Exiting."
-            exit 0
-          fi
           
           # Create rollback point
           current_commit=$(git rev-parse HEAD)
@@ -65,70 +52,36 @@ jobs:
           # Apply changes
           git reset --hard origin/master
           
-          # Ensure .env files exist
-          if [ ! -f "./backend/.env" ]; then
-            echo "⚠️ backend/.env not found, creating from template"
-            cp ./backend/.env.example ./backend/.env
-          fi
+          # Проверка .env файлов (только если их нет)
+          [ -f "./backend/.env" ] || cp ./backend/.env.example ./backend/.env
+          [ -f "./frontend/.env" ] || cp ./frontend/.env.example ./frontend/.env
           
-          if [ ! -f "./frontend/.env" ]; then
-            echo "⚠️ frontend/.env not found, creating from template"
-            cp ./frontend/.env.example ./frontend/.env
-          fi
-          
-          # Clean old containers
-          docker compose down || true
-          
-          # Build and run with health checks
-          echo "🛠 Building and starting containers..."
-          if docker compose build --no-cache && docker compose up -d nginx; then
-            # Wait for containers to initialize
-            sleep 30
-            
-            # Check container status with retries
-            REQUIRED_CONTAINERS="backend frontend nginx db"
-            failed=false
-            
-            for container in $REQUIRED_CONTAINERS; do
-              for i in {1..5}; do
-                if [ "$(docker compose ps -q $container)" ] && \
-                   [ "$(docker inspect -f '{{.State.Running}}' $(docker compose ps -q $container))" = "true" ]; then
-                  echo "✅ Container $container is running"
-                  break
-                else
-                  if [ $i -eq 5 ]; then
-                    echo "❌ Container $container failed to start after 5 attempts"
-                    docker compose logs $container
-                    failed=true
-                  else
-                    echo "⚠️ Container $container not ready, attempt $i/5"
-                    sleep 10
-                  fi
+          # Основная команда деплоя (как вы делаете вручную)
+          echo "🚀 Starting deployment with nginx..."
+          if docker compose up -d --build nginx; then
+            # Проверка работы nginx
+            for i in {1..5}; do
+              if docker compose ps nginx | grep -q "Up"; then
+                echo "✅ Nginx is running"
+                break
+              else
+                if [ $i -eq 5 ]; then
+                  echo "❌ Nginx failed to start after 5 attempts"
+                  docker compose logs nginx
+                  exit 1
                 fi
-              done
+                sleep 5
+              fi
             done
-            
-            if [ "$failed" = true ]; then
-              echo "❌ Not all containers started! Rolling back..."
-              git reset --hard $current_commit
-              docker compose down
-              docker compose up -d nginx
-              exit 1
-            fi
           else
-            echo "❌ Build/start failed! Rolling back..."
+            echo "❌ Deployment failed! Rolling back..."
             git reset --hard $current_commit
-            docker compose down
             docker compose up -d nginx
             exit 1
           fi
           EOF
 
-      - name: Clean up old images
-        if: always()  # Очищаем всегда, даже если предыдущие шаги упали
+      - name: Cleanup (weekly)
+        if: github.event.schedule == '0 0 * * 1'  # Каждый понедельник в 00:00
         run: |
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
-          echo "🧹 Очистка неиспользуемых Docker образов..."
-          docker system prune -af || true
-          echo "✅ Очистка завершена."
-          EOF
+          ssh target-server "docker system prune -af --filter 'until=168h'"  # Очистка образов старше 1 недели

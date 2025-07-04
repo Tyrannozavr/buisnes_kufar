@@ -1,22 +1,22 @@
-# Dockerfile
 FROM ubuntu:22.04
 
-EXPOSE 6000 80
+# Устанавливаем необходимые пакеты
+RUN apt-get update && \
+    apt-get install -y \
+    certbot \
+    python3-certbot-nginx \  # Для интеграции с Nginx (опционально)
+    && rm -rf /var/lib/apt/lists/*
 
-# читаем переменные среды из .env
-ARG DOMAIN_EMAIL
-ARG DOMAIN_URL
+# Копируем скрипт и даем права на выполнение
+COPY generate-certificate.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/generate-certificate.sh
 
-# устанавливаем переменные среды в переменные
-ENV DOMAIN_EMAIL=$DOMAIN_EMAIL
-ENV DOMAIN_URL=$DOMAIN_URL
-
+# Рабочая директория
 WORKDIR /certbot
-COPY . /certbot
-WORKDIR /certbot
 
-RUN apt-get update
-RUN apt-get -y install certbot
+# Переменные среды
+ENV DOMAIN_EMAIL=${DOMAIN_EMAIL:-"default@example.com"}
+ENV DOMAIN_URL=${DOMAIN_URL:-"example.com"}
 
-# запускаем скрипт генерации
-CMD ["sh", "generate-certificate.sh"]
+# Точка входа
+CMD ["/usr/local/bin/generate-certificate.sh"]

@@ -50,13 +50,12 @@ services:
   certbot:
     build:
       context: ./certbot
-      dockerfile: Dockerfile
-    command: /generate-certificate.sh
-    env_file:
-      - ./certbot/.env
+      args:
+        - DOMAIN_EMAIL=${DOMAIN_EMAIL}
+        - DOMAIN_URL=${DOMAIN_URL}
     environment:
-      DOMAIN_EMAIL: "Dmitriy40647274@gmail.com"
-      DOMAIN_URL: "tradesynergy.ru"
+      - DOMAIN_EMAIL=${DOMAIN_EMAIL}
+      - DOMAIN_URL=${DOMAIN_URL}
     volumes:
       - ./nginx/letsencrypt:/etc/letsencrypt
       - ./nginx/webroot:/var/www/html

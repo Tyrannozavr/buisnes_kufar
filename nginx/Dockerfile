@@ -5,7 +5,7 @@ FROM nginx:latest AS builder
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Финальный образ
-FROM nginx:1.25
+FROM nginx:latest
 COPY --from=builder /etc/nginx /etc/nginx
 COPY nginx.conf /etc/nginx/conf.d/
 COPY letsencrypt /etc/nginx/letsencrypt/

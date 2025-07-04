@@ -50,12 +50,6 @@ services:
   certbot:
     build:
       context: ./certbot
-      args:
-        - DOMAIN_EMAIL=${DOMAIN_EMAIL}
-        - DOMAIN_URL=${DOMAIN_URL}
-    environment:
-      - DOMAIN_EMAIL=${DOMAIN_EMAIL}
-      - DOMAIN_URL=${DOMAIN_URL}
     env_file:
       - ./certbot/.env
     volumes:

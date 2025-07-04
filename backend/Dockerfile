@@ -21,6 +21,7 @@ RUN poetry config virtualenvs.create false && \
 # Копируем исходный код
 COPY app/ ./app/
 COPY app_logging/ ./app_logging/
+COPY alembic.ini ./alembic.ini
 
 
 # Второй этап - итоговый образ

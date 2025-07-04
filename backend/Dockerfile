@@ -22,6 +22,7 @@ RUN poetry config virtualenvs.create false && \
 COPY app/ ./app/
 COPY app_logging/ ./app_logging/
 COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
 
 
 # Второй этап - итоговый образ
@@ -40,5 +41,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app /app/app
 COPY --from=builder /app/app_logging /app/app_logging
 COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/alembic /app/alembic
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

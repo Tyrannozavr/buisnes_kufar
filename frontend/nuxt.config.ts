@@ -22,15 +22,17 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.VITE_PUBLIC_API_URL || 'http://localhost:3000/api'
     }
   },
+  // Отключаем загрузку шрифтов через переменную окружения
+  nitro: {
+    experimental: {
+      wasm: true
+    }
+  },
   // Add explicit colorMode configuration
   ui: {
     colorMode: false,
-    // Отключаем автоматическую загрузку шрифтов с Fontshare
-    fonts: {
-      families: {
-        sans: false
-      }
-    }
+    // Полностью отключаем автоматическую загрузку шрифтов
+    fonts: false
   },
   compatibilityDate: '2024-11-27',
   ssr: true,

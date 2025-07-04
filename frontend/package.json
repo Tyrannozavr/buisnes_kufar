@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "NUXT_UI_FONTS=false nuxt build",
     "dev": "nuxt dev",
     "start": "nuxt start",
     "generate": "nuxt generate",

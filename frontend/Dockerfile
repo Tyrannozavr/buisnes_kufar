@@ -13,10 +13,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY . .
 
 # Сборка проекта
+ENV NUXT_UI_FONTS=false
 RUN npm run build
 
-# Удаляем ненужные файлы после сборки
-RUN rm -rf ./src ./test ./*.md ./.github ./node_modules
+# Удаляем ненужные файлы после сборки, но оставляем node_modules
+RUN rm -rf ./src ./test ./*.md ./.github
 
 # Финальный этап
 FROM node:20-slim

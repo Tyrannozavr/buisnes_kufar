@@ -12,6 +12,12 @@ export default defineAppConfig({
       }
     },
     // Add dark mode configuration
-    strategy: 'class'
+    strategy: 'class',
+    // Отключаем автоматическую загрузку шрифтов
+    fonts: {
+      families: {
+        sans: false
+      }
+    }
   }
 })

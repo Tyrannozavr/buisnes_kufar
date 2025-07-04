@@ -25,6 +25,12 @@ export default defineNuxtConfig({
   // Add explicit colorMode configuration
   ui: {
     colorMode: false,
+    // Отключаем автоматическую загрузку шрифтов с Fontshare
+    fonts: {
+      families: {
+        sans: false
+      }
+    }
   },
   compatibilityDate: '2024-11-27',
   ssr: true,

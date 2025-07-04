@@ -1,5 +1,5 @@
 # Убедитесь что базовый образ есть локально
-FROM nginx:1.25 AS builder
+FROM nginx:latest AS builder
 
 # Ваши команды
 RUN rm /etc/nginx/conf.d/default.conf

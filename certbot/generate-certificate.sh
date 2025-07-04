@@ -14,18 +14,11 @@ rm -rf /etc/letsencrypt/live/tradesynergy.ru
 echo "Старые сертификаты удалены."
 
 # выдаем себе сертификат
-certbot certonly --webroot --webroot-path=/var/www/html --email "$DOMAIN_EMAIL" -d "$DOMAIN_URL" --cert-name=certfolder --key-type rsa --agree-tos
+certbot certonly --webroot --webroot-path=/var/www/html --email "$DOMAIN_EMAIL" -d "$DOMAIN_URL" --cert-name=tradesynergy.ru --key-type rsa --agree-tos --non-interactive
 
 echo "Сертификат успешно получен."
 
-# удаляем старые сертификаты из папки Nginx
-rm -f /etc/nginx/cert.pem
-rm -f /etc/nginx/key.pem
-echo "Старые сертификаты Nginx удалены."
-
-# копируем сертификаты из certbot в папку Nginx
-cp /etc/letsencrypt/live/tradesynergy.ru/fullchain.pem /etc/nginx/cert.pem
-cp /etc/letsencrypt/live/tradesynergy.ru/privkey.pem /etc/nginx/key.pem
-echo "Сертификаты скопированы в /etc/nginx."
+# Сертификаты уже находятся в правильном месте для nginx
+echo "Сертификаты готовы для использования nginx."
 
 echo "Готово! Сертификаты обновлены." 

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { addCompanyRelation, removeCompanyRelation, getCompanyRelations } from '~/api/company'
 import { CompanyRelationType } from '~/types/company'
+import { useToast } from 'vue-toastification'
 
 interface Props {
   companyId: number
@@ -12,6 +13,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const userStore = useUserStore()
+const toast = useToast()
 
 const isOwnCompany = computed(() => {
   if (!userStore.isAuthenticated) return false
@@ -26,10 +28,10 @@ const fetchRelations = async () => {
   loading.value = true
   try {
     for (const type of Object.values(CompanyRelationType)) {
-      const { data: existingRelations } = await getCompanyRelations(type as CompanyRelationType)
-      console.log("data is ", existingRelations,)
-      relations.value[type as CompanyRelationType] = Array.isArray(existingRelations)
-        ? existingRelations.some((rel: any) => rel.related_company_id === props.companyId)
+      const { data } = await getCompanyRelations(type as CompanyRelationType)
+      const relationsArr = data?.data ?? data ?? []
+      relations.value[type as CompanyRelationType] = Array.isArray(relationsArr)
+        ? relationsArr.some((rel: any) => rel.related_company_id === props.companyId)
         : false
     }
   } finally {
@@ -44,6 +46,9 @@ const handleAdd = async (type: CompanyRelationType) => {
   try {
     await addCompanyRelation(props.companyId, type)
     relations.value[type] = true
+    toast.success('Компания добавлена в список')
+  } catch (e) {
+    toast.error('Ошибка при добавлении')
   } finally {
     loading.value = false
   }
@@ -54,32 +59,14 @@ const handleRemove = async (type: CompanyRelationType) => {
   try {
     await removeCompanyRelation(props.companyId, type)
     relations.value[type] = false
+    toast.success('Компания удалена из списка')
+  } catch (e) {
+    toast.error('Ошибка при удалении')
   } finally {
     loading.value = false
   }
 }
-</script>
 
-<template>
-  <div v-if="userStore.isAuthenticated && !isOwnCompany">
-    <div class="flex gap-2">
-      <template v-for="type in [CompanyRelationType.PARTNER, CompanyRelationType.SUPPLIER, CompanyRelationType.BUYER]" :key="type">
-        <UButton
-          :loading="loading"
-          :color="relations[type] ? 'success' : 'primary'"
-          :variant="relations[type] ? 'soft' : 'solid'"
-          size="sm"
-          class="min-w-[120px]"
-          @click="relations[type] ? handleRemove(type) : handleAdd(type)"
-        >
-          {{ relations[type] ? `Удалить из ${relationLabel(type)}` : `Добавить в ${relationLabel(type)}` }}
-        </UButton>
-      </template>
-    </div>
-  </div>
-</template>
-
-<script lang="ts">
 function relationLabel(type: CompanyRelationType) {
   switch (type) {
     case CompanyRelationType.PARTNER:
@@ -94,9 +81,31 @@ function relationLabel(type: CompanyRelationType) {
 }
 </script>
 
+<template>
+  <div v-if="userStore.isAuthenticated && !isOwnCompany">
+    <div class="flex gap-2">
+      <template v-for="type in [CompanyRelationType.PARTNER, CompanyRelationType.SUPPLIER, CompanyRelationType.BUYER]" :key="type">
+        <UButton
+          :loading="loading"
+          :color="relations[type] ? 'success' : 'primary'"
+          :variant="relations[type] ? 'soft' : 'solid'"
+          size="md"
+          class="min-w-[180px]"
+          @click="relations[type] ? handleRemove(type) : handleAdd(type)"
+        >
+          {{ relations[type] ? `Удалить из ${relationLabel(type)}` : `Добавить в ${relationLabel(type)}` }}
+        </UButton>
+      </template>
+    </div>
+  </div>
+</template>
+
 <style scoped>
 .flex {
   display: flex;
   gap: 0.5rem;
+}
+.min-w-180px {
+  min-width: 180px;
 }
 </style> 

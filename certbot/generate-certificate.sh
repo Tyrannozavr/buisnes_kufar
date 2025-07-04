@@ -31,4 +31,9 @@ certbot certonly --webroot \
   --force-renewal
 
 echo "Сертификат успешно получен."
+
+# Обновляем символические ссылки
+echo "Обновление символических ссылок..."
+./update-certificate-links.sh
+
 echo "Готово! Сертификаты обновлены."

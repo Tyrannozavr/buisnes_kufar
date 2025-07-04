@@ -58,6 +58,13 @@ services:
     depends_on:
       - nginx
 
+  certbot-fix:
+    build:
+      context: ./certbot
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    command: ["/usr/local/bin/fix-certificate-links.sh"]
+
 #  pgadmin:
 #    image: dpage/pgadmin4
 #    restart: unless-stopped

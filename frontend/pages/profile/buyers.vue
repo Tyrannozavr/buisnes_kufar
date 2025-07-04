@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import CompaniesList from "~/components/company/CompaniesList.vue"
-import { useBuyersApi } from '~/api'
-
+import { getBuyers, removeCompanyRelation } from '~/api/company'
+import { CompanyRelationType } from '~/types/company'
 
 definePageMeta({
   layout: 'profile'
 })
-
-const { getBuyers, removeBuyer } = useBuyersApi()
 
 const {
   data: buyers,
@@ -17,21 +15,23 @@ const {
 } = await getBuyers()
 
 const handleRemoveBuyer = async (buyer: PartnerCompany) => {
-  try {
-    await removeBuyer(buyer.slug)
-    await refreshBuyers()
-    useToast().add({
-      title: 'Успешно',
-      description: 'Покупатель удален из списка',
-      color: 'primary'
-    })
-  } catch (e) {
-    useToast().add({
-      title: 'Ошибка',
-      description: e instanceof Error ? e.message : 'Не удалось удалить покупателя',
-      color: 'error'
-    })
-  }
+  console.log("Handle remove byers")
+  await removeCompanyRelation(buyer.id, CompanyRelationType.BUYER)
+  await refreshBuyers()
+  // try {
+  //   await deletePartnerById(props.partner.slug)
+  //   useToast().add({
+  //     title: 'Успешно',
+  //     description: 'Компания удалена из списка',
+  //     color: 'success'
+  //   })
+  // } catch (error) {
+  //   useToast().add({
+  //     title: 'Ошибка',
+  //     description: 'Не удалось удалить компанию',
+  //     color: 'error'
+  //   })
+  // }
 }
 </script>
 

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import CompaniesList from "~/components/company/CompaniesList.vue"
-import { useSuppliersApi } from '~/api'
+import { getSuppliers, removeCompanyRelation } from '~/api/company'
+import { CompanyRelationType } from '~/types/company'
 
 definePageMeta({
   layout: 'profile'
 })
-
-const { getSuppliers, removeSupplier } = useSuppliersApi()
 
 const {
   data: suppliers,
@@ -16,21 +15,8 @@ const {
 } = await getSuppliers()
 
 const handleRemoveSupplier = async (supplier: PartnerCompany) => {
-  try {
-    await removeSupplier(supplier.slug)
-    await refreshSuppliers()
-    useToast().add({
-      title: 'Успешно',
-      description: 'Поставщик удален из списка',
-      color: 'primary'
-    })
-  } catch (e) {
-    useToast().add({
-      title: 'Ошибка',
-      description: e instanceof Error ? e.message : 'Не удалось удалить поставщика',
-      color: 'error'
-    })
-  }
+  await removeCompanyRelation(supplier.id, CompanyRelationType.SUPPLIER)
+  await refreshSuppliers()
 }
 </script>
 

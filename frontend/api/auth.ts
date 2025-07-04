@@ -73,18 +73,15 @@ export const authApi = {
 
   async logout(): Promise<void> {
     try {
-      console.log('🚪 Calling backend logout API...')
-      await $fetch(`${apiBaseUrl}${AUTH_API.LOGOUT}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-      console.log('✅ Backend logout successful')
+      // await $fetch(`${apiBaseUrl}${AUTH_API.LOGOUT}`, {
+      //   method: 'POST',
+      //   credentials: 'include',
+      //   headers: {
+      //     'Accept': 'application/json',
+      //     'Content-Type': 'application/json'
+      //   }
+      // })
     } catch (error: any) {
-      console.error('❌ Backend logout error:', error)
       // Don't throw error, continue with local logout
     }
   }
@@ -162,13 +159,9 @@ export function useAuthApi() {
   }
 
   const verifyToken = async (token?: string): Promise<VerifyTokenResponse> => {
-    console.log('🔍 verifyToken called')
-    
     // Use provided token or get from cookie
     const tokenToUse = token || useCookie('access_token').value
-    console.log('🍪 Token to use in verifyToken:', tokenToUse ? 'Present' : 'Missing')
     if (tokenToUse) {
-      console.log('🔍 Token preview in verifyToken:', tokenToUse.substring(0, 20) + '...')
     }
     
     try {
@@ -186,7 +179,6 @@ export function useAuthApi() {
         credentials: 'include'
       })
       
-      console.log('✅ verifyToken successful:', response)
       return response
     } catch (error) {
       console.error('❌ verifyToken failed:', error)
@@ -232,31 +224,16 @@ export function useAuthApi() {
           'Content-Type': 'application/json'
         }
       })
-
-      console.log('✅ Login API response received:', {
-        hasToken: !!response.access_token,
-        tokenType: response.token_type,
-        tokenPreview: response.access_token ? response.access_token.substring(0, 20) + '...' : 'No token'
-      })
-
       // Set the token in a cookie (client-side only, with options)
       if (process.client) {
-        console.log('🌐 Setting token in cookie (client-side)')
         // Установить через useCookie (Nuxt), но также явно через document.cookie для надёжности
         const cookie = useCookie('access_token', { path: '/', sameSite: 'lax' })
         cookie.value = response.access_token
         document.cookie = `access_token=${response.access_token}; path=/; SameSite=Lax`;
-        console.log("🍪 Setting access token to cookie (client)", cookie.value ? 'Success' : 'Failed')
-        console.log("🔍 Cookie value after setting:", cookie.value ? cookie.value.substring(0, 20) + '...' : 'No value')
-        
         // Verify cookie was set
         const verifyCookie = useCookie('access_token')
-        console.log("🔍 Verification - cookie value:", verifyCookie.value ? 'Present' : 'Missing')
-      } else {
-        console.log('🖥️ Server-side login, not setting cookie')
       }
     } catch (error: any) {
-      console.error('❌ Login API error:', error)
       throw formatErrorResponse(error)
     }
   }
@@ -328,9 +305,7 @@ export function useAuthApi() {
           'Content-Type': 'application/json'
         }
       })
-      console.log('✅ Backend logout successful')
     } catch (error: any) {
-      console.error('❌ Backend logout error:', error)
       // Don't throw error, continue with local logout
     }
   }

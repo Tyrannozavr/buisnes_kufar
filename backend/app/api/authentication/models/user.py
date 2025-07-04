@@ -13,7 +13,7 @@ class User(Base):
     last_name = Column(String, nullable=True)
     patronymic = Column(String, nullable=True)
     phone = Column(String, nullable=False)
-    inn = Column(String, nullable=True)
+    inn = Column(String, nullable=True, unique=True)
     position = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)

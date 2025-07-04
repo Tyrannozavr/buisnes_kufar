@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.company.models.company import Company
-from app.api.company.models.official import CompanyOfficial
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyCreateInactive
 
 
@@ -172,7 +171,6 @@ class CompanyRepository:
         ИНН берется из данных пользователя, остальные поля заполняются значениями по умолчанию.
         Также создает запись в CompanyOfficial для текущего пользователя.
         """
-        from app.api.authentication.models import User
         from app.api.company.models.official import CompanyOfficial
         from app.api.company.models.company import TradeActivity, BusinessType
         
@@ -205,8 +203,8 @@ class CompanyRepository:
             
             # Legal information
             full_name="Полное наименование не указано",
-            inn=user.inn or "000000000000",  # ИНН из данных пользователя
-            ogrn="000000000000000",  # Временное значение
+            inn=user.inn,  # ИНН из данных пользователя
+            ogrn=None,  # Временное значение
             kpp="000000000",  # Временное значение
             registration_date=datetime.now(),
             legal_address="Адрес не указан",

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.authentication.repositories.user_repository import UserRepository
@@ -16,7 +17,7 @@ from app_logging.logger import logger
 
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository, db: Session):
+    def __init__(self, user_repository: UserRepository, db: AsyncSession):
         self.user_repository = user_repository
         self.db = db
 

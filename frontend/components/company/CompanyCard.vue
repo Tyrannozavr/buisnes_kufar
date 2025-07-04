@@ -7,28 +7,20 @@ const props = defineProps<{
   partner: PartnerCompany
 }>()
 
+const emit = defineEmits<{
+  (e: 'remove', company: PartnerCompany): void
+}>()
+
 const router = useRouter()
 const { deletePartnerById } = useCompaniesApi()
 
 const navigateToCompany = () => {
-  router.push(`/company/${props.partner.slug}`)
+  router.push(`/companies/${props.partner.slug}`)
 }
 
 const handleDelete = async () => {
-  try {
-    await deletePartnerById(props.partner.slug)
-    useToast().add({
-      title: 'Успешно',
-      description: 'Компания удалена из списка',
-      color: 'success'
-    })
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось удалить компанию',
-      color: 'error'
-    })
-  }
+  emit('remove', props.partner)
+
 }
 </script>
 

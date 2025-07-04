@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
 from typing import List, Optional
+import json
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +14,10 @@ from app.api.chats.schemas.chat_participant import ChatParticipantResponse
 from app.api.chats.services.chat_service import ChatService
 from app.api.company.models.company import Company
 from app.api.messages.models.message import Message
-from app.db.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep, get_async_db
+from app.api.chats.websocket_manager import chat_manager
+from app.core.security import decode_token
+from app_logging.logger import logger
 
 router = APIRouter()
 
@@ -271,7 +275,8 @@ async def send_message(
     await db.commit()
     await db.refresh(message)
 
-    return {
+    # Отправляем уведомление через WebSocket
+    message_data = {
         "id": message.id,
         "chat_id": message.chat_id,
         "sender_company_id": message.sender_company_id,
@@ -285,3 +290,72 @@ async def send_message(
         "created_at": message.created_at,
         "updated_at": message.updated_at,
     }
+    
+    await chat_manager.send_message_to_chat(chat_id, message_data, current_user.id)
+
+    return message_data
+
+
+@router.websocket("/{chat_id}/ws")
+async def websocket_endpoint(websocket: WebSocket, chat_id: int):
+    """WebSocket endpoint для чата"""
+    try:
+        # Получаем токен из query параметров
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=4001, reason="Token required")
+            return
+        
+        # Декодируем токен
+        try:
+            payload = decode_token(token)
+            user_id = int(payload.get("sub"))
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+        
+        # Проверяем, что пользователь является участником чата
+        async for db in get_async_db():
+            chat_service = ChatService(db)
+            chat = await chat_service.get_chat_by_id(chat_id)
+            if not chat:
+                await websocket.close(code=4004, reason="Chat not found")
+                return
+            
+            if not any(p.user_id == user_id for p in chat.participants):
+                await websocket.close(code=4003, reason="Access denied: not a chat participant")
+                return
+            break
+        
+        # Подключаем к чату
+        await chat_manager.connect(websocket, chat_id, user_id)
+        
+        # Обрабатываем сообщения
+        while True:
+            try:
+                data = await websocket.receive_text()
+                message_data = json.loads(data)
+                
+                message_type = message_data.get("type")
+                
+                if message_type == "typing":
+                    # Отправляем индикатор печати
+                    is_typing = message_data.get("is_typing", False)
+                    await chat_manager.send_typing_indicator(chat_id, user_id, is_typing)
+                
+                elif message_type == "ping":
+                    # Отвечаем на ping
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
+                break
+    
+    except Exception as e:
+        logger.error(f"WebSocket connection error: {e}")
+    finally:
+        # Отключаем от чата
+        if 'user_id' in locals() and 'chat_id' in locals():
+            chat_manager.disconnect(chat_id, user_id)

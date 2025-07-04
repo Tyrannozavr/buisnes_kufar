@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {ChatParticipant} from '~/types/chat'
 import {useChatsApi} from '~/api/chats'
+import { useWebSocket } from '~/composables/useWebSocket'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -11,7 +12,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const chatId = route.params.id as string
+const chatId = parseInt(route.params.id as string)
 
 // Получаем данные пользователя из store
 const userStore = useUserStore()
@@ -34,6 +35,91 @@ const newMessage = ref('')
 const showFilesModal = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
+const isTyping = ref(false)
+const typingTimeout = ref<NodeJS.Timeout | null>(null)
+const messagesContainer = ref<HTMLElement | null>(null)
+
+// WebSocket setup
+const config = useRuntimeConfig()
+const accessToken = useCookie('access_token')
+const wsUrl = `${config.public.apiBaseUrl?.replace('http', 'ws')}/v1/chats/${chatId}/ws?token=${accessToken.value}`
+
+// Функция для прокрутки к последнему сообщению
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
+}
+
+// Функция для добавления нового сообщения
+const addNewMessage = (message: any) => {
+  if (messages.value) {
+    // Проверяем, нет ли уже такого сообщения
+    const existingIndex = messages.value.findIndex(m => m.id === message.id)
+    if (existingIndex === -1) {
+      messages.value.push(message)
+      scrollToBottom()
+    }
+  }
+}
+
+const { 
+  isConnected, 
+  isConnecting, 
+  error: wsError, 
+  connect: connectWs, 
+  disconnect: disconnectWs, 
+  sendTyping 
+} = useWebSocket(wsUrl, {
+  onMessage: (message) => {
+    console.log('WebSocket message received:', message)
+    
+    if (message.type === 'new_message') {
+      // Добавляем новое сообщение в список только если это не наше временное сообщение
+      if (!message.message.is_temp) {
+        addNewMessage(message.message)
+      }
+    } else if (message.type === 'typing_indicator') {
+      // Обрабатываем индикатор печати
+      if (message.user_id !== userStore.companyId) {
+        isTyping.value = message.is_typing
+      }
+    } else if (message.type === 'connection_established') {
+      console.log('WebSocket connection established')
+    }
+  },
+  onOpen: () => {
+    console.log('WebSocket connected')
+  },
+  onClose: () => {
+    console.log('WebSocket disconnected')
+  },
+  onError: (error) => {
+    console.error('WebSocket error:', error)
+  }
+})
+
+// Подключаемся к WebSocket при загрузке страницы
+onMounted(() => {
+  connectWs()
+  // Прокручиваем к последнему сообщению при загрузке
+  scrollToBottom()
+})
+
+// Отключаемся при уходе со страницы
+onUnmounted(() => {
+  disconnectWs()
+  if (typingTimeout.value) {
+    clearTimeout(typingTimeout.value)
+  }
+})
+
+// Следим за изменениями в сообщениях
+watch(messages, () => {
+  scrollToBottom()
+}, { deep: true })
 
 const otherParticipant = computed(() => {
   if (!chat.value) return null
@@ -47,39 +133,90 @@ const handleFileSelect = (event: Event) => {
   }
 }
 
+const handleTyping = () => {
+  // Отправляем индикатор печати
+  sendTyping(true)
+  
+  // Сбрасываем таймер
+  if (typingTimeout.value) {
+    clearTimeout(typingTimeout.value)
+  }
+  
+  // Останавливаем индикатор через 2 секунды
+  typingTimeout.value = setTimeout(() => {
+    sendTyping(false)
+  }, 2000)
+}
+
 const handleSendMessage = async () => {
   if (!newMessage.value.trim() && !selectedFile.value) return
 
   try {
-    await sendMessage(chatId, {
-      senderId: userStore.companyId?.toString() || '',
-      content: newMessage.value,
-      file: selectedFile.value || undefined
-    })
+    // Останавливаем индикатор печати
+    sendTyping(false)
+    if (typingTimeout.value) {
+      clearTimeout(typingTimeout.value)
+    }
 
+    // Создаем временное сообщение для немедленного отображения
+    const tempMessage = {
+      id: Date.now(), // Временный ID
+      chat_id: chatId,
+      sender_company_id: userStore.companyId,
+      sender_user_id: userStore.companyId, // Предполагаем, что user_id = company_id
+      content: newMessage.value,
+      file_path: selectedFile.value ? selectedFile.value.name : null,
+      file_name: selectedFile.value ? selectedFile.value.name : null,
+      file_size: selectedFile.value ? selectedFile.value.size : null,
+      file_type: selectedFile.value ? selectedFile.value.type : null,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_temp: true // Флаг для временного сообщения
+    }
+
+    // Добавляем временное сообщение сразу
+    addNewMessage(tempMessage)
+
+    // Очищаем поле ввода
+    const messageContent = newMessage.value
+    const fileToSend = selectedFile.value
     newMessage.value = ''
     selectedFile.value = null
     if (fileInput.value) {
       fileInput.value.value = ''
     }
-    await refreshMessages()
+
+    // Отправляем сообщение на сервер
+    const messageResponse = await sendMessage(chatId, {
+      senderId: userStore.companyId || 0,
+      content: messageContent,
+      file: fileToSend || undefined
+    })
+
+    // Заменяем временное сообщение на реальное
+    if (messages.value && messageResponse.data.value) {
+      const tempIndex = messages.value.findIndex(m => m.is_temp)
+      if (tempIndex !== -1) {
+        messages.value[tempIndex] = messageResponse.data.value
+      }
+    }
+
   } catch (error) {
     console.error('Failed to send message:', error)
+    // Удаляем временное сообщение в случае ошибки
+    if (messages.value) {
+      const tempIndex = messages.value.findIndex(m => m.is_temp)
+      if (tempIndex !== -1) {
+        messages.value.splice(tempIndex, 1)
+      }
+    }
   }
 }
 
-const handleChatSelect = (newChatId: string) => {
+const handleChatSelect = (newChatId: number) => {
   router.push(`/profile/messages/${newChatId}`)
 }
-
-// Обновляем сообщения каждые 5 секунд
-const refreshInterval = setInterval(() => {
-  refreshMessages()
-}, 5000)
-
-onUnmounted(() => {
-  clearInterval(refreshInterval)
-})
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return 'i-heroicons-photo'
@@ -132,8 +269,8 @@ const formatFileSize = (bytes: number) => {
               <p class="font-medium text-sm truncate">
                 {{ chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name }}
               </p>
-              <p v-if="chatItem.lastMessage" class="text-xs text-gray-500 truncate">
-                {{ chatItem.lastMessage.content }}
+              <p v-if="chatItem.last_message" class="text-xs text-gray-500 truncate">
+                {{ chatItem.last_message.content }}
               </p>
             </div>
           </div>
@@ -151,9 +288,22 @@ const formatFileSize = (bytes: number) => {
             :alt="otherParticipant?.company_name"
             class="w-10 h-10 rounded-full object-cover"
           />
-          <div>
+          <div class="flex-1">
             <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
-            <p class="text-sm text-gray-500">Онлайн</p>
+            <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-1">
+                <div 
+                  class="w-2 h-2 rounded-full"
+                  :class="isConnected ? 'bg-green-500' : 'bg-red-500'"
+                ></div>
+                <span class="text-xs text-gray-500">
+                  {{ isConnected ? 'Онлайн' : 'Офлайн' }}
+                </span>
+              </div>
+              <span v-if="isTyping" class="text-xs text-blue-500">
+                печатает...
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -163,7 +313,7 @@ const formatFileSize = (bytes: number) => {
       </div>
 
       <template v-else-if="chat">
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-200px)]">
           <div
               v-for="message in messages"
               :key="message.id"
@@ -225,6 +375,7 @@ const formatFileSize = (bytes: number) => {
                   type="text"
                   placeholder="Введите сообщение..."
                   class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  @input="handleTyping"
               >
             </div>
             <button

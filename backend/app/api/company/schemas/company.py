@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Optional, List, Union, TYPE_CHECKING
+from typing import Optional, List, Union, TYPE_CHECKING, Literal
+import enum
 
 from pydantic import BaseModel, EmailStr, HttpUrl, constr, Field, ConfigDict, computed_field, \
     model_validator
@@ -61,7 +62,7 @@ class CompanyCreateInactive(BaseModel):
     # Legal information - заполняем из данных пользователя
     full_name: str
     inn: str
-    ogrn: str = "000000000000000"  # Временное значение
+    ogrn: str = None  # Временное значение
     kpp: str = "000000000"  # Временное значение
     registration_date: datetime
     legal_address: str = "Адрес не указан"
@@ -160,7 +161,7 @@ class CompanyResponse(CompanyLogoUrlMixin):
     city: str
     full_name: str
     inn: str
-    ogrn: str | int
+    ogrn: str | int | None
     kpp: str | int
     registration_date: datetime
     legal_address: str
@@ -234,3 +235,22 @@ class CompanyProfileResponse(BaseModel):
             position=user.position,
             is_company_created=True
         )
+
+class CompanyRelationType(str, enum.Enum):
+    SUPPLIER = "supplier"
+    BUYER = "buyer"
+    PARTNER = "partner"
+
+class CompanyRelationCreate(BaseModel):
+    related_company_id: int
+    relation_type: CompanyRelationType
+
+class CompanyRelationResponse(BaseModel):
+    id: int
+    company_id: int
+    related_company_id: int
+    relation_type: CompanyRelationType
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

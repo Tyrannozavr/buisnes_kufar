@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean
+from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -46,9 +46,9 @@ class Company(Base):
 
     # Legal information
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    inn: Mapped[str] = mapped_column(String(12), unique=True, nullable=False)
-    ogrn: Mapped[str] = mapped_column(String(15), unique=True, nullable=False)
-    kpp: Mapped[str] = mapped_column(String(9), nullable=False)
+    inn: Mapped[str] = mapped_column(String(12), unique=True, nullable=True)
+    ogrn: Mapped[Optional[str]] = mapped_column(String(15), unique=True, nullable=True)
+    kpp: Mapped[Optional[str]] = mapped_column(String(9), nullable=False)
     registration_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     legal_address: Mapped[str] = mapped_column(String(255), nullable=False)
     production_address: Mapped[Optional[str]] = mapped_column(String(255))
@@ -84,3 +84,21 @@ class Company(Base):
     
     def __str__(self):
         return self.name
+
+class CompanyRelationType(str, enum.Enum):
+    SUPPLIER = "supplier"
+    BUYER = "buyer"
+    PARTNER = "partner"
+
+class CompanyRelation(Base):
+    __tablename__ = "company_relations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)  # Владелец
+    related_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)  # Другая компания
+    relation_type: Mapped[CompanyRelationType] = mapped_column(Enum(CompanyRelationType), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Опционально: связи для удобства
+    company: Mapped["Company"] = relationship("Company", foreign_keys=[company_id], backref="relations_from")
+    related_company: Mapped["Company"] = relationship("Company", foreign_keys=[related_company_id], backref="relations_to")

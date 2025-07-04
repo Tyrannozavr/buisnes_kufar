@@ -50,6 +50,7 @@ export interface CompanyOfficial extends CompanyOfficialBase {
 
 // Type for partner company with only the required fields
 export interface PartnerCompany {
+  id: number
   fullName: string
   slug: string
   logo: string | null
@@ -250,4 +251,10 @@ export const getFullImageUrl = (path: string | null): string | null => {
   
   // Формируем полный URL
   return `${frontendUrl}/${cleanPath}`
+}
+
+export enum CompanyRelationType {
+  SUPPLIER = 'supplier',
+  BUYER = 'buyer',
+  PARTNER = 'partner',
 }

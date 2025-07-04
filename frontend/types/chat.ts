@@ -45,6 +45,7 @@ export interface ChatMessage {
   is_read: boolean
   created_at: string
   updated_at: string
+  is_temp?: boolean
 }
 
 export interface CreateChatResponse {

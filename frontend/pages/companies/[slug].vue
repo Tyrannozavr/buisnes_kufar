@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type {CompanyDetails} from '~/types/company'
 //
-import {getCompany, getCompanyProductsPaginated, getCompanyStatistics} from '~/api/company'
+import {getCompany, getCompanyProductsPaginated, getCompanyStatistics, getCompanyRelations} from '~/api/company'
 import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
 import { useUserStore } from '~/stores/user'
 import { createChatForCompany } from '~/composables/chat'
@@ -68,6 +68,23 @@ const handlePageChange = (page: number) => {
   currentPage.value = page
 }
 
+const fetchRelations = async () => {
+  if (!userStore.isAuthenticated || isOwnCompany.value) return
+  loading.value = true
+  try {
+    for (const type of Object.values(CompanyRelationType)) {
+      const { data } = await getCompanyRelations(type as CompanyRelationType)
+      // data.value может быть либо массивом, либо объектом с полем data
+      const relationsArr = data.value?.data ?? data.value ?? []
+      relations.value[type as CompanyRelationType] = Array.isArray(relationsArr)
+        ? relationsArr.some((rel: any) => rel.related_company_id === props.companyId)
+        : false
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -76,15 +93,23 @@ const handlePageChange = (page: number) => {
       <!-- Заголовок -->
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-3xl font-bold">{{ company?.name }}</h1>
-        <MessageButtonBySlug
-          v-if="company"
-          :company-slug="company.slug"
-          :company-name="company.name"
-          color="primary"
-          variant="solid"
-          size="md"
-          custom-text="Написать сообщение"
-        />
+        <div class="flex gap-2 items-center">
+          <MessageButtonBySlug
+            v-if="company"
+            :company-slug="company.slug"
+            :company-name="company.name"
+            color="primary"
+            variant="solid"
+            size="md"
+            custom-text="Написать сообщение"
+          />
+          <CompanyRelationButton
+            v-if="company"
+            :company-id="company.id"
+            :company-name="company.name"
+            :company-slug="company.slug"
+          />
+        </div>
       </div>
 
       <!-- Основная информация -->

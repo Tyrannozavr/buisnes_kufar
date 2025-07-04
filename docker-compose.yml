@@ -48,7 +48,7 @@ services:
     ports:
       - "6000:80"
     env_file:
-      - .env
+      - ./certbot/.env
     # и снова мониторуем директорию nginx
     volumes:
       - ./nginx/:/etc/nginx/

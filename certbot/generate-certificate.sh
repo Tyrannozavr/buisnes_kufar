@@ -10,7 +10,7 @@ if [[ -z "$DOMAIN_EMAIL" || -z "$DOMAIN_URL" ]]; then
 fi
 
 # чистим папку, где могут находиться старые сертификаты
-rm -rf /etc/letsencrypt/live/certfolder*
+rm -rf /etc/letsencrypt/live/tradesynergy.ru
 echo "Старые сертификаты удалены."
 
 # выдаем себе сертификат
@@ -24,8 +24,8 @@ rm -f /etc/nginx/key.pem
 echo "Старые сертификаты Nginx удалены."
 
 # копируем сертификаты из certbot в папку Nginx
-cp /etc/letsencrypt/live/certfolder*/fullchain.pem /etc/nginx/cert.pem
-cp /etc/letsencrypt/live/certfolder*/privkey.pem /etc/nginx/key.pem
+cp /etc/letsencrypt/live/tradesynergy.ru/fullchain.pem /etc/nginx/cert.pem
+cp /etc/letsencrypt/live/tradesynergy.ru/privkey.pem /etc/nginx/key.pem
 echo "Сертификаты скопированы в /etc/nginx."
 
 echo "Готово! Сертификаты обновлены." 

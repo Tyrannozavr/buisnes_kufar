@@ -114,7 +114,7 @@ const mappedAnnouncements = computed(() => {
             <div class="flex items-center">
               <div class="flex-shrink-0 mr-3">
 
-                <NuxtImg :src="company.logo_url || '/images/default-company.png'" alt="" class="w-12 h-12 object-cover rounded" />
+                <NuxtImg :src="company.logo_url || '/images/default-company-logo.png'" alt="" class="w-12 h-12 object-cover rounded" />
               </div>
               <div>
                 <NuxtLink :to="`/companies/${company.slug}`" class="font-medium hover:text-primary-600 transition-colors">

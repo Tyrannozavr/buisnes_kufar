@@ -132,7 +132,7 @@ const handleAddToCartClick = () => {
                 class="flex items-center gap-3"
             >
               <NuxtImg
-                :src="company.logo_url || '/images/default-company.png'"
+                :src="company.logo_url || '/images/default-company-logo.png'"
                 :alt="company.name"
                 class="w-12 h-12 rounded-lg object-cover"
               />

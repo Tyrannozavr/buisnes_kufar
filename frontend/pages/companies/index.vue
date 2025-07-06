@@ -95,7 +95,7 @@ const getActivityColor = (tradeActivity: string) => {
               <div class="flex-shrink-0">
                 <NuxtLink :to="`/companies/${company.slug}`" class="block">
                   <NuxtImg
-                    :src="company.logo_url || '/images/default-company.png'"
+                    :src="company.logo_url || '/images/default-company-logo.png'"
                     :alt="company.name"
                     class="w-20 h-20 object-cover rounded-lg border border-gray-200"
                   />

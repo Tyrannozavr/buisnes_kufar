@@ -8,6 +8,7 @@ const props = defineProps<{
 const emit = defineEmits(['update:formState'])
 
 const updateField = (field: keyof CompanyDataFormState, value: any) => {
+  console.log("Typed neww value ", value)
   emit('update:formState', {
     ...props.formState,
     [field]: value
@@ -42,15 +43,14 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             @update:model-value="value => updateField('ogrn', value)"
         />
       </UFormField>
-
       <UFormField label="КПП" required>
         <UInput
             :model-value="formState.kpp"
             type="number"
-            @update:model-value="value => updateField('kpp', value)"
+            @input="event => event.target.value = event.target.value.slice(0, 9)"
+            @update:model-value="value => updateField('kpp', value?.toString().slice(0,9))"
         />
       </UFormField>
-
       <UFormField label="Дата регистрации ОГРН" required>
         <UInput
             :model-value="formState.registrationDate"

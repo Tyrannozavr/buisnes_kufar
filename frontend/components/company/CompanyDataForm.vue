@@ -468,10 +468,17 @@ const handleRegionChange = async (region: LocationItem | undefined) => {
 const handleOfficialsUpdate = (officials: CompanyOfficial[]) => {
   formState.value.officials = officials
 }
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    handleSubmit()
+  }
+}
 </script>
 
 <template>
-  <UCard>
+  <UCard @keydown="handleKeydown" tabindex="0">
     <template #header>
       <div class="flex items-center justify-between">
         <h3 class="text-xl font-semibold">Данные компании</h3>
@@ -525,6 +532,7 @@ const handleOfficialsUpdate = (officials: CompanyOfficial[]) => {
         <!-- 2. Информация о компании -->
         <CompanyInfoSection
             v-model:formState="formState"
+
         />
 
         <!-- 3. Реквизиты компании -->

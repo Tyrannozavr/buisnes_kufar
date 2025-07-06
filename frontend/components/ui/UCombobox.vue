@@ -72,6 +72,13 @@ const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     isOpen.value = false
     isSearching.value = false
+  } else if (event.key === 'Enter' && props.searchInput && props.searchInput.modelValue.trim()) {
+    // Создаем новый элемент из введенного текста
+    const newItem: LocationItem = {
+      value: props.searchInput.modelValue.trim(),
+      label: props.searchInput.modelValue.trim()
+    }
+    selectItem(newItem)
   }
 }
 

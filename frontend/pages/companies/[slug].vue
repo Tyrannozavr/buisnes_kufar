@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import {type CompanyDetails, CompanyRelationType} from '~/types/company'
-//
-import {getCompany, getCompanyProductsPaginated, getCompanyStatistics, getCompanyRelations} from '~/api/company'
+import {getCompany, getCompanyProductsPaginated, getCompanyStatistics} from '~/api/company'
 import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
-import { useUserStore } from '~/stores/user'
-import { createChatForCompany } from '~/composables/chat'
+import {useUserStore} from '~/stores/user'
+import {createChatForCompany} from '~/composables/chat'
 //
 // const { createChat } = useChatsApi()
 // // Get company ID from route
@@ -17,7 +15,7 @@ const currentPage = ref(1)
 const perPage = 12
 
 // Watch for page changes
-watch(currentPage, async (newPage) => {
+watch(currentPage, async () => {
   await refreshProducts()
 })
 

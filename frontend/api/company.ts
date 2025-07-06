@@ -1,4 +1,4 @@
-import type {CompanyResponse, CompanyStatisticsResponse, CompanyStatistics} from '~/types/company'
+import type {CompanyResponse, CompanyStatisticsResponse} from '~/types/company'
 import type {UseFetchOptions} from "nuxt/app";
 import type {ProductPaginatedPublicResponse} from "~/types/product";
 import type { PartnerCompany } from '~/types/company'

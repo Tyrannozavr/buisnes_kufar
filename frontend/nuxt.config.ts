@@ -1,4 +1,3 @@
-
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
@@ -8,7 +7,8 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
-    '@nuxt/image'
+    '@nuxt/image',
+    '@nuxt/icon'
   ],
   css: ['~/assets/css/main.css'],
   future: {
@@ -19,7 +19,7 @@ export default defineNuxtConfig({
 
     // Keys within public are also exposed to the client
     public: {
-      apiBaseUrl: process.env.VITE_PUBLIC_API_URL || 'http://localhost:3000/api'
+      apiBaseUrl: process.env.VITE_PUBLIC_API_URL || '/api'
     }
   },
   // Отключаем загрузку шрифтов через переменную окружения
@@ -33,6 +33,14 @@ export default defineNuxtConfig({
     colorMode: false,
     // Полностью отключаем автоматическую загрузку шрифтов
     fonts: false
+  },
+  // Configure Nuxt Icon
+  icon: {
+    size: '24px',
+    class: 'icon',
+    aliases: {
+      'nuxt': 'logos:nuxt-icon',
+    }
   },
   compatibilityDate: '2024-11-27',
   ssr: true,

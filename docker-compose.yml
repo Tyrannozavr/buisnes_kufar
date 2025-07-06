@@ -25,6 +25,7 @@ services:
       - ./frontend/.env
     environment:
       NUXT_UI_FONTS: "false"
+      VITE_PUBLIC_API_URL: "/api"
     restart: unless-stopped
     ports:
       - "3000:3000"

@@ -35,6 +35,12 @@ async def favicon():
     return FileResponse(favicon_path)
 
 
+@app.get('/health', include_in_schema=False)
+async def health_check():
+    """Health check endpoint for deployment monitoring"""
+    return {"status": "healthy", "service": "backend"}
+
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

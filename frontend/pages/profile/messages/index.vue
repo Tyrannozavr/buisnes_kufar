@@ -45,7 +45,29 @@ const formatDate = (dateString: string) => {
     <div class="w-full lg:w-1/3 border-r border-gray-200 overflow-y-auto bg-white">
       <!-- Mobile header -->
       <div class="lg:hidden p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
+        <div class="flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
+          <NuxtLink
+            to="/profile/messages/new"
+            class="p-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200"
+          >
+            <UIcon name="i-heroicons-plus" class="w-6 h-6" />
+          </NuxtLink>
+        </div>
+      </div>
+
+      <!-- Desktop header -->
+      <div class="hidden lg:flex p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div class="flex items-center justify-between w-full">
+          <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
+          <NuxtLink
+            to="/profile/messages/new"
+            class="p-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200"
+            title="Новое сообщение"
+          >
+            <UIcon name="i-heroicons-plus" class="w-5 h-5" />
+          </NuxtLink>
+        </div>
       </div>
 
       <div v-if="pending" class="flex items-center justify-center h-full p-4">
@@ -99,24 +121,13 @@ const formatDate = (dateString: string) => {
       </div>
     </div>
 
-    <!-- Welcome message - hidden on mobile when no chat selected -->
+    <!-- Welcome message - только на десктопе -->
     <div class="hidden lg:flex flex-1 items-center justify-center bg-gray-50">
       <div class="text-center text-gray-500 max-w-md px-4">
         <UIcon name="i-heroicons-chat-bubble-left-right" class="h-16 w-16 mx-auto mb-4" />
         <h2 class="text-xl font-semibold mb-2">Добро пожаловать в чат</h2>
         <p class="text-gray-600">
           Выберите чат из списка слева, чтобы начать общение или создать новый диалог
-        </p>
-      </div>
-    </div>
-
-    <!-- Mobile welcome message -->
-    <div class="lg:hidden flex-1 flex items-center justify-center bg-gray-50 p-4">
-      <div class="text-center text-gray-500">
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="h-12 w-12 mx-auto mb-3" />
-        <h2 class="text-lg font-semibold mb-2">Добро пожаловать в чат</h2>
-        <p class="text-sm text-gray-600">
-          Выберите чат из списка выше, чтобы начать общение
         </p>
       </div>
     </div>

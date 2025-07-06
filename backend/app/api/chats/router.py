@@ -360,3 +360,33 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: int):
         # Отключаем от чата
         if 'user_id' in locals() and 'chat_id' in locals():
             chat_manager.disconnect(chat_id, user_id)
+
+
+@router.get("/{chat_id}/online-status", response_model=dict)
+async def get_chat_online_status(
+        chat_id: int,
+        db: async_db_dep,
+        token_data: token_data_dep,
+):
+    """Получает онлайн статус участников чата"""
+    # Проверяем, что пользователь участвует в чате
+    chat = await check_user_in_chat(chat_id, token_data, db)
+    
+    # Получаем список онлайн пользователей
+    online_user_ids = chat_manager.get_online_users_in_chat(chat_id)
+    
+    # Формируем ответ с онлайн статусом для каждого участника
+    participants_status = {}
+    for participant in chat.participants:
+        is_online = participant.user_id in online_user_ids
+        participants_status[participant.user_id] = {
+            "user_id": participant.user_id,
+            "company_id": participant.company_id,
+            "is_online": is_online
+        }
+    
+    return {
+        "chat_id": chat_id,
+        "participants": participants_status,
+        "online_count": len(online_user_ids)
+    }

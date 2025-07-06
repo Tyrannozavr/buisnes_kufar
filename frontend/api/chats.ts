@@ -19,6 +19,10 @@ export const useChatsApi = () => {
     return useApi<any[]>(`/v1/chats/${chatId}/files`, options)
   }
 
+  const getChatOnlineStatus = (chatId: number, options: UseFetchOptions<any> = {}) => {
+    return useApi<any>(`/v1/chats/${chatId}/online-status`, options)
+  }
+
   const sendMessage = (chatId: number, data: { senderId: number, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
     const formData = new FormData()
     formData.append('content', data.content)
@@ -74,6 +78,7 @@ export const useChatsApi = () => {
     getChatById,
     getChatMessages,
     getChatFiles,
+    getChatOnlineStatus,
     sendMessage,
     createChat
   }

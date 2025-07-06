@@ -42,6 +42,13 @@ class ChatWebSocketManager:
             "chat_id": chat_id,
             "user_id": user_id
         }, websocket)
+        
+        # Уведомляем других участников о подключении
+        await self.broadcast_to_chat(chat_id, {
+            "type": "user_online",
+            "chat_id": chat_id,
+            "user_id": user_id
+        }, exclude_user_id=user_id)
     
     def disconnect(self, chat_id: int, user_id: int):
         """Отключение пользователя от чата"""
@@ -58,6 +65,13 @@ class ChatWebSocketManager:
                 del self.user_connections[user_id]
         
         logger.info(f"User {user_id} disconnected from chat {chat_id}")
+        
+        # Уведомляем других участников об отключении
+        asyncio.create_task(self.broadcast_to_chat(chat_id, {
+            "type": "user_offline",
+            "chat_id": chat_id,
+            "user_id": user_id
+        }, exclude_user_id=user_id))
     
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         """Отправка личного сообщения пользователю"""
@@ -114,6 +128,16 @@ class ChatWebSocketManager:
         if chat_id not in self.chat_connections:
             return set()
         return set(self.chat_connections[chat_id].keys())
+    
+    def is_user_online_in_chat(self, chat_id: int, user_id: int) -> bool:
+        """Проверка, онлайн ли пользователь в конкретном чате"""
+        if chat_id not in self.chat_connections:
+            return False
+        return user_id in self.chat_connections[chat_id]
+    
+    def get_online_users_in_chat(self, chat_id: int) -> Set[int]:
+        """Получение списка онлайн пользователей в чате"""
+        return self.get_connected_users_in_chat(chat_id)
 
 
 # Глобальный экземпляр менеджера

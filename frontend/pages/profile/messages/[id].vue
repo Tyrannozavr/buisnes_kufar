@@ -17,7 +17,7 @@ const chatId = parseInt(route.params.id as string)
 // Получаем данные пользователя из store
 const userStore = useUserStore()
 
-const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles} = useChatsApi()
+const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles, getChatOnlineStatus} = useChatsApi()
 
 // Получаем список всех чатов для боковой панели
 const {data: chats, pending: chatsPending} = await getChats()
@@ -30,6 +30,9 @@ const {data: messages, pending: messagesPending, refresh: refreshMessages} = awa
 
 // Получаем файлы чата
 const {data: files, pending: filesPending} = await getChatFiles(chatId)
+
+// Получаем онлайн статус участников чата
+const {data: onlineStatus, pending: onlineStatusPending, refresh: refreshOnlineStatus} = await getChatOnlineStatus(chatId)
 
 const newMessage = ref('')
 const showFilesModal = ref(false)
@@ -88,6 +91,9 @@ const {
       }
     } else if (message.type === 'connection_established') {
       console.log('WebSocket connection established')
+    } else if (message.type === 'user_online' || message.type === 'user_offline') {
+      // Обновляем онлайн статус при изменении
+      refreshOnlineStatus()
     }
   },
   onOpen: () => {
@@ -106,6 +112,16 @@ onMounted(() => {
   connectWs()
   // Прокручиваем к последнему сообщению при загрузке
   scrollToBottom()
+  
+  // Периодически обновляем онлайн статус
+  const onlineStatusInterval = setInterval(() => {
+    refreshOnlineStatus()
+  }, 30000) // Обновляем каждые 30 секунд
+  
+  // Очищаем интервал при размонтировании
+  onUnmounted(() => {
+    clearInterval(onlineStatusInterval)
+  })
 })
 
 // Отключаемся при уходе со страницы
@@ -124,6 +140,18 @@ watch(messages, () => {
 const otherParticipant = computed(() => {
   if (!chat.value) return null
   return chat.value.participants.find((p: ChatParticipant) => p.company_id !== userStore.companyId)
+})
+
+// Проверяем, подключен ли другой участник чата
+const isOtherParticipantOnline = computed(() => {
+  if (!otherParticipant.value || !onlineStatus.value) return false
+  
+  // Ищем статус для другого участника
+  const otherParticipantStatus = Object.values(onlineStatus.value.participants || {}).find(
+    (participant: any) => participant.company_id === otherParticipant.value?.company_id
+  ) as any
+  
+  return otherParticipantStatus?.is_online || false
 })
 
 const handleFileSelect = (event: Event) => {
@@ -218,6 +246,10 @@ const handleChatSelect = (newChatId: number) => {
   router.push(`/profile/messages/${newChatId}`)
 }
 
+const handleBackToChats = () => {
+  router.push('/profile/messages')
+}
+
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return 'i-heroicons-photo'
   if (mimeType.startsWith('video/')) return 'i-heroicons-video-camera'
@@ -241,8 +273,8 @@ const formatFileSize = (bytes: number) => {
 
 <template>
   <div class="flex h-[calc(100vh-16rem)]">
-    <!-- Боковая панель с чатами -->
-    <div class="w-80 border-r border-gray-200 flex flex-col">
+    <!-- Боковая панель с чатами - скрыта на мобильных устройствах -->
+    <div class="hidden lg:flex w-80 border-r border-gray-200 flex flex-col">
       <div class="p-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold">Сообщения</h2>
       </div>
@@ -282,33 +314,48 @@ const formatFileSize = (bytes: number) => {
     <div class="flex-1 flex flex-col">
       <!-- Заголовок чата -->
       <div v-if="chat" class="p-4 border-b border-gray-200 bg-white">
-        <NuxtLink
+        <div class="flex items-center space-x-3">
+          <!-- Кнопка "назад" только на мобильных устройствах -->
+          <button
+            @click="handleBackToChats"
+            class="lg:hidden p-2 -ml-2 text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="chatPending"
+          >
+            <UIcon 
+              :name="chatPending ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-left'" 
+              :class="chatPending ? 'animate-spin w-6 h-6' : 'w-6 h-6'" 
+            />
+          </button>
+          
+          <NuxtLink
             :to="`/companies/${otherParticipant?.company_slug}`"
-            class="flex items-center space-x-3"
-        >
-          <NuxtImg
-            :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
-            :alt="otherParticipant?.company_name"
-            class="w-10 h-10 rounded-full object-cover"
-          />
-          <div class="flex-1">
-            <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
-            <div class="flex items-center space-x-2">
-              <div class="flex items-center space-x-1">
-                <div 
-                  class="w-2 h-2 rounded-full"
-                  :class="isConnected ? 'bg-green-500' : 'bg-red-500'"
-                ></div>
-                <span class="text-xs text-gray-500">
-                  {{ isConnected ? 'Онлайн' : 'Офлайн' }}
+            class="flex items-center space-x-3 flex-1"
+            :class="{ 'opacity-50 pointer-events-none': chatPending }"
+          >
+            <NuxtImg
+              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
+              :alt="otherParticipant?.company_name"
+              class="w-10 h-10 rounded-full object-cover"
+            />
+            <div class="flex-1">
+              <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
+              <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1">
+                  <div 
+                    class="w-2 h-2 rounded-full"
+                    :class="isOtherParticipantOnline ? 'bg-green-500' : 'bg-red-500'"
+                  ></div>
+                  <span class="text-xs text-gray-500">
+                    {{ isOtherParticipantOnline ? 'Онлайн' : 'Офлайн' }}
+                  </span>
+                </div>
+                <span v-if="isTyping" class="text-xs text-blue-500">
+                  печатает...
                 </span>
               </div>
-              <span v-if="isTyping" class="text-xs text-blue-500">
-                печатает...
-              </span>
             </div>
-          </div>
-        </NuxtLink>
+          </NuxtLink>
+        </div>
       </div>
 
       <div v-if="chatPending || messagesPending" class="flex-1 flex items-center justify-center">

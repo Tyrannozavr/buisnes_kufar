@@ -83,6 +83,13 @@ export interface CompanyStatistics {
   registrationDate: string
   totalPurchases?: number
 }
+export interface CompanyStatisticsResponse {
+  total_products: number
+  total_views: number
+  monthly_views: number
+  registration_date: Date
+  total_purchases?: number
+}
 
 export interface ManufacturersSearchParams {
   search?: string

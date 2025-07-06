@@ -1,7 +1,9 @@
+import asyncio
 from typing import Optional, Any, Coroutine, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Body
 
-from app.api.company.schemas.company import CompanyResponse, ShortCompanyResponse
+from api.products.dependencies import company_products_repository_dep
+from app.api.company.schemas.company import CompanyResponse, ShortCompanyResponse, CompanyStatisticsResponse
 from app.api.companies.dependencies import companies_repository_dep
 from app.api.companies.repositories.companies_repository import CompaniesRepository
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
@@ -128,6 +130,35 @@ async def get_product_companies(
     )
 
 
+@router.get("/slug/{company_slug}/statistics")
+async def get_company_statistics(
+        company_slug: str,
+        companies_repository: companies_repository_dep
+) -> CompanyStatisticsResponse:
+    """
+    Получить статистику компании по её slug
+
+    Args:
+        company_slug: Slug компании
+
+    Returns:
+        CompanyStatisticsResponse: Статистика компании
+    """
+    company = await companies_repository.get_company_by_slug(
+        company_slug=company_slug, 
+        include_products=True
+    )
+
+    if not company:
+        raise HTTPException(status_code=404, detail="Компания не найдена")
+    
+    return CompanyStatisticsResponse(
+        total_products=len(company.products),
+        total_views=company.total_views,
+        monthly_views=company.monthly_views,
+        total_purchases=company.total_purchases,
+        registration_date=company.registration_date
+    )
 @router.get("/slug/{company_slug}")
 async def get_company_by_id(
         company_slug: str,
@@ -135,7 +166,7 @@ async def get_company_by_id(
         companies_repository: companies_repository_dep = None
 ) -> ShortCompanyResponse | CompanyResponse:
     """
-    Получить информацию о компании по её ID
+    Получить информацию о компании по её slug
 
     Args:
         company_id: ID компании
@@ -149,42 +180,8 @@ async def get_company_by_id(
 
     if not company:
         raise HTTPException(status_code=404, detail="Компания не найдена")
-
     if short:
         return ShortCompanyResponse.model_validate(company)
     else:
         return CompanyResponse.model_validate(company)
-
-
-
-
-@router.get("/{company_id}")
-async def get_company_by_id(
-        company_id: int,
-        short: bool = Query(False, description="Возвращать только краткую информацию"),
-        companies_repository: companies_repository_dep = None
-) -> ShortCompanyResponse | CompanyResponse:
-    """
-    Получить информацию о компании по её ID
-
-    Args:
-        company_id: ID компании
-        short: Если True, возвращает только название и логотип компании
-        companies_repository: Репозиторий компаний
-
-    Returns:
-        CompanyResponse: Полная или краткая информация о компании
-    """
-    company = await companies_repository.get_company_by_id(company_id)
-
-    if not company:
-        raise HTTPException(status_code=404, detail="Компания не найдена")
-
-    if short:
-        return ShortCompanyResponse.model_validate(company)
-    else:
-        return CompanyResponse.model_validate(company)
-
-
-
 

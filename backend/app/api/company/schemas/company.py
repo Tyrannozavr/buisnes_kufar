@@ -146,6 +146,13 @@ class Company(CompanyBase):
     class Config:
         from_attributes = True
 
+class CompanyStatisticsResponse(BaseModel):
+    total_products: int
+    total_views: int | None
+    monthly_views: int | None
+    registration_date: datetime
+    total_purchases: int | None
+
 class CompanyResponse(CompanyLogoUrlMixin):
     id: int
     name: str

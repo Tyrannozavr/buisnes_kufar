@@ -84,18 +84,24 @@ class CompaniesRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_company_by_slug(self, company_slug: str) -> Optional[Company]:
+    async def get_company_by_slug(self, company_slug: str, include_products: bool = False) -> Optional[Company]:
         """
-        Получить компанию по ID
+        Получить компанию по slug
 
         Args:
-            company_id: ID компании
+            company_slug: Slug компании
+            include_products: Загружать ли продукты компании
         Returns:
             Optional[Company]: Компания или None
         """
         query = select(Company).options(
             selectinload(Company.officials)
-        ).where(Company.slug == company_slug).where(Company.is_active == True)
+        )
+        
+        if include_products:
+            query = query.options(selectinload(Company.products))
+            
+        query = query.where(Company.slug == company_slug).where(Company.is_active == True)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 

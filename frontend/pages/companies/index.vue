@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { Company } from '~/types/company'
-import { getCompaniesPaginatedSSR } from '~/api/companies'
+import {getCompaniesPaginatedSSR} from '~/api/companies'
 
 // Pagination state
 const currentPage = ref(1)

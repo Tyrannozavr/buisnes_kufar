@@ -1,32 +1,16 @@
-import type {CompanyResponse, CompanyStatistics} from '~/types/company'
+import type {CompanyResponse, CompanyStatisticsResponse, CompanyStatistics} from '~/types/company'
 import type {UseFetchOptions} from "nuxt/app";
 import type {ProductPaginatedPublicResponse} from "~/types/product";
 import type { PartnerCompany } from '~/types/company'
 import { CompanyRelationType } from '~/types/company'
 import { computed } from 'vue'
 import { useNuxtApp } from 'nuxt/app'
-
-export const getCompanyStatistics = async (slug: string): Promise<{ data: CompanyStatistics }> => {
-    // В реальном приложении здесь был бы API-запрос
-    return {
-        data: {
-            totalViews: 0,
-            monthlyViews: 0,
-            totalPurchases: 0,
-            totalProducts: 0,
-            registrationDate: '',
-            // Добавьте другие статистические поля, если они есть в CompanyStatisticsResponse
-        }
-    }
-}
-
-export const getCompanyProducts = async (slug: string, options: Partial<UseFetchOptions<ProductPaginatedPublicResponse>> = {}) => {
-    // В реальном приложении здесь был бы API-запрос
-    return useApi<ProductPaginatedPublicResponse>(`/v1/products/company/${slug}`, {
+export const getCompanyStatistics = async (slug: string) => {
+    return useApi<CompanyStatisticsResponse>(`/v1/companies/slug/${slug}/statistics`, {
         method: 'GET',
-        ...options
     })
 }
+
 
 export const getCompanyProductsPaginated = async (slug: string, page: number = 1, perPage: number = 12) => {
     const skip = (page - 1) * perPage

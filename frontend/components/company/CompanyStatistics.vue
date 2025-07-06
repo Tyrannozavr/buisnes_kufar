@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { CompanyStatistics } from '~/types/company'
+import type {CompanyStatisticsResponse} from '~/types/company'
 
-defineProps<CompanyStatistics>()
+defineProps<CompanyStatisticsResponse>()
 </script>
 
 <template>
@@ -20,7 +20,7 @@ defineProps<CompanyStatistics>()
           />
           <div class="mt-2">
             <p class="text-sm text-gray-500">Всего продуктов</p>
-            <p class="text-2xl font-semibold">{{ totalProducts }}</p>
+            <p class="text-2xl font-semibold">{{ total_products }}</p>
           </div>
         </div>
         
@@ -32,9 +32,9 @@ defineProps<CompanyStatistics>()
           />
           <div class="mt-2">
             <p class="text-sm text-gray-500">Просмотры</p>
-            <p class="text-2xl font-semibold">{{ totalViews }}</p>
+            <p class="text-2xl font-semibold">{{ total_views }}</p>
             <p class="text-sm text-gray-500">
-              +{{ monthlyViews }} за месяц
+              +{{ monthly_views }} за месяц
             </p>
           </div>
         </div>
@@ -47,7 +47,7 @@ defineProps<CompanyStatistics>()
           />
           <div class="mt-2">
             <p class="text-sm text-gray-500">На сайте с</p>
-            <p class="text-2xl font-semibold">{{ registrationDate }}</p>
+            <p class="text-2xl font-semibold">{{ new Date(registration_date).toLocaleDateString('ru-RU', {day: 'numeric', month: 'long', year: 'numeric'}) }}</p>
           </div>
         </div>
 

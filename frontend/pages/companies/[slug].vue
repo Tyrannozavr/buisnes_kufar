@@ -100,13 +100,11 @@ const handlePageChange = (page: number) => {
           v-if="companyDetails"
           v-bind="companyDetails"
       />
-
       <!-- Статистика -->
       <CompanyStatistics
           v-if="statistics"
           v-bind="statistics"
       />
-
       <!-- Продукция -->
       <h2 class="text-2xl font-bold mb-4 mt-8">Продукция компании</h2>
       <CompanyProductsPublic

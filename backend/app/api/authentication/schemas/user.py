@@ -22,6 +22,7 @@ class UserCreateStep1(BaseModel):
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone: constr(min_length=10, max_length=15)
+    recaptcha_token: str  # Токен reCAPTCHA v3
 
 class UserCreateStep2(BaseModel):
     token: str

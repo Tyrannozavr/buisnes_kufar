@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # API ключ для сервиса локаций (htmlweb.ru)
     LOCATION_API_KEY: Optional[str] = None
 
+    # reCAPTCHA v3 settings
+    RECAPTCHA_SECRET_KEY: str = "6LdJHHorAAAAAEUE2R1s_QsmJPLR0PSCPnB1_TQy"  # Замените на ваш секретный ключ
+    RECAPTCHA_SITE_KEY: str = "6LdJHHorAAAAAG2JB9CyOtRQbPJWrxbdRPy0dMHO"   # Замените на ваш публичный ключ
+    RECAPTCHA_MIN_SCORE: float = 0.5  # Минимальный балл для прохождения проверки
+
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         return get_async_database_url(self.SQLALCHEMY_DATABASE_URL)

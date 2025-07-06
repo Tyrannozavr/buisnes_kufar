@@ -4,7 +4,7 @@ export interface RegisterStep1Data {
   patronymic?: string
   email: string
   phone: string
-  captcha?: string
+  recaptcha_token: string
   agreement?: boolean
 }
 

@@ -129,7 +129,8 @@ export function useAuthApi() {
           phone: data.phone,
           first_name: data.firstName,
           last_name: data.lastName,
-          patronymic: data.patronymic
+          patronymic: data.patronymic,
+          recaptcha_token: data.recaptcha_token
         },
         credentials: 'include',
         headers: {

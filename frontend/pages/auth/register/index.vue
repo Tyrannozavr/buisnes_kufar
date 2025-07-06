@@ -4,16 +4,17 @@ import {useAuthApi} from '~/api/auth'
 import {useRouter} from 'vue-router'
 
 const router = useRouter()
+const { $recaptcha } = useNuxtApp()
+
 const form = ref<RegisterStep1Data>({
   firstName: '',
   lastName: '',
   patronymic: '',
   email: '',
   phone: '',
-  captcha: '',
+  recaptcha_token: '',
   agreement: false
 })
-const isHuman = ref(false)
 
 // Error states for form fields
 const emailError = ref('')
@@ -39,15 +40,16 @@ const rules = {
 
 const authApi = useAuthApi()
 
-// Handle captcha change
-const handleCaptchaChange = (value: boolean | 'indeterminate') => {
-  if (value === true) {
-    // When checkbox is checked, set a mock captcha value
-    form.value.captcha = 'verified'
-  } else {
-    form.value.captcha = ''
+// Load reCAPTCHA script
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    const script = document.createElement('script')
+    script.src = `https://www.google.com/recaptcha/api.js?render=${($recaptcha as any).siteKey}`
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
   }
-}
+})
 
 // Validate individual fields and set error messages
 const validateEmail = () => {
@@ -85,7 +87,7 @@ const validatePhone = () => {
 }
 
 const validateAgreement = () => {
-  const result = rules.required(form.value.agreement)
+  const result = rules.required(form.value.agreement || false)
   if (result !== true) {
     agreementError.value = result
     return false
@@ -106,7 +108,6 @@ const validateForm = () => {
 const isFormValid = computed(() => {
   return !!form.value.email &&
       !!form.value.phone &&
-      !!form.value.captcha &&
       form.value.agreement &&
       !emailError.value &&
       !phoneError.value &&
@@ -118,18 +119,13 @@ const handleSubmit = async () => {
   validateForm()
 
   if (!isFormValid.value) return
-  if (!isHuman.value) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Пожалуйста, подтвердите что вы не робот',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-    return
-  }
 
   isLoading.value = true
   try {
+    // Execute reCAPTCHA
+    const recaptchaToken = await (($recaptcha as any).execute('register'))
+    form.value.recaptcha_token = recaptchaToken
+
     await authApi.registerStep1(form.value)
 
     // Reset form after successful registration
@@ -139,10 +135,9 @@ const handleSubmit = async () => {
       patronymic: '',
       email: '',
       phone: '',
-      captcha: '',
+      recaptcha_token: '',
       agreement: false
     }
-    isHuman.value = false
 
     // Show success message
     useToast().add({
@@ -258,14 +253,6 @@ const handleSubmit = async () => {
             />
             <p v-if="phoneError" class="mt-1 text-sm text-red-500">{{ phoneError }}</p>
           </UFormField>
-
-          <div class="mt-4 flex items-center">
-            <UCheckbox
-                v-model="isHuman"
-                @update:model-value="handleCaptchaChange"
-            />
-            <span class="ml-2">Я не робот</span>
-          </div>
 
           <div class="flex flex-row">
             <UCheckbox

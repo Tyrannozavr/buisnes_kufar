@@ -7,6 +7,7 @@ from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
 from app.api.authentication.services.auth_service import AuthService
+from app.api.authentication.services.recaptcha_service import recaptcha_service
 from app.api.company.dependencies import company_service_dep
 from app.api.dependencies import async_db_dep
 from app.core.config import settings
@@ -20,8 +21,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @router.post("/register/step1", status_code=status.HTTP_201_CREATED)
 async def register_step1(
         data: UserCreateStep1,
+        request: Request,
         db: async_db_dep
 ):
+    # Получаем IP адрес клиента
+    client_ip = request.client.host if request.client else None
+    
+    # Проверяем reCAPTCHA
+    await recaptcha_service.verify_recaptcha(data.recaptcha_token, client_ip)
+    
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     await auth_service.register_step1(data)
     return {"message": "Registration email sent"}

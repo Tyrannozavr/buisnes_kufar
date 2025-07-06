@@ -1,24 +1,24 @@
-from typing import Union, List, Annotated, Optional
+from typing import Union, List, Annotated
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
 from fastapi import status
 
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
-from app.api.authentication.models import User
+from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
 from app.api.company.dependencies import company_service_dep, official_repository_dep, get_company_filter_service
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.announcements import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse, \
     AnnouncementListResponse
-from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse, CompanyRelationCreate, \
-    CompanyRelationResponse, CompanyRelationType, CompanyCreate
+from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse, \
+    CompanyRelationCreate, \
+    CompanyRelationResponse, CompanyRelationType
 from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
     CompanyOfficialPartialUpdate
-from app.api.company.services.announcement_service import AnnouncementService
-from app.api.dependencies import async_db_dep
-from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
 from app.api.company.schemas.filters import CompanyFiltersResponse
+from app.api.company.services.announcement_service import AnnouncementService
 from app.api.company.services.filter_service import CompanyFilterService
+from app.api.dependencies import async_db_dep
 
 router = APIRouter(tags=["company"])
 
@@ -165,75 +165,75 @@ async def get_announcements_categories():
 # Announcements routes
 @router.post("/announcements", response_model=AnnouncementResponse, status_code=status.HTTP_201_CREATED)
 async def create_announcement(
-    db: async_db_dep,
-    announcement_data: AnnouncementCreate,
-    current_user: current_user_dep
+        db: async_db_dep,
+        announcement_data: AnnouncementCreate,
+        current_user: current_user_dep
 ):
     """Создать новое объявление для компании"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     # Временные notifications (в реальном приложении они будут приходить из запроса)
     notifications = {
         "partners": True,
         "customers": True,
         "suppliers": True
     }
-    
+
     return await announcement_service.create_announcement(current_user, announcement_data, notifications)
 
 
 @router.get("/announcements", response_model=AnnouncementListResponse)
 async def get_company_announcements(
-    db: async_db_dep,
-    current_user: current_user_dep,
-    page: int = Query(1, ge=1, description="Номер страницы"),
-    per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице")
+        db: async_db_dep,
+        current_user: current_user_dep,
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице")
 ):
     """Получить все объявления компании пользователя"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.get_company_announcements(current_user, page, per_page)
 
 
 @router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)
 async def get_announcement(
-    db: async_db_dep,
-    announcement_id: int,
-    current_user: current_user_dep
+        db: async_db_dep,
+        announcement_id: int,
+        current_user: current_user_dep
 ):
     """Получить объявление по ID"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.get_announcement(current_user, announcement_id)
 
 
 @router.put("/announcements/{announcement_id}", response_model=AnnouncementResponse)
 async def update_announcement(
-    db: async_db_dep,
-    announcement_id: int,
-    announcement_data: AnnouncementUpdate,
-    current_user: current_user_dep
+        db: async_db_dep,
+        announcement_id: int,
+        announcement_data: AnnouncementUpdate,
+        current_user: current_user_dep
 ):
     """Обновить объявление"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.update_announcement(current_user, announcement_id, announcement_data)
 
 
 @router.delete("/announcements/{announcement_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_announcement(
-    db: async_db_dep,
-    announcement_id: int,
-    current_user: current_user_dep
+        db: async_db_dep,
+        announcement_id: int,
+        current_user: current_user_dep
 ):
     """Удалить объявление"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     success = await announcement_service.delete_announcement(current_user, announcement_id)
     if not success:
         raise HTTPException(
@@ -244,56 +244,56 @@ async def delete_announcement(
 
 @router.post("/announcements/{announcement_id}/images", response_model=AnnouncementResponse)
 async def upload_announcement_image(
-    db: async_db_dep,
-    current_user: current_user_dep,
-    announcement_id: int,
-    file: UploadFile = File(...),
+        db: async_db_dep,
+        current_user: current_user_dep,
+        announcement_id: int,
+        file: UploadFile = File(...),
 ):
     """Загрузить изображение для объявления"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.upload_announcement_image(current_user, announcement_id, file)
 
 
 @router.put("/announcements/{announcement_id}/publish", response_model=AnnouncementResponse)
 async def toggle_announcement_publish(
-    db: async_db_dep,
-    announcement_id: int,
-    current_user: current_user_dep
+        db: async_db_dep,
+        announcement_id: int,
+        current_user: current_user_dep
 ):
     """Опубликовать или снять с публикации объявление"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.toggle_publish_status(current_user, announcement_id)
 
 
 # Public routes for announcements
 @router.get("/public/announcements/{company_id}", response_model=AnnouncementListResponse)
 async def get_public_announcements(
-    company_id: int,
-    db: async_db_dep,
-    page: int = Query(1, ge=1, description="Номер страницы"),
-    per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице")
+        company_id: int,
+        db: async_db_dep,
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице")
 ):
     """Получить опубликованные объявления компании (публичный доступ)"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     return await announcement_service.get_public_announcements(company_id, page, per_page)
 
 
 @router.get("/public/announcements/{company_id}/{announcement_id}", response_model=AnnouncementResponse)
 async def get_public_announcement(
-    company_id: int,
-    announcement_id: int,
-    db: async_db_dep
+        company_id: int,
+        announcement_id: int,
+        db: async_db_dep
 ):
     """Получить опубликованное объявление компании по ID (публичный доступ)"""
     announcement_repository = AnnouncementRepository(session=db)
     announcement_service = AnnouncementService(announcement_repository=announcement_repository)
-    
+
     # Получаем объявление и проверяем, что оно принадлежит указанной компании и опубликовано
     announcement = await announcement_repository.get_by_id(announcement_id)
     if not announcement or announcement.company_id != company_id or not announcement.published:
@@ -301,16 +301,16 @@ async def get_public_announcement(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Announcement not found"
         )
-    
+
     return AnnouncementResponse.model_validate(announcement)
 
 
 @router.post("/me/relations", response_model=CompanyRelationResponse)
 async def add_company_relation(
-    data: CompanyRelationCreate,
-    current_user: current_user_dep,
-    company_service: company_service_dep,
-    db: async_db_dep
+        data: CompanyRelationCreate,
+        current_user: current_user_dep,
+        company_service: company_service_dep,
+        db: async_db_dep
 ):
     """Добавить связь (поставщик, покупатель, партнер) для своей компании"""
     company = await company_service.get_company_by_user_id(current_user.id)
@@ -323,11 +323,11 @@ async def add_company_relation(
 
 @router.delete("/me/relations", response_model=dict)
 async def remove_company_relation(
-    related_company_id: int,
-    relation_type: CompanyRelationType,
-    current_user: current_user_dep,
-    company_service: company_service_dep,
-    db: async_db_dep
+        related_company_id: int,
+        relation_type: CompanyRelationType,
+        current_user: current_user_dep,
+        company_service: company_service_dep,
+        db: async_db_dep
 ):
     """Удалить связь (поставщик, покупатель, партнер) для своей компании"""
     company = await company_service.get_company_by_user_id(current_user.id)
@@ -340,10 +340,10 @@ async def remove_company_relation(
 
 @router.get("/me/relations", response_model=list[CompanyRelationResponse])
 async def get_company_relations(
-    relation_type: CompanyRelationType = None,
-    current_user: current_user_dep = None,
-    company_service: company_service_dep = None,
-    db: async_db_dep = None
+        relation_type: CompanyRelationType = None,
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
 ):
     """Получить связи (поставщики, покупатели, партнеры) своей компании"""
     company = await company_service.get_company_by_user_id(current_user.id)
@@ -356,11 +356,11 @@ async def get_company_relations(
 
 @router.get("/me/partners", response_model=CompaniesResponse)
 async def get_my_partners(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
-    current_user: current_user_dep = None,
-    company_service: company_service_dep = None,
-    db: async_db_dep = None
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1, le=100),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
 ):
     company = await company_service.get_company_by_user_id(current_user.id)
     repo = CompanyRelationsRepository(db)
@@ -379,11 +379,11 @@ async def get_my_partners(
 
 @router.get("/me/suppliers", response_model=CompaniesResponse)
 async def get_my_suppliers(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
-    current_user: current_user_dep = None,
-    company_service: company_service_dep = None,
-    db: async_db_dep = None
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1, le=100),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
 ):
     company = await company_service.get_company_by_user_id(current_user.id)
     repo = CompanyRelationsRepository(db)
@@ -402,11 +402,11 @@ async def get_my_suppliers(
 
 @router.get("/me/buyers", response_model=CompaniesResponse)
 async def get_my_buyers(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
-    current_user: current_user_dep = None,
-    company_service: company_service_dep = None,
-    db: async_db_dep = None
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1, le=100),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
 ):
     company = await company_service.get_company_by_user_id(current_user.id)
     repo = CompanyRelationsRepository(db)
@@ -426,7 +426,7 @@ async def get_my_buyers(
 # Новый endpoint для фильтров компаний
 @router.get("/filters", response_model=CompanyFiltersResponse)
 async def get_company_filters(
-    filter_service: Annotated[CompanyFilterService, Depends(get_company_filter_service)]
+        filter_service: Annotated[CompanyFilterService, Depends(get_company_filter_service)]
 ):
     """Получить фильтры для компаний"""
     return await filter_service.get_company_filters()

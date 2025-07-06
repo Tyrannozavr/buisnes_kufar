@@ -14,6 +14,7 @@ conf = ConnectionConfig(
     USE_CREDENTIALS=True
 )
 
+
 async def send_verification_email(email: str, verification_url: str) -> bool:
     """
     Send verification email to user
@@ -34,7 +35,7 @@ async def send_verification_email(email: str, verification_url: str) -> bool:
             """,
             subtype="html"
         )
-        
+
         fm = FastMail(conf)
         await fm.send_message(message)
         logger.info(f"Verification email sent to {email}")
@@ -65,7 +66,7 @@ async def send_password_reset_email(email: str, reset_url: str) -> bool:
             """,
             subtype="html"
         )
-        
+
         fm = FastMail(conf)
         await fm.send_message(message)
         logger.info(f"Password reset email sent to {email}")
@@ -82,7 +83,7 @@ async def send_password_recovery_code(email: str, code: str) -> bool:
     try:
         # Создаем уникальную ссылку для восстановления пароля
         recovery_url = f"{settings.FRONTEND_URL}/auth/recover-password?email={email}&code={code}"
-        
+
         message = MessageSchema(
             subject="Password Recovery",
             recipients=[email],
@@ -101,7 +102,7 @@ async def send_password_recovery_code(email: str, code: str) -> bool:
             """,
             subtype="html"
         )
-        
+
         fm = FastMail(conf)
         await fm.send_message(message)
         logger.info(f"Password recovery code sent to {email}")
@@ -132,7 +133,7 @@ async def send_email_change_confirmation(email: str, confirmation_url: str) -> b
             """,
             subtype="html"
         )
-        
+
         fm = FastMail(conf)
         await fm.send_message(message)
         logger.info(f"Email change confirmation sent to {email}")
@@ -163,11 +164,11 @@ async def send_email_change_code(email: str, code: str) -> bool:
             """,
             subtype="html"
         )
-        
+
         fm = FastMail(conf)
         await fm.send_message(message)
         logger.info(f"Email change code sent to {email}")
         return True
     except Exception as e:
         logger.error(f"Failed to send email change code to {email}: {str(e)}")
-        return False 
+        return False

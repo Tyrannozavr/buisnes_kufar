@@ -74,18 +74,22 @@ CITIES = {
     "Ташкент": [{"label": "Ташкент", "value": "Ташкент"}],
 }
 
+
 def get_countries() -> List[Dict[str, str]]:
     """Получить список стран"""
     return COUNTRIES
+
 
 def get_federal_districts() -> List[Dict[str, str]]:
     """Получить список федеральных округов"""
     return FEDERAL_DISTRICTS
 
+
 def get_regions(country: str, federal_district: Optional[str] = None) -> List[Dict[str, str]]:
     """Получить список регионов по стране"""
     return REGIONS.get(country, [])
 
+
 def get_cities(country: str, region: str) -> List[Dict[str, str]]:
     """Получить список городов по региону"""
-    return CITIES.get(region, []) 
+    return CITIES.get(region, [])

@@ -21,7 +21,9 @@ async def get_official_repository(db: async_db_dep) -> CompanyOfficialRepository
     official_repository = CompanyOfficialRepository(db)
     return official_repository
 
+
 official_repository_dep = Annotated[CompanyOfficialRepository, Depends(get_official_repository)]
+
 
 def get_company_filter_service(db: async_db_dep) -> CompanyFilterService:
     return CompanyFilterService(db)

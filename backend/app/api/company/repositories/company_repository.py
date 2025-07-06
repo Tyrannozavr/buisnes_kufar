@@ -118,9 +118,10 @@ class CompanyRepository:
         default_name = "Новая компания"
         default_inn = "0000000000"
         if (
-            ("name" in update_data and update_data["name"] != default_name) or (company and company.name != default_name)
+                ("name" in update_data and update_data["name"] != default_name) or (
+                company and company.name != default_name)
         ) and (
-            ("inn" in update_data and update_data["inn"] != default_inn) or (company and company.inn != default_inn)
+                ("inn" in update_data and update_data["inn"] != default_inn) or (company and company.inn != default_inn)
         ):
             update_data["is_active"] = True
 
@@ -135,7 +136,7 @@ class CompanyRepository:
                 .where(Company.id == company_id)
                 .values(**update_data)
             )
-        
+
         await self.session.commit()
         return await self.get_by_id(company_id)
 
@@ -173,7 +174,7 @@ class CompanyRepository:
         """
         from app.api.company.models.official import CompanyOfficial
         from app.api.company.models.company import TradeActivity, BusinessType
-        
+
         # Формируем полное имя пользователя
         full_name_parts = []
         if user.first_name:
@@ -182,9 +183,9 @@ class CompanyRepository:
             full_name_parts.append(user.last_name)
         if user.patronymic:
             full_name_parts.append(user.patronymic)
-        
+
         user_full_name = " ".join(full_name_parts) if full_name_parts else "Не указано"
-        
+
         # Создаем компанию с данными по умолчанию
         company = Company(
             name="Новая компания",
@@ -194,13 +195,13 @@ class CompanyRepository:
             business_type=BusinessType.BOTH,
             activity_type="Деятельность не указана",
             description=None,
-            
+
             # Location - значения по умолчанию
             country="Россия",
             federal_district="Центральный федеральный округ",
             region="Москва",
             city="Москва",
-            
+
             # Legal information
             full_name="Полное наименование не указано",
             inn=user.inn,  # ИНН из данных пользователя
@@ -209,34 +210,34 @@ class CompanyRepository:
             registration_date=datetime.now(),
             legal_address="Адрес не указан",
             production_address=None,
-            
+
             # Contact information - из данных пользователя
             phone=user.phone,
             email=user.email,
             website=None,
-            
+
             # Статистика
             total_views=0,
             monthly_views=0,
             total_purchases=0,
-            
+
             # Связи и статус
             user_id=user.id,
             is_active=False  # Компания неактивна по умолчанию
         )
-        
+
         self.session.add(company)
         await self.session.commit()
         await self.session.refresh(company)
-        
+
         # Создаем запись в CompanyOfficial для текущего пользователя
         official = CompanyOfficial(
             position=user.position or "Руководитель",
             full_name=user_full_name,
             company_id=company.id
         )
-        
+
         self.session.add(official)
         await self.session.commit()
-        
+
         return company

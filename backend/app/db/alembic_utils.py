@@ -8,6 +8,7 @@ sync_engine = create_engine(
     connect_args={"check_same_thread": False}  # Needed for SQLite
 )
 
+
 # Function to get database URL for Alembic
 def get_ASYNC_DATABASE_URL():
-    return settings.DATABASE_URL 
+    return settings.DATABASE_URL

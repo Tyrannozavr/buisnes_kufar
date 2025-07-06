@@ -1,1 +1,1 @@
-# Products repositories package 
+# Products repositories package

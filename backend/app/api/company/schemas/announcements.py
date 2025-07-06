@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from pydantic import BaseModel, Field, computed_field, ConfigDict
+
 from app.core.config import settings
 
 
@@ -59,4 +60,4 @@ class AnnouncementListResponse(BaseModel):
     announcements: List[AnnouncementResponse]
     total: int
     page: int
-    per_page: int 
+    per_page: int

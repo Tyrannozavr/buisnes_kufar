@@ -16,6 +16,7 @@ class UserBase(BaseModel):
     inn: Optional[str] = None
     position: Optional[str] = None
 
+
 class UserCreateStep1(BaseModel):
     email: EmailStr
     first_name: Optional[str] = None
@@ -24,11 +25,13 @@ class UserCreateStep1(BaseModel):
     phone: constr(min_length=10, max_length=15)
     recaptcha_token: str  # Токен reCAPTCHA v3
 
+
 class UserCreateStep2(BaseModel):
     token: str
     inn: constr(min_length=10, max_length=12)
     position: str
     password: constr(min_length=8)
+
 
 class UserInDB(UserBase):
     id: int
@@ -40,8 +43,10 @@ class UserInDB(UserBase):
     class Config:
         from_attributes = True
 
+
 class User(UserInDB):
     pass
+
 
 class Token(BaseModel):
     access_token: str
@@ -51,12 +56,15 @@ class Token(BaseModel):
 class RegistrationTokenCreate(BaseModel):
     email: EmailStr
 
+
 class RegistrationTokenVerify(BaseModel):
     token: str
+
 
 class RegistrationTokenResponse(BaseModel):
     is_valid: bool
     message: Optional[str] = None
+
 
 class RegistrationToken(BaseModel):
     token: str
@@ -68,18 +76,21 @@ class RegistrationToken(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class RegistrationStep2(BaseModel):
     token: uuid4
     password: str
 
+
 class TokenData(BaseModel):
     user_id: int
 
+
 class VerifyTokenResponse(CompanyLogoUrlMixin):
     is_valid: bool
-    company_name: str|None = None
-    company_slug: str|None = None
-    company_id: int|None = None
+    company_name: str | None = None
+    company_slug: str | None = None
+    company_id: int | None = None
 
 
 class ChangePasswordRequest(BaseModel):

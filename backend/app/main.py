@@ -1,12 +1,10 @@
-import json
 import os
 
-import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -17,7 +15,6 @@ from app.admin.views import setup_admin
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.base import Base
-from app_logging.logger import logger
 
 # Import all schemas to ensure they are included in the OpenAPI schema
 
@@ -32,9 +29,11 @@ app = FastAPI(
 )
 favicon_path = 'app/favicon.ico'
 
+
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse(favicon_path)
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -73,14 +72,12 @@ async def shutdown():
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-
 # Get the absolute path to the uploads directory
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 os.makedirs(uploads_dir, exist_ok=True)  # Create the uploads directory if it doesn't exist'
 # Mount the static files directory
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
-
 
 
 @app.get("/", response_class=HTMLResponse)

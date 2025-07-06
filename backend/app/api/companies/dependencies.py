@@ -11,4 +11,4 @@ async def get_companies_repository(db: async_db_dep) -> CompaniesRepository:
     return CompaniesRepository(db)
 
 
-companies_repository_dep = Annotated[CompaniesRepository, Depends(get_companies_repository)] 
+companies_repository_dep = Annotated[CompaniesRepository, Depends(get_companies_repository)]

@@ -3,9 +3,9 @@ from typing import Optional, Sequence
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.company.models.official import CompanyOfficial
 from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, \
     CompanyOfficialPartialUpdate
-from app.api.company.models.official import CompanyOfficial
 
 
 class CompanyOfficialRepository:

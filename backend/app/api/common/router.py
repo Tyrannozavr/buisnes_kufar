@@ -13,8 +13,10 @@ from ..common.utils.location_data import (
 
 router = APIRouter(tags=["locations"])
 
+
 async def unify_list(items: list) -> list:
     return [{"label": item.get("label"), "value": item.get("label")} for item in items]
+
 
 @router.get("/countries", response_model=LocationResponse)
 async def get_countries_list():
@@ -25,6 +27,7 @@ async def get_countries_list():
         "total": len(countries)
     }
 
+
 @router.get("/federal-districts", response_model=LocationResponse)
 async def get_federal_districts_list():
     """Получить список федеральных округов"""
@@ -34,10 +37,11 @@ async def get_federal_districts_list():
         "total": len(federal_districts)
     }
 
+
 @router.get("/regions/{country}", response_model=LocationResponse)
 async def get_regions_list(
-    country: str = Path(..., description="Страна"),
-    federal_district: Optional[str] = Query(None, description="Федеральный округ")
+        country: str = Path(..., description="Страна"),
+        federal_district: Optional[str] = Query(None, description="Федеральный округ")
 ):
     """
     Получить список регионов по стране и федеральному округу.
@@ -70,11 +74,12 @@ async def get_regions_list(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/cities", response_model=LocationResponse)
 async def get_cities_list(
-    country: str = Query(..., description="Страна"),
-    region: str = Query(..., description="Регион"),
-    name: str = Query(None, description="Название города")
+        country: str = Query(..., description="Страна"),
+        region: str = Query(..., description="Регион"),
+        name: str = Query(None, description="Название города")
 ):
     """Получить список городов по стране и региону"""
     country = "Беларусь"
@@ -92,9 +97,10 @@ async def get_cities_list(
         "total": len(cities)
     }
 
+
 @router.get("/districts/{region_id}", response_model=LocationResponse)
 async def get_districts_list(
-    region_id: int = Path(..., description="ID региона")
+        region_id: int = Path(..., description="ID региона")
 ):
     """
     Получить список районов для указанного региона.

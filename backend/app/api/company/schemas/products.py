@@ -8,9 +8,11 @@ class ProductType(str, Enum):
     PRODUCT = "Товар"
     SERVICE = "Услуга"
 
+
 class Characteristic(BaseModel):
     name: str
     value: str
+
 
 class Product(BaseModel):
     id: str
@@ -26,15 +28,18 @@ class Product(BaseModel):
     is_deleted: bool = Field(..., alias="isDeleted")
     slug: str
 
+
 class PaginationInfo(BaseModel):
     total: int
     page: int
     per_page: int = Field(..., alias="perPage")
     total_pages: int = Field(..., alias="totalPages")
 
+
 class ProductsResponse(BaseModel):
     data: List[Product]
     pagination: PaginationInfo
+
 
 class ProductCreate(BaseModel):
     name: str
@@ -45,6 +50,7 @@ class ProductCreate(BaseModel):
     images: List[str]
     characteristics: List[Characteristic]
     is_hidden: bool = Field(False, alias="isHidden")
+
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None

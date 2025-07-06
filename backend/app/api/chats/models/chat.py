@@ -21,8 +21,9 @@ class Chat(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    participants: Mapped[List["ChatParticipant"]] = relationship("ChatParticipant", back_populates="chat", cascade="all, delete-orphan")
+    participants: Mapped[List["ChatParticipant"]] = relationship("ChatParticipant", back_populates="chat",
+                                                                 cascade="all, delete-orphan")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
 
     def __str__(self):
-        return f"Chat {self.id}" 
+        return f"Chat {self.id}"

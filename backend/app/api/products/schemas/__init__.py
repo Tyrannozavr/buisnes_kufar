@@ -1,1 +1,1 @@
-# Products schemas package 
+# Products schemas package

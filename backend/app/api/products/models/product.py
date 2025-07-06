@@ -10,9 +10,11 @@ from app.db.base_class import Base
 if TYPE_CHECKING:
     from app.api.company.models.company import Company
 
+
 class ProductType(str, enum.Enum):
     GOOD = "Товар"
     SERVICE = "Услуга"
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -28,13 +30,13 @@ class Product(Base):
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     unit_of_measurement: Mapped[str] = mapped_column(String(100))
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Foreign keys
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
-    
+
     # Relationships
-    company: Mapped["Company"] = relationship("Company", back_populates="products") 
+    company: Mapped["Company"] = relationship("Company", back_populates="products")

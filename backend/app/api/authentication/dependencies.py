@@ -21,33 +21,38 @@ oauth2_scheme = OAuth2PasswordBearer(
     description="OAuth2 password bearer token",
 )
 
+
 async def get_user_repository(
-    session: async_db_dep
+        session: async_db_dep
 ) -> UserRepository:
     return UserRepository(session)
 
+
 user_repository_dep = Annotated[UserRepository, Depends(get_user_repository)]
 
+
 async def get_auth_service(
-    user_repository: user_repository_dep,
-    db: async_db_dep
+        user_repository: user_repository_dep,
+        db: async_db_dep
 ) -> AuthService:
     return AuthService(user_repository=user_repository, db=db)
+
 
 # Для удобства использования в роутерах
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
+
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: AsyncSession = Depends(get_async_db)
+        token: Annotated[str, Depends(oauth2_scheme)],
+        db: AsyncSession = Depends(get_async_db)
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -55,7 +60,7 @@ async def get_current_user(
             raise credentials_exception
     except Exception:
         raise credentials_exception
-        
+
     user_repository = UserRepository(session=db)
     user = await user_repository.get_user_by_id(int(user_id))
     if user is None:
@@ -64,7 +69,7 @@ async def get_current_user(
 
 
 async def get_token_data(
-    token: Annotated[str, Depends(oauth2_scheme)],
+        token: Annotated[str, Depends(oauth2_scheme)],
 ) -> TokenData:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

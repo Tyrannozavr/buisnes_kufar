@@ -20,30 +20,31 @@ def get_async_database_url(sync_url: str) -> str:
     # Add more cases for other database types as needed
     return sync_url  # Return original if no conversion is needed
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Business Trade API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
-    
+
     # Security
     SECRET_KEY: str = "your-secret-key-here"  # В продакшене заменить на безопасный ключ
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
-    
+
     # Cookie settings
     COOKIE_SECURE: bool = False  # Set to True in production with HTTPS
     COOKIE_HTTPONLY: bool = True
     COOKIE_SAMESITE: str = "lax"  # Options: "lax", "strict", "none"
     COOKIE_DOMAIN: Optional[str] = None
     COOKIE_PATH: str = "/"
-    
+
     # Database
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "business_trade"
     SQLALCHEMY_DATABASE_URL: Optional[str] = None
-    
+
     # Настройки фронтенда
     FRONTEND_URL: str = "http://localhost:3000"
     BASE_IMAGE_URL: str = "http://localhost:8000"
@@ -59,13 +60,13 @@ class Settings(BaseSettings):
         "http://localhost:3000",  # Add this line
         "http://127.0.0.1:3000",  # Add this line
     ]
-    
-    MAIL_USERNAME: str|None = "mock_email@example.com"
-    MAIL_PASSWORD: str|None = "mock_password_here"
-    MAIL_FROM: str|None = "mock_email@example.com"
-    MAIL_PORT: int|None = 587
-    MAIL_SERVER: str|None = "smtp.gmail.com"
-    
+
+    MAIL_USERNAME: str | None = "mock_email@example.com"
+    MAIL_PASSWORD: str | None = "mock_password_here"
+    MAIL_FROM: str | None = "mock_email@example.com"
+    MAIL_PORT: int | None = 587
+    MAIL_SERVER: str | None = "smtp.gmail.com"
+
     # Static files
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     STATIC_DIR: Path = BASE_DIR / "static"
@@ -75,7 +76,7 @@ class Settings(BaseSettings):
 
     # reCAPTCHA v3 settings
     RECAPTCHA_SECRET_KEY: str = "6LdJHHorAAAAAEUE2R1s_QsmJPLR0PSCPnB1_TQy"  # Замените на ваш секретный ключ
-    RECAPTCHA_SITE_KEY: str = "6LdJHHorAAAAAG2JB9CyOtRQbPJWrxbdRPy0dMHO"   # Замените на ваш публичный ключ
+    RECAPTCHA_SITE_KEY: str = "6LdJHHorAAAAAG2JB9CyOtRQbPJWrxbdRPy0dMHO"  # Замените на ваш публичный ключ
     RECAPTCHA_MIN_SCORE: float = 0.5  # Минимальный балл для прохождения проверки
 
     @property

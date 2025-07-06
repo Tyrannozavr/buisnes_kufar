@@ -24,4 +24,3 @@ api_router.include_router(products_owner_router, prefix="/me/products", tags=["p
 api_router.include_router(public_products_router, prefix="/products", tags=["public-products"])
 api_router.include_router(public_announcements_router, prefix="/announcements", tags=["public-announcements"])
 api_router.include_router(locations_router, prefix="/companies/locations")
-

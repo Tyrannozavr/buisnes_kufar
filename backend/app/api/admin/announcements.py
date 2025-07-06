@@ -1,10 +1,10 @@
 import json
 import os
-import uuid
 from typing import List
+
 from sqladmin import ModelView
 from sqladmin.fields import QuerySelectField
-from sqlalchemy.orm import relationship
+
 from app.api.company.models.announcement import Announcement
 from app.api.company.models.company import Company
 
@@ -121,18 +121,18 @@ class AnnouncementAdmin(ModelView, model=Announcement):
         """Форматирует изображения для отображения в админке"""
         if not images:
             return "Нет изображений"
-        
+
         # Показываем количество и первые несколько путей
         count = len(images)
         preview = images[:3]  # Показываем первые 3 изображения
-        
+
         result = f"{count} изображений:\n"
         for i, img_path in enumerate(preview, 1):
             result += f"{i}. {img_path}\n"
-        
+
         if count > 3:
             result += f"... и еще {count - 3} изображений"
-        
+
         return result
 
     def get_form(self):
@@ -167,11 +167,11 @@ class AnnouncementAdmin(ModelView, model=Announcement):
     def on_form_prefill(self, form, id):
         """Заполняет форму данными при редактировании"""
         super().on_form_prefill(form, id)
-        
+
         # Добавляем информацию об изображениях в поле content как комментарий
         announcement = self.session.query(Announcement).get(id)
         if announcement and announcement.images:
             images_info = self._format_images(announcement.images)
             # Добавляем информацию об изображениях в начало контента как комментарий
             if not form.content.data.startswith("<!-- IMAGES INFO:"):
-                form.content.data = f"<!-- IMAGES INFO:\n{images_info}\n-->\n\n{form.content.data}" 
+                form.content.data = f"<!-- IMAGES INFO:\n{images_info}\n-->\n\n{form.content.data}"

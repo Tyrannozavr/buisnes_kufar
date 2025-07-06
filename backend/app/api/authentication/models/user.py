@@ -24,6 +24,7 @@ class User(Base):
     registration_token = relationship("RegistrationToken", back_populates="user", uselist=False)
     company = relationship("Company", back_populates="user", uselist=False)
 
+
 class RegistrationToken(Base):
     __tablename__ = "registration_tokens"
 
@@ -73,4 +74,4 @@ class PasswordRecoveryCode(Base):
     code = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    is_used = Column(Boolean, default=False) 
+    is_used = Column(Boolean, default=False)

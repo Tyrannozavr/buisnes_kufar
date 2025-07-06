@@ -9,7 +9,7 @@ def setup_admin(app, engine):
     from app.api.admin.announcements import AnnouncementAdmin
     from app.api.admin.chats import ChatAdmin, ChatParticipantAdmin
     from app.api.admin.messages import MessageAdmin
-    
+
     admin = Admin(app, engine)
 
     # Регистрируем представления

@@ -1,13 +1,13 @@
 import random
 import time
 from typing import Optional, List
+
+from slugify import slugify
 from sqlalchemy import select, update, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from slugify import slugify
 
-from app.api.products.models.product import Product, ProductType
 from app.api.company.models.company import Company
+from app.api.products.models.product import Product, ProductType
 from app.api.products.schemas.product import ProductCreate, ProductUpdate
 
 
@@ -73,12 +73,12 @@ class MyProductsRepository:
         return result.scalar_one_or_none()
 
     async def get_all_products(
-        self, 
-        user_id: int, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = True,
-        include_deleted: bool = False
+            self,
+            user_id: int,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = True,
+            include_deleted: bool = False
     ) -> tuple[List[Product], int]:
         """Получить все продукты компании пользователя с пагинацией"""
         company = await self.get_company_by_user_id(user_id)
@@ -91,7 +91,7 @@ class MyProductsRepository:
         # Добавляем фильтры
         if not include_hidden:
             base_query = base_query.where(Product.is_hidden == False)
-        
+
         if not include_deleted:
             base_query = base_query.where(Product.is_deleted == False)
 
@@ -108,11 +108,11 @@ class MyProductsRepository:
         return list(products), total
 
     async def get_products_by_type(
-        self, 
-        user_id: int, 
-        product_type: ProductType,
-        skip: int = 0, 
-        limit: int = 100
+            self,
+            user_id: int,
+            product_type: ProductType,
+            skip: int = 0,
+            limit: int = 100
     ) -> tuple[List[Product], int]:
         """Получить продукты определенного типа компании пользователя"""
         company = await self.get_company_by_user_id(user_id)
@@ -145,13 +145,13 @@ class MyProductsRepository:
             return None
 
         slug = await self.create_product_slug(product_data.name, company.id)
-        
+
         product = Product(
             **product_data.model_dump(),
             slug=slug,
             company_id=company.id
         )
-        
+
         self.session.add(product)
         await self.session.commit()
         await self.session.refresh(product)
@@ -170,7 +170,7 @@ class MyProductsRepository:
 
         # Подготавливаем данные для обновления
         update_data = product_data.model_dump(exclude_unset=False)
-        
+
         # Если изменяется название, генерируем новый slug
         if 'name' in update_data:
             update_data['slug'] = await self.create_product_slug(update_data['name'], company.id)
@@ -181,7 +181,7 @@ class MyProductsRepository:
             .where(Product.id == product_id)
             .values(**update_data)
         )
-        
+
         await self.session.commit()
         return await self.get_by_id(product_id, user_id)
 
@@ -198,7 +198,7 @@ class MyProductsRepository:
 
         # Подготавливаем данные для обновления
         update_data = product_data.model_dump(exclude_unset=True)
-        
+
         # Если изменяется название, генерируем новый slug
         if 'name' in update_data:
             update_data['slug'] = await self.create_product_slug(update_data['name'], company.id)
@@ -209,7 +209,7 @@ class MyProductsRepository:
             .where(Product.id == product_id)
             .values(**update_data)
         )
-        
+
         await self.session.commit()
         return await self.get_by_id(product_id, user_id)
 
@@ -261,7 +261,7 @@ class MyProductsRepository:
             return None
 
         new_hidden_state = not existing_product.is_hidden
-        
+
         await self.session.execute(
             update(Product)
             .where(Product.id == product_id)

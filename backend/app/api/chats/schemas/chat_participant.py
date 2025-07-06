@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel, computed_field
+
 from app.core.config import settings
 
 
@@ -22,4 +24,4 @@ class ChatParticipantResponse(BaseModel):
         return ""
 
     class Config:
-        from_attributes = True 
+        from_attributes = True

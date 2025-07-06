@@ -1,12 +1,5 @@
-from typing import List, Dict, Any
-from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-import asyncio
-from datetime import datetime, timedelta
 
-from app.api.products.models.product import Product, ProductType
-from app.api.company.models.company import Company
 from app.api.products.schemas.filters import FilterItem, ProductFiltersResponse, ServiceFiltersResponse
 from app.api.products.services.cache_service import product_location_cache
 
@@ -19,28 +12,30 @@ class FilterService:
         """Получает фильтры для товаров с кэшированием"""
         # Получаем кэшированные данные
         locations = await product_location_cache.get_product_locations(self.session)
-        
+
         # Создаем ответ
         response = ProductFiltersResponse(
             countries=[FilterItem(label=country, value=country) for country in sorted(locations['countries'])],
-            federal_districts=[FilterItem(label=district, value=district) for district in sorted(locations['federal_districts'])],
+            federal_districts=[FilterItem(label=district, value=district) for district in
+                               sorted(locations['federal_districts'])],
             regions=[FilterItem(label=region, value=region) for region in sorted(locations['regions'])],
             cities=[FilterItem(label=city, value=city) for city in sorted(locations['cities'])]
         )
-        
+
         return response
 
     async def get_service_filters(self) -> ServiceFiltersResponse:
         """Получает фильтры для услуг с кэшированием"""
         # Получаем кэшированные данные
         locations = await product_location_cache.get_service_locations(self.session)
-        
+
         # Создаем ответ
         response = ServiceFiltersResponse(
             countries=[FilterItem(label=country, value=country) for country in sorted(locations['countries'])],
-            federal_districts=[FilterItem(label=district, value=district) for district in sorted(locations['federal_districts'])],
+            federal_districts=[FilterItem(label=district, value=district) for district in
+                               sorted(locations['federal_districts'])],
             regions=[FilterItem(label=region, value=region) for region in sorted(locations['regions'])],
             cities=[FilterItem(label=city, value=city) for city in sorted(locations['cities'])]
         )
-        
-        return response 
+
+        return response

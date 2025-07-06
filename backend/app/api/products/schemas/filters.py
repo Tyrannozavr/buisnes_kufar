@@ -1,4 +1,5 @@
 from typing import List
+
 from pydantic import BaseModel
 
 
@@ -18,4 +19,4 @@ class ServiceFiltersResponse(BaseModel):
     countries: List[FilterItem]
     federal_districts: List[FilterItem]
     regions: List[FilterItem]
-    cities: List[FilterItem] 
+    cities: List[FilterItem]

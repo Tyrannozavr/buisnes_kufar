@@ -1,12 +1,13 @@
 from typing import List, Optional
+
+from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import and_, or_, select, func
 
+from app.api.authentication.models import User
 from app.api.chats.models.chat import Chat
 from app.api.chats.models.chat_participant import ChatParticipant
 from app.api.company.models.company import Company
-from app.api.authentication.models import User
 
 
 class ChatRepository:
@@ -21,7 +22,8 @@ class ChatRepository:
         await self.db.refresh(chat)
         return chat
 
-    async def add_participant(self, chat_id: int, company_id: int, user_id: int, is_admin: bool = False) -> ChatParticipant:
+    async def add_participant(self, chat_id: int, company_id: int, user_id: int,
+                              is_admin: bool = False) -> ChatParticipant:
         """Добавляет участника в чат"""
         participant = ChatParticipant(
             chat_id=chat_id,
@@ -107,4 +109,4 @@ class ChatRepository:
         """Получает пользователя по ID"""
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
-        return result.unique().scalar_one_or_none() 
+        return result.unique().scalar_one_or_none()

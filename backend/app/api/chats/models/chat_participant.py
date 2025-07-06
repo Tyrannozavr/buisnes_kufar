@@ -29,4 +29,4 @@ class ChatParticipant(Base):
     user: Mapped["User"] = relationship("User")
 
     def __str__(self):
-        return f"ChatParticipant {self.id} in Chat {self.chat_id}" 
+        return f"ChatParticipant {self.id} in Chat {self.chat_id}"

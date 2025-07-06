@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from pydantic import BaseModel, Field, computed_field, ConfigDict
+
 from app.core.config import settings
 
 
@@ -9,7 +10,7 @@ class CompanyInfo(BaseModel):
     id: int
     name: str
     logo: Optional[str] = None
-    
+
     @computed_field
     @property
     def logo_url(self) -> Optional[str]:
@@ -17,7 +18,7 @@ class CompanyInfo(BaseModel):
         if not self.logo:
             return None
         return f"{settings.BASE_IMAGE_URL}{self.logo}"
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -58,4 +59,4 @@ class PublicAnnouncementListResponse(BaseModel):
     announcements: List[PublicAnnouncementResponse]
     total: int
     page: int
-    per_page: int 
+    per_page: int

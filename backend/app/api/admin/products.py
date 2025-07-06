@@ -1,7 +1,8 @@
 from sqladmin import ModelView
 from sqladmin.fields import QuerySelectField
-from app.api.products.models.product import Product, ProductType
+
 from app.api.company.models.company import Company
+from app.api.products.models.product import Product
 
 
 class ProductAdmin(ModelView, model=Product):
@@ -113,7 +114,8 @@ class ProductAdmin(ModelView, model=Product):
         Product.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None,
         Product.price: lambda m, a: f"{m.price:.2f}" if m.price else None,
         Product.images: lambda m, a: f"{len(m.images)} изображений" if m.images else "Нет изображений",
-        Product.characteristics: lambda m, a: f"{len(m.characteristics)} характеристик" if m.characteristics else "Нет характеристик"
+        Product.characteristics: lambda m,
+                                        a: f"{len(m.characteristics)} характеристик" if m.characteristics else "Нет характеристик"
     }
 
     # Настройка валидации формы

@@ -1,12 +1,12 @@
-from datetime import datetime
-from typing import Optional, List, Union, TYPE_CHECKING, Literal
 import enum
+from datetime import datetime
+from typing import Optional, List, Union, TYPE_CHECKING
 
 from pydantic import BaseModel, EmailStr, HttpUrl, constr, Field, ConfigDict, computed_field, \
     model_validator
 
-from app.api.company.schemas.company_officials import CompanyOfficialUpdate, CompanyOfficial
 from app.api.company.models.company import TradeActivity, BusinessType
+from app.api.company.schemas.company_officials import CompanyOfficialUpdate, CompanyOfficial
 from app.core.config import settings
 
 if TYPE_CHECKING:
@@ -20,13 +20,13 @@ class CompanyBase(BaseModel):
     business_type: BusinessType
     activity_type: str
     description: Optional[str] = None
-    
+
     # Location
     country: str
     federal_district: str
     region: str
     city: str
-    
+
     # Legal information
     full_name: str
     inn: constr(min_length=10, max_length=12)
@@ -35,14 +35,16 @@ class CompanyBase(BaseModel):
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None
-    
+
     # Contact information
     phone: constr(min_length=10, max_length=20)
     email: EmailStr
     website: Optional[HttpUrl] = None
 
+
 class CompanyCreate(CompanyBase):
     pass
+
 
 class CompanyCreateInactive(BaseModel):
     """Схема для создания неактивной компании при регистрации пользователя"""
@@ -52,13 +54,13 @@ class CompanyCreateInactive(BaseModel):
     business_type: BusinessType = BusinessType.BOTH
     activity_type: str = "Деятельность не указана"
     description: Optional[str] = None
-    
+
     # Location - используем значения по умолчанию
     country: str = "Россия"
     federal_district: str = "Центральный федеральный округ"
     region: str = "Москва"
     city: str = "Москва"
-    
+
     # Legal information - заполняем из данных пользователя
     full_name: str
     inn: str
@@ -67,11 +69,12 @@ class CompanyCreateInactive(BaseModel):
     registration_date: datetime
     legal_address: str = "Адрес не указан"
     production_address: Optional[str] = None
-    
+
     # Contact information - заполняем из данных пользователя
     phone: str
     email: str
     website: Optional[str] = None
+
 
 class CompanyLogoUrlMixin(BaseModel):
     logo: Optional[str] = Field(default=None, exclude=True)
@@ -83,6 +86,7 @@ class CompanyLogoUrlMixin(BaseModel):
             return f"{settings.BASE_IMAGE_URL}{self.logo}"
         return None
 
+
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
     logo: Optional[str] = None
@@ -91,13 +95,13 @@ class CompanyUpdate(BaseModel):
     business_type: Optional[BusinessType] = None
     activity_type: Optional[str] = None
     description: Optional[str] = None
-    
+
     # Location
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
     city: Optional[str] = None
-    
+
     # Legal information
     full_name: Optional[str] = None
     inn: Optional[constr(min_length=10, max_length=12)] = None
@@ -115,7 +119,7 @@ class CompanyUpdate(BaseModel):
     registration_date: Optional[datetime] = None
     legal_address: Optional[str] = None
     production_address: Optional[str] = None
-    
+
     # Contact information
     phone: Optional[constr(min_length=10, max_length=20)] = None
     email: Optional[EmailStr] = None
@@ -127,9 +131,10 @@ class CompanyUpdate(BaseModel):
         if 'website' in values and isinstance(values['website'], HttpUrl):
             values['website'] = str(values['website'])
         return values
-    
+
     # Officials
     officials: Optional[List[CompanyOfficialUpdate]] = None
+
 
 class Company(CompanyBase):
     id: int
@@ -146,12 +151,14 @@ class Company(CompanyBase):
     class Config:
         from_attributes = True
 
+
 class CompanyStatisticsResponse(BaseModel):
     total_products: int
     total_views: int | None
     monthly_views: int | None
     registration_date: datetime
     total_purchases: int | None
+
 
 class CompanyResponse(CompanyLogoUrlMixin):
     id: int
@@ -185,12 +192,12 @@ class CompanyResponse(CompanyLogoUrlMixin):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ShortCompanyResponse(CompanyLogoUrlMixin):
     slug: str
     name: str
 
     model_config = ConfigDict(from_attributes=True)
-
 
 
 class CompanyProfileResponse(BaseModel):
@@ -244,14 +251,17 @@ class CompanyProfileResponse(BaseModel):
             is_company_created=True
         )
 
+
 class CompanyRelationType(str, enum.Enum):
     SUPPLIER = "supplier"
     BUYER = "buyer"
     PARTNER = "partner"
 
+
 class CompanyRelationCreate(BaseModel):
     related_company_id: int
     relation_type: CompanyRelationType
+
 
 class CompanyRelationResponse(BaseModel):
     id: int

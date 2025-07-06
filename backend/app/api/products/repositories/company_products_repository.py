@@ -1,10 +1,11 @@
 from typing import Optional, List, Tuple
+
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.products.models.product import Product, ProductType
 from app.api.company.models.company import Company
+from app.api.products.models.product import Product, ProductType
 from app.api.products.schemas.products import ProductsResponse, ProductListItem, PaginationInfo
 
 
@@ -41,11 +42,11 @@ class CompanyProductsRepository:
         return result.scalar_one_or_none()
 
     async def get_by_company_id(
-        self, 
-        company_id: int,
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            company_id: int,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты компании с пагинацией"""
         # Базовый запрос
@@ -75,11 +76,11 @@ class CompanyProductsRepository:
         return list(products), total
 
     async def get_by_company_slug(
-        self, 
-        company_slug: str,
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            company_slug: str,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты компании по slug с пагинацией"""
         # Базовый запрос с join на компанию
@@ -109,10 +110,10 @@ class CompanyProductsRepository:
         return list(products), total
 
     async def get_all_products(
-        self, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты всех компаний с пагинацией"""
         # Базовый запрос
@@ -137,10 +138,10 @@ class CompanyProductsRepository:
         return list(products), total
 
     async def get_all_services(
-        self, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все услуги всех компаний с пагинацией"""
         # Базовый запрос для услуг
@@ -170,10 +171,10 @@ class CompanyProductsRepository:
         return list(services), total
 
     async def get_all_goods(
-        self, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все товары всех компаний с пагинацией"""
         # Базовый запрос для товаров
@@ -202,13 +203,12 @@ class CompanyProductsRepository:
 
         return list(goods), total
 
-
     async def get_services_by_company_id(
-        self, 
-        company_id: int, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            company_id: int,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все услуги конкретной компании с пагинацией"""
         # Базовый запрос для услуг компании
@@ -239,11 +239,11 @@ class CompanyProductsRepository:
         return list(services), total
 
     async def get_goods_by_company_id(
-        self, 
-        company_id: int, 
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            company_id: int,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все товары конкретной компании с пагинацией"""
         # Базовый запрос для товаров компании
@@ -274,11 +274,11 @@ class CompanyProductsRepository:
         return list(goods), total
 
     async def search_products(
-        self, 
-        search_term: str,
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            search_term: str,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Поиск продуктов по названию или описанию"""
         from sqlalchemy import or_
@@ -314,12 +314,12 @@ class CompanyProductsRepository:
         return list(products), total
 
     async def get_products_by_price_range(
-        self, 
-        min_price: float,
-        max_price: float,
-        skip: int = 0, 
-        limit: int = 100,
-        include_hidden: bool = False
+            self,
+            min_price: float,
+            max_price: float,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить продукты в диапазоне цен"""
         # Базовый запрос с фильтром по цене
@@ -350,9 +350,9 @@ class CompanyProductsRepository:
         return list(products), total
 
     async def get_latest_products(
-        self, 
-        limit: int = 20,
-        include_hidden: bool = False
+            self,
+            limit: int = 20,
+            include_hidden: bool = False
     ) -> List[Product]:
         """Получить последние добавленные продукты"""
         from sqlalchemy import desc
@@ -374,11 +374,11 @@ class CompanyProductsRepository:
         return list(products)
 
     async def get_company_products(
-        self,
-        company_id: Optional[int] = None,
-        company_slug: Optional[str] = None,
-        page: int = 1,
-        per_page: int = 10
+            self,
+            company_id: Optional[int] = None,
+            company_slug: Optional[str] = None,
+            page: int = 1,
+            per_page: int = 10
     ) -> Tuple[List[Product], int]:
         """
         Получить продукты компании с пагинацией
@@ -420,11 +420,11 @@ class CompanyProductsRepository:
         return list(products), total_count
 
     async def get_company_paginated_products(
-        self,
-        company_id: Optional[int] = None,
-        company_slug: Optional[str] = None,
-        page: int = 1,
-        per_page: int = 10
+            self,
+            company_id: Optional[int] = None,
+            company_slug: Optional[str] = None,
+            page: int = 1,
+            per_page: int = 10
     ) -> ProductsResponse:
         """
         Получить пагинированный ответ с продуктами компании

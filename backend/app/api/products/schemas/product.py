@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
+
 from pydantic import BaseModel, Field, computed_field, ConfigDict
-from fastapi import UploadFile
 
 from app.api.products.models.product import ProductType
 from app.core.config import settings
@@ -64,9 +64,10 @@ class ProductResponse(ProductBase):
         populate_by_name=True
     )
 
+
 class ProductPublicItemResponse(ProductBase):
-    is_deleted: bool|None  = Field(exclude=True)
-    is_hidden: bool|None = Field(exclude=True)
+    is_deleted: bool | None = Field(exclude=True)
+    is_hidden: bool | None = Field(exclude=True)
     slug: str
     raw_images: List[str] = Field(alias="images", exclude=True)
 

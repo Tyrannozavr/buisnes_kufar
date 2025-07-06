@@ -8,6 +8,7 @@ class LocationItem(BaseModel):
     label: str = Field(..., description="Отображаемое название")
     value: str = Field(..., description="Значение для использования в системе")
 
+
 class CityInfo(BaseModel):
     """Подробная информация о городе"""
     id: int = Field(..., description="Уникальный идентификатор города")
@@ -26,6 +27,7 @@ class CityInfo(BaseModel):
     vid: Optional[Union[int, str]] = Field(None, description="Тип населенного пункта")
     full_name: Optional[str] = Field(None, description="Полное название с регионом и районом")
 
+
 class RegionInfo(BaseModel):
     """Подробная информация о регионе"""
     id: int = Field(..., description="Уникальный идентификатор региона")
@@ -34,6 +36,7 @@ class RegionInfo(BaseModel):
     english: Optional[str] = Field(None, description="Название на английском")
     iso: Optional[str] = Field(None, description="ISO код")
     level: Optional[int] = Field(None, description="Уровень региона")
+
 
 class CountryInfo(BaseModel):
     """Подробная информация о стране"""
@@ -50,6 +53,7 @@ class CountryInfo(BaseModel):
     lang: Optional[str] = Field(None, description="Основной язык")
     langcod: Optional[str] = Field(None, description="Код языка")
 
+
 class LocationResponse(BaseModel):
     """Модель ответа для списка локаций"""
     items: List[LocationItem] = Field(..., description="Список элементов локации")
@@ -59,4 +63,4 @@ class LocationResponse(BaseModel):
 class CitySearchResponse(BaseModel):
     """Модель ответа для поиска городов"""
     items: List[CityInfo] = Field(..., description="Список найденных городов")
-    total: int = Field(..., description="Общее количество найденных городов") 
+    total: int = Field(..., description="Общее количество найденных городов")

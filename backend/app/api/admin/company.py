@@ -1,6 +1,6 @@
 from sqladmin import ModelView
 from sqladmin.fields import QuerySelectField
-from sqlalchemy.orm import relationship
+
 from app.api.company.models.company import Company
 from app.api.company.models.official import CompanyOfficial
 
@@ -151,7 +151,8 @@ class CompanyAdmin(ModelView, model=Company):
     column_formatters = {
         Company.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
         Company.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None,
-        Company.registration_date: lambda m, a: m.registration_date.strftime("%Y-%m-%d") if m.registration_date else None
+        Company.registration_date: lambda m, a: m.registration_date.strftime(
+            "%Y-%m-%d") if m.registration_date else None
     }
 
     # Настройка валидации формы

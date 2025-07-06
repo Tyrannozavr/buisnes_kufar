@@ -5,7 +5,9 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, \
+    ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, \
+    PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
 from app.api.authentication.services.auth_service import AuthService
 from app.api.authentication.services.recaptcha_service import recaptcha_service
 from app.api.company.dependencies import company_service_dep
@@ -26,10 +28,10 @@ async def register_step1(
 ):
     # Получаем IP адрес клиента
     client_ip = request.client.host if request.client else None
-    
+
     # Проверяем reCAPTCHA
     await recaptcha_service.verify_recaptcha(data.recaptcha_token, client_ip)
-    
+
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     await auth_service.register_step1(data)
     return {"message": "Registration email sent"}
@@ -179,9 +181,9 @@ async def logout(response: Response):
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 async def change_password(
-    password_data: ChangePasswordRequest,
-    request: Request,
-    db: async_db_dep
+        password_data: ChangePasswordRequest,
+        request: Request,
+        db: async_db_dep
 ):
     """
     Change user password (requires authentication)
@@ -194,16 +196,16 @@ async def change_password(
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    
+
     success = await auth_service.change_password(user.id, password_data)
     return {"message": "Password changed successfully"}
 
 
 @router.post("/request-email-change", status_code=status.HTTP_200_OK)
 async def request_email_change(
-    email_data: ChangeEmailRequest,
-    request: Request,
-    db: async_db_dep
+        email_data: ChangeEmailRequest,
+        request: Request,
+        db: async_db_dep
 ):
     """
     Request email change (requires authentication)
@@ -216,15 +218,15 @@ async def request_email_change(
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    
+
     success = await auth_service.request_email_change(user.id, email_data)
     return {"message": "Email change confirmation sent"}
 
 
 @router.post("/confirm-email-change", status_code=status.HTTP_200_OK)
 async def confirm_email_change(
-    confirm_data: ChangeEmailConfirmRequest,
-    db: async_db_dep
+        confirm_data: ChangeEmailConfirmRequest,
+        db: async_db_dep
 ):
     """
     Confirm email change (no authentication required, uses token)
@@ -236,8 +238,8 @@ async def confirm_email_change(
 
 @router.post("/request-password-reset", status_code=status.HTTP_200_OK)
 async def request_password_reset(
-    reset_data: PasswordResetRequest,
-    db: async_db_dep
+        reset_data: PasswordResetRequest,
+        db: async_db_dep
 ):
     """
     Request password reset (no authentication required)
@@ -249,8 +251,8 @@ async def request_password_reset(
 
 @router.post("/confirm-password-reset", status_code=status.HTTP_200_OK)
 async def confirm_password_reset(
-    reset_data: PasswordResetConfirmRequest,
-    db: async_db_dep
+        reset_data: PasswordResetConfirmRequest,
+        db: async_db_dep
 ):
     """
     Confirm password reset (no authentication required, uses token)
@@ -263,8 +265,8 @@ async def confirm_password_reset(
 # Новые эндпоинты для восстановления пароля с кодами
 @router.post("/recover-password", status_code=status.HTTP_200_OK)
 async def recover_password(
-    recovery_data: PasswordRecoveryRequest,
-    db: async_db_dep
+        recovery_data: PasswordRecoveryRequest,
+        db: async_db_dep
 ):
     """
     Request password recovery with code (no authentication required)
@@ -276,8 +278,8 @@ async def recover_password(
 
 @router.post("/verify-code", status_code=status.HTTP_200_OK)
 async def verify_recovery_code(
-    verify_data: PasswordRecoveryVerifyRequest,
-    db: async_db_dep
+        verify_data: PasswordRecoveryVerifyRequest,
+        db: async_db_dep
 ):
     """
     Verify password recovery code (no authentication required)
@@ -289,8 +291,8 @@ async def verify_recovery_code(
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
 async def reset_password_with_code(
-    reset_data: PasswordRecoveryResetRequest,
-    db: async_db_dep
+        reset_data: PasswordRecoveryResetRequest,
+        db: async_db_dep
 ):
     """
     Reset password using recovery code (no authentication required)
@@ -303,30 +305,30 @@ async def reset_password_with_code(
 # Тестовый эндпоинт для отладки (удалить в продакшене)
 @router.get("/debug/password-hash/{inn}")
 async def debug_password_hash(
-    inn: str,
-    password: str,
-    db: async_db_dep
+        inn: str,
+        password: str,
+        db: async_db_dep
 ):
     """
     Debug endpoint to check password hashing (remove in production)
     """
     from app.core.security import get_password_hash, verify_password
-    
+
     user_repo = UserRepository(session=db)
     user = await user_repo.get_user_by_inn(inn)
-    
+
     if not user:
         return {"error": "User not found"}
-    
+
     if not user.hashed_password:
         return {"error": "User has no password hash"}
-    
+
     # Проверяем текущий пароль
     current_verify = verify_password(password, user.hashed_password)
-    
+
     # Создаем новый хеш для сравнения
     new_hash = get_password_hash(password)
-    
+
     return {
         "user_id": user.id,
         "user_email": user.email,

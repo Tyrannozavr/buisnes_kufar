@@ -1,13 +1,11 @@
-from typing import List, Tuple, Optional
 from sqlalchemy import select, and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.products.models.product import Product, ProductType
 from app.api.company.models.company import Company
-from app.api.products.schemas.product import ProductResponse, ProductListResponse
 from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest
-from app.api.products.services.cache_service import product_location_cache
+from app.api.products.models.product import Product, ProductType
+from app.api.products.schemas.product import ProductResponse, ProductListResponse
 
 
 class ProductSearchService:
@@ -142,4 +140,4 @@ class ProductSearchService:
 
     async def _apply_filters(self, query, filter_request):
         # Не используется, оставлено для обратной совместимости
-        return query 
+        return query

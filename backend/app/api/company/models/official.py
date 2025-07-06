@@ -14,9 +14,9 @@ class CompanyOfficial(Base):
 
     position: Mapped[str] = mapped_column(String(100), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    
+
     # Foreign keys
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
-    
+
     # Relationships
     company: Mapped["Company"] = relationship("Company", back_populates="officials")

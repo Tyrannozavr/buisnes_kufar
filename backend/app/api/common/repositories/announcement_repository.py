@@ -1,4 +1,5 @@
 from typing import Optional, List
+
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -35,13 +36,14 @@ class PublicAnnouncementRepository:
         ).where(
             Announcement.published == True
         ).order_by(Announcement.created_at.desc()).offset(offset).limit(per_page)
-        
+
         result = await self.session.execute(query)
         announcements = result.scalars().all()
-        
+
         return list(announcements), total
 
-    async def get_published_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[List[Announcement], int]:
+    async def get_published_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[
+        List[Announcement], int]:
         """Получить опубликованные объявления конкретной компании"""
         # Общее количество опубликованных объявлений компании
         count_query = select(func.count(Announcement.id)).where(
@@ -59,13 +61,14 @@ class PublicAnnouncementRepository:
             Announcement.company_id == company_id,
             Announcement.published == True
         ).order_by(Announcement.created_at.desc()).offset(offset).limit(per_page)
-        
+
         result = await self.session.execute(query)
         announcements = result.scalars().all()
-        
+
         return list(announcements), total
 
-    async def get_published_by_category(self, category: str, page: int = 1, per_page: int = 10) -> tuple[List[Announcement], int]:
+    async def get_published_by_category(self, category: str, page: int = 1, per_page: int = 10) -> tuple[
+        List[Announcement], int]:
         """Получить опубликованные объявления по категории"""
         # Общее количество опубликованных объявлений в категории
         count_query = select(func.count(Announcement.id)).where(
@@ -83,8 +86,8 @@ class PublicAnnouncementRepository:
             Announcement.category == category,
             Announcement.published == True
         ).order_by(Announcement.created_at.desc()).offset(offset).limit(per_page)
-        
+
         result = await self.session.execute(query)
         announcements = result.scalars().all()
-        
-        return list(announcements), total 
+
+        return list(announcements), total

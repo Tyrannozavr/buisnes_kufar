@@ -1,4 +1,5 @@
 from typing import Optional, List
+
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,7 +20,8 @@ class AnnouncementRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[List[Announcement], int]:
+    async def get_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[
+        List[Announcement], int]:
         """Получить все объявления компании с пагинацией"""
         # Общее количество объявлений
         count_query = select(func.count(Announcement.id)).where(Announcement.company_id == company_id)
@@ -30,11 +32,12 @@ class AnnouncementRepository:
         offset = (page - 1) * per_page
         query = select(Announcement).options(
             selectinload(Announcement.company)
-        ).where(Announcement.company_id == company_id).order_by(Announcement.created_at.desc()).offset(offset).limit(per_page)
-        
+        ).where(Announcement.company_id == company_id).order_by(Announcement.created_at.desc()).offset(offset).limit(
+            per_page)
+
         result = await self.session.execute(query)
         announcements = result.scalars().all()
-        
+
         return list(announcements), total
 
     async def create(self, announcement_data: AnnouncementCreate, company_id: int) -> Announcement:
@@ -51,7 +54,7 @@ class AnnouncementRepository:
     async def update(self, announcement_id: int, announcement_data: AnnouncementUpdate) -> Optional[Announcement]:
         """Обновить объявление"""
         update_data = announcement_data.model_dump(exclude_unset=True)
-        
+
         if update_data:
             await self.session.execute(
                 update(Announcement)
@@ -59,7 +62,7 @@ class AnnouncementRepository:
                 .values(**update_data)
             )
             await self.session.commit()
-        
+
         return await self.get_by_id(announcement_id)
 
     async def delete(self, announcement_id: int) -> bool:
@@ -70,7 +73,8 @@ class AnnouncementRepository:
         await self.session.commit()
         return result.rowcount > 0
 
-    async def get_published_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[List[Announcement], int]:
+    async def get_published_by_company_id(self, company_id: int, page: int = 1, per_page: int = 10) -> tuple[
+        List[Announcement], int]:
         """Получить только опубликованные объявления компании"""
         # Общее количество опубликованных объявлений
         count_query = select(func.count(Announcement.id)).where(
@@ -88,8 +92,8 @@ class AnnouncementRepository:
             Announcement.company_id == company_id,
             Announcement.published == True
         ).order_by(Announcement.created_at.desc()).offset(offset).limit(per_page)
-        
+
         result = await self.session.execute(query)
         announcements = result.scalars().all()
-        
-        return list(announcements), total 
+
+        return list(announcements), total

@@ -1,30 +1,31 @@
 import asyncio
 import random
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
-from app.core.config import settings
-import bcrypt
 
-# Import from base to ensure proper model registration order
-from app.db.base import AsyncSessionLocal
+import bcrypt
+from sqlalchemy import text
+
 from app.api.authentication.models.user import User
+from app.api.company.models.announcement import Announcement
 from app.api.company.models.company import Company, TradeActivity, BusinessType
 from app.api.products.models.product import Product, ProductType
-from app.api.company.models.announcement import Announcement
+from app.core.config import settings
+# Import from base to ensure proper model registration order
+from app.db.base import AsyncSessionLocal
 
 # Настройки подключения к БД (используем асинхронный URL)
 DATABASE_URL = settings.ASYNC_DATABASE_URL
 
 # Примерные справочники
 COUNTRIES = ["Россия", "Беларусь", "Казахстан"]
-FEDERAL_DISTRICTS = ["Центральный", "Северо-Западный", "Южный", "Приволжский", "Уральский", "Сибирский", "Дальневосточный"]
+FEDERAL_DISTRICTS = ["Центральный", "Северо-Западный", "Южный", "Приволжский", "Уральский", "Сибирский",
+                     "Дальневосточный"]
 REGIONS = [f"Регион {i}" for i in range(1, 21)]
 CITIES = [f"Город {i}" for i in range(1, 51)]
 
 PRODUCT_NAMES = [f"Продукт {i}" for i in range(1, 101)]
 SERVICE_NAMES = [f"Услуга {i}" for i in range(1, 51)]
+
 
 async def seed():
     async with AsyncSessionLocal() as session:
@@ -38,7 +39,7 @@ async def seed():
         await session.execute(text("DELETE FROM companies"))
         await session.execute(text("DELETE FROM users"))
         await session.commit()
-        
+
         # Создаем пользователей
         users = []
         for i in range(1, 101):
@@ -152,5 +153,6 @@ async def seed():
         await session.commit()
         print("Тестовые данные успешно добавлены!")
 
+
 if __name__ == "__main__":
-    asyncio.run(seed()) 
+    asyncio.run(seed())

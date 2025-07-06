@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from pydantic import BaseModel
 
 
@@ -37,4 +38,4 @@ class ServiceFilterRequest(BaseModel):
     max_price: Optional[float] = None
     in_stock: Optional[bool] = None
     skip: int = 0
-    limit: int = 100 
+    limit: int = 100

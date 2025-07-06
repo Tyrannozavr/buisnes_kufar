@@ -1,7 +1,7 @@
+import json
 import os
 from datetime import datetime
 from typing import List, Optional
-import json
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -12,12 +12,12 @@ from app.api.authentication.models import User
 from app.api.chats.schemas.chat import ChatCreate, ChatResponse, ChatListResponse
 from app.api.chats.schemas.chat_participant import ChatParticipantResponse
 from app.api.chats.services.chat_service import ChatService
+from app.api.chats.websocket_manager import chat_manager
 from app.api.company.models.company import Company
 from app.api.messages.models.message import Message
-from app.db.dependencies import async_db_dep, get_async_db
-from app.api.chats.websocket_manager import chat_manager
-from app.core.security import decode_token
 from app.core.config import settings
+from app.core.security import decode_token
+from app.db.dependencies import async_db_dep, get_async_db
 from app_logging.logger import logger
 
 router = APIRouter()
@@ -291,7 +291,7 @@ async def send_message(
         "created_at": message.created_at,
         "updated_at": message.updated_at,
     }
-    
+
     await chat_manager.send_message_to_chat(chat_id, message_data, current_user.id)
 
     return message_data
@@ -306,7 +306,7 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: int):
         if not token:
             await websocket.close(code=4001, reason="Token required")
             return
-        
+
         # Декодируем токен
         try:
             payload = decode_token(token)
@@ -314,7 +314,7 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: int):
         except Exception:
             await websocket.close(code=4001, reason="Invalid token")
             return
-        
+
         # Проверяем, что пользователь является участником чата
         async for db in get_async_db():
             chat_service = ChatService(db)
@@ -322,38 +322,38 @@ async def websocket_endpoint(websocket: WebSocket, chat_id: int):
             if not chat:
                 await websocket.close(code=4004, reason="Chat not found")
                 return
-            
+
             if not any(p.user_id == user_id for p in chat.participants):
                 await websocket.close(code=4003, reason="Access denied: not a chat participant")
                 return
             break
-        
+
         # Подключаем к чату
         await chat_manager.connect(websocket, chat_id, user_id)
-        
+
         # Обрабатываем сообщения
         while True:
             try:
                 data = await websocket.receive_text()
                 message_data = json.loads(data)
-                
+
                 message_type = message_data.get("type")
-                
+
                 if message_type == "typing":
                     # Отправляем индикатор печати
                     is_typing = message_data.get("is_typing", False)
                     await chat_manager.send_typing_indicator(chat_id, user_id, is_typing)
-                
+
                 elif message_type == "ping":
                     # Отвечаем на ping
                     await websocket.send_text(json.dumps({"type": "pong"}))
-                
+
             except WebSocketDisconnect:
                 break
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
                 break
-    
+
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")
     finally:
@@ -371,10 +371,10 @@ async def get_chat_online_status(
     """Получает онлайн статус участников чата"""
     # Проверяем, что пользователь участвует в чате
     chat = await check_user_in_chat(chat_id, token_data, db)
-    
+
     # Получаем список онлайн пользователей
     online_user_ids = chat_manager.get_online_users_in_chat(chat_id)
-    
+
     # Формируем ответ с онлайн статусом для каждого участника
     participants_status = {}
     for participant in chat.participants:
@@ -384,7 +384,7 @@ async def get_chat_online_status(
             "company_id": participant.company_id,
             "is_online": is_online
         }
-    
+
     return {
         "chat_id": chat_id,
         "participants": participants_status,

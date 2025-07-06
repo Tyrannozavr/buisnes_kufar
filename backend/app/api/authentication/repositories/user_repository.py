@@ -4,7 +4,8 @@ from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, EmailChangeToken, PasswordRecoveryCode
+from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, \
+    EmailChangeToken, PasswordRecoveryCode
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
 from app.core.security import get_password_hash, verify_password
 from app_logging.logger import logger
@@ -56,17 +57,17 @@ class UserRepository:
     async def get_user_by_inn(self, inn: str) -> Optional[User]:
         """Get user by INN"""
         logger.info(f"Searching for user with INN: {inn}")
-        
+
         result = await self.session.execute(
             select(User).where(User.inn == inn)
         )
         user = result.scalar_one_or_none()
-        
+
         if user:
             logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
         else:
             logger.warning(f"No user found with INN: {inn}")
-        
+
         return user
 
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
@@ -116,23 +117,23 @@ class UserRepository:
     async def update_user_password(self, user_id: int, new_password: str) -> bool:
         """Update user password"""
         logger.info(f"Updating password for user ID: {user_id}")
-        
+
         hashed_password = get_password_hash(new_password)
         logger.info(f"Password hashed successfully for user ID: {user_id}")
-        
+
         result = await self.session.execute(
             update(User)
             .where(User.id == user_id)
             .values(hashed_password=hashed_password, updated_at=datetime.utcnow())
         )
         await self.session.commit()
-        
+
         success = result.rowcount > 0
         if success:
             logger.info(f"Password updated successfully for user ID: {user_id}, rows affected: {result.rowcount}")
         else:
             logger.error(f"Failed to update password for user ID: {user_id}, rows affected: {result.rowcount}")
-        
+
         return success
 
     async def update_user_email(self, user_id: int, new_email: str) -> bool:
@@ -234,7 +235,7 @@ class UserRepository:
             .where(PasswordRecoveryCode.email == email)
             .values(is_used=True)
         )
-        
+
         db_code = PasswordRecoveryCode(
             email=email,
             code=code,
@@ -275,4 +276,4 @@ class UserRepository:
             .values(is_used=True)
         )
         await self.session.commit()
-        return result.rowcount > 0 
+        return result.rowcount > 0

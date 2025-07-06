@@ -1,22 +1,24 @@
-from typing import Union, List
+from typing import Union, List, Annotated, Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query, Form
 from fastapi import status
 
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.authentication.models import User
-from app.api.company.dependencies import company_service_dep, official_repository_dep
+from app.api.company.dependencies import company_service_dep, official_repository_dep, get_company_filter_service
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.announcements import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse, \
     AnnouncementListResponse
 from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, CompanyProfileResponse, CompanyRelationCreate, \
-    CompanyRelationResponse, CompanyRelationType
+    CompanyRelationResponse, CompanyRelationType, CompanyCreate
 from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
     CompanyOfficialPartialUpdate
 from app.api.company.services.announcement_service import AnnouncementService
 from app.api.dependencies import async_db_dep
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
+from app.api.company.schemas.filters import CompanyFiltersResponse
+from app.api.company.services.filter_service import CompanyFilterService
 
 router = APIRouter(tags=["company"])
 
@@ -419,3 +421,12 @@ async def get_my_buyers(
             totalPages=total_pages
         )
     )
+
+
+# Новый endpoint для фильтров компаний
+@router.get("/filters", response_model=CompanyFiltersResponse)
+async def get_company_filters(
+    filter_service: Annotated[CompanyFilterService, Depends(get_company_filter_service)]
+):
+    """Получить фильтры для компаний"""
+    return await filter_service.get_company_filters()

@@ -5,6 +5,8 @@ from fastapi import Depends
 from app.api.products.repositories.my_products_repository import MyProductsRepository
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
 from app.api.products.services.product_service import ProductService
+from app.api.products.services.filter_service import FilterService
+from app.api.products.services.search_service import ProductSearchService
 from app.db.dependencies import async_db_dep
 
 
@@ -23,6 +25,14 @@ async def get_product_service(db: async_db_dep) -> ProductService:
     my_products_repo = MyProductsRepository(db)
     company_products_repo = CompanyProductsRepository(db)
     return ProductService(my_products_repo, company_products_repo, db)
+
+
+def get_filter_service(db: async_db_dep) -> FilterService:
+    return FilterService(db)
+
+
+def get_search_service(db: async_db_dep) -> ProductSearchService:
+    return ProductSearchService(db)
 
 
 # Аннотированные зависимости для использования в эндпоинтах

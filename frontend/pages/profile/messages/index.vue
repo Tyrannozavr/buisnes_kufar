@@ -40,21 +40,26 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-16rem)] flex">
+  <div class="h-[calc(100vh-16rem)] flex flex-col lg:flex-row">
     <!-- Chat list sidebar -->
-    <div class="w-1/3 border-r border-gray-200 overflow-y-auto">
-      <div v-if="pending" class="flex items-center justify-center h-full">
+    <div class="w-full lg:w-1/3 border-r border-gray-200 overflow-y-auto bg-white">
+      <!-- Mobile header -->
+      <div class="lg:hidden p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
+        <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
+      </div>
+
+      <div v-if="pending" class="flex items-center justify-center h-full p-4">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
       </div>
 
-      <div v-else-if="error" class="flex items-center justify-center h-full">
+      <div v-else-if="error" class="flex items-center justify-center h-full p-4">
         <div class="text-center text-red-500">
           <UIcon name="i-heroicons-exclamation-circle" class="h-12 w-12 mx-auto mb-2" />
           <p>Произошла ошибка при загрузке чатов</p>
         </div>
       </div>
 
-      <div v-else-if="!chats?.length" class="flex items-center justify-center h-full">
+      <div v-else-if="!chats?.length" class="flex items-center justify-center h-full p-4">
         <div class="text-center text-gray-500">
           <UIcon name="i-heroicons-chat-bubble-left-right" class="h-12 w-12 mx-auto mb-2" />
           <p>У вас пока нет сообщений</p>
@@ -65,7 +70,7 @@ const formatDate = (dateString: string) => {
         <div
           v-for="chat in chats"
           :key="chat.id"
-          class="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+          class="p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
           @click="handleChatSelect(chat.id)"
         >
           <div class="flex items-start space-x-3">
@@ -73,19 +78,19 @@ const formatDate = (dateString: string) => {
               <LazyNuxtImg
                 :src="getOtherParticipant(chat)?.company_logo_url || '/images/default-company-logo.png'"
                 :alt="getOtherParticipant(chat)?.company_name"
-                class="w-12 h-12 rounded-full object-cover"
+                class="w-12 h-12 rounded-full object-cover border border-gray-200"
               />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="flex justify-between items-start">
+              <div class="flex justify-between items-start mb-1">
                 <h3 class="text-sm font-medium text-gray-900 truncate">
                   {{ getOtherParticipant(chat)?.company_name || 'Неизвестная компания' }}
                 </h3>
-                <span class="text-xs text-gray-500">
+                <span class="text-xs text-gray-500 flex-shrink-0 ml-2">
                   {{ formatDate(chat.updated_at) }}
                 </span>
               </div>
-              <p class="text-sm text-gray-500 truncate">
+              <p class="text-sm text-gray-500 truncate leading-relaxed">
                 {{ chat.last_message?.content || 'Нет сообщений' }}
               </p>
             </div>
@@ -94,13 +99,24 @@ const formatDate = (dateString: string) => {
       </div>
     </div>
 
-    <!-- Welcome message -->
-    <div class="flex-1 flex items-center justify-center bg-gray-50">
+    <!-- Welcome message - hidden on mobile when no chat selected -->
+    <div class="hidden lg:flex flex-1 items-center justify-center bg-gray-50">
       <div class="text-center text-gray-500 max-w-md px-4">
         <UIcon name="i-heroicons-chat-bubble-left-right" class="h-16 w-16 mx-auto mb-4" />
         <h2 class="text-xl font-semibold mb-2">Добро пожаловать в чат</h2>
         <p class="text-gray-600">
           Выберите чат из списка слева, чтобы начать общение или создать новый диалог
+        </p>
+      </div>
+    </div>
+
+    <!-- Mobile welcome message -->
+    <div class="lg:hidden flex-1 flex items-center justify-center bg-gray-50 p-4">
+      <div class="text-center text-gray-500">
+        <UIcon name="i-heroicons-chat-bubble-left-right" class="h-12 w-12 mx-auto mb-3" />
+        <h2 class="text-lg font-semibold mb-2">Добро пожаловать в чат</h2>
+        <p class="text-sm text-gray-600">
+          Выберите чат из списка выше, чтобы начать общение
         </p>
       </div>
     </div>

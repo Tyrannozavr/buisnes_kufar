@@ -2,7 +2,9 @@
 import ProductCard from "~/components/catalog/ProductCard.vue";
 import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 import { useProductsApi } from '~/api/products'
+import { useProductFilters, useServiceFilters } from '~/api/filters'
 import type { ProductItemPublic, ProductListPublicResponse } from '~/types/product'
+import type { ProductFilterRequest, ServiceFilterRequest } from '~/api/filters'
 
 const props = defineProps<{
   type: 'products' | 'services'
@@ -11,6 +13,8 @@ const props = defineProps<{
 
 // API
 const { getAllGoods, getAllServices } = useProductsApi()
+const { searchProducts } = useProductFilters()
+const { searchServices } = useServiceFilters()
 const currentPage = ref(1)
 
 // Loading and error states
@@ -55,16 +59,43 @@ const { data: items, pending: isPending, refresh } = await useAsyncData<ProductL
   }
 )
 
-// Handle search updates (simplified for now)
-const handleSearch = async (newSearch: any) => {
+// Handle search with filters
+const handleSearch = async (searchParams: any) => {
   loading.value = true
   error.value = null
   
   try {
-    // For now, just refresh the data
-    await refresh()
+    // Convert frontend params to API format
+    const apiParams = {
+      search: searchParams.search || undefined,
+      country: searchParams.country || undefined,
+      federal_district: searchParams.federalDistrict || undefined,
+      region: searchParams.region || undefined,
+      city: searchParams.city || undefined,
+      min_price: searchParams.minPrice || undefined,
+      max_price: searchParams.maxPrice || undefined,
+      in_stock: searchParams.inStock || undefined,
+      skip: 0,
+      limit: 20
+    }
+    
+    let result
+    if (props.type === 'products') {
+      result = await searchProducts(apiParams)
+    } else {
+      result = await searchServices(apiParams)
+    }
+    
+    items.value = {
+      products: result.products.map(convertToProductItemPublic),
+      total: result.total,
+      page: result.page,
+      per_page: result.per_page
+    }
+    
+    currentPage.value = 1
   } catch (e) {
-    error.value = `Failed to load ${props.type}`
+    error.value = `Ошибка поиска ${props.type === 'products' ? 'товаров' : 'услуг'}`
     console.error(e)
   } finally {
     loading.value = false
@@ -99,9 +130,6 @@ const handlePageChange = async (page: number) => {
     console.error(e)
   }
 }
-
-// Search state (simplified)
-const search = ref<any>({})
 </script>
 
 <template>

@@ -1,28 +1,78 @@
 <script setup lang="ts">
-import {getCompaniesPaginatedSSR} from '~/api/companies'
+import { useCompaniesApi } from '~/api/companies'
+import type { CompanyShort } from '~/types/company'
+
+// API
+const { searchManufacturers } = useCompaniesApi()
 
 // Pagination state
 const currentPage = ref(1)
 const perPage = ref(10)
 
-// Fetch companies with pagination using SSR function
-const response = await getCompaniesPaginatedSSR(currentPage.value, perPage.value)
+// Search and filter state
+const searchParams = ref<{
+  search?: string
+  country?: string
+  federalDistrict?: string
+  region?: string
+  city?: string
+}>({})
 
-// Computed properties
-const companies = computed(() => response?.data || [])
-const pagination = computed(() => response?.pagination || {
+// Loading state
+const pending = ref(false)
+const error = ref<Error | null>(null)
+
+// Reactive data fetching
+const fetchCompanies = async () => {
+  pending.value = true
+  error.value = null
+  
+  try {
+    const response = await searchManufacturers({
+      page: currentPage.value,
+      perPage: perPage.value,
+      ...searchParams.value
+    })
+    
+    // Update the response data
+    companies.value = response.data || []
+    pagination.value = response.pagination || {
+      total: 0,
+      page: 1,
+      perPage: 10,
+      totalPages: 1
+    }
+  } catch (err) {
+    error.value = err as Error
+    console.error('Error fetching companies:', err)
+  } finally {
+    pending.value = false
+  }
+}
+
+// Reactive data
+const companies = ref<CompanyShort[]>([])
+const pagination = ref({
   total: 0,
   page: 1,
   perPage: 10,
   totalPages: 1
 })
 
-// Watch for page changes
-watch(currentPage, async (newPage) => {
-  // Refresh data when page changes
-  const newResponse = await getCompaniesPaginatedSSR(newPage, perPage.value)
-  // Update the response data
-  Object.assign(response, newResponse)
+// Watch for changes and refetch data
+watch([currentPage, searchParams], () => {
+  fetchCompanies()
+}, { deep: true })
+
+// Handle search from filter component
+const handleSearch = (params: any) => {
+  searchParams.value = params
+  currentPage.value = 1 // Reset to first page when searching
+}
+
+// Initial data fetch
+onMounted(() => {
+  fetchCompanies()
 })
 
 // Format date for display
@@ -54,21 +104,24 @@ const getActivityColor = (tradeActivity: string) => {
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Все компании</h1>
-
       <p class="text-gray-600">Найдите надежных партнеров для вашего бизнеса</p>
     </div>
 
+    <!-- Filters -->
+    <CompaniesFilter @search="handleSearch" />
+
     <!-- Loading state -->
-    <section v-if="false" class="bg-white rounded-lg p-6 shadow-sm">
+    <section v-if="pending" class="bg-white rounded-lg p-6 shadow-sm">
       <div class="flex justify-center py-8">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
       </div>
     </section>
 
     <!-- Error state -->
-    <UAlert v-else-if="false" color="error" variant="soft" class="mb-4">
+    <UAlert v-else-if="error" color="error" variant="soft" class="mb-4">
       Не удалось загрузить данные о компаниях. Пожалуйста, попробуйте позже.
     </UAlert>
+
     <!-- Empty state -->
     <section v-else-if="companies.length === 0" class="bg-white rounded-lg p-6 shadow-sm">
       <div class="text-center py-8">
@@ -122,29 +175,16 @@ const getActivityColor = (tradeActivity: string) => {
                       </UBadge>
                     </div>
 
-                    <!-- Business Type -->
-                    <p class="text-sm text-gray-600 mb-2">
-                      {{ company.businessType }}
-                    </p>
-
                     <!-- Description -->
                     <p v-if="company.description" class="text-gray-700 mb-3 line-clamp-2">
                       {{ company.description }}
                     </p>
 
-                    <!-- Location and Registration -->
+                    <!-- Location -->
                     <div class="flex flex-wrap gap-4 text-sm text-gray-500">
                       <div class="flex items-center gap-1">
                         <UIcon name="i-heroicons-map-pin" class="h-4 w-4" />
                         <span>{{ company.city }}, {{ company.region }}</span>
-                      </div>
-                      <div class="flex items-center gap-1">
-                        <UIcon name="i-heroicons-calendar" class="h-4 w-4" />
-                        <span>Регистрация: {{ formatDate(company.registrationDate) }}</span>
-                      </div>
-                      <div v-if="company.phone" class="flex items-center gap-1">
-                        <UIcon name="i-heroicons-phone" class="h-4 w-4" />
-                        <span>{{ company.phone }}</span>
                       </div>
                     </div>
                   </div>

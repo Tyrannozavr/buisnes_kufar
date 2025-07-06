@@ -9,7 +9,6 @@ export interface BaseSearchParams {
   federalDistrict: string
   region: string
   city: string
-  type: string
   minPrice?: number
   maxPrice?: number
 }

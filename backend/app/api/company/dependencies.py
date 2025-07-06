@@ -5,6 +5,7 @@ from fastapi import Depends
 from app.api.company.repositories.company_official_repository import CompanyOfficialRepository
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.api.company.services.company_service import CompanyService
+from app.api.company.services.filter_service import CompanyFilterService
 from app.db.dependencies import async_db_dep
 
 
@@ -21,3 +22,6 @@ async def get_official_repository(db: async_db_dep) -> CompanyOfficialRepository
     return official_repository
 
 official_repository_dep = Annotated[CompanyOfficialRepository, Depends(get_official_repository)]
+
+def get_company_filter_service(db: async_db_dep) -> CompanyFilterService:
+    return CompanyFilterService(db)

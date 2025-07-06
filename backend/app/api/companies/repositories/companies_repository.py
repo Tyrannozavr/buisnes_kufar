@@ -156,18 +156,13 @@ class CompaniesRepository:
     async def get_product_companies(
         self, 
         page: int = 1, 
-        per_page: int = 10
+        per_page: int = 10,
+        search: str = None
     ) -> Tuple[List[Company], int]:
         """
         Получить компании, производящие товары (включая те, что делают оба)
-        
-        Args:
-            page: Номер страницы (начиная с 1)
-            per_page: Количество элементов на странице
-            
-        Returns:
-            Tuple[List[Company], int]: (список компаний, общее количество)
         """
+        from sqlalchemy import or_, func
         base_query = select(Company).options(
             selectinload(Company.officials)
         ).where(
@@ -176,7 +171,10 @@ class CompaniesRepository:
                 Company.business_type == BusinessType.GOODS,
                 Company.business_type == BusinessType.BOTH
             )
-        ).order_by(Company.registration_date.desc())
+        )
+        if search:
+            base_query = base_query.where(Company.name.ilike(f"%{search}%"))
+        base_query = base_query.order_by(Company.registration_date.desc())
         
         # Получаем общее количество
         count_query = select(func.count(Company.id)).where(
@@ -186,6 +184,8 @@ class CompaniesRepository:
                 Company.business_type == BusinessType.BOTH
             )
         )
+        if search:
+            count_query = count_query.where(Company.name.ilike(f"%{search}%"))
         count_result = await self.session.execute(count_query)
         total_count = count_result.scalar()
         

@@ -94,6 +94,7 @@ async def get_services_companies(
 async def get_product_companies(
     page: int = Query(1, ge=1, description="Номер страницы"),
     per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
+    search: Optional[str] = Query(None, description="Поиск по названию компании"),
     filtration_parameters: List[Dict[str, Any]] = Body(default=[], description="Параметры фильтрации"),
     companies_repository: companies_repository_dep = None
 ) -> CompaniesResponse:
@@ -103,6 +104,7 @@ async def get_product_companies(
     Args:
         page: Номер страницы (начиная с 1)
         per_page: Количество элементов на странице (1-100)
+        search: Поиск по названию компании
         filtration_parameters: Список словарей с параметрами фильтрации
         companies_repository: Репозиторий компаний
         
@@ -114,6 +116,7 @@ async def get_product_companies(
     companies, total_count = await companies_repository.get_product_companies(
         page=page,
         per_page=per_page,
+        search=search
     )
     
     # Вычисляем общее количество страниц
@@ -177,6 +180,33 @@ async def get_company_by_id(
         CompanyResponse: Полная или краткая информация о компании
     """
     company = await companies_repository.get_company_by_slug(company_slug)
+
+    if not company:
+        raise HTTPException(status_code=404, detail="Компания не найдена")
+    if short:
+        return ShortCompanyResponse.model_validate(company)
+    else:
+        return CompanyResponse.model_validate(company)
+
+
+@router.get("/{company_id}")
+async def get_company_by_id(
+        company_id: int,
+        short: bool = Query(False, description="Возвращать только краткую информацию"),
+        companies_repository: companies_repository_dep = None
+) -> ShortCompanyResponse | CompanyResponse:
+    """
+    Получить информацию о компании по её slug
+
+    Args:
+        company_id: ID компании
+        short: Если True, возвращает только название и логотип компании
+        companies_repository: Репозиторий компаний
+
+    Returns:
+        CompanyResponse: Полная или краткая информация о компании
+    """
+    company = await companies_repository.get_company_by_id(company_id=company_id)
 
     if not company:
         raise HTTPException(status_code=404, detail="Компания не найдена")

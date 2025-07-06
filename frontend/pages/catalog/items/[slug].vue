@@ -75,7 +75,6 @@ const handleAddToCartClick = () => {
         Загрузка информации...
       </p>
     </div>
-
     <!-- Error state -->
     <div v-else-if="itemError || companyError" class="max-w-6xl mx-auto">
       <p class="text-center text-red-500">
@@ -128,7 +127,7 @@ const handleAddToCartClick = () => {
             <!-- Company info -->
             <NuxtLink
                 v-if="company"
-                :to="`/company/${company.id}`"
+                :to="`/companies/${company.slug}`"
                 class="flex items-center gap-3"
             >
               <NuxtImg

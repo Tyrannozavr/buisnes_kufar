@@ -90,30 +90,3 @@ async def root(request: Request):
 
 
 DEV_REDIRECT_URL = os.getenv("DEV_REDIRECT_URL", "http://localhost:3000")
-
-
-@app.exception_handler(404)
-async def custom_404_handler(request: Request, exc: HTTPException):
-    logger.error(f"404 Not Found: {request.url}")
-    async with httpx.AsyncClient() as client:
-        try:
-            # Формируем URL с учетом query параметров
-            url = f"{DEV_REDIRECT_URL}{request.url.path}"
-            if request.url.query:
-                url += f"?{request.url.query}"
-
-            response = await client.get(url, timeout=5.0)  # Добавляем таймаут
-            logger.info(f"Response comes from url {url} with status code {response.status_code}")
-
-            try:
-                # Try to parse the response as JSON
-                content = response.json()
-                return JSONResponse(content=content, status_code=response.status_code)
-            except json.JSONDecodeError:
-                # If it's not valid JSON, return the raw content
-                return Response(content=response.content, status_code=response.status_code,
-                                media_type=response.headers.get("content-type"))
-        except (httpx.RequestError, httpx.TimeoutException) as e:
-            # Если не удалось подключиться к localhost:3000 или превышен таймаут, возвращаем оригинальную 404 ошибку
-            logger.error(f"Failed to connect to frontend server {url}: {str(e)}")
-            return JSONResponse(content={"detail": "Not Found"}, status_code=404)

@@ -49,7 +49,7 @@ export const useCompaniesApi = () => {
   }
 
   const getCompanyById = async (id: string | number, short: boolean = true) => {
-    return await $api.get(`${API_URLS.COMPANIES}/${id}`, {
+    return await $api.get(`${API_URLS.COMPANIES}${id}`, {
       params: { short }
     }) as Company
   }

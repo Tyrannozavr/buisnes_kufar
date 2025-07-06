@@ -2,7 +2,8 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile, Form
 import json
 
-from app.api.products.dependencies import product_service_dep
+from api.dependencies import async_db_dep
+from app.api.products.dependencies import product_service_dep, get_filter_service, get_search_service
 from app.api.products.schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -10,12 +11,17 @@ from app.api.products.schemas.product import (
     ProductListResponse,
     ProductCreateWithFiles, ProductListPublicResponse
 )
+from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse
+from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest
 from app.api.products.models.product import ProductType
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
 from app.api.products.schemas.products import ProductsResponse
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
 from app.api.products.dependencies import get_company_products_repository
+from app.api.products.services.filter_service import FilterService
+from app.api.products.services.search_service import ProductSearchService
+from app.api.products.services.cache_service import product_location_cache
 
 owner_router = APIRouter(tags=["products"])
 
@@ -232,6 +238,23 @@ async def toggle_my_product_hidden(
 # Эндпоинты для работы с продуктами компаний (публичные)
 public_router = APIRouter()
 
+# Новые endpoints для фильтров (должны быть выше других endpoints)
+@public_router.get("/filters", response_model=ProductFiltersResponse)
+async def get_product_filters(
+    filter_service: Annotated[FilterService, Depends(get_filter_service)]
+):
+    """Получить фильтры для товаров"""
+    return await filter_service.get_product_filters()
+
+
+@public_router.get("/services/filters", response_model=ServiceFiltersResponse)
+async def get_service_filters(
+    filter_service: Annotated[FilterService, Depends(get_filter_service)]
+):
+    """Получить фильтры для услуг"""
+    return await filter_service.get_service_filters()
+
+
 @public_router.get("/", response_model=ProductListResponse)
 async def get_all_products(
     product_service: product_service_dep,
@@ -368,6 +391,43 @@ async def get_latest_products(
 ):
     """Получить последние добавленные продукты"""
     return await product_service.get_latest_products(limit, include_hidden)
+
+
+# Новые endpoints для поиска с фильтрацией
+@public_router.post("/search", response_model=ProductListResponse)
+async def search_products_with_filters(
+    filter_request: ProductFilterRequest,
+    search_service: Annotated[ProductSearchService, Depends(get_search_service)]
+):
+    """Поиск товаров с фильтрацией"""
+    return await search_service.search_products(filter_request)
+
+
+@public_router.post("/services/search", response_model=ProductListResponse)
+async def search_services_with_filters(
+    filter_request: ServiceFilterRequest,
+    search_service: Annotated[ProductSearchService, Depends(get_search_service)]
+):
+    """Поиск услуг с фильтрацией"""
+    return await search_service.search_services(filter_request)
+
+
+# Endpoints для управления кэшем
+@public_router.post("/cache/refresh")
+async def refresh_cache(
+        db: async_db_dep
+):
+    """Обновить кэш фильтров"""
+    from app.db.dependencies import get_async_db
+    await product_location_cache.refresh_cache(db)
+    return {"message": "Cache refreshed successfully"}
+
+
+@public_router.delete("/cache/clear")
+async def clear_cache():
+    """Очистить кэш фильтров"""
+    await product_location_cache.clear_cache()
+    return {"message": "Cache cleared successfully"}
 
 
 # router = APIRouter(tags=["company_products"])

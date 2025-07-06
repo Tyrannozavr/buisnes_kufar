@@ -1,7 +1,7 @@
 // API URLs
 export const API_URLS = {
   // Companies
-  COMPANIES: '/v1/companies',
+  COMPANIES: '/v1/companies/',
   COMPANIES_LATEST: '/v1/companies/latest',
   
   // Announcements

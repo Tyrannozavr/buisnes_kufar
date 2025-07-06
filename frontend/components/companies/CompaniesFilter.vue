@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {LocationItem} from '~/types/location'
-import {useCompaniesLocations} from '~/api/companies-locations'
+import {useCompanyFilters} from '~/api/filters'
 
 const emit = defineEmits<{
   (e: 'search', params: {
@@ -9,28 +9,28 @@ const emit = defineEmits<{
     federalDistrict?: string
     region?: string
     city?: string
-    product?: string
   }): void
 }>()
 
-// API
-const {
-  countryOptions,
-  federalDistrictOptions,
-  regionOptions,
-  cityOptions,
-  countriesLoading,
-  federalDistrictsLoading,
-  regionsLoading,
-  citiesLoading,
-  countriesError,
-  federalDistrictsError,
-  regionsError,
-  citiesError,
-  loadFederalDistricts,
-  loadRegions,
-  loadCities
-} = useCompaniesLocations('companies')
+// API для фильтров
+const { getCompanyFilters } = useCompanyFilters()
+
+// Состояние загрузки фильтров
+const filtersLoading = ref(false)
+const filtersError = ref<string | null>(null)
+
+// Данные фильтров
+const filterData = ref<{
+  countries: LocationItem[]
+  federal_districts: LocationItem[]
+  regions: LocationItem[]
+  cities: LocationItem[]
+}>({
+  countries: [],
+  federal_districts: [],
+  regions: [],
+  cities: []
+})
 
 // Search state
 const searchQuery = ref('')
@@ -38,7 +38,6 @@ const selectedCountry = ref<LocationItem | undefined>(undefined)
 const selectedFederalDistrict = ref<LocationItem | undefined>(undefined)
 const selectedRegion = ref<LocationItem | undefined>(undefined)
 const selectedCity = ref<LocationItem | undefined>(undefined)
-const productQuery = ref('')
 
 const isSelectedCountry = computed(() => selectedCountry.value !== undefined)
 
@@ -46,16 +45,31 @@ const isSelectedCountry = computed(() => selectedCountry.value !== undefined)
 const isRussia = computed(() => selectedCountry.value?.value === 'Россия')
 const showFederalDistricts = computed(() => isRussia.value)
 
+// Фильтрация городов по региону
+const filteredCities = computed(() => {
+  if (!selectedRegion.value) return []
+  return filterData.value.cities.filter(city => city.label.includes(selectedRegion.value!.value) || city.value.includes(selectedRegion.value!.value))
+})
+
 // Methods
-const loadLocations = async () => {
-  if (isRussia.value && !federalDistrictOptions.value.length) {
-    await loadFederalDistricts()
-  }
-  if (selectedCountry.value && !regionOptions.value.length) {
-    await loadRegions(selectedCountry.value.value, selectedFederalDistrict.value?.value)
-  }
-  if (selectedCountry.value && selectedRegion.value && !cityOptions.value.length) {
-    await loadCities(selectedCountry.value.value, selectedRegion.value.value)
+const loadFilters = async () => {
+  filtersLoading.value = true
+  filtersError.value = null
+  
+  try {
+    const response = await getCompanyFilters()
+    
+    filterData.value = {
+      countries: response.countries,
+      federal_districts: response.federal_districts,
+      regions: response.regions,
+      cities: response.cities
+    }
+  } catch (error) {
+    filtersError.value = `Ошибка загрузки фильтров: ${error}`
+    console.error('Error loading filters:', error)
+  } finally {
+    filtersLoading.value = false
   }
 }
 
@@ -64,20 +78,17 @@ const handleCountryChange = async (country: LocationItem) => {
   selectedFederalDistrict.value = undefined
   selectedRegion.value = undefined
   selectedCity.value = undefined
-  await loadLocations()
 }
 
 const handleFederalDistrictChange = async (district: LocationItem) => {
   selectedFederalDistrict.value = district
   selectedRegion.value = undefined
   selectedCity.value = undefined
-  await loadLocations()
 }
 
 const handleRegionChange = async (region: LocationItem) => {
   selectedRegion.value = region
   selectedCity.value = undefined
-  await loadLocations()
 }
 
 const handleSearch = () => {
@@ -88,18 +99,27 @@ const handleSearch = () => {
   if (selectedFederalDistrict.value) params.federalDistrict = selectedFederalDistrict.value.value
   if (selectedRegion.value) params.region = selectedRegion.value.value
   if (selectedCity.value) params.city = selectedCity.value.value
-  if (productQuery.value) params.product = productQuery.value
 
   emit('search', params)
 }
 
 // Load initial data
-loadLocations()
+onMounted(() => {
+  loadFilters()
+})
 </script>
 
 <template>
   <UCard class="mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-if="filtersLoading" class="flex justify-center py-8">
+      <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin" />
+    </div>
+
+    <div v-else-if="filtersError" class="text-red-500 text-center py-4">
+      {{ filtersError }}
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Company Name -->
       <UFormField label="Название компании">
         <UInput
@@ -110,14 +130,13 @@ loadLocations()
       <UFormField label="Страна">
         <USelectMenu
             v-model="selectedCountry"
-            :items="countryOptions"
+            :items="filterData.countries"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите страну"
             searchable
-            :loading="countriesLoading"
             @update:model-value="handleCountryChange"
         />
       </UFormField>
@@ -128,14 +147,13 @@ loadLocations()
       >
         <USelectMenu
             v-model="selectedFederalDistrict"
-            :items="federalDistrictOptions"
+            :items="filterData.federal_districts"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите федеральный округ"
             searchable
-            :loading="federalDistrictsLoading"
             @update:model-value="handleFederalDistrictChange"
         />
       </UFormField>
@@ -143,14 +161,13 @@ loadLocations()
       <UFormField label="Регион">
         <USelectMenu
             v-model="selectedRegion"
-            :items="regionOptions"
+            :items="filterData.regions"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите регион"
             searchable
-            :loading="regionsLoading"
             @update:model-value="handleRegionChange"
         />
       </UFormField>
@@ -159,23 +176,14 @@ loadLocations()
       <UFormField label="Город">
         <USelectMenu
             v-model="selectedCity"
-            :items="cityOptions"
+            :items="filteredCities"
             :search-input="{
               placeholder: 'Поиск',
               icon: 'i-lucide-search'
             }"
             placeholder="Выберите город"
             searchable
-            :disabled="!isSelectedCountry"
-            :loading="citiesLoading"
-        />
-      </UFormField>
-
-      <!-- Product -->
-      <UFormField label="Продукция">
-        <UInput
-            v-model="productQuery"
-            placeholder="Введите название продукции"
+            :disabled="!selectedRegion"
         />
       </UFormField>
     </div>

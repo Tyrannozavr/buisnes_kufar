@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type {CompanyDetails} from '~/types/company'
+import {type CompanyDetails, CompanyRelationType} from '~/types/company'
 //
 import {getCompany, getCompanyProductsPaginated, getCompanyStatistics, getCompanyRelations} from '~/api/company'
 import CompanyProductsPublic from "~/components/products/CompanyProductsPublic.vue";
@@ -68,23 +68,6 @@ const handlePageChange = (page: number) => {
   currentPage.value = page
 }
 
-const fetchRelations = async () => {
-  if (!userStore.isAuthenticated || isOwnCompany.value) return
-  loading.value = true
-  try {
-    for (const type of Object.values(CompanyRelationType)) {
-      const { data } = await getCompanyRelations(type as CompanyRelationType)
-      // data.value может быть либо массивом, либо объектом с полем data
-      const relationsArr = data.value?.data ?? data.value ?? []
-      relations.value[type as CompanyRelationType] = Array.isArray(relationsArr)
-        ? relationsArr.some((rel: any) => rel.related_company_id === props.companyId)
-        : false
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
 </script>
 
 <template>
@@ -130,7 +113,6 @@ const fetchRelations = async () => {
           class="mt-6"
           :products="productsResponse?.products || []"
       />
-
       <!-- Пагинация -->
       <div v-if="productsResponse && productsResponse.total > perPage" class="mt-6 flex justify-center">
         <UPagination

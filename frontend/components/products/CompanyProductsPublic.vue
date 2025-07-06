@@ -17,12 +17,9 @@ const emit = defineEmits<{
 
 <template>
   <div class="company-products">
-    <template>
       <ProductsPublicView
         :products="products"
-        title="Продукция"
+        title=""
       />
-    </template>
-
   </div>
 </template>

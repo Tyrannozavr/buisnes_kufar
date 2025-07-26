@@ -12,7 +12,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   let baseURL: string
   if (import.meta.server) {
     // On server side, we need to reach the backend directly
-    baseURL = 'http://backend:8000/api'
+    baseURL = config.public.apiBaseUrl || '/api'
   } else {
     // On client side, use the configured base URL (which will be proxied by nginx)
     baseURL = config.public.apiBaseUrl || '/api'

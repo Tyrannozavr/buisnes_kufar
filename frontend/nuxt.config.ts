@@ -51,11 +51,11 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'БизнесТорг',
+      title: 'TradeSynergy',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'БизнесТорг - платформа для бизнеса' }
+        { name: 'description', content: 'TradeSynergy - платформа для бизнеса' }
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }

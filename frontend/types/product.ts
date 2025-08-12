@@ -51,11 +51,12 @@ export interface ProductItemPublic {
   name: string
   logo_url: string | null
   slug: string
-  description: string,
-  article: string,
-  type: string,
-  price: number,
+  description: string
+  article: string
+  type: string
+  price: number
   unit_of_measurement: string
+	company_id: number
 }
 
 export interface ProductPaginatedPublicResponse {

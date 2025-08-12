@@ -1,20 +1,35 @@
 <script setup lang="ts">
-import type {Product, ProductItemPublic} from '~/types/product'
+import type {ProductItemPublic} from '~/types/product'
 import { useCart } from '~/composables/useCart'
 import QuantityControls from '~/components/ui/QuantityControls.vue'
+import { useUserStore } from '~/stores/user';
 
 const props = defineProps<{
   product: ProductItemPublic
 }>()
 
-const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity, updateQuantity } = useCart()
+const { handleAddToCart, handleDecreaseQuantity, getQuantity, updateQuantity } = useCart()
 const quantity = computed(() => getQuantity(props.product.slug))
+const userStore = useUserStore()
 
 // Функция для ограничения длины имени продукта
 const truncateName = (name: string, maxLength: number) => {
   if (name.length <= maxLength) return name
   return name.substring(0, maxLength) + '...'
 }
+
+// Проверяем, что пользователь не смотрит на свой товар
+const isOwnCompany = computed(() => {
+  if (!userStore.isAuthenticated) return false
+  // Сравниваем по ID или по названию компании
+  return props.product.company_id === userStore.companyId 
+})
+
+// Показываем кнопку только если пользователь аутентифицирован и это не его продукт
+const shouldShowButton = computed(() => {
+  return userStore.isAuthenticated && !isOwnCompany.value
+})
+
 </script>
 
 <template>
@@ -35,7 +50,7 @@ const truncateName = (name: string, maxLength: number) => {
         </div>
       </div>
     </NuxtLink>
-    <div class="product-actions">
+    <div v-if="shouldShowButton" class="product-actions">
       <div v-if="quantity > 0" class="quantity-controls">
         <QuantityControls
           :quantity="quantity"

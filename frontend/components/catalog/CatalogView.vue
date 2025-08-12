@@ -31,7 +31,8 @@ const convertToProductItemPublic = (product: any): ProductItemPublic => {
     article: product.article,
     type: product.type,
     price: product.price,
-    unit_of_measurement: product.unit_of_measurement || 'шт'
+    unit_of_measurement: product.unit_of_measurement || 'шт',
+		company_id: product.company_id,
   }
 }
 

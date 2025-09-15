@@ -73,3 +73,24 @@ export interface ProductListPublicResponse {
   page: number
   per_page: number
 }
+
+//интерфесы для страницы подтверждения
+export interface ProductInCheckout  {
+	slug: string
+	type: string
+	position: number
+	productName: string
+	article: number
+	quantity: number
+	units: string
+	price: number
+	amount:number
+	description: string
+	logoUrl: string
+}
+
+export interface CompaniesAndProducts  {
+	companyId: number
+	products: ProductInCheckout[]
+	services: ProductInCheckout[]
+}

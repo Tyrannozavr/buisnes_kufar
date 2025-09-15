@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type {Product, ProductItemPublic} from '~/types/product'
+import type { ProductItemPublic} from '~/types/product'
 
 interface CartItem {
   product: ProductItemPublic

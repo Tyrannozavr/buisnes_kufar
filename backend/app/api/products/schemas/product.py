@@ -92,8 +92,64 @@ class ProductListResponse(BaseModel):
     per_page: int
 
 
+class ProductWithCompanyResponse(ProductBase):
+    id: int
+    slug: str
+    raw_images: List[str] = Field(alias="images")
+    characteristics: List[dict]
+    is_deleted: bool
+    company_id: int
+    company_name: str
+    created_at: datetime
+    updated_at: datetime
+
+    @computed_field
+    def images(self) -> List[str]:
+        return [f"{settings.BASE_IMAGE_URL}{image}" for image in self.raw_images]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
+
+
 class ProductListPublicResponse(BaseModel):
     products: List[ProductPublicItemResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class ServiceWithCompanyResponse(ProductBase):
+    id: int
+    slug: str
+    raw_images: List[str] = Field(alias="images")
+    characteristics: List[dict]
+    is_deleted: bool
+    company_id: int
+    company_name: str
+    created_at: datetime
+    updated_at: datetime
+
+    @computed_field
+    def images(self) -> List[str]:
+        return [f"{settings.BASE_IMAGE_URL}{image}" for image in self.raw_images]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
+
+
+class ProductListWithCompanyResponse(BaseModel):
+    products: List[ProductWithCompanyResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class ServiceListWithCompanyResponse(BaseModel):
+    products: List[ServiceWithCompanyResponse]
     total: int
     page: int
     per_page: int

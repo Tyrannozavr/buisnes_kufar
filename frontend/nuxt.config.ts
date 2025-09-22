@@ -50,6 +50,7 @@ export default defineNuxtConfig({
     classSuffix: ''      // убирает суффиксы классов (например 'light:')
   },
   app: {
+    baseURL: '/',
     head: {
       title: 'БизнесТорг',
       meta: [
@@ -60,6 +61,26 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
       ]
+    }
+  },
+  // Настройки для работы через nginx
+  nitro: {
+    experimental: {
+      wasm: true
+    },
+    // Указываем правильный baseURL для статических ресурсов
+    baseURL: '/'
+  },
+  // Настройки для работы в dev режиме через nginx
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
+  },
+  // Настройки для правильной генерации путей
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      port: 3000
     }
   }
 })

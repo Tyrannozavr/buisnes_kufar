@@ -25,20 +25,25 @@
 
 		<div v-for="cp in companiesAndProducts" :key="cp.companyId" class="mb-15 bg-neutral-50 shadow-sm rounded-lg p-8 px-16 m-5 mt-0">
 			
-			<h2>Заказ на поставку для <span>"{{ cp.companyId }}"</span></h2>
+			<h2>Заказ на поставку для <span>"{{ cp.companyName }}"</span></h2>
 			
 			<div class="flex-row space-y-5 mb-10">
 				<div v-if="cp.products[0]">
 					<UTable sticky :data="cp.products" :columns="columns"/>
 					
-					<p>Всего продукции - {{ cp.products.length }}</p>
-					<p>На сумму - <span class="font-bold">{{ cp.products.reduce((acc: number, product: any) => acc + product.amount, 0).toLocaleString('ru-RU') }} ₽</span></p>
+					<p>Всего товаров - {{ cp.products.length }}</p>
+					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.products).toLocaleString('ru-RU') }} ₽</span></p>
 		
 					<div class="flex space-x-3 mt-3 mb-5">
 						<UButton
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to="/checkout"
+								@click="
+								postProducts(cp.products),
+								messageToSaller(cp.companyId,cp.products),
+								showToast(),
+								removeItemsFromCart(cp.products)"
             >
               Оформить заказ
             </UButton>
@@ -64,13 +69,18 @@
 					<UTable sticky :data="cp.services" :columns="columns"/>
 					
 					<p>Количество услуг - {{ cp.services.length }}</p>
-					<p>На сумму - <span class="font-bold">{{ cp.services.reduce((acc: number, product: any) => acc + product.amount, 0).toLocaleString('ru-RU') }} ₽</span></p>
+					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.services).toLocaleString('ru-RU') }} ₽</span></p>
 		
 					<div class="flex space-x-3 mt-3 mb-10">
 						<UButton
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to=""
+								@click="
+								postProducts(cp.services),
+								messageToSaller(cp.companyId,cp.services),
+								showToast(),
+								removeItemsFromCart(cp.services)"
             >
               Оформить заказ
             </UButton>
@@ -97,18 +107,25 @@
 </template>
 
 <script setup lang="ts">
-//Вопрос с названием компании 
-//модернизировать таблицу(фильтрация? и чекбокс)
-//рефакторинг кода 
-//логика для кнопок (при нажатии кнопки оформить заказ открывается редактор документов)
 import { useCartStore } from '~/stores/cart'
+import { useUserStore } from '~/stores/user'
 import type { TableColumn } from '@nuxt/ui'
 import type { CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
+import { useChatsApi } from '~/api/chats'
+
+const { createChat, sendMessage } = useChatsApi()
+
+const userStore = useUserStore()
+const buyer: {companyId: number, companyName: string, companySlug: string} = {
+	companyId: userStore.companyId,
+	companyName: userStore.companyName,
+	companySlug: userStore.companySlug,
+}
 
 const cartStore = useCartStore()
-const userStore = useUserStore()
 const products = cartStore.items
+
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 
@@ -172,6 +189,7 @@ const sortProducts = (products: any[]): void  => {
 				companiesAndProducts.value.push(
 				{
 				companyId: item.product.company_id,
+				companyName: item.product.company_name,
 				services: [],
 				products: [{
 					slug: item.product.slug,
@@ -193,6 +211,7 @@ const sortProducts = (products: any[]): void  => {
 				companiesAndProducts.value.push(
 				{
 				companyId: item.product.company_id,
+				companyName: item.product.company_name,
 				services: [{
 					slug: item.product.slug,
 					description: item.product.description,
@@ -228,9 +247,10 @@ const columns: TableColumn<ProductInCheckout>[] = reactive([
 	 }
 ])
 
-console.log(products)
-
-//создание отсортированного массива с товароми и услугами
+const productsAmount = (products: ProductInCheckout[]): number => {
+	const amount = products.reduce((acc: number, product: any) => acc + product.amount, 0)
+	return amount
+}	
 
 const removeItemsFromCart = (items: ProductInCheckout[]): void => {
 	const itemsForRemove: string[] = []
@@ -238,5 +258,42 @@ const removeItemsFromCart = (items: ProductInCheckout[]): void => {
 		itemsForRemove.push(product.slug)
 	})
 	itemsForRemove.forEach(slug => cartStore.removeFromCart(slug))
+}
+
+//отправляем продукцию на сервер 
+const postProducts = async (product: ProductInCheckout[]) => {
+	$fetch('/api/orderedProducts', {
+		method: 'POST',
+		body: {
+			product,
+			buyer
+		}
+	})
+}
+
+//отправляем сообщение продавцу о намерении совершить заказ
+const messageToSaller = async (companyId: number , product: ProductInCheckout[]): Promise<void> =>  {
+	const response = await createChat({participantId: companyId})
+	const productList: string[] = []
+	product.forEach(prod => productList.push(prod.productName))
+	sendMessage(response.id, {senderId: companyId, content: `Здравуствуйте, хочу приобрести у вас следующую продукцию: ${productList}`})
+}
+
+//всплывающее уведомление
+const toast = useToast()
+const showToast = () => {
+	toast.add({
+		title: 'Готово',
+		description: 'Заказ отправлен на оформление',
+		color: 'success',
+		actions: [{
+			icon: 'i-lucide-arrow-right',
+			label: 'Перейти к закупкам',
+			color: 'success',
+			variant: 'link',
+			to: '/profile/purchases'
+		}]
+	}
+	)
 }
 </script>

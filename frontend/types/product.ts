@@ -57,6 +57,7 @@ export interface ProductItemPublic {
   price: number
   unit_of_measurement: string
 	company_id: number
+	company_name: string
 }
 
 export interface ProductPaginatedPublicResponse {
@@ -91,6 +92,7 @@ export interface ProductInCheckout  {
 
 export interface CompaniesAndProducts  {
 	companyId: number
+	companyName: string
 	products: ProductInCheckout[]
 	services: ProductInCheckout[]
 }

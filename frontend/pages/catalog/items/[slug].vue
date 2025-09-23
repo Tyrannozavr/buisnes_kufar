@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Product } from '~/types/product'
+import type { Product, ProductItemPublic } from '~/types/product'
 import type { Service } from '~/types/service'
 import type { Company } from '~/types/company'
 import { useCart } from '~/composables/useCart'
@@ -62,7 +62,7 @@ const setCurrentImage = (index: number) => {
 // Handle add to cart
 const handleAddToCartClick = () => {
   if (item.value) {
-    handleAddToCart(item.value as Product)
+    handleAddToCart(item.value as ProductItemPublic)
   }
 }
 </script>

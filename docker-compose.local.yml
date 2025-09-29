@@ -1,0 +1,12 @@
+services:
+  nginx-local:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/app/static:/usr/share/nginx/html/static
+    network_mode: "host"

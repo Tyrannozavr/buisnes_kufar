@@ -33,6 +33,7 @@ const convertToProductItemPublic = (product: any): ProductItemPublic => {
     price: product.price,
     unit_of_measurement: product.unit_of_measurement || 'шт',
 		company_id: product.company_id,
+		company_name: product.company_name,
   }
 }
 
@@ -42,6 +43,7 @@ const { data: items, pending: isPending, refresh } = await useAsyncData<ProductL
   async () => {
     if (props.type === 'products') {
       const result = await getAllGoods({ skip: 0, limit: 20 })
+			console.log(result)
       return {
         products: result.products.map(convertToProductItemPublic),
         total: result.total,
@@ -50,7 +52,8 @@ const { data: items, pending: isPending, refresh } = await useAsyncData<ProductL
       }
     } else {
       const result = await getAllServices({ skip: 0, limit: 20 })
-      return {
+      console.log(result)
+			return {
         products: result.products.map(convertToProductItemPublic),
         total: result.total,
         page: result.page,

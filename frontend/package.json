@@ -25,6 +25,8 @@
     "@prisma/client": "^6.8.1",
     "@unhead/vue": "^2.0.8",
     "docx": "^9.5.1",
+    "html2canvas-pro": "^1.5.11",
+    "jspdf": "^3.0.3",
     "nuxt": "^3.12.2",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.2.0",

@@ -4,7 +4,7 @@
 
 			<!-- template -->
 			<div class="w-2/3 mr-5 p-3">
-				<Editor @tabIndex="getTabs" @orderBlob="getOrderBlob">
+				<Editor @tabIndex="getTabs" @orderBlob="getOrderBlob" @orderHtml="getOrderElement">
 					<slot />
 				</Editor>
 			</div>
@@ -23,10 +23,24 @@
 								<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"/>
 							</div>
 							<div class="flex flex-row justify-between">
-								<UButton label="Поиск" icon="i-lucide-search" class="p-3"/>
-								<UButton label="Печать" icon="i-lucide-printer" class="p-3"/>
-								<UButton label="DOC" @click="downloadCurrentBlob(tabIndex, orderDocxBlob, billDocxBlob)" icon="i-lucide-dock" class="p-3"/>
-								<UButton label="PDF" icon="i-lucide-dock" class="p-3"/>
+								<UButton label="Поиск" 
+								icon="i-lucide-search" 
+								class="p-3"
+								/>
+								<UButton label="Печать" 
+								icon="i-lucide-printer" 
+								class="p-3"
+								/>
+								<UButton label="DOC" 
+								@click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)" 
+								icon="i-lucide-dock" 
+								class="p-3"
+								/>
+								<UButton label="PDF" 
+								@click="downloadCurrentPdf(tabIndex, orderElement)" 
+								icon="i-lucide-dock" 
+								class="p-3"
+								/>
 							</div>
 							<div class="flex flex-col gap-2">
 								<UButton label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle"/>
@@ -56,8 +70,10 @@
 import AppLayout from '~/components/layout/AppLayout.vue';
 import Editor from '~/pages/profile/contracts/editor.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
+import { usePdfGenerator } from '~/composables/usePdfGenerator';
 
-const {generateDocxOrder, downloadBlob} = useDocxGenerator()
+//DOCX
+const {downloadBlob} = useDocxGenerator()
 
 let tabIndex: string
 function getTabs(activeTab: string): void {
@@ -71,7 +87,7 @@ function getOrderBlob(blob: Blob): void {
 
 let billDocxBlob: Blob
 
-const downloadCurrentBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
+const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
 	if (tabIndex === '0') {
 		downloadBlob(orderDocxBlob, 'Order.docx')
 	} else if (tabIndex === '1') {
@@ -79,7 +95,20 @@ const downloadCurrentBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob
 	}
 }
 
+//PDF
+const {downloadPdf} = usePdfGenerator()
 
+let orderElement: HTMLElement |null
+function getOrderElement(html: HTMLElement |null) {
+	orderElement = html
+}
+
+const downloadCurrentPdf = (tabIndex: string, orderElement: HTMLElement |null): void => {
+	if (tabIndex === '0') {
+		const fileName = 'Order'
+		downloadPdf(orderElement, fileName)
+	}
+}
 
 </script>
 

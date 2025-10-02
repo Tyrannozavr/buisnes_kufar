@@ -3,7 +3,7 @@
 		<UTabs v-model="activeTab" color="neutral" :items="items" size="md"
 			class="max-h-screen overflow-x-auto overscroll-auto">
 			<template #order="{ item }">
-				<Order :data="orderData" @inputData="updateOrderData" />
+				<Order :data="orderData" @inputData="updateOrderData" @orderHtml="getHtml"/>
 
 			</template>
 			<template #bill="{ item }">
@@ -36,6 +36,7 @@ import Order from '~/components/templates/Order.vue'
 import type { TableColumn } from '@nuxt/ui';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
+// import { convertDocxToPdf } from 'docx-pdf'
 
 definePageMeta({
 	layout: 'editor',
@@ -71,19 +72,17 @@ const items = [
 const emit = defineEmits<{
 	(e: 'tabIndex', activeTab: string):void,
 	(e: 'orderBlob', orderDocxBlob: Blob):void
+	(e: 'orderHtml', orderElement: HTMLElement | null):void
 }>()
 
 const activeTab = ref('0')
 watch(
 	() => activeTab.value,
 	() => {
-		console.log('active tab: ', activeTab)
 		emit('tabIndex', activeTab.value)
 	},
 	{ immediate: true }
 )
-
-
 
 //---Order---
 const { generateDocxOrder, downloadBlob } = useDocxGenerator()
@@ -159,8 +158,11 @@ watch(() => orderData,
 )
 
 const updateOrderData = (inputData: OrderData) => {
-	console.log('получены данные: ', inputData)
 	orderData.value = inputData
+}
+
+function getHtml(element: HTMLElement | null) {
+	emit('orderHtml', element)
 }
 //---
 

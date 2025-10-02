@@ -2,26 +2,27 @@
 import type { TableColumn } from '@nuxt/ui';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
+import html2canvas from 'html2canvas-pro'
+import jspdf, { jsPDF } from 'jspdf'
 
 const { generateDocxOrder, downloadBlob } = useDocxGenerator()
 
 const props = defineProps<{
 	data: OrderData
 }>()
-console.log('Props: ',props)
-
 
 const emit = defineEmits<{
-	(e: 'inputData', orderData: OrderData): void
+	(e: 'inputData', orderData: OrderData): void,
+	(e: 'orderHtml', element: HTMLElement | null): void
 }>()
 
 const products: ProductsInOrder[] = props.data.products.map(product => ({
-			name: product.name,
-			article: product.article,
-			quantity: product.quantity,
-			units: product.units,
-			price: product.price,
-			productAmount: product.productAmount,
+	name: product.name,
+	article: product.article,
+	quantity: product.quantity,
+	units: product.units,
+	price: product.price,
+	productAmount: product.productAmount,
 }))
 
 const orderData: Ref<OrderData> = ref({
@@ -44,34 +45,6 @@ const orderData: Ref<OrderData> = ref({
 	amount: props.data.amount,
 })
 
-const columns: TableColumn<ProductsInOrder>[] = [
-	{
-		accessorKey: 'name',
-		header: 'Название продукта',
-	},
-	{
-		accessorKey: 'article',
-		header: 'Артикул',
-	},
-	{
-		accessorKey: 'quantity',
-		header: 'Кол-во',
-	},
-	{
-		accessorKey: 'units',
-		header: 'Ед.изм',
-	},
-	{
-		accessorKey: 'price',
-		header: 'Цена',
-	},
-	{
-		accessorKey: 'productAmount',
-		header: 'Сумма',
-	},
-
-]
-
 let docxBlob: Blob = await generateDocxOrder(orderData.value)
 
 watch(() => orderData.value,
@@ -79,97 +52,173 @@ watch(() => orderData.value,
 		docxBlob = await generateDocxOrder(orderData.value)
 
 		emit('inputData', orderData.value)
+		emit('orderHtml', element.value)
 	},
-	{deep: true}
+	{ deep: true, immediate: true }
 )
 
-//заглушка
-const data = ref([
+const element: Ref<HTMLElement | null> = ref(null)
 
-  // {
-  //   id: '4600',
-  //   date: '2024-03-11T15:30:00',
-  //   status: 'paid',
-  //   email: 'james.anderson@example.com',
-  //   amount: 594
-  // },
-  // {
-  //   id: '4599',
-  //   date: '2024-03-11T10:10:00',
-  //   status: 'failed',
-  //   email: 'mia.white@example.com',
-  //   amount: 276
-  // },
-  // {
-  //   id: '4598',
-  //   date: '2024-03-11T08:50:00',
-  //   status: 'refunded',
-  //   email: 'william.brown@example.com',
-  //   amount: 315
-  // },
-  // {
-  //   id: '4597',
-  //   date: '2024-03-10T19:45:00',
-  //   status: 'paid',
-  //   email: 'emma.davis@example.com',
-  //   amount: 529
-  // },
-  // {
-  //   id: '4596',
-  //   date: '2024-03-10T15:55:00',
-  //   status: 'paid',
-  //   email: 'ethan.harris@example.com',
-  //   amount: 639
-  // }
-])
 
+const addProduct = () => {
+	const product: ProductsInOrder = {
+		name: '',
+		article: NaN,
+		quantity: NaN,
+		units: '',
+		price: NaN,
+		productAmount: NaN,
+	}
+	orderData.value.products.push(product)
+}
+
+
+// onMounted(() => {
+// 	const replaceTextareasAndInputs = (element: any) => {
+// 		const newElement: HTMLElement = element.cloneNode(true)
+// 		const textareas = newElement.querySelectorAll('textarea')
+// 		const inputs = newElement.querySelectorAll('input')
+
+// 		textareas.forEach((textarea: any) => {
+// 			const div = document.createElement('div')
+// 			div.textContent = textarea.value
+// 			div.style.cssText = getComputedStyle(textarea).cssText
+// 			div.style.whiteSpace = 'pre-wrap'
+// 			div.style.display = 'block'
+// 			div.style.minHeight = textarea.offsetHeight + 'px'
+// 			div.style.padding = '3px'
+// 			textarea.parentNode?.replaceChild(div, textarea)
+// 		});
+
+// 		inputs.forEach((input: any) => {
+// 			const span = document.createElement('span')
+// 			span.textContent = input.value
+// 			span.style.cssText = getComputedStyle(input).cssText
+// 			span.style.display = 'inline'
+// 			span.style.minHeight = input.offsetHeight + 'px'
+// 			span.style.minWidth = input.offsetWidth + 'px'
+// 			span.style.padding = '1px'
+// 			input.parentNode?.replaceChild(span, input)
+// 		})
+
+// 		return newElement
+// 	}
+// 	const newElement = replaceTextareasAndInputs(element.value)
+// 	console.log(newElement)
+// })
 
 </script>
 
 <template>
-		<div>
-		<UButton @click="downloadBlob(docxBlob, 'Order.docx')" label="Скачать документ" />
-	</div>
+	<div ref="element" class="font-serif text-l text-justify text-pretty w-full p-5">
+		<table >
+			<tr>
+				<td>Поставщик: </td>
+				<td style="padding-inline: 10px;">
+					<input placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
+					<input placeholder="Название компании" v-model.lazy="orderData.companyNameSaller" /><br />
+					<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller" /><br />
+					<input placeholder="Контактный телефон" v-model.trim.lazy="orderData.mobileNumberSaller" />
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Покупатель:
+				</td>
+				<td style="padding-inline: 10px;">
+					<input placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer" /><br />
+					<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer" /><br />
+					<input placeholder="Контактный телефон" v-model.lazy="orderData.mobileNumberBuyer" /><br />
+				</td>
+			</tr>
+		</table>
 
-		<div class="font-serif text-l text-justify text-pretty w-full">
-	<h1 class="font-bold">Заказ на поставку {{ orderData.orderNumber }} от {{ orderData.orderDate }}</h1>
+		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку {{ orderData.orderNumber }} от {{ orderData.orderDate }}</h1>
 
-	<table>
-		<tr>
-			<td>Поставщик:   </td>
-			<td>
-				<input placeholder="ИНН" v-model.trim.lazy="orderData.innSaller"/><br/>  
-				<input placeholder="Название компании" v-model.lazy="orderData.companyNameSaller"/><br/> 
-				<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller"/><br/> 
-				<input placeholder="Контактный телефон" v-model.trim.lazy="orderData.mobileNumberSaller"/>
-			</td>
-		</tr>
-		<tr>
-			<td> 
-				Покупатель: 
-			</td>
-			<td>
-				<input placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer"/><br/>
-				<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer"/><br/>
-				<input placeholder="Контактный телефон" v-model.lazy="orderData.mobileNumberBuyer"/><br/>
-			</td>
-		</tr>
-	</table>
+		<table class="table-fixed border p-5 mb-5 w-full text-center" id="products">
+			<thead>
+				<th class="w-7 border">№</th>
+				<th class="w-55 border">Название продукта</th>
+				<th class="w-15 border">Артикул</th>
+				<th class="w-10 border">Кол-во</th>
+				<th class="w-10 border">Ед. изм.</th>
+				<th class="w-15 border">Цена</th>
+				<th class="w-20 border">Сумма</th>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="border">
+						0
+					</td>
+					<td class="border">
+						<input class="w-65" placeholder="Название" value="falos" />
+					</td>
+					<td class="border">
+						<input class="w-23 text-center" placeholder="Артикул" value="777" />
+					</td>
+					<td class="border">
+						<input class="w-15 text-center" placeholder="Кол-во" value="10" />
+					</td>
+					<td class="border">
+						<input class="w-13 text-center" placeholder="Ед. изм." value="шт" />
+					</td>
+					<td class="border">
+						1000
+					</td>
+					<td class="border">
+						100000
+					</td>
+				</tr>
+				<tr v-for="product in orderData.products">
+					<td class="border">
+						{{ orderData.products.indexOf(product) + 1 }}
+					</td>
+					<td class="border">
+						<input class="w-65" placeholder="Название" :value="product.name" />
+					</td>
+					<td class="border">
+						<input class="w-23 text-center" placeholder="Артикул" :value="product.article" />
+					</td>
+					<td class="border">
+						<input class="w-15 text-center" placeholder="Кол-во" :value="product.quantity" />
+					</td>
+					<td class="border">
+						<input class="w-13 text-center" placeholder="Ед. изм." :value="product.units" />
+					</td>
+					<td class="border">
+						{{ product.price }}
+					</td>
+					<td class="border">
+						{{ product.productAmount }}
+					</td>
+				</tr>
+				<tr hidden>
+					<td @click="addProduct()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+						Добавить товар
+					</td>
+				</tr>
+			</tbody>
+		</table>
 
-	<UTable :columns="columns" :data="orderData.products" />
+		<p>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</p><br />
+		<p><span style="text-align: left;" >Менеджер </span>
+			<input placeholder="Имя продавца" v-model.lazy="orderData.sallerName" /> 
+			<span style="text-align: center;">Покупатель </span>
+			<input placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
+		</p>
+		<br />
 
-	<p>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</p><br/>
-	<p>Менеджер <input placeholder="Имя продавца" v-model.lazy="orderData.sallerName"/>               Покупатель {{ orderData.buyerName }}</p><br/>
-	<textarea placeholder="Комментарии" v-model.lazy="orderData.comments" class="w-full max-h-50"/>
+		<textarea ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments" class="w-full max-h-20" />
 	</div>
 </template>
 
 <style lang="css" scoped>
 * {
-	line-height:1.2em;
+	line-height: 1.2em;
 }
 
-h1,h2 {
+h1,
+h2 {
 	text-align: center;
 	line-height: 3em;
 }
@@ -177,5 +226,13 @@ h1,h2 {
 p {
 	text-indent: 0em;
 	line-height: 1.5em;
+}
+
+input,
+textarea {
+	/* margin: 3px 0 3px 3px; */
+	line-height: 1.75;
+	padding: 1px 5px;
+	vertical-align: middle;
 }
 </style>

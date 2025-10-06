@@ -67,7 +67,42 @@ export const usePdfGenerator = () => {
     pdf.save(`${fileName}.pdf`);
   };
 
-  return {
+const printDocument = (element: HTMLElement | any): void => {
+	const newElement = replaceTextareasAndInputs(element)
+	const printWindow = window.open('','', 'height=842, width=595')
+	printWindow?.document.writeln(`
+	<html>
+		<head>
+			<title>Печать документа ...</title>
+			<style>
+				h1 { 
+					text-align: center; 
+					font-size: 24px; 
+					}
+
+				h1 ~ table {
+					width: 100%;
+				}
+
+				th {
+					text-align: start;
+				}
+			</style>
+		</head>
+		<body>
+			${newElement.innerHTML}
+		</body>
+	</html>
+	`)
+	printWindow?.document.close()
+	printWindow?.focus()
+	printWindow?.print()
+	printWindow?.close()
+}  
+
+return {
     downloadPdf,
+		printDocument,
+		replaceTextareasAndInputs,
   };
 };

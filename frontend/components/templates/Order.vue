@@ -113,7 +113,7 @@ const addProduct = () => {
 	<div ref="element" class="font-serif text-l text-justify text-pretty w-full p-5">
 		<table >
 			<tr>
-				<td>Поставщик: </td>
+				<td><span>Поставщик:</span> </td>
 				<td style="padding-inline: 10px;">
 					<input placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
 					<input placeholder="Название компании" v-model.lazy="orderData.companyNameSaller" /><br />
@@ -123,7 +123,7 @@ const addProduct = () => {
 			</tr>
 			<tr>
 				<td>
-					Покупатель:
+					<span>Покупатель:</span>
 				</td>
 				<td style="padding-inline: 10px;">
 					<input placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer" /><br />
@@ -137,16 +137,16 @@ const addProduct = () => {
 
 		<table class="table-fixed border p-5 mb-5 w-full text-center" id="products">
 			<thead>
-				<th class="w-7 border">№</th>
-				<th class="w-55 border">Название продукта</th>
-				<th class="w-15 border">Артикул</th>
-				<th class="w-10 border">Кол-во</th>
-				<th class="w-10 border">Ед. изм.</th>
-				<th class="w-15 border">Цена</th>
-				<th class="w-20 border">Сумма</th>
+				<th class="w-7 border"><span>№</span></th>
+				<th class="w-55 border"><span>Название продукта</span></th>
+				<th class="w-15 border"><span>Артикул</span></th>
+				<th class="w-10 border"><span>Кол-во</span></th>
+				<th class="w-10 border"><span>Ед. изм.</span></th>
+				<th class="w-15 border"><span>Цена</span></th>
+				<th class="w-20 border"><span>Сумма</span></th>
 			</thead>
 			<tbody>
-				<tr>
+				<!-- <tr>
 					<td class="border">
 						0
 					</td>
@@ -168,10 +168,10 @@ const addProduct = () => {
 					<td class="border">
 						100000
 					</td>
-				</tr>
+				</tr> -->
 				<tr v-for="product in orderData.products">
 					<td class="border">
-						{{ orderData.products.indexOf(product) + 1 }}
+						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
 						<input class="w-65" placeholder="Название" :value="product.name" />
@@ -186,10 +186,10 @@ const addProduct = () => {
 						<input class="w-13 text-center" placeholder="Ед. изм." :value="product.units" />
 					</td>
 					<td class="border">
-						{{ product.price }}
+						<span>{{ product.price }}</span>
 					</td>
 					<td class="border">
-						{{ product.productAmount }}
+						<span>{{ product.productAmount }}</span>
 					</td>
 				</tr>
 				<tr hidden>
@@ -200,10 +200,12 @@ const addProduct = () => {
 			</tbody>
 		</table>
 
-		<p>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</p><br />
-		<p><span style="text-align: left;" >Менеджер </span>
+		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</span></p>
+		<br />
+		<p>
+			<span style="text-align: start;" >Менеджер </span>
 			<input placeholder="Имя продавца" v-model.lazy="orderData.sallerName" /> 
-			<span style="text-align: center;">Покупатель </span>
+			<span style="text-align: center;">Покупатель</span>
 			<input placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
 		</p>
 		<br />

@@ -13,56 +13,69 @@
 				<UCard variant="subtle" class="  top-26">
 
 					<div class="flex flex-col justify-between gap-5">
-							<div class="w-full">
-								<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center"/>
-							</div>
-							<div class="flex flex-col gap-2">
-								<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"/>
-								<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"/>
-								<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"/>
-								<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"/>
-							</div>
-							<div class="flex flex-row justify-between">
-								<UButton label="Поиск" 
-								icon="i-lucide-search" 
-								class="p-3"
-								/>
-								<UButton label="Печать" 
-								icon="i-lucide-printer" 
-								class="p-3"
-								/>
-								<UButton label="DOC" 
-								@click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)" 
-								icon="i-lucide-dock" 
-								class="p-3"
-								/>
-								<UButton label="PDF" 
-								@click="downloadCurrentPdf(tabIndex, orderElement)" 
-								icon="i-lucide-dock" 
-								class="p-3"
-								/>
-							</div>
-							<div class="flex flex-col gap-2">
-								<UButton label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle"/>
-								<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle"/>
-							</div>
-							<div>
-								<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center"/>
-							</div>
+
+						<div class="w-full">
+							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" />
+						</div>
+
+						<div class="flex flex-col gap-2">
+							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus" />
+							<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
+								icon="i-lucide-file-plus" />
+							<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle"
+								icon="i-lucide-file-plus" />
+							<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
+								icon="i-lucide-file-plus" />
+						</div>
+
+						<div class="flex flex-row justify-between">
+							<UCollapsible class="gap-3">
+								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
+									icon="i-lucide-search" class="p-3 h-[44px]" />
+
+								<template #content>
+									<div class="mt-4 w-101 absolute">
+										<input type="text" name="search" v-model="inputValue"
+											@input="searchInCurrentDocument(tabIndex, orderElement)"
+											class="border border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
+									</div>
+									<div class="h-12"></div>
+								</template>
+							</UCollapsible>
+
+							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
+								class="p-3 w-[97px] h-[44px]" />
+							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
+								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" />
+							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
+								class="p-3 w-[77px] h-[44px]" />
+						</div>
+
+						<div class="flex flex-col gap-2">
+							<UButton label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle" />
+							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle" />
+						</div>
+
+						<div>
+							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center" />
+						</div>
+
 						<div class="flex flex-col gap-2 text-center ">
 							<p>Фото/Сканы документа</p>
-							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl" class="justify-center"/>
+							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
+								class="justify-center" />
 						</div>
+						
 						<div class="flex flex-row justify-between">
-							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"/>
+							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center" />
 							<!-- <UButton label="Сохранить"/> -->
 						</div>
 					</div>
 
 				</UCard>
 			</div>
-		
-	</div>
+
+		</div>
 	</AppLayout>
 </template>
 
@@ -71,9 +84,10 @@ import AppLayout from '~/components/layout/AppLayout.vue';
 import Editor from '~/pages/profile/contracts/editor.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
+import { useSearch } from '~/composables/useSearch';
 
 //DOCX
-const {downloadBlob} = useDocxGenerator()
+const { downloadBlob } = useDocxGenerator()
 
 let tabIndex: string
 function getTabs(activeTab: string): void {
@@ -96,19 +110,44 @@ const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocx
 }
 
 //PDF
-const {downloadPdf} = usePdfGenerator()
+const { downloadPdf } = usePdfGenerator()
 
-let orderElement: HTMLElement |null
-function getOrderElement(html: HTMLElement |null) {
+let orderElement: HTMLElement | null
+function getOrderElement(html: HTMLElement | null) {
 	orderElement = html
 }
 
-const downloadCurrentPdf = (tabIndex: string, orderElement: HTMLElement |null): void => {
+const downloadCurrentPdf = (tabIndex: string, orderElement: HTMLElement | null): void => {
 	if (tabIndex === '0') {
 		const fileName = 'Order'
 		downloadPdf(orderElement, fileName)
 	}
 }
+
+//Print 
+const { printDocument } = usePdfGenerator()
+
+const printCurrentDocument = (tabIndex: string, orderElement: HTMLElement | null) => {
+	if (tabIndex === '0') {
+		printDocument(orderElement)
+	}
+}
+
+//Search
+const { searchInDocument } = useSearch()
+const inputValue: Ref<string> = ref('')
+
+const clearInput = () => {
+	inputValue.value = ''
+}
+
+const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | null) => {
+	if (tabIndex === '0') {
+		searchInDocument(orderElement, inputValue.value)
+	}
+}
+
+
 
 </script>
 

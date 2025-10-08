@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
-import html2canvas from 'html2canvas-pro'
-import jspdf, { jsPDF } from 'jspdf'
 
-const { generateDocxOrder, downloadBlob } = useDocxGenerator()
+const { generateDocxOrder } = useDocxGenerator()
 
 const props = defineProps<{
 	data: OrderData
@@ -51,6 +48,11 @@ watch(() => orderData.value,
 	async () => {
 		docxBlob = await generateDocxOrder(orderData.value)
 
+		orderData.value.products.map(product => {
+			product.productAmount = product.price * product.quantity
+		})
+		orderData.value.amount = orderData.value.products.reduce((acc: number ,product: ProductsInOrder) => product.productAmount + acc, 0)
+
 		emit('inputData', orderData.value)
 		emit('orderHtml', element.value)
 	},
@@ -63,11 +65,11 @@ const element: Ref<HTMLElement | null> = ref(null)
 const addProduct = () => {
 	const product: ProductsInOrder = {
 		name: '',
-		article: NaN,
-		quantity: NaN,
+		article: Number(),
+		quantity: Number(),
 		units: '',
-		price: NaN,
-		productAmount: NaN,
+		price: Number(),
+		productAmount: Number(),
 	}
 	orderData.value.products.push(product)
 }

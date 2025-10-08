@@ -27,7 +27,6 @@
 </template>
 
 <script setup lang="ts">
-// import { toDocx } from 'docshift'
 import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
@@ -36,7 +35,6 @@ import Order from '~/components/templates/Order.vue'
 import type { TableColumn } from '@nuxt/ui';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
-// import { convertDocxToPdf } from 'docx-pdf'
 
 definePageMeta({
 	layout: 'editor',
@@ -96,6 +94,14 @@ const products: Ref<ProductsInOrder[]> = ref([
 		price: NaN,
 	}
 ].map(product => ({ ...product, productAmount: product.price * product.quantity })))
+
+watch(
+	() => products.value,
+	() => {
+		products.value.map(product => product.productAmount = product.price * product.quantity )
+	}, 
+	{ deep: true, immediate: true }
+)
 
 const orderData: Ref<OrderData> = ref({
 	innSaller: NaN,

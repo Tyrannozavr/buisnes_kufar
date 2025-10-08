@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
+import { convert as numberToWordsRu } from 'number-to-words-ru';
 
 const { generateDocxOrder } = useDocxGenerator()
 
@@ -40,6 +41,7 @@ const orderData: Ref<OrderData> = ref({
 	products,
 
 	amount: props.data.amount,
+	amountWord: props.data.amountWord,
 })
 
 let docxBlob: Blob = await generateDocxOrder(orderData.value)
@@ -51,7 +53,15 @@ watch(() => orderData.value,
 		orderData.value.products.map(product => {
 			product.productAmount = product.price * product.quantity
 		})
-		orderData.value.amount = orderData.value.products.reduce((acc: number ,product: ProductsInOrder) => product.productAmount + acc, 0)
+		orderData.value.amount = orderData.value.products.reduce((acc: number, product: ProductsInOrder) => product.productAmount + acc, 0)
+		orderData.value.amountWord = numberToWordsRu(orderData.value.amount, {
+			showNumberParts: {
+				fractional: false
+			},
+			showCurrency: {
+				integer: false
+			}
+		})
 
 		emit('inputData', orderData.value)
 		emit('orderHtml', element.value)
@@ -80,14 +90,16 @@ const disabledInput = inject('disabledInput', 'true')
 
 <template>
 	<div ref="element" class="font-serif text-l text-justify text-pretty w-full p-5">
-		<table >
+		<table>
 			<tr>
 				<td><span>Поставщик:</span> </td>
 				<td style="padding-inline: 10px;">
 					<input :disabled="disabledInput" class="" placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
-					<input :disabled="disabledInput" placeholder="Название компании" v-model.lazy="orderData.companyNameSaller" /><br />
+					<input :disabled="disabledInput" placeholder="Название компании"
+						v-model.lazy="orderData.companyNameSaller" /><br />
 					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller" /><br />
-					<input :disabled="disabledInput" placeholder="Контактный телефон" v-model.trim.lazy="orderData.mobileNumberSaller" />
+					<input :disabled="disabledInput" placeholder="Контактный телефон"
+						v-model.trim.lazy="orderData.mobileNumberSaller" />
 				</td>
 			</tr>
 			<tr>
@@ -95,14 +107,17 @@ const disabledInput = inject('disabledInput', 'true')
 					<span>Покупатель:</span>
 				</td>
 				<td style="padding-inline: 10px;">
-					<input :disabled="disabledInput" placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer" /><br />
+					<input :disabled="disabledInput" placeholder="Название компании"
+						v-model.lazy="orderData.companyNameBuyer" /><br />
 					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer" /><br />
-					<input :disabled="disabledInput" placeholder="Контактный телефон" v-model.lazy="orderData.mobileNumberBuyer" /><br />
+					<input :disabled="disabledInput" placeholder="Контактный телефон"
+						v-model.lazy="orderData.mobileNumberBuyer" /><br />
 				</td>
 			</tr>
 		</table>
 
-		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку {{ orderData.orderNumber }} от {{ orderData.orderDate }}</h1>
+		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку {{ orderData.orderNumber }} от {{
+			orderData.orderDate }}</h1>
 
 		<table class="table-fixed border p-5 mb-5 w-full text-center" id="products">
 			<thead>
@@ -132,7 +147,7 @@ const disabledInput = inject('disabledInput', 'true')
 						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Ед. изм." v-model="product.units" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model="product.price"/>
+						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model="product.price" />
 					</td>
 					<td class="border">
 						<span>{{ product.productAmount }}</span>
@@ -147,16 +162,18 @@ const disabledInput = inject('disabledInput', 'true')
 		</table>
 
 		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</span></p>
+		<p><span class="underline underline-offset-4">{{ orderData.amountWord }}</span></p>
 		<br />
 		<p>
-			<span style="text-align: start;" >Менеджер </span>
-			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.sallerName" /> 
+			<span style="text-align: start;">Менеджер </span>
+			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.sallerName" />
 			<span style="text-align: center;">Покупатель</span>
 			<input :disabled="disabledInput" placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
 		</p>
 		<br />
 
-		<textarea :disabled="disabledInput" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments" class="w-full max-h-20" />
+		<textarea :disabled="disabledInput" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
+			class="w-full max-h-20" />
 	</div>
 </template>
 

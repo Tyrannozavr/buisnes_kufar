@@ -83,7 +83,7 @@ watch(
 )
 
 //---Order---
-const { generateDocxOrder, downloadBlob } = useDocxGenerator()
+const { generateDocxOrder } = useDocxGenerator()
 
 const products: Ref<ProductsInOrder[]> = ref([
 	{

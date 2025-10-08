@@ -74,40 +74,7 @@ const addProduct = () => {
 	orderData.value.products.push(product)
 }
 
-
-// onMounted(() => {
-// 	const replaceTextareasAndInputs = (element: any) => {
-// 		const newElement: HTMLElement = element.cloneNode(true)
-// 		const textareas = newElement.querySelectorAll('textarea')
-// 		const inputs = newElement.querySelectorAll('input')
-
-// 		textareas.forEach((textarea: any) => {
-// 			const div = document.createElement('div')
-// 			div.textContent = textarea.value
-// 			div.style.cssText = getComputedStyle(textarea).cssText
-// 			div.style.whiteSpace = 'pre-wrap'
-// 			div.style.display = 'block'
-// 			div.style.minHeight = textarea.offsetHeight + 'px'
-// 			div.style.padding = '3px'
-// 			textarea.parentNode?.replaceChild(div, textarea)
-// 		});
-
-// 		inputs.forEach((input: any) => {
-// 			const span = document.createElement('span')
-// 			span.textContent = input.value
-// 			span.style.cssText = getComputedStyle(input).cssText
-// 			span.style.display = 'inline'
-// 			span.style.minHeight = input.offsetHeight + 'px'
-// 			span.style.minWidth = input.offsetWidth + 'px'
-// 			span.style.padding = '1px'
-// 			input.parentNode?.replaceChild(span, input)
-// 		})
-
-// 		return newElement
-// 	}
-// 	const newElement = replaceTextareasAndInputs(element.value)
-// 	console.log(newElement)
-// })
+const disabledInput = inject('disabledInput', 'true')
 
 </script>
 
@@ -117,10 +84,10 @@ const addProduct = () => {
 			<tr>
 				<td><span>Поставщик:</span> </td>
 				<td style="padding-inline: 10px;">
-					<input placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
-					<input placeholder="Название компании" v-model.lazy="orderData.companyNameSaller" /><br />
-					<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller" /><br />
-					<input placeholder="Контактный телефон" v-model.trim.lazy="orderData.mobileNumberSaller" />
+					<input :disabled="disabledInput" class="" placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
+					<input :disabled="disabledInput" placeholder="Название компании" v-model.lazy="orderData.companyNameSaller" /><br />
+					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller" /><br />
+					<input :disabled="disabledInput" placeholder="Контактный телефон" v-model.trim.lazy="orderData.mobileNumberSaller" />
 				</td>
 			</tr>
 			<tr>
@@ -128,9 +95,9 @@ const addProduct = () => {
 					<span>Покупатель:</span>
 				</td>
 				<td style="padding-inline: 10px;">
-					<input placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer" /><br />
-					<input placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer" /><br />
-					<input placeholder="Контактный телефон" v-model.lazy="orderData.mobileNumberBuyer" /><br />
+					<input :disabled="disabledInput" placeholder="Название компании" v-model.lazy="orderData.companyNameBuyer" /><br />
+					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer" /><br />
+					<input :disabled="disabledInput" placeholder="Контактный телефон" v-model.lazy="orderData.mobileNumberBuyer" /><br />
 				</td>
 			</tr>
 		</table>
@@ -148,53 +115,30 @@ const addProduct = () => {
 				<th class="w-20 border"><span>Сумма</span></th>
 			</thead>
 			<tbody>
-				<!-- <tr>
-					<td class="border">
-						0
-					</td>
-					<td class="border">
-						<input class="w-65" placeholder="Название" value="falos" />
-					</td>
-					<td class="border">
-						<input class="w-23 text-center" placeholder="Артикул" value="777" />
-					</td>
-					<td class="border">
-						<input class="w-15 text-center" placeholder="Кол-во" value="10" />
-					</td>
-					<td class="border">
-						<input class="w-13 text-center" placeholder="Ед. изм." value="шт" />
-					</td>
-					<td class="border">
-						1000
-					</td>
-					<td class="border">
-						100000
-					</td>
-				</tr> -->
 				<tr v-for="product in orderData.products">
 					<td class="border">
 						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
-						<input class="w-65" placeholder="Название" :value="product.name" />
+						<input :disabled="disabledInput" class="w-75" placeholder="Название" v-model="product.name" />
 					</td>
 					<td class="border">
-						<input class="w-23 text-center" placeholder="Артикул" :value="product.article" />
+						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Артикул" v-model="product.article" />
 					</td>
 					<td class="border">
-						<input class="w-15 text-center" placeholder="Кол-во" :value="product.quantity" />
+						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Кол-во" v-model="product.quantity" />
 					</td>
 					<td class="border">
-						<input class="w-13 text-center" placeholder="Ед. изм." :value="product.units" />
+						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Ед. изм." v-model="product.units" />
 					</td>
 					<td class="border">
-						<span>{{ product.price }}</span>
+						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model="product.price"/>
 					</td>
 					<td class="border">
 						<span>{{ product.productAmount }}</span>
 					</td>
 				</tr>
-				<tr hidden>
+				<tr :hidden="disabledInput">
 					<td @click="addProduct()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
@@ -206,13 +150,13 @@ const addProduct = () => {
 		<br />
 		<p>
 			<span style="text-align: start;" >Менеджер </span>
-			<input placeholder="Имя продавца" v-model.lazy="orderData.sallerName" /> 
+			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.sallerName" /> 
 			<span style="text-align: center;">Покупатель</span>
-			<input placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
+			<input :disabled="disabledInput" placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
 		</p>
 		<br />
 
-		<textarea ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments" class="w-full max-h-20" />
+		<textarea :disabled="disabledInput" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments" class="w-full max-h-20" />
 	</div>
 </template>
 

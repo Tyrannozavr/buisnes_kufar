@@ -15,21 +15,21 @@
 					<div class="flex flex-col justify-between gap-5">
 
 						<div class="w-full">
-							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" />
+							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" :disabled="activeButtons"/>
 						</div>
 
 						<div class="flex flex-col gap-2">
-							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus" />
+							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus" :disabled="activeButtons"/>
 							<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" />
+								icon="i-lucide-file-plus" :disabled="activeButtons"/>
 							<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" />
+								icon="i-lucide-file-plus" :disabled="activeButtons"/>
 							<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" />
+								icon="i-lucide-file-plus" :disabled="activeButtons"/>
 						</div>
 
 						<div class="flex flex-row justify-between">
-							<UCollapsible class="gap-3">
+							<UCollapsible class="gap-3" >
 								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
 									icon="i-lucide-search" class="p-3 h-[44px]" />
 
@@ -44,30 +44,30 @@
 							</UCollapsible>
 
 							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
-								class="p-3 w-[97px] h-[44px]" />
+								class="p-3 w-[97px] h-[44px]" :disabled="activeButtons"/>
 							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
-								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" />
+								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" :disabled="activeButtons"/>
 							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
-								class="p-3 w-[77px] h-[44px]" />
+								class="p-3 w-[77px] h-[44px]" :disabled="activeButtons"/>
 						</div>
 
 						<div class="flex flex-col gap-2">
-							<UButton label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle" />
-							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle" />
+							<UButton @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle" class="active:bg-green-500"/>
+							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle" :disabled="activeButtons"/>
 						</div>
 
 						<div>
-							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center" />
+							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center" :disabled="activeButtons"/>
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
 							<p>Фото/Сканы документа</p>
 							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
-								class="justify-center" />
+								class="justify-center" :disabled="activeButtons"/>
 						</div>
-						
+
 						<div class="flex flex-row justify-between">
-							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center" />
+							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center" :disabled="activeButtons"/>
 							<!-- <UButton label="Сохранить"/> -->
 						</div>
 					</div>
@@ -147,6 +147,16 @@ const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | n
 	}
 }
 
+//Button edit
+let disabledInput: Ref<boolean> = ref(true)
+let activeButtons: Ref<boolean> = ref(false)
+
+provide('disabledInput',disabledInput)
+
+const editButton = () => {
+	disabledInput.value = !disabledInput.value
+	activeButtons.value = !activeButtons.value
+}
 
 
 </script>

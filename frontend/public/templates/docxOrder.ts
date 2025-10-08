@@ -13,9 +13,7 @@ import {
 } from "docx";
 
 export const generateDocxOrder = async (orderData: any) => {
-  
-	
-	// Создание таблицы с данными поставщика и покупателя
+  // Создание таблицы с данными поставщика и покупателя
   const headerTable = new Table({
     rows: [
       new TableRow({
@@ -113,16 +111,18 @@ ${orderData.mobileNumberBuyer}
           "Сумма",
         ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
       }),
-      new TableRow({
-        children: [
-					`${orderData.products.length}`,
-          `${orderData.products[0].productName}`,
-          `${orderData.products[0].article}`,
-          `${orderData.products[0].quantity}`,
-          `${orderData.products[0].units}`,
-          `${orderData.products[0].price}`,
-          `${orderData.products[0].productAmount}`,
-        ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
+      ...orderData.products.map((product: any, index: number) => {
+        return new TableRow({
+          children: [
+            `${++index}`,
+            `${product.name}`,
+            `${product.article}`,
+            `${product.quantity}`,
+            `${product.units}`,
+            `${product.price}`,
+            `${product.productAmount}`,
+          ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
+        });
       }),
     ],
   });
@@ -153,7 +153,7 @@ ${orderData.mobileNumberBuyer}
       },
     }),
     new Paragraph({
-      text: `${orderData.amountLitter}`,
+      text: `${orderData.amountWord}`,
       spacing: {
         before: 200,
         after: 0,
@@ -168,36 +168,108 @@ ${orderData.mobileNumberBuyer}
       },
       text: `___________________________________________________________________________`,
     }),
-    new Paragraph({
-      spacing: {
-        before: 200,
-      },
-      children: [
-        new TextRun({
-          text: `Директор `,
-        }),
-        new TextRun({
-          text: `${orderData.companyNameBuyer}`,
-        }),
-        new TextRun({
-          text: `${orderData.buyerName}`,
-        }),
-      ],
-    }),
 
-    new Paragraph({
-      spacing: {
-        before: 200,
-      },
-      children: [
-        new TextRun({
-          text: `Директор `,
+    new Table({
+			width: {
+				size: 100,
+				type: WidthType.PERCENTAGE,
+			},
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+							width: {
+								size: 15,
+								type: WidthType.PERCENTAGE,
+							},
+              children: [new Paragraph(`Директор `)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+            new TableCell({
+              children: [new Paragraph(`${orderData.companyNameBuyer}`)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+            new TableCell({
+              children: [new Paragraph(``)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+            new TableCell({
+							width: {
+								size: 25,
+								type: WidthType.PERCENTAGE,
+							},
+              children: [new Paragraph(`${orderData.buyerName}`)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+          ],
         }),
-        new TextRun({
-          text: `${orderData.companyNameSaller}`,
-        }),
-        new TextRun({
-          text: `${orderData.sallerName}`,
+        new TableRow({
+          children: [
+            new TableCell({
+							width: {
+								size: 15,
+								type: WidthType.PERCENTAGE,
+							},
+              children: [new Paragraph(`Директор `)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+            new TableCell({
+              children: [new Paragraph(`${orderData.companyNameSaller}`)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+						new TableCell({
+              children: [new Paragraph(``)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+            new TableCell({
+							width: {
+								size: 25,
+								type: WidthType.PERCENTAGE,
+							},
+              children: [new Paragraph(`${orderData.sallerName}`)],
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+            }),
+          ],
         }),
       ],
     }),

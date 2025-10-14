@@ -11,8 +11,9 @@ import {
   BorderStyle,
   UnderlineType,
 } from "docx";
+import type { GoodsDeal, Product } from "~/types/dealState";
 
-export const generateDocxOrder = async (orderData: any) => {
+export const generateDocxOrder = async (orderDealData: GoodsDeal ) => {
   // Создание таблицы с данными поставщика и покупателя
   const headerTable = new Table({
     rows: [
@@ -30,9 +31,9 @@ export const generateDocxOrder = async (orderData: any) => {
           new TableCell({
             children: [
               new Paragraph(
-                `${orderData.innSaller}  ${orderData.companyNameSaller}
-${orderData.urAdressSaller}  
-${orderData.mobileNumberSaller}
+                `${orderDealData.saller.inn}  ${orderDealData.saller.companyName}
+${orderDealData.saller.legalAddress}  
+${orderDealData.saller.mobileNumber}
 			`
               ),
             ],
@@ -59,9 +60,9 @@ ${orderData.mobileNumberSaller}
           new TableCell({
             children: [
               new Paragraph(
-                `${orderData.companyNameBuyer}
-${orderData.urAdressBuyer},
-${orderData.mobileNumberBuyer}
+                `${orderDealData.buyer.companyName}
+${orderDealData.buyer.legalAddress},
+${orderDealData.buyer.mobileNumber}
 `
               ),
             ],
@@ -81,7 +82,7 @@ ${orderData.mobileNumberBuyer}
   const orderTitle = new Paragraph({
     children: [
       new TextRun({
-        text: `Заказ № ${orderData.orderNumber} от ${orderData.orderDate}`,
+        text: `Заказ № ${orderDealData.dealNumber} от ${orderDealData.date}`,
         bold: true,
         size: 28,
       }),
@@ -111,16 +112,16 @@ ${orderData.mobileNumberBuyer}
           "Сумма",
         ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
       }),
-      ...orderData.products.map((product: any, index: number) => {
+      ...orderDealData.goods.goodsList?.map((good: Product, index: number) => {
         return new TableRow({
           children: [
             `${++index}`,
-            `${product.name}`,
-            `${product.article}`,
-            `${product.quantity}`,
-            `${product.units}`,
-            `${product.price}`,
-            `${product.productAmount}`,
+            `${good.name}`,
+            `${good.article}`,
+            `${good.quantity}`,
+            `${good.units}`,
+            `${good.price}`,
+            `${good.amount}`,
           ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
         });
       }),
@@ -130,7 +131,7 @@ ${orderData.mobileNumberBuyer}
   // Итоговая информация
   const summary = [
     new Paragraph({
-      text: `Итого: ${orderData.amount}`,
+      text: `Итого: ${orderDealData.goods.amountPrice}`,
       spacing: {
         before: 200,
       },
@@ -140,20 +141,20 @@ ${orderData.mobileNumberBuyer}
       },
     }),
     new Paragraph({
-      text: `В том числе НДС: ${orderData.amount}`,
+      text: `В том числе НДС: ${orderDealData.goods.amountPrice}`,
       indent: {
         start: 6000,
         hanging: 1180,
       },
     }),
     new Paragraph({
-      text: `Всего наименований ${orderData.products.length}, на сумму ${orderData.amount} руб.`,
+      text: `Всего наименований ${orderDealData.goods.goodsList.length}, на сумму ${orderDealData.goods.amountPrice} руб.`,
       spacing: {
         before: 500,
       },
     }),
     new Paragraph({
-      text: `${orderData.amountWord}`,
+      text: `${orderDealData.goods.amountWord}`,
       spacing: {
         before: 200,
         after: 0,
@@ -191,7 +192,7 @@ ${orderData.mobileNumberBuyer}
               },
             }),
             new TableCell({
-              children: [new Paragraph(`${orderData.companyNameBuyer}`)],
+              children: [new Paragraph(`${orderDealData.buyer.companyName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -213,7 +214,7 @@ ${orderData.mobileNumberBuyer}
 								size: 25,
 								type: WidthType.PERCENTAGE,
 							},
-              children: [new Paragraph(`${orderData.buyerName}`)],
+              children: [new Paragraph(`${orderDealData.buyer.name}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -239,7 +240,7 @@ ${orderData.mobileNumberBuyer}
               },
             }),
             new TableCell({
-              children: [new Paragraph(`${orderData.companyNameSaller}`)],
+              children: [new Paragraph(`${orderDealData.saller.companyName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -261,7 +262,7 @@ ${orderData.mobileNumberBuyer}
 								size: 25,
 								type: WidthType.PERCENTAGE,
 							},
-              children: [new Paragraph(`${orderData.sallerName}`)],
+              children: [new Paragraph(`${orderDealData.saller.name}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },

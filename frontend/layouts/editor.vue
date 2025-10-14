@@ -4,7 +4,7 @@
 
 			<!-- template -->
 			<div class="w-2/3 mr-5 p-3">
-				<Editor @tabIndex="getTabs" @orderBlob="getOrderBlob" @orderHtml="getOrderElement">
+				<Editor @tabIndex="getTabs">
 					<slot />
 				</Editor>
 			</div>
@@ -15,21 +15,23 @@
 					<div class="flex flex-col justify-between gap-5">
 
 						<div class="w-full">
-							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" :disabled="activeButtons"/>
+							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center"
+								:disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-col gap-2">
-							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus" :disabled="activeButtons"/>
+							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
+								:disabled="activeButtons" />
 							<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons"/>
+								icon="i-lucide-file-plus" :disabled="activeButtons" />
 							<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons"/>
+								icon="i-lucide-file-plus" :disabled="activeButtons" />
 							<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons"/>
+								icon="i-lucide-file-plus" :disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-row justify-between">
-							<UCollapsible class="gap-3" >
+							<UCollapsible class="gap-3">
 								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
 									icon="i-lucide-search" class="p-3 h-[44px]" />
 
@@ -44,30 +46,34 @@
 							</UCollapsible>
 
 							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
-								class="p-3 w-[97px] h-[44px]" :disabled="activeButtons"/>
+								class="p-3 w-[97px] h-[44px]" :disabled="activeButtons" />
 							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
-								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" :disabled="activeButtons"/>
+								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" :disabled="activeButtons" />
 							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
-								class="p-3 w-[77px] h-[44px]" :disabled="activeButtons"/>
+								class="p-3 w-[77px] h-[44px]" :disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-col gap-2">
-							<UButton @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle" class="active:bg-green-500"/>
-							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle" :disabled="activeButtons"/>
+							<UButton @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral"
+								variant="subtle" class="active:bg-green-500" />
+							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle"
+								:disabled="activeButtons" />
 						</div>
 
 						<div>
-							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center" :disabled="activeButtons"/>
+							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center"
+								:disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
 							<p>Фото/Сканы документа</p>
 							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
-								class="justify-center" :disabled="activeButtons"/>
+								class="justify-center" :disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-row justify-between">
-							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center" :disabled="activeButtons"/>
+							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
+								:disabled="activeButtons" />
 							<!-- <UButton label="Сохранить"/> -->
 						</div>
 					</div>
@@ -85,21 +91,32 @@ import Editor from '~/pages/profile/contracts/editor.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
+import { usePurchasesStore } from '~/stores/purchases';
 
-//DOCX
-const { downloadBlob } = useDocxGenerator()
+const purchasesStore = usePurchasesStore()
+const { purchases } = storeToRefs(purchasesStore)
 
 let tabIndex: string
 function getTabs(activeTab: string): void {
 	tabIndex = activeTab
 }
 
-let orderDocxBlob: Blob
-function getOrderBlob(blob: Blob): void {
-	orderDocxBlob = blob
-}
+//DOCX
+const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
 
+let orderDocxBlob: Blob
 let billDocxBlob: Blob
+
+watch(
+	() => purchases.value,
+	async () => {
+		if (purchases.value.goodsDeals?.[0]) {
+			orderDocxBlob = await generateDocxOrder(purchases.value.goodsDeals[0])
+			billDocxBlob = await generateDocxBill(purchases.value.goodsDeals[0])
+		}
+	},
+	{ immediate: true, deep: true }
+)
 
 const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
 	if (tabIndex === '0') {
@@ -111,11 +128,7 @@ const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocx
 
 //PDF
 const { downloadPdf } = usePdfGenerator()
-
-let orderElement: HTMLElement | null
-function getOrderElement(html: HTMLElement | null) {
-	orderElement = html
-}
+const orderElement: Ref<HTMLElement | null> = useState('htmlOrder')
 
 const downloadCurrentPdf = (tabIndex: string, orderElement: HTMLElement | null): void => {
 	if (tabIndex === '0') {
@@ -151,14 +164,12 @@ const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | n
 let disabledInput: Ref<boolean> = ref(true)
 let activeButtons: Ref<boolean> = ref(false)
 
-provide('disabledInput',disabledInput)
+provide('disabledInput', disabledInput)
 
 const editButton = () => {
 	disabledInput.value = !disabledInput.value
 	activeButtons.value = !activeButtons.value
 }
-
-
 </script>
 
 <style scoped>

@@ -4,26 +4,27 @@ export interface ProductsInOrder {
   quantity: number;
   units: string;
   price: number;
-  productAmount: number;
+  amount: number;
+	type?: string;
+}
+
+interface Person {
+  name?: string;
+  mobileNumber?: string;
+  companyName?: string;
+  legalAddress?: string;
+  inn?: number;
 }
 
 export interface OrderData {
-  innSaller: number;
-  sallerName: string;
-  companyNameSaller: string;
-  urAdressSaller: string;
-  mobileNumberSaller: number;
-
-  buyerName: string;
-  companyNameBuyer: string;
-  urAdressBuyer: string;
-  mobileNumberBuyer: number;
+	saller: Person
+	buyer: Person
   orderNumber: number;
-  orderDate: string;
-  comments: string;
+  orderDate?: string;
+  comments?: string;
 
   products: ProductsInOrder[];
 
-  amount: number;
-  amountWord: string;
+  amount?: number;
+  amountWord?: string;
 }

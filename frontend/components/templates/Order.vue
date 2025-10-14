@@ -1,87 +1,61 @@
 <script setup lang="ts">
-import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
-import { convert as numberToWordsRu } from 'number-to-words-ru';
+import { usePurchasesStore } from '~/stores/purchases';
+import type { Product, Person } from '~/types/dealState';
 
-const { generateDocxOrder } = useDocxGenerator()
+const purchasesStore = usePurchasesStore()
+const { purchases } = storeToRefs(purchasesStore)
 
-const props = defineProps<{
-	data: OrderData
-}>()
-
-const emit = defineEmits<{
-	(e: 'inputData', orderData: OrderData): void,
-	(e: 'orderHtml', element: HTMLElement | null): void
-}>()
-
-const products: ProductsInOrder[] = props.data.products.map(product => ({
+const products: ProductsInOrder[] | any = purchases.value.goodsDeals?.[0]?.goods.goodsList?.map(product => ({
 	name: product.name,
 	article: product.article,
 	quantity: product.quantity,
 	units: product.units,
 	price: product.price,
-	productAmount: product.productAmount,
+	amount: product.amount,
+	type: product.type,
 }))
 
+const saller: Person = Object.assign({}, purchases.value.goodsDeals?.[0]?.saller)
+const buyer: Person = Object.assign({}, purchases.value.goodsDeals?.[0]?.buyer)
+
 const orderData: Ref<OrderData> = ref({
-	innSaller: props.data.innSaller,
-	sallerName: props.data.sallerName,
-	companyNameSaller: props.data.companyNameSaller,
-	urAdressSaller: props.data.urAdressSaller,
-	mobileNumberSaller: props.data.mobileNumberSaller,
-
-	buyerName: props.data.buyerName,
-	companyNameBuyer: props.data.companyNameBuyer,
-	urAdressBuyer: props.data.urAdressBuyer,
-	mobileNumberBuyer: props.data.mobileNumberBuyer,
-	orderNumber: props.data.orderNumber,
-	orderDate: props.data.orderDate,
-	comments: props.data.comments,
-
+	orderNumber: Number(purchases.value.goodsDeals?.[0]?.dealNumber),
+	orderDate: purchases.value.goodsDeals?.[0]?.date,
+	comments: purchases.value.goodsDeals?.[0]?.goods.comments,
+	amount: computed(() => purchases.value.goodsDeals?.[0]?.goods.amountPrice),
+	amountWord: computed(() => purchases.value.goodsDeals?.[0]?.goods.amountWord),
+	saller,
+	buyer,
 	products,
-
-	amount: props.data.amount,
-	amountWord: props.data.amountWord,
 })
-
-let docxBlob: Blob = await generateDocxOrder(orderData.value)
 
 watch(() => orderData.value,
 	async () => {
-		docxBlob = await generateDocxOrder(orderData.value)
-
-		orderData.value.products.map(product => {
-			product.productAmount = product.price * product.quantity
-		})
-		orderData.value.amount = orderData.value.products.reduce((acc: number, product: ProductsInOrder) => product.productAmount + acc, 0)
-		orderData.value.amountWord = numberToWordsRu(orderData.value.amount, {
-			showNumberParts: {
-				fractional: false
-			},
-			showCurrency: {
-				integer: false
-			}
-		})
-
-		emit('inputData', orderData.value)
-		emit('orderHtml', element.value)
+		purchasesStore.editGood(orderData.value.orderNumber, products)
+		purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
+		purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
+		if (orderData.value.comments) {
+			purchasesStore.editComments(orderData.value.orderNumber, orderData.value.comments)
+		}
 	},
 	{ deep: true, immediate: true }
 )
 
-const element: Ref<HTMLElement | null> = ref(null)
+const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
-
-const addProduct = () => {
-	const product: ProductsInOrder = {
+const addGood = () => {
+	const product: Product = {
 		name: '',
 		article: Number(),
 		quantity: Number(),
 		units: '',
 		price: Number(),
-		productAmount: Number(),
+		amount: Number(),
+		type: 'товар'
 	}
 	orderData.value.products.push(product)
+	purchasesStore.addNewGood(orderData.value.orderNumber, product)
 }
 
 const disabledInput = inject('disabledInput', 'true')
@@ -94,12 +68,12 @@ const disabledInput = inject('disabledInput', 'true')
 			<tr>
 				<td><span>Поставщик:</span> </td>
 				<td style="padding-inline: 10px;">
-					<input :disabled="disabledInput" class="" placeholder="ИНН" v-model.trim.lazy="orderData.innSaller" /><br />
+					<input :disabled="disabledInput" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
 					<input :disabled="disabledInput" placeholder="Название компании"
-						v-model.lazy="orderData.companyNameSaller" /><br />
-					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressSaller" /><br />
+						v-model.lazy="orderData.saller.companyName" /><br />
+					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
 					<input :disabled="disabledInput" placeholder="Контактный телефон"
-						v-model.trim.lazy="orderData.mobileNumberSaller" />
+						v-model.trim.lazy="orderData.saller.mobileNumber" />
 				</td>
 			</tr>
 			<tr>
@@ -108,10 +82,10 @@ const disabledInput = inject('disabledInput', 'true')
 				</td>
 				<td style="padding-inline: 10px;">
 					<input :disabled="disabledInput" placeholder="Название компании"
-						v-model.lazy="orderData.companyNameBuyer" /><br />
-					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.urAdressBuyer" /><br />
+						v-model.lazy="orderData.buyer.companyName" /><br />
+					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
 					<input :disabled="disabledInput" placeholder="Контактный телефон"
-						v-model.lazy="orderData.mobileNumberBuyer" /><br />
+						v-model.lazy="orderData.buyer.mobileNumber" /><br />
 				</td>
 			</tr>
 		</table>
@@ -135,26 +109,29 @@ const disabledInput = inject('disabledInput', 'true')
 						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-75" placeholder="Название" v-model="product.name" />
+						<input :disabled="disabledInput" class="w-75" placeholder="Название" v-model.lazy="product.name" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Артикул" v-model="product.article" />
+						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Артикул"
+							v-model.lazy="product.article" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Кол-во" v-model="product.quantity" />
+						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Кол-во"
+							v-model.lazy="product.quantity" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Ед. изм." v-model="product.units" />
+						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Ед. изм."
+							v-model.lazy="product.units" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model="product.price" />
+						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
-						<span>{{ product.productAmount }}</span>
+						<span>{{ product.amount }}</span>
 					</td>
 				</tr>
 				<tr :hidden="disabledInput">
-					<td @click="addProduct()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+					<td @click="addGood()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
 				</tr>
@@ -166,9 +143,9 @@ const disabledInput = inject('disabledInput', 'true')
 		<br />
 		<p>
 			<span style="text-align: start;">Менеджер </span>
-			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.sallerName" />
+			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.saller.name" />
 			<span style="text-align: center;">Покупатель</span>
-			<input :disabled="disabledInput" placeholder="Имя покупателя" v-model.lazy="orderData.buyerName" />
+			<input :disabled="disabledInput" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.name" />
 		</p>
 		<br />
 

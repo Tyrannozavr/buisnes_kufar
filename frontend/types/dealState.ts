@@ -25,7 +25,7 @@ export interface Goods {
 
 export interface Services {
 	servicesList: Product[]
-	amount: number 
+	amountPrice: number 
 	amountWord: string
 	comments?: string 
 }
@@ -55,7 +55,7 @@ export interface ServicesDeal {
 	contract?: string
 	act?: string
   invoice?: string
-  othersDocument?: string
+  othersDocuments?: string
 }
 
 export interface EditPersonDeal {

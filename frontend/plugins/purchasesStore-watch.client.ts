@@ -8,9 +8,15 @@ export default defineNuxtPlugin(() => {
     () => purchases,
     () => {
       purchasesStore.amountInGoodsList();
+      purchasesStore.amountInServicesList();
+
       purchasesStore.amountPriceInGoods();
-      purchasesStore.amountWord();
-			console.log('данные изменились: ',purchases.value.goodsDeals?.[0])
+      purchasesStore.amountPriceInServices();
+
+      purchasesStore.amountWordGoods();
+      purchasesStore.amountWordServices();
+
+			console.log('данные изменились: ',purchases.value)
     },
     { immediate: true, deep: true }
   );

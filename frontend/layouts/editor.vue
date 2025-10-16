@@ -15,8 +15,28 @@
 					<div class="flex flex-col justify-between gap-5">
 
 						<div class="w-full">
-							<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center"
-								:disabled="activeButtons" />
+							<UCollapsible>
+								<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" />
+
+									<template #content >
+										<div class="flex-col mt-4 justify-center">
+											<div class="flex gap-2">
+												<div>
+													<p class="w-40 text-nowrap">Последняя закупка:</p>
+												</div>
+												<UButton label="Товар" color="neutral" variant="subtle" class="w-full justify-center mb-2" @click="insertLastPurchasesGood"/>
+												<UButton label="Услуга" color="neutral" variant="subtle" class="w-full justify-center mb-2" @click="insertLastPurchasesService"/>
+											</div>
+											<div class="flex gap-2">
+												<div>
+													<p class="w-40 text-nowrap">Последняя продажа:</p>
+												</div>
+												<UButton label="Товар" color="neutral" variant="subtle" class="w-full justify-center"  @click="insertLastSalesGood"/>
+												<UButton label="Услуга" color="neutral" variant="subtle" class="w-full justify-center"  @click="insertLastSalesService"/>
+											</div>
+										</div>
+									</template>
+							</UCollapsible>
 						</div>
 
 						<div class="flex flex-col gap-2">
@@ -92,6 +112,7 @@ import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { usePurchasesStore } from '~/stores/purchases';
+import type { Insert } from '~/types/contracts';
 
 const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
@@ -99,6 +120,40 @@ const { purchases } = storeToRefs(purchasesStore)
 let tabIndex: string
 function getTabs(activeTab: string): void {
 	tabIndex = activeTab
+}
+
+
+//Insert Button
+const insertState: Ref<Insert> = ref({
+	purchasesStateGood: false,
+	purchasesStateService: false,
+	salesStateGood: false,
+	salesStateService: false,
+})
+
+provide('insertState', insertState)
+
+const insertLastPurchasesGood = (): void => {
+	insertState.value.purchasesStateGood = !insertState.value.purchasesStateGood
+	disabledInput.value = !disabledInput.value
+	disabledInput.value = !disabledInput.value
+}
+
+const insertLastPurchasesService = (): void => {
+	insertState.value.purchasesStateService = !insertState.value.purchasesStateService
+	disabledInput.value = !disabledInput.value
+	disabledInput.value = !disabledInput.value
+}
+const insertLastSalesGood = (): void => {
+	insertState.value.salesStateGood = !insertState.value.salesStateGood
+	disabledInput.value = !disabledInput.value
+	disabledInput.value = !disabledInput.value
+}
+
+const insertLastSalesService = (): void => {
+	insertState.value.salesStateService = !insertState.value.salesStateService
+	disabledInput.value = !disabledInput.value
+	disabledInput.value = !disabledInput.value
 }
 
 //DOCX

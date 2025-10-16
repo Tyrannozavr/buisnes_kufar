@@ -1,50 +1,180 @@
 <script setup lang="ts">
 import type { OrderData, ProductsInOrder } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
-import type { Product, Person } from '~/types/dealState';
+import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
+import type { Insert } from '~/types/contracts';
+
 
 const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
+const goodsDeals = purchases.value.goodsDeals
+const servicesDeals = purchases.value.servicesDeals
 
-const products: ProductsInOrder[] | any = purchases.value.goodsDeals?.[0]?.goods.goodsList?.map(product => ({
-	name: product.name,
-	article: product.article,
-	quantity: product.quantity,
-	units: product.units,
-	price: product.price,
-	amount: product.amount,
-	type: product.type,
-}))
+let products: Product[] | any = []
+let saller: Person = {
+	inn: 0,
+	name: "",
+	companyName: "",
+	legalAddress: "",
+	mobileNumber: "",
+}
+let buyer: Person = {
+	inn: 0,
+	name: "",
+	companyName: "",
+	legalAddress: "",
+	mobileNumber: "",
+}
 
-const saller: Person = Object.assign({}, purchases.value.goodsDeals?.[0]?.saller)
-const buyer: Person = Object.assign({}, purchases.value.goodsDeals?.[0]?.buyer)
+let amount: ComputedRef<number> = computed(() => NaN)
+let amountWord: ComputedRef<string> = computed(() => '')
 
-const orderData: Ref<OrderData> = ref({
-	orderNumber: Number(purchases.value.goodsDeals?.[0]?.dealNumber),
-	orderDate: purchases.value.goodsDeals?.[0]?.date,
-	comments: purchases.value.goodsDeals?.[0]?.goods.comments,
-	amount: computed(() => purchases.value.goodsDeals?.[0]?.goods.amountPrice),
-	amountWord: computed(() => purchases.value.goodsDeals?.[0]?.goods.amountWord),
+let orderData: Ref<OrderData> = ref({
+	orderNumber: NaN,
+	orderDate: '',
+	comments: '',
+	amount: amount.value,
+	amountWord: amountWord.value,
 	saller,
 	buyer,
 	products,
 })
 
-watch(() => orderData.value,
-	async () => {
-		purchasesStore.editGood(orderData.value.orderNumber, products)
-		purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
-		purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
-		if (orderData.value.comments) {
-			purchasesStore.editComments(orderData.value.orderNumber, orderData.value.comments)
+const insertState = inject<Ref<Insert>>('insertState', ref({
+	purchasesStateGood: false,
+	purchasesStateService: false,
+	salesStateGood: false,
+	salesStateService: false,
+}))
+
+let requestedData: string = ''
+
+
+watch(
+	() => insertState.value,
+	() => {
+		let lastGoodsDeal: GoodsDeal | undefined = undefined
+		let lastServicesDeal: ServicesDeal | undefined = undefined
+
+		if (insertState.value.purchasesStateGood) {
+			requestedData = 'purchases-good'
+			if (purchasesStore.lastGoodsDeal) {
+				lastGoodsDeal = purchasesStore.lastGoodsDeal
+			}
+			insertState.value.purchasesStateGood = false
+
+		} else if (insertState.value.purchasesStateService) {
+			requestedData = 'purchases-service'
+			if (purchasesStore.lastServiceDeal) {
+				lastServicesDeal = purchasesStore.lastServiceDeal
+			}
+			insertState.value.purchasesStateService = false
+
+		} else if (insertState.value.salesStateGood) {
+			requestedData = 'sales-good'
+			insertState.value.salesStateGood = false
+
+		} else if (insertState.value.salesStateService) {
+			requestedData = 'sales-service'
+			insertState.value.salesStateService = false
+		}
+
+		console.log(requestedData)
+
+		if ((requestedData === 'purchases-good' || 'sales-good') && typeof (lastGoodsDeal) !== 'undefined') {
+			products = lastGoodsDeal.goods.goodsList?.map((product: Product) => ({
+				name: product.name,
+				article: product.article,
+				quantity: product.quantity,
+				units: product.units,
+				price: product.price,
+				amount: product.amount,
+				type: product.type,
+			}))
+
+			saller = Object.assign({}, lastGoodsDeal?.saller)
+			buyer = Object.assign({}, lastGoodsDeal?.buyer)
+
+			amount = computed(() => lastGoodsDeal?.goods.amountPrice)
+			amountWord = computed(() => lastGoodsDeal?.goods.amountWord)
+
+			orderData.value = {
+				orderNumber: Number(lastGoodsDeal?.dealNumber),
+				orderDate: lastGoodsDeal?.date,
+				comments: lastGoodsDeal?.goods.comments,
+				amount: amount.value,
+				amountWord: amountWord.value,
+				saller,
+				buyer,
+				products,
+			}
+		}
+
+		if ((requestedData === 'purchases-service' || 'sales-service') && typeof (lastServicesDeal) !== 'undefined') {
+			products = lastServicesDeal.services.servicesList?.map((product: Product) => ({
+				name: product.name,
+				article: product.article,
+				quantity: product.quantity,
+				units: product.units,
+				price: product.price,
+				amount: product.amount,
+				type: product.type,
+			}))
+
+			saller = Object.assign({}, lastServicesDeal?.saller)
+			buyer = Object.assign({}, lastServicesDeal?.buyer)
+
+			amount = computed(() => lastServicesDeal?.services.amountPrice)
+			amountWord = computed(() => lastServicesDeal?.services.amountWord)
+
+			orderData.value = {
+				orderNumber: Number(lastServicesDeal?.dealNumber),
+				orderDate: lastServicesDeal?.date,
+				comments: lastServicesDeal?.services.comments,
+				amount: amount.value,
+				amountWord: amountWord.value,
+				saller,
+				buyer,
+				products,
+			}
 		}
 	},
-	{ deep: true, immediate: true }
+	{ deep: true }
+)
+
+
+watch(() => orderData.value,
+	() => {
+		if (requestedData === 'purchases-good') {
+			purchasesStore.editGood(orderData.value.orderNumber, products)
+			purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
+			purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
+			
+			if (orderData.value.comments) {
+				purchasesStore.editGoodsComments(orderData.value.orderNumber, orderData.value.comments)
+			}
+		} else if (requestedData === 'purchases-service') {
+			purchasesStore.editService(orderData.value.orderNumber, products)
+			purchasesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
+			purchasesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
+			
+			if (orderData.value.comments) {
+				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
+			}
+		}
+		
+		orderData.value.amount = amount.value
+		orderData.value.amountWord = amountWord.value
+		
+		console.log(orderData.value)
+	},
+	{ deep: true}
 )
 
 const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
-const addGood = () => {
+const addProduct = () => {
+	const productType: string = requestedData === 'purchases-good' || 'sales-good' ? 'товар' : 'услуга'
 	const product: Product = {
 		name: '',
 		article: Number(),
@@ -52,13 +182,20 @@ const addGood = () => {
 		units: '',
 		price: Number(),
 		amount: Number(),
-		type: 'товар'
+		type: productType
 	}
+
 	orderData.value.products.push(product)
-	purchasesStore.addNewGood(orderData.value.orderNumber, product)
+
+	if (requestedData === 'purchases-good') {
+		purchasesStore.addNewGood(orderData.value.orderNumber, product)
+	} else if (requestedData === 'purchases-service') {
+		purchasesStore.addNewService(orderData.value.orderNumber, product)
+	}
+
 }
 
-const disabledInput = inject('disabledInput', 'true')
+const disabledInput = inject<Ref<boolean>>('disabledInput', ref(true))
 
 </script>
 
@@ -131,7 +268,7 @@ const disabledInput = inject('disabledInput', 'true')
 					</td>
 				</tr>
 				<tr :hidden="disabledInput">
-					<td @click="addGood()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+					<td @click="addProduct()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
 				</tr>

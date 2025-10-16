@@ -28,3 +28,10 @@ export interface OrderData {
   amount?: number;
   amountWord?: string;
 }
+
+export interface Insert {
+	purchasesStateGood: boolean
+	purchasesStateService: boolean
+	salesStateGood: boolean
+	salesStateService: boolean
+}

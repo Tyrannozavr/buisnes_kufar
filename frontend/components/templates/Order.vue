@@ -10,7 +10,7 @@ const { purchases } = storeToRefs(purchasesStore)
 const goodsDeals = purchases.value.goodsDeals
 const servicesDeals = purchases.value.servicesDeals
 
-let products: Product[] | any = []
+let products: Product[] = []
 let saller: Person = {
 	inn: 0,
 	name: "",
@@ -200,36 +200,36 @@ let clearState = inject<Ref<boolean>>('clearState', ref(false))
 
 const clearForm = () => {
 	console.log('clearForm')
-			products = []
-			saller = {
-				inn: 0,
-				name: "",
-				companyName: "",
-				legalAddress: "",
-				mobileNumber: "",
-			}
-			buyer = {
-				inn: 0,
-				name: "",
-				companyName: "",
-				legalAddress: "",
-				mobileNumber: "",
-			}
-			
-			amount = computed(() => NaN)
-			amountWord = computed(() => '')
-			
-			orderData.value = {
-				orderNumber: NaN,
-				orderDate: '',
-				comments: '',
-				amount: amount.value,
-				amountWord: amountWord.value,
-				saller,
-				buyer,
-				products,
-			}
-		
+	products = []
+	saller = {
+		inn: 0,
+		name: "",
+		companyName: "",
+		legalAddress: "",
+		mobileNumber: "",
+	}
+	buyer = {
+		inn: 0,
+		name: "",
+		companyName: "",
+		legalAddress: "",
+		mobileNumber: "",
+	}
+
+	amount = computed(() => NaN)
+	amountWord = computed(() => '')
+
+	orderData.value = {
+		orderNumber: NaN,
+		orderDate: '',
+		comments: '',
+		amount: amount.value,
+		amountWord: amountWord.value,
+		saller,
+		buyer,
+		products,
+	}
+
 }
 
 watch(() => clearState.value,
@@ -238,7 +238,7 @@ watch(() => clearState.value,
 			clearForm()
 		}
 	},
-	{deep: true}
+	{ deep: true }
 )
 
 //delete deal button
@@ -257,7 +257,7 @@ const removeDeal = (requestedData: string) => {
 	} else if (requestedData === 'sales-service') {
 		//логика удаления из другого store
 	}
-	
+
 	clearForm()
 }
 
@@ -265,9 +265,14 @@ watch(() => removeDealState.value,
 	() => {
 		removeDeal(requestedData)
 	},
-	{deep: true}
+	{ deep: true }
 )
 
+//remove product
+const removeProduct = (product: any): void => {
+	const index = orderData.value.products.indexOf(product)
+	orderData.value.products.splice(index,1)
+}
 </script>
 
 <template>
@@ -301,7 +306,7 @@ watch(() => removeDealState.value,
 		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку {{ orderData.orderNumber }} от {{
 			orderData.orderDate }}</h1>
 
-		<table class="table-fixed border p-5 mb-5 w-full text-center" id="products">
+		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 			<thead>
 				<th class="w-7 border"><span>№</span></th>
 				<th class="w-55 border"><span>Название продукта</span></th>
@@ -310,6 +315,7 @@ watch(() => removeDealState.value,
 				<th class="w-10 border"><span>Ед. изм.</span></th>
 				<th class="w-15 border"><span>Цена</span></th>
 				<th class="w-20 border"><span>Сумма</span></th>
+				<th class="w-1"><span></span></th>
 			</thead>
 			<tbody>
 				<tr v-for="product in orderData.products">
@@ -335,11 +341,24 @@ watch(() => removeDealState.value,
 						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
-						<span>{{ product.amount }}</span>
+							<span class="">{{ product.amount }}</span>
+						<!-- <UButton  color="neutral" variant="subtle" class=" hover:bg-red-400 rounded-full"/> -->
 					</td>
+					<td>
+						<span :hidden="disabledInput" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
+								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg" width="32" height="32"
+									viewBox="0 0 24 24">
+									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+										<circle cx="12" cy="12" r="10" />
+										<path d="m15 9l-6 6m0-6l6 6" />
+									</g>
+								</svg>
+							</span>
+					</td>
+					
 				</tr>
 				<tr :hidden="disabledInput">
-					<td @click="addProduct()" colspan="7" class="text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+					<td @click="addProduct()" colspan="7" class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
 				</tr>

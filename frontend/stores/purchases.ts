@@ -299,18 +299,17 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     editGood(dealNumber: number, newGoodsList: Product[]) {
-      const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
-      if (goodsList) {
-        Object.assign(goodsList, newGoodsList);
-      }
+			const goodsDeal = this.findGoodsDeal(dealNumber)
+			if (goodsDeal) {
+				goodsDeal.goods.goodsList = [...newGoodsList]
+			}
     },
 
     editService(dealNumber: number, newServiceList: Product[]) {
-      const servicesList =
-        this.findServicesDeal(dealNumber)?.services.servicesList;
-      if (servicesList) {
-        Object.assign(servicesList, newServiceList);
-      }
+			const serviceDeal = this.findServicesDeal(dealNumber)
+			if (serviceDeal) {
+				serviceDeal.services.servicesList = [...newServiceList]
+			}
     },
 
     editGoodsComments(dealNumber: number, comments: string) {

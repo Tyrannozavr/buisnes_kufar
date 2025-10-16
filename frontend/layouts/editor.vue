@@ -79,7 +79,7 @@
 								<div class="flex gap-2">
 									<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
 										 class="w-1/2" @click="clearCurrentForm(tabIndex)"/>
-									<UButton label="Удалить сделку" icon="i-lucide-trash-2" color="neutral" variant="subtle"
+									<UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
 										:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(tabIndex)"/>
 								</div>
 						</div>

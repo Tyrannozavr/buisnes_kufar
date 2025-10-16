@@ -76,8 +76,12 @@
 						<div class="flex flex-col gap-2">
 							<UButton @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral"
 								variant="subtle" class="active:bg-green-500" />
-							<UButton label="Удалить данные" icon="i-lucide-trash-2" color="neutral" variant="subtle"
-								:disabled="activeButtons" />
+								<div class="flex gap-2">
+									<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
+										 class="w-1/2" @click="clearCurrentForm(tabIndex)"/>
+									<UButton label="Удалить сделку" icon="i-lucide-trash-2" color="neutral" variant="subtle"
+										:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(tabIndex)"/>
+								</div>
 						</div>
 
 						<div>
@@ -225,6 +229,36 @@ const editButton = () => {
 	disabledInput.value = !disabledInput.value
 	activeButtons.value = !activeButtons.value
 }
+
+//Button clearForm
+let clearState: Ref<boolean> = ref(false)
+
+provide('clearState', clearState)
+
+const clearCurrentForm = (tabIndex: string) => {
+	if (tabIndex === '0') {
+		clearState.value = !clearState.value
+		setTimeout(
+			() => {
+				clearState.value = !clearState.value
+			}, 0
+		)
+	}
+}
+
+//Button removeCurrentDeal
+let removeDealState: Ref<Boolean> = ref(false)
+
+provide('removeDealState', removeDealState)
+
+const removeCurrentDeal = (tabIndex: string) => {
+	if (tabIndex === '0') {
+		removeDealState.value = !removeDealState.value
+		removeDealState.value = !removeDealState.value
+	}
+}
+
+
 </script>
 
 <style scoped>

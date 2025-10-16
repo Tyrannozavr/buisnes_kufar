@@ -102,7 +102,7 @@ export const usePurchasesStore = defineStore("purchases", {
       ],
 
       servicesDeals: [
-				{
+        {
           dealNumber: 666,
           services: {
             servicesList: [
@@ -142,7 +142,7 @@ export const usePurchasesStore = defineStore("purchases", {
           invoice: "просмотр",
           othersDocuments: "просмотр",
         },
-			],
+      ],
     },
   }),
 
@@ -161,22 +161,21 @@ export const usePurchasesStore = defineStore("purchases", {
         );
     },
 
+    lastGoodsDeal: (state): GoodsDeal | undefined => {
+      if (state.purchases.goodsDeals?.[0]) {
+        const goodsDeals = state.purchases.goodsDeals;
+        const lastDeal = goodsDeals?.[goodsDeals.length - 1];
+        return lastDeal;
+      }
+    },
 
-		lastGoodsDeal: (state):GoodsDeal | undefined => {
-			if (state.purchases.goodsDeals?.[0]) {
-				const goodsDeals = state.purchases.goodsDeals
-				const lastDeal = goodsDeals?.[goodsDeals.length - 1]
-				return lastDeal
-			}
-		},
-
-		lastServiceDeal: (state):ServicesDeal | undefined => {
-			if (state.purchases.servicesDeals?.[0]) {
-				const servicesDeals = state.purchases.servicesDeals
-				const lastDeal = servicesDeals?.[servicesDeals.length - 1]
-				return lastDeal
-			}
-		},
+    lastServiceDeal: (state): ServicesDeal | undefined => {
+      if (state.purchases.servicesDeals?.[0]) {
+        const servicesDeals = state.purchases.servicesDeals;
+        const lastDeal = servicesDeals?.[servicesDeals.length - 1];
+        return lastDeal;
+      }
+    },
   },
 
   actions: {
@@ -199,7 +198,6 @@ export const usePurchasesStore = defineStore("purchases", {
       });
     },
 
-
     amountPriceInGoods() {
       this.purchases.goodsDeals?.map((deal) => {
         deal.goods.amountPrice = Number(
@@ -221,7 +219,6 @@ export const usePurchasesStore = defineStore("purchases", {
         );
       });
     },
-
 
     amountWordGoods() {
       this.purchases.goodsDeals?.map((deal) => {
@@ -249,7 +246,6 @@ export const usePurchasesStore = defineStore("purchases", {
       });
     },
 
-
     addNewGood(dealNumber: number, newGood: Product) {
       const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
       if (goodsList) {
@@ -258,12 +254,12 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     addNewService(dealNumber: number, newService: Product) {
-      const servicesList = this.findServicesDeal(dealNumber)?.services.servicesList;
+      const servicesList =
+        this.findServicesDeal(dealNumber)?.services.servicesList;
       if (servicesList) {
         servicesList.push(newService);
       }
     },
-
 
     editSallerGoodsDeal(
       dealNumber: number,
@@ -285,7 +281,6 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-
     editBuyerGoodsDeal(dealNumber: number, newSallerGoodsDeal: EditPersonDeal) {
       const buyerGoodsDeal = this.findGoodsDeal(dealNumber)?.buyer;
       if (buyerGoodsDeal) {
@@ -293,13 +288,15 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-    editBuyerServicesDeal(dealNumber: number, newSallerServicesDeal: EditPersonDeal) {
+    editBuyerServicesDeal(
+      dealNumber: number,
+      newSallerServicesDeal: EditPersonDeal
+    ) {
       const buyerServicesDeal = this.findServicesDeal(dealNumber)?.buyer;
       if (buyerServicesDeal) {
         Object.assign(buyerServicesDeal, newSallerServicesDeal);
       }
     },
-
 
     editGood(dealNumber: number, newGoodsList: Product[]) {
       const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
@@ -309,12 +306,12 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     editService(dealNumber: number, newServiceList: Product[]) {
-      const servicesList = this.findServicesDeal(dealNumber)?.services.servicesList;
+      const servicesList =
+        this.findServicesDeal(dealNumber)?.services.servicesList;
       if (servicesList) {
         Object.assign(servicesList, newServiceList);
       }
     },
-
 
     editGoodsComments(dealNumber: number, comments: string) {
       const goods = this.findGoodsDeal(dealNumber)?.goods;
@@ -322,11 +319,45 @@ export const usePurchasesStore = defineStore("purchases", {
         goods.comments = comments;
       }
     },
-		
+
     editServicesComments(dealNumber: number, comments: string) {
       const goods = this.findServicesDeal(dealNumber)?.services;
       if (goods) {
         goods.comments = comments;
+      }
+    },
+
+    removeGoodsDeal(dealNumber: number) {
+      if (dealNumber) {
+        const goodsDeal = this.findGoodsDeal(dealNumber);
+				const goodsDeals = this.purchases.goodsDeals
+
+        if (goodsDeal) {
+          const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
+            return goods.dealNumber === goodsDeal.dealNumber;
+          });
+
+					if (index !== -1 && typeof (index) !== 'undefined') {
+						goodsDeals?.splice(index, 1);
+					}
+        }
+      }
+    },
+
+    removeServicesDeal(dealNumber: number) {
+      if (dealNumber) {
+        const servicesDeal = this.findServicesDeal(dealNumber);
+				const servicesDeals = this.purchases.servicesDeals
+
+        if (servicesDeal) {
+          const index = servicesDeals?.findIndex((service: ServicesDeal) => {
+            return service.dealNumber === servicesDeal.dealNumber;
+          });
+
+					if (index !== -1 && typeof (index) !== 'undefined') {
+						servicesDeals?.splice(index, 1);
+					}
+        }
       }
     },
   },

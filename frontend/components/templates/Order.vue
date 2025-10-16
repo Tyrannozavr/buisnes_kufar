@@ -50,8 +50,7 @@ const insertState = inject<Ref<Insert>>('insertState', ref({
 let requestedData: string = ''
 
 
-watch(
-	() => insertState.value,
+watch(() => insertState.value,
 	() => {
 		let lastGoodsDeal: GoodsDeal | undefined = undefined
 		let lastServicesDeal: ServicesDeal | undefined = undefined
@@ -142,14 +141,13 @@ watch(
 	{ deep: true }
 )
 
-
 watch(() => orderData.value,
 	() => {
 		if (requestedData === 'purchases-good') {
 			purchasesStore.editGood(orderData.value.orderNumber, products)
 			purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
 			purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
-			
+
 			if (orderData.value.comments) {
 				purchasesStore.editGoodsComments(orderData.value.orderNumber, orderData.value.comments)
 			}
@@ -157,18 +155,18 @@ watch(() => orderData.value,
 			purchasesStore.editService(orderData.value.orderNumber, products)
 			purchasesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
 			purchasesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
-			
+
 			if (orderData.value.comments) {
 				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
 		}
-		
+
 		orderData.value.amount = amount.value
 		orderData.value.amountWord = amountWord.value
-		
+
 		console.log(orderData.value)
 	},
-	{ deep: true}
+	{ deep: true }
 )
 
 const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
@@ -196,6 +194,79 @@ const addProduct = () => {
 }
 
 const disabledInput = inject<Ref<boolean>>('disabledInput', ref(true))
+
+//clear form button
+let clearState = inject<Ref<boolean>>('clearState', ref(false))
+
+const clearForm = () => {
+	console.log('clearForm')
+			products = []
+			saller = {
+				inn: 0,
+				name: "",
+				companyName: "",
+				legalAddress: "",
+				mobileNumber: "",
+			}
+			buyer = {
+				inn: 0,
+				name: "",
+				companyName: "",
+				legalAddress: "",
+				mobileNumber: "",
+			}
+			
+			amount = computed(() => NaN)
+			amountWord = computed(() => '')
+			
+			orderData.value = {
+				orderNumber: NaN,
+				orderDate: '',
+				comments: '',
+				amount: amount.value,
+				amountWord: amountWord.value,
+				saller,
+				buyer,
+				products,
+			}
+		
+}
+
+watch(() => clearState.value,
+	() => {
+		if (clearState.value) {
+			clearForm()
+		}
+	},
+	{deep: true}
+)
+
+//delete deal button
+const removeDealState = inject<Ref<boolean>>('removeDealState', ref(false))
+
+const removeDeal = (requestedData: string) => {
+	if (requestedData === 'purchases-good') {
+		purchasesStore.removeGoodsDeal(orderData.value.orderNumber)
+
+	} else if (requestedData === 'purchases-service') {
+		purchasesStore.removeServicesDeal(orderData.value.orderNumber)
+
+	} else if (requestedData === 'sales-good') {
+		//логика удаления из другого store
+
+	} else if (requestedData === 'sales-service') {
+		//логика удаления из другого store
+	}
+	
+	clearForm()
+}
+
+watch(() => removeDealState.value,
+	() => {
+		removeDeal(requestedData)
+	},
+	{deep: true}
+)
 
 </script>
 

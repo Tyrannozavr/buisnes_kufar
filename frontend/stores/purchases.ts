@@ -258,9 +258,9 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     addNewService(dealNumber: number, newService: Product) {
-      const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
-      if (goodsList) {
-        goodsList.push(newService);
+      const servicesList = this.findServicesDeal(dealNumber)?.services.servicesList;
+      if (servicesList) {
+        servicesList.push(newService);
       }
     },
 
@@ -277,11 +277,11 @@ export const usePurchasesStore = defineStore("purchases", {
 
     editSallerServicesDeal(
       dealNumber: number,
-      newSallerGoodsDeal: EditPersonDeal
+      newSallerServicesDeal: EditPersonDeal
     ) {
       const sallerServicesDeal = this.findServicesDeal(dealNumber)?.saller;
       if (sallerServicesDeal) {
-        Object.assign(sallerServicesDeal, newSallerGoodsDeal);
+        Object.assign(sallerServicesDeal, newSallerServicesDeal);
       }
     },
 
@@ -309,9 +309,9 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     editService(dealNumber: number, newServiceList: Product[]) {
-      const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
-      if (goodsList) {
-        Object.assign(goodsList, newServiceList);
+      const servicesList = this.findServicesDeal(dealNumber)?.services.servicesList;
+      if (servicesList) {
+        Object.assign(servicesList, newServiceList);
       }
     },
 

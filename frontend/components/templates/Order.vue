@@ -7,8 +7,6 @@ import type { Insert } from '~/types/contracts';
 
 const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
-const goodsDeals = purchases.value.goodsDeals
-const servicesDeals = purchases.value.servicesDeals
 
 let products: Product[] = []
 let saller: Person = {

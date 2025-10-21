@@ -9,20 +9,8 @@ const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 
 let products: Product[] = []
-let saller: Person = {
-	inn: 0,
-	name: "",
-	companyName: "",
-	legalAddress: "",
-	mobileNumber: "",
-}
-let buyer: Person = {
-	inn: 0,
-	name: "",
-	companyName: "",
-	legalAddress: "",
-	mobileNumber: "",
-}
+let saller = {} as Person
+let buyer = {} as Person
 
 let amount: ComputedRef<number> = computed(() => NaN)
 let amountWord: ComputedRef<string> = computed(() => '')
@@ -226,20 +214,8 @@ let clearState = inject<Ref<boolean>>('clearState', ref(false))
 const clearForm = () => {
 	console.log('clearForm')
 	products = []
-	saller = {
-		inn: 0,
-		name: "",
-		companyName: "",
-		legalAddress: "",
-		mobileNumber: "",
-	}
-	buyer = {
-		inn: 0,
-		name: "",
-		companyName: "",
-		legalAddress: "",
-		mobileNumber: "",
-	}
+	saller = {} as Person
+	buyer = {} as Person
 
 	amount = computed(() => NaN)
 	amountWord = computed(() => '')
@@ -328,8 +304,9 @@ const removeProduct = (product: any): void => {
 			</tr>
 		</table>
 
-		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку {{ orderData.orderNumber }} от {{
-			orderData.orderDate }}</h1>
+		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку 
+			<span v-if="orderData.orderNumber">{{ orderData.orderNumber }}</span>
+			 от {{ orderData.orderDate }}</h1>
 
 		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 			<thead>
@@ -391,7 +368,9 @@ const removeProduct = (product: any): void => {
 			</tbody>
 		</table>
 
-		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму: {{ orderData.amount }} p.</span></p>
+		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму: 
+			<span v-if="orderData.amount">{{ orderData.amount }} </span>
+			p.</span></p>
 		<p><span class="underline underline-offset-4">{{ orderData.amountWord }}</span></p>
 		<br />
 		<p>

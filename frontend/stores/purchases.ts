@@ -3,7 +3,6 @@ import type {
   GoodsDeal,
   ServicesDeal,
   EditPersonDeal,
-  Services,
   Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";

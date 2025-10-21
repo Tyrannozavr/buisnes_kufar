@@ -60,7 +60,7 @@ export const usePurchasesStore = defineStore("purchases", {
           othersDocuments: "просмотр",
         },
         {
-          dealNumber: 666,
+          dealNumber: 6666,
           goods: {
             goodsList: [
               {
@@ -169,7 +169,7 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-    lastServiceDeal: (state): ServicesDeal | undefined => {
+    lastServicesDeal: (state): ServicesDeal | undefined => {
       if (state.purchases.servicesDeals?.[0]) {
         const servicesDeals = state.purchases.servicesDeals;
         const lastDeal = servicesDeals?.[servicesDeals.length - 1];

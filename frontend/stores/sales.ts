@@ -20,7 +20,7 @@ export const useSalesStore = defineStore("sales", {
 		sales: {
 			goodsDeals: [
 				{
-					dealNumber: 7777,
+					dealNumber: 777777,
 					goods: {
 						goodsList: [
 							{
@@ -60,15 +60,15 @@ export const useSalesStore = defineStore("sales", {
 					othersDocuments: "просмотр",
 				},
 				{
-					dealNumber: 666,
+					dealNumber: 444,
 					goods: {
 						goodsList: [
 							{
-								name: "Что-то уругое",
-								article: 696969,
+								name: "Купилка",
+								article: 7788,
 								quantity: 1,
 								units: "штучка",
-								price: 69_000,
+								price: 77_888,
 								amount: 0,
 								type: "товар",
 							},
@@ -79,18 +79,18 @@ export const useSalesStore = defineStore("sales", {
 					},
 					date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
 					saller: {
-						inn: 6666666,
-						name: "Yasha Lava",
-						companyName: "DeppAndHard",
-						legalAddress: "somewhere",
-						mobileNumber: "+23423423433",
-					},
-					buyer: {
 						inn: 3423423,
 						name: "Sergey",
 						companyName: "Home secrets",
 						legalAddress: "Minsk, Svisloch river",
 						mobileNumber: "+3754445457474",
+					},
+					buyer: {
+						inn: 6666666,
+						name: "Yasha Lava",
+						companyName: "DeppAndHard",
+						legalAddress: "somewhere",
+						mobileNumber: "+23423423433",
 					},
 					state: "Завершено",
 					bill: "00012 от 8.04.25",
@@ -103,17 +103,17 @@ export const useSalesStore = defineStore("sales", {
 
 			servicesDeals: [
 				{
-					dealNumber: 666,
+					dealNumber: 555,
 					services: {
 						servicesList: [
 							{
-								name: "Что-то уругое",
-								article: 696969,
-								quantity: 2,
-								units: "штучка",
-								price: 69_000,
+								name: "Какая-то странная услуга",
+								article: 68686,
+								quantity: 1,
+								units: "услуга",
+								price: 68_000,
 								amount: 0,
-								type: "товар",
+								type: "услуга",
 							},
 						],
 						amountPrice: 0,
@@ -122,18 +122,18 @@ export const useSalesStore = defineStore("sales", {
 					},
 					date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
 					saller: {
-						inn: 7777777,
-						name: "Yasha Lava",
-						companyName: "DeppAndHard",
-						legalAddress: "somewhere",
-						mobileNumber: "+23423423433",
-					},
-					buyer: {
 						inn: 3423423,
 						name: "Sergey",
 						companyName: "Home secrets",
 						legalAddress: "Minsk, Svisloch river",
 						mobileNumber: "+3754445457474",
+					},
+					buyer: {
+						inn: 7777777,
+						name: "Yasha Lava",
+						companyName: "DeppAndHard",
+						legalAddress: "somewhere",
+						mobileNumber: "+23423423433",
 					},
 					state: "Активно",
 					bill: "просмотр",
@@ -169,7 +169,7 @@ export const useSalesStore = defineStore("sales", {
 			}
 		},
 
-		lastServiceDeal: (state): ServicesDeal | undefined => {
+		lastServicesDeal: (state): ServicesDeal | undefined => {
 			if (state.sales.servicesDeals?.[0]) {
 				const servicesDeals = state.sales.servicesDeals;
 				const lastDeal = servicesDeals?.[servicesDeals.length - 1];

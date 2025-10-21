@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { OrderData, ProductsInOrder } from '~/types/contracts';
+import type { OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
+import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
 import type { Insert } from '~/types/contracts';
 
-
 const purchasesStore = usePurchasesStore()
-const { purchases } = storeToRefs(purchasesStore)
+const salesStore = useSalesStore()
 
 let products: Product[] = []
 let saller: Person = {
@@ -47,7 +47,6 @@ const insertState = inject<Ref<Insert>>('insertState', ref({
 
 let requestedData: string = ''
 
-
 watch(() => insertState.value,
 	() => {
 		let lastGoodsDeal: GoodsDeal | undefined = undefined
@@ -62,23 +61,30 @@ watch(() => insertState.value,
 
 		} else if (insertState.value.purchasesStateService) {
 			requestedData = 'purchases-service'
-			if (purchasesStore.lastServiceDeal) {
-				lastServicesDeal = purchasesStore.lastServiceDeal
+			if (purchasesStore.lastServicesDeal) {
+				lastServicesDeal = purchasesStore.lastServicesDeal
 			}
 			insertState.value.purchasesStateService = false
 
 		} else if (insertState.value.salesStateGood) {
 			requestedData = 'sales-good'
+			if (salesStore.lastGoodsDeal) {
+				lastGoodsDeal = salesStore.lastGoodsDeal
+			}
 			insertState.value.salesStateGood = false
 
 		} else if (insertState.value.salesStateService) {
 			requestedData = 'sales-service'
+			if (salesStore.lastServicesDeal) {
+				lastServicesDeal = salesStore.lastServicesDeal
+			}
 			insertState.value.salesStateService = false
 		}
 
 		console.log(requestedData)
 
 		if ((requestedData === 'purchases-good' || 'sales-good') && typeof (lastGoodsDeal) !== 'undefined') {
+			
 			products = lastGoodsDeal.goods.goodsList?.map((product: Product) => ({
 				name: product.name,
 				article: product.article,
@@ -108,6 +114,7 @@ watch(() => insertState.value,
 		}
 
 		if ((requestedData === 'purchases-service' || 'sales-service') && typeof (lastServicesDeal) !== 'undefined') {
+			
 			products = lastServicesDeal.services.servicesList?.map((product: Product) => ({
 				name: product.name,
 				article: product.article,
@@ -157,6 +164,22 @@ watch(() => orderData.value,
 			if (orderData.value.comments) {
 				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
+		} else if (requestedData === 'sales-good') {
+			salesStore.editGood(orderData.value.orderNumber, products)
+			salesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
+			salesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
+
+			if (orderData.value.comments) {
+				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
+			}
+		} else if (requestedData === 'sales-service') {
+			salesStore.editService(orderData.value.orderNumber, products)
+			salesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
+			salesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
+
+			if (orderData.value.comments) {
+				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
+			}
 		}
 
 		orderData.value.amount = amount.value
@@ -187,6 +210,10 @@ const addProduct = () => {
 		purchasesStore.addNewGood(orderData.value.orderNumber, product)
 	} else if (requestedData === 'purchases-service') {
 		purchasesStore.addNewService(orderData.value.orderNumber, product)
+	} else if (requestedData === 'sales-good') {
+		salesStore.addNewGood(orderData.value.orderNumber, product)
+	} else if (requestedData === 'sales-service') {
+		salesStore.addNewService(orderData.value.orderNumber, product)
 	}
 
 }
@@ -250,10 +277,10 @@ const removeDeal = (requestedData: string) => {
 		purchasesStore.removeServicesDeal(orderData.value.orderNumber)
 
 	} else if (requestedData === 'sales-good') {
-		//логика удаления из другого store
+		salesStore.removeGoodsDeal(orderData.value.orderNumber)
 
 	} else if (requestedData === 'sales-service') {
-		//логика удаления из другого store
+		salesStore.removeServicesDeal(orderData.value.orderNumber)
 	}
 
 	clearForm()
@@ -269,7 +296,7 @@ watch(() => removeDealState.value,
 //remove product
 const removeProduct = (product: any): void => {
 	const index = orderData.value.products.indexOf(product)
-	orderData.value.products.splice(index,1)
+	orderData.value.products.splice(index, 1)
 }
 </script>
 
@@ -339,24 +366,25 @@ const removeProduct = (product: any): void => {
 						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
-							<span class="">{{ product.amount }}</span>
-						<!-- <UButton  color="neutral" variant="subtle" class=" hover:bg-red-400 rounded-full"/> -->
+						<span class="">{{ product.amount }}</span>
 					</td>
 					<td>
 						<span :hidden="disabledInput" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
-								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-									viewBox="0 0 24 24">
-									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
-										<circle cx="12" cy="12" r="10" />
-										<path d="m15 9l-6 6m0-6l6 6" />
-									</g>
-								</svg>
-							</span>
+							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
+								width="32" height="32" viewBox="0 0 24 24">
+								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
+									stroke-linejoin="round" stroke-width="3">
+									<circle cx="12" cy="12" r="10" />
+									<path d="m15 9l-6 6m0-6l6 6" />
+								</g>
+							</svg>
+						</span>
 					</td>
-					
+
 				</tr>
 				<tr :hidden="disabledInput">
-					<td @click="addProduct()" colspan="7" class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+					<td @click="addProduct()" colspan="7"
+						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
 				</tr>

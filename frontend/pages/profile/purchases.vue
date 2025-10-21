@@ -150,35 +150,35 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 		accessorKey: 'bill',
 		header: 'Счет',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
 		}
 	},
 	{
 		accessorKey: 'supplyContract',
 		header: 'Договор поставки',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('supplyContract'))
 		}
 	},
 	{
 		accessorKey: 'accompanyingDocuments',
 		header: 'Сопродительные документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
 		}
 	},
 	{
 		accessorKey: 'invoice',
 		header: 'Счет-фактура',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
 		}
 	},
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
 		}
 	},
 ]
@@ -305,35 +305,35 @@ const columnsServicesDeals: TableColumn<any>[] = [
 		accessorKey: 'bill',
 		header: 'Счет',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
 		}
 	},
 	{
 		accessorKey: 'contract',
 		header: 'Договор',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('contract'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('contract'))
 		}
 	},
 	{
 		accessorKey: 'act',
 		header: 'акт',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('act'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('act'))
 		}
 	},
 	{
 		accessorKey: 'invoice',
 		header: 'Счет-фактура',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('invoice'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
 		}
 	},
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('othersDocument'))
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
 		}
 	}
 ]

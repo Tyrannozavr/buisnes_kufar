@@ -1,21 +1,18 @@
 <template>
-  <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
+  <div class="max-w-full">
+    <div class="bg-white shadow rounded-lg pt-4">
       <h2 class="text-lg font-medium text-gray-900 mb-2 ml-4">Продажи</h2>
       <UTabs :items="items" variant="link">
 
-				<!-- <template #product="{ item }">
-					<p class="m-3">{{ item.description }}</p>
-
-					<UTable sticky :data="tableDataProduct" :columns="columnsProducts" class="max-h-100 overflow-y-auto overscroll-auto "/>
-
+				<template #goods="{ item }">
+					<UTable sticky :data="tableGoods" :columns="columnsGoodsDeals"
+						class="max-h-100 overflow-y-auto overscroll-auto " />
 				</template>
-				
-				<template #services="{ item }">
-					<p class="m-3">{{ item.description }}</p>
 
-					<UTable sticky :data="tableDataServices" :columns="columnsServices" class="max-h-100 overflow-y-auto overscroll-auto "/>
-				</template> -->
+				<template #services="{ item }">
+					<UTable sticky :data="tableServices" :columns="columnsServicesDeals"
+						class="max-h-100 overflow-y-auto overscroll-auto " />
+				</template>
 
 			</UTabs>
     </div>
@@ -24,18 +21,24 @@
 
 <script setup lang="ts">
 import type { TabsItem, TableColumn } from '@nuxt/ui'
-import { useUserStore } from '~/stores/user'
-const userCompanyId = useUserStore().companyId
+import { useSalesStore } from '~/stores/sales'
+import type { GoodsDeal, ServicesDeal } from '~/types/dealState'
+import type { TableGoods, TableServices } from '~/types/purchases'
 
 definePageMeta({
-  layout: 'profile'
+	layout: 'profile'
 })
+
+const userCompanyId = useUserStore().companyId
+
+const salesStore = useSalesStore()
+const { sales } = storeToRefs(salesStore)
 
 const items = [
 	{
 		label: 'Товары',
 		description: 'Закладка товары',
-		slot: 'product' as const
+		slot: 'goods' as const
 	},
 	{
 		label: 'Услуги',
@@ -44,12 +47,324 @@ const items = [
 	}
 ] satisfies TabsItem[]
 
-//Запрос на заказ для продукции
-const { data: confirmedProducts , error, refresh, status } = await useLazyFetch('/api/orderedProducts', {
-	immediate: true,
-	query: {
-		sallerId: userCompanyId,
+const UButton = resolveComponent('UButton')
+//goods table
+const columnsGoodsDeals: TableColumn<any>[] = [
+	{
+		accessorKey: 'dealNumber',
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Заказ`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		},
+		cell: ({ row }) => `№ ${row.getValue('dealNumber')}`
+	},
+	{ 
+		accessorKey: 'date', 
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Дата`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		}, 
+	},
+	{ 
+		accessorKey: 'sallerCompany', 
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Продавец`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		}, 
+	},
+	{
+		accessorKey: 'state',
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Состояние`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		},
+		cell: ({ row }) => {
+			const status = row.getValue('state') as string
+			const color = {
+				Активно: 'text-emerald-600',
+				Завершено: 'text-gray-500'
+			}
+			return h('span',
+				{
+					class: `font-semibold ${color[status as keyof typeof color]}`
+				},
+				status
+			)
+		}
+	},
+	{
+		accessorKey: 'bill',
+		header: 'Счет',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
+		}
+	},
+	{
+		accessorKey: 'supplyContract',
+		header: 'Договор поставки',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('supplyContract'))
+		}
+	},
+	{
+		accessorKey: 'accompanyingDocuments',
+		header: 'Сопродительные документы',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
+		}
+	},
+	{
+		accessorKey: 'invoice',
+		header: 'Счет-фактура',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+		}
+	},
+	{
+		accessorKey: 'othersDocument',
+		header: 'Другие документы',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+		}
+	},
+]
+
+const goodsDeals: GoodsDeal[] | null = sales.value?.goodsDeals
+
+let tableGoods: Ref<TableGoods[]> = ref([])
+
+if (goodsDeals) {
+	tableGoods.value = [...goodsDeals.map(deal => ({
+		dealNumber: deal.dealNumber,
+		date: deal.date,
+		sallerCompany: deal.saller.companyName,
+		state: deal.state,
+		bill: deal.bill,
+		supplyContract: deal.supplyContract,
+		accompanyingDocuments: deal.accompanyingDocuments,
+		invoice: deal.invoice,
+		othersDocument: deal.othersDocuments,
+	}))]
+}
+
+//services table
+const columnsServicesDeals: TableColumn<any>[] = [
+	{
+		accessorKey: 'dealNumber',
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Заказ`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		},
+		cell: ({ row }) => `№ ${row.getValue('dealNumber')}`
+	},
+	{
+		accessorKey: 'date',
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Дата`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		},
+	},
+	{
+		accessorKey: 'sallerCompany',
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Поставщик`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		},
+	},
+	{
+		accessorKey: 'state', 
+		header: ({column}) => {
+			const isSorted = column.getIsSorted()
+
+			return h(UButton,
+				{
+					color: 'neutral',
+					variant: 'ghost',
+					label: `Состояние`,
+					icon: isSorted
+						? isSorted === 'asc'
+							? 'i-lucide-arrow-up-narrow-wide'
+							: 'i-lucide-arrow-down-wide-narrow'
+						: 'i-lucide-arrow-up-down',
+					class: '-mx-2.5',
+					onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+				}
+			)
+		}, 
+		cell: ({ row }) => {
+			const status = row.getValue('state') as string
+			const color = {
+				Активно: 'text-emerald-600',
+				Завершено: 'text-gray-500'
+			}
+			return h('span',
+				{
+					class: `font-semibold ${color[status as keyof typeof color]}`
+				},
+				status
+			)
+		}
+	},
+	{
+		accessorKey: 'bill',
+		header: 'Счет',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
+		}
+	},
+	{
+		accessorKey: 'contract',
+		header: 'Договор',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('contract'))
+		}
+	},
+	{
+		accessorKey: 'act',
+		header: 'акт',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('act'))
+		}
+	},
+	{
+		accessorKey: 'invoice',
+		header: 'Счет-фактура',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+		}
+	},
+	{
+		accessorKey: 'othersDocument',
+		header: 'Другие документы',
+		cell: ({ row }) => {
+			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+		}
 	}
-})
-console.log(confirmedProducts)
+]
+
+const servicesDeals: ServicesDeal[] | null = sales.value?.servicesDeals
+
+let tableServices: Ref<TableServices[]> = ref([])
+
+if (servicesDeals) {
+	tableServices.value = [...servicesDeals.map(service => ({
+		dealNumber: service.dealNumber,
+		date: service.date,
+		sallerCompany: service.saller.companyName,
+		state: service.state,
+		bill: service.bill,
+		contract: service.contract,
+		act: service.act,
+		invoice: service.invoice,
+		othersDocument: service.othersDocuments,
+	}))]
+}
+
+
+// //Запрос на заказ для продукции
+// const { data: confirmedProducts , error, refresh, status } = await useLazyFetch('/api/orderedProducts', {
+// 	immediate: true,
+// 	query: {
+// 		sallerId: userCompanyId,
+// 	}
+// })
+// console.log(confirmedProducts)
 </script>

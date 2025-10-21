@@ -41,13 +41,13 @@
 
 						<div class="flex flex-col gap-2">
 							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-								:disabled="activeButtons" />
+								:disabled="activeButtons" @click="inDevelopment()"/>
 							<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" />
+								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
 							<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" />
+								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
 							<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" />
+								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
 						</div>
 
 						<div class="flex flex-row justify-between">
@@ -86,18 +86,18 @@
 
 						<div>
 							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" />
+								:disabled="activeButtons" @click="inDevelopment()"/>
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
 							<p>Фото/Сканы документа</p>
 							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
-								class="justify-center" :disabled="activeButtons" />
+								class="justify-center" :disabled="activeButtons" @click="inDevelopment()"/>
 						</div>
 
 						<div class="flex flex-row justify-between">
 							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" />
+								:disabled="activeButtons" @click="inDevelopment()"/>
 							<!-- <UButton label="Сохранить"/> -->
 						</div>
 					</div>
@@ -126,6 +126,13 @@ function getTabs(activeTab: string): void {
 	tabIndex = activeTab
 }
 
+const inDevelopment = () => {
+	const toast = useToast()
+	toast.add({
+		title: 'Кнопка находиться в разработке...',
+		icon: 'i-lucide-git-compare',
+	})
+}
 
 //Insert Button
 const insertState: Ref<Insert> = ref({

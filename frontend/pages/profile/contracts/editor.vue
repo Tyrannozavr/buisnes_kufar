@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<UTabs v-model="activeTab" color="neutral" :items="items" size="md"
+		<UTabs v-model="activeTab" color="neutral" :items="items" size="md" variant="pill"
 			class="max-h-screen overflow-x-auto overscroll-auto">
 			<template #order="{ item }">
 				<Order />
@@ -18,9 +18,16 @@
 			<template #invoice="{ item }">
 
 			</template>
+			<template #act>
+
+			</template>
+			<template #contract>
+
+			</template>
 			<template #othersDocument="{ item }">
 				<DogovorUslug />
 			</template>
+
 		</UTabs>
 
 	</div>
@@ -50,7 +57,7 @@ const items = [
 		slot: 'supplyContract' as const,
 	},
 	{
-		label: 'Сопровидительный документы',
+		label: 'Сопровод-е док-ты',
 		slot: 'accompanyingDocuments' as const,
 	},
 	{
@@ -58,7 +65,15 @@ const items = [
 		slot: 'invoice' as const,
 	},
 	{
-		label: 'Другие документы',
+		label: 'Договор',
+		slot: 'contract' as const
+	},
+	{
+		label: 'Акт',
+		slot: 'act' as const
+	},
+	{
+		label: 'Др. док-ты',
 		slot: 'othersDocument' as const,
 	},
 ]
@@ -74,5 +89,29 @@ watch(
 		emit('tabIndex', activeTab.value)
 	},
 	{ immediate: true }
+)
+
+const route = useRoute()
+
+watch(
+	() => route.fullPath,
+	() => {
+		if (route.hash === '#bill') {
+			activeTab.value = '1'
+		} else if (route.hash === '#supplyContract') {
+			activeTab.value = '2'
+		} else if (route.hash === '#accompanyingDocuments') {
+			activeTab.value = '3'
+		} else if (route.hash === '#invoice') {
+			activeTab.value = '4'
+		} else if (route.hash === '#contract') {
+			activeTab.value = '5'
+		} else if (route.hash === '#act') {
+			activeTab.value = '6'
+		} else if (route.hash === '#othersDocument') {
+			activeTab.value = '7'
+		}
+	},
+	{immediate: true}
 )
 </script>

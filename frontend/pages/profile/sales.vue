@@ -31,6 +31,8 @@ definePageMeta({
 
 const userCompanyId = useUserStore().companyId
 
+const router = useRouter()
+
 const salesStore = useSalesStore()
 const { sales } = storeToRefs(salesStore)
 
@@ -152,35 +154,35 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 		accessorKey: 'bill',
 		header: 'Счет',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
+			return h('a', { href: '/profile/contracts/editor#bill', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
 		}
 	},
 	{
 		accessorKey: 'supplyContract',
 		header: 'Договор поставки',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('supplyContract'))
+			return h('a', { href: '/profile/contracts/editor#supplyContract', class: 'text-sky-500 text-wrap' }, row.getValue('supplyContract'))
 		}
 	},
 	{
 		accessorKey: 'accompanyingDocuments',
 		header: 'Сопродительные документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
+			return h('a', { href: '/profile/contracts/editor#accompanyingDocuments', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
 		}
 	},
 	{
 		accessorKey: 'invoice',
 		header: 'Счет-фактура',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+			return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
 		}
 	},
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+			return h('a', { href: '/profile/contracts/editor#othersDocument', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
 		}
 	},
 ]
@@ -307,35 +309,35 @@ const columnsServicesDeals: TableColumn<any>[] = [
 		accessorKey: 'bill',
 		header: 'Счет',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
+			return h('a', { href: '/profile/contracts/editor#bill', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
 		}
 	},
 	{
 		accessorKey: 'contract',
 		header: 'Договор',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('contract'))
+			return h('a', { href: '/profile/contracts/editor#contract', class: 'text-sky-500 text-wrap' }, row.getValue('contract'))
 		}
 	},
 	{
 		accessorKey: 'act',
 		header: 'акт',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('act'))
+			return h('a', { href: '/profile/contracts/editor#act', class: 'text-sky-500 text-wrap' }, row.getValue('act'))
 		}
 	},
 	{
 		accessorKey: 'invoice',
 		header: 'Счет-фактура',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+			return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
 		}
 	},
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+			return h('a', { href: '/profile/contracts/editor#othersDocument', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
 		}
 	}
 ]

@@ -81,21 +81,44 @@ async def get_cities_list(
         region: str = Query(..., description="Регион"),
         name: str = Query(None, description="Название города")
 ):
-    """Получить список городов по стране и региону"""
-    country = "Беларусь"
-    region = "Витебская область"
-    if name is None:
-        return {
-            "items": [],
-            "total": 0
-        }
-    _, cities = await get_cached_cities(country_code=country, region=region)
-    cities = [city for city in cities if city.get("label").lower().startswith(name.lower())]
-    cities = await unify_list(cities)
-    return {
-        "items": cities,
-        "total": len(cities)
-    }
+    """Получить список городов из базы данных по стране и региону"""
+    try:
+        from sqlalchemy import select
+        from app.db.base import AsyncSessionLocal
+        from app.api.company.models.company import Company
+        
+        # Логируем полученные параметры
+        print(f"DEBUG: Received country='{country}', region='{region}', name='{name}'")
+        
+        async with AsyncSessionLocal() as session:
+            # Получаем города из базы данных
+            query = select(Company.city).where(
+                Company.is_active == True,
+                Company.country == country,
+                Company.region == region
+            ).distinct()
+            
+            result = await session.execute(query)
+            cities = result.scalars().all()
+            
+            print(f"DEBUG: Found cities: {cities}")
+            
+            # Фильтруем по имени города если указано
+            if name:
+                cities = [city for city in cities if city.lower().startswith(name.lower())]
+            
+            # Формируем ответ
+            city_items = [{"label": city, "value": city} for city in sorted(cities)]
+            
+            print(f"DEBUG: Returning {len(city_items)} cities")
+            
+            return LocationResponse(
+                items=city_items,
+                total=len(city_items)
+            )
+    except Exception as e:
+        print(f"DEBUG: Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/districts/{region_id}", response_model=LocationResponse)

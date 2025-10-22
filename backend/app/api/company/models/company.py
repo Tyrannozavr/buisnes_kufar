@@ -27,6 +27,10 @@ if TYPE_CHECKING:
     from app.api.company.models.announcement import Announcement
     from app.api.chats.models.chat_participant import ChatParticipant
     from app.api.messages.models import Message
+    from app.api.common.models.country import Country
+    from app.api.common.models.federal_district import FederalDistrict
+    from app.api.common.models.region import Region
+    from app.api.common.models.city import City
 
 
 class Company(Base):
@@ -41,11 +45,17 @@ class Company(Base):
     activity_type: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    # Location
+    # Location (старые поля - оставляем для совместимости)
     country: Mapped[str] = mapped_column(String(100), nullable=False)
     federal_district: Mapped[str] = mapped_column(String(100), nullable=False)
     region: Mapped[str] = mapped_column(String(100), nullable=False)
     city: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Location (новые FK поля)
+    country_id: Mapped[Optional[int]] = mapped_column(ForeignKey("countries.id"), nullable=True)
+    federal_district_id: Mapped[Optional[int]] = mapped_column(ForeignKey("federal_districts.id"), nullable=True)
+    region_id: Mapped[Optional[int]] = mapped_column(ForeignKey("regions.id"), nullable=True)
+    city_id: Mapped[Optional[int]] = mapped_column(ForeignKey("cities.id"), nullable=True)
 
     # Legal information
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -87,6 +97,12 @@ class Company(Base):
     chat_participants: Mapped[List["ChatParticipant"]] = relationship("ChatParticipant", back_populates="company")
     sent_messages: Mapped[List["Message"]] = relationship("Message", foreign_keys="Message.sender_company_id",
                                                           back_populates="sender_company")
+    
+    # Location relationships (временно отключены)
+    # country_rel: Mapped[Optional["Country"]] = relationship("Country", back_populates="companies")
+    # federal_district_rel: Mapped[Optional["FederalDistrict"]] = relationship("FederalDistrict", back_populates="companies")
+    # region_rel: Mapped[Optional["Region"]] = relationship("Region", back_populates="companies")
+    # city_rel: Mapped[Optional["City"]] = relationship("City", back_populates="companies")
 
     def __str__(self):
         return self.name

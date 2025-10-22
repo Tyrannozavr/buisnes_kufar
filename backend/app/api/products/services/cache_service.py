@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Set, Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.company.models.company import Company
@@ -48,19 +48,32 @@ class ProductLocationCache:
             if cached_data:
                 return cached_data
 
-            # Получаем все товары с их компаниями
-            query = (
-                select(Product, Company)
-                .join(Company, Product.company_id == Company.id)
-                .where(
-                    Product.type == ProductType.GOOD,
-                    Product.is_deleted == False,
-                    Product.is_hidden == False
-                )
-            )
+            # Получаем все товары с их компаниями и локациями из новых таблиц
+            query = text("""
+                SELECT DISTINCT 
+                    country.name as country_name,
+                    fd.name as federal_district_name,
+                    r.name as region_name,
+                    city.name as city_name
+                FROM products p
+                JOIN companies c_old ON p.company_id = c_old.id
+                LEFT JOIN companies c ON c_old.id = c.id
+                LEFT JOIN countries country ON c.country_id = country.id
+                LEFT JOIN federal_districts fd ON c.federal_district_id = fd.id
+                LEFT JOIN regions r ON c.region_id = r.id
+                LEFT JOIN cities city ON c.city_id = city.id
+                WHERE p.type = 'GOOD' 
+                    AND p.is_deleted = false 
+                    AND p.is_hidden = false
+                    AND c_old.is_active = true
+                    AND (country.is_active = true OR country.is_active IS NULL)
+                    AND (fd.is_active = true OR fd.is_active IS NULL)
+                    AND (r.is_active = true OR r.is_active IS NULL)
+                    AND (city.is_active = true OR city.is_active IS NULL)
+            """)
 
             result = await session.execute(query)
-            products_with_companies = result.all()
+            locations_data = result.fetchall()
 
             # Создаем связи продукт -> локации
             product_locations = {
@@ -70,15 +83,15 @@ class ProductLocationCache:
                 'cities': set()
             }
 
-            for product, company in products_with_companies:
-                if company.country:
-                    product_locations['countries'].add(company.country)
-                if company.federal_district:
-                    product_locations['federal_districts'].add(company.federal_district)
-                if company.region:
-                    product_locations['regions'].add(company.region)
-                if company.city:
-                    product_locations['cities'].add(company.city)
+            for row in locations_data:
+                if row.country_name:
+                    product_locations['countries'].add(row.country_name)
+                if row.federal_district_name:
+                    product_locations['federal_districts'].add(row.federal_district_name)
+                if row.region_name:
+                    product_locations['regions'].add(row.region_name)
+                if row.city_name:
+                    product_locations['cities'].add(row.city_name)
 
             self._set_cache(cache_key, product_locations)
             return product_locations
@@ -96,19 +109,32 @@ class ProductLocationCache:
             if cached_data:
                 return cached_data
 
-            # Получаем все услуги с их компаниями
-            query = (
-                select(Product, Company)
-                .join(Company, Product.company_id == Company.id)
-                .where(
-                    Product.type == ProductType.SERVICE,
-                    Product.is_deleted == False,
-                    Product.is_hidden == False
-                )
-            )
+            # Получаем все услуги с их компаниями и локациями из новых таблиц
+            query = text("""
+                SELECT DISTINCT 
+                    country.name as country_name,
+                    fd.name as federal_district_name,
+                    r.name as region_name,
+                    city.name as city_name
+                FROM products p
+                JOIN companies c_old ON p.company_id = c_old.id
+                LEFT JOIN companies c ON c_old.id = c.id
+                LEFT JOIN countries country ON c.country_id = country.id
+                LEFT JOIN federal_districts fd ON c.federal_district_id = fd.id
+                LEFT JOIN regions r ON c.region_id = r.id
+                LEFT JOIN cities city ON c.city_id = city.id
+                WHERE p.type = 'SERVICE' 
+                    AND p.is_deleted = false 
+                    AND p.is_hidden = false
+                    AND c_old.is_active = true
+                    AND (country.is_active = true OR country.is_active IS NULL)
+                    AND (fd.is_active = true OR fd.is_active IS NULL)
+                    AND (r.is_active = true OR r.is_active IS NULL)
+                    AND (city.is_active = true OR city.is_active IS NULL)
+            """)
 
             result = await session.execute(query)
-            services_with_companies = result.all()
+            locations_data = result.fetchall()
 
             # Создаем связи услуга -> локации
             service_locations = {
@@ -118,15 +144,15 @@ class ProductLocationCache:
                 'cities': set()
             }
 
-            for service, company in services_with_companies:
-                if company.country:
-                    service_locations['countries'].add(company.country)
-                if company.federal_district:
-                    service_locations['federal_districts'].add(company.federal_district)
-                if company.region:
-                    service_locations['regions'].add(company.region)
-                if company.city:
-                    service_locations['cities'].add(company.city)
+            for row in locations_data:
+                if row.country_name:
+                    service_locations['countries'].add(row.country_name)
+                if row.federal_district_name:
+                    service_locations['federal_districts'].add(row.federal_district_name)
+                if row.region_name:
+                    service_locations['regions'].add(row.region_name)
+                if row.city_name:
+                    service_locations['cities'].add(row.city_name)
 
             self._set_cache(cache_key, service_locations)
             return service_locations
@@ -144,14 +170,27 @@ class ProductLocationCache:
             if cached_data:
                 return cached_data
 
-            # Получаем все активные компании
-            query = (
-                select(Company)
-                .where(Company.is_active == True)
-            )
+            # Получаем все активные компании с локациями из новых таблиц
+            query = text("""
+                SELECT DISTINCT 
+                    country.name as country_name,
+                    fd.name as federal_district_name,
+                    r.name as region_name,
+                    city.name as city_name
+                FROM companies c
+                LEFT JOIN countries country ON c.country_id = country.id
+                LEFT JOIN federal_districts fd ON c.federal_district_id = fd.id
+                LEFT JOIN regions r ON c.region_id = r.id
+                LEFT JOIN cities city ON c.city_id = city.id
+                WHERE c.is_active = true
+                    AND (country.is_active = true OR country.is_active IS NULL)
+                    AND (fd.is_active = true OR fd.is_active IS NULL)
+                    AND (r.is_active = true OR r.is_active IS NULL)
+                    AND (city.is_active = true OR city.is_active IS NULL)
+            """)
 
             result = await session.execute(query)
-            companies = result.scalars().all()
+            locations_data = result.fetchall()
 
             # Создаем связи компания -> локации
             company_locations = {
@@ -161,15 +200,15 @@ class ProductLocationCache:
                 'cities': set()
             }
 
-            for company in companies:
-                if company.country:
-                    company_locations['countries'].add(company.country)
-                if company.federal_district:
-                    company_locations['federal_districts'].add(company.federal_district)
-                if company.region:
-                    company_locations['regions'].add(company.region)
-                if company.city:
-                    company_locations['cities'].add(company.city)
+            for row in locations_data:
+                if row.country_name:
+                    company_locations['countries'].add(row.country_name)
+                if row.federal_district_name:
+                    company_locations['federal_districts'].add(row.federal_district_name)
+                if row.region_name:
+                    company_locations['regions'].add(row.region_name)
+                if row.city_name:
+                    company_locations['cities'].add(row.city_name)
 
             self._set_cache(cache_key, company_locations)
             return company_locations

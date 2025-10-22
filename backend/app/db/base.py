@@ -11,6 +11,7 @@ from app.api.company.models.company import Company  # noqa
 from app.api.company.models.official import CompanyOfficial  # noqa
 from app.api.messages.models.message import Message  # noqa
 from app.api.products.models.product import Product  # noqa
+from app.api.common.models import Country, FederalDistrict, Region, City  # noqa
 from app.core.config import settings
 from app.db.base_class import Base  # noqa
 from app_logging.logger import logger

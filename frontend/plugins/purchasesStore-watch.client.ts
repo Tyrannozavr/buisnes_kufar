@@ -15,8 +15,6 @@ export default defineNuxtPlugin(() => {
 
       purchasesStore.amountWordGoods();
       purchasesStore.amountWordServices();
-
-			console.log('данные изменились: ',purchases.value)
     },
     { immediate: true, deep: true }
   );

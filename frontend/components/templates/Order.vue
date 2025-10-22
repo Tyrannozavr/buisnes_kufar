@@ -134,7 +134,9 @@ watch(() => insertState.value,
 	{ deep: true }
 )
 
-watch(() => orderData.value,
+const changeState: Ref<Boolean> = inject('changeStateOrder', ref(false))
+
+watch(() => changeState.value,
 	() => {
 		if (requestedData === 'purchases-good') {
 			purchasesStore.editGood(orderData.value.orderNumber, products)
@@ -172,8 +174,6 @@ watch(() => orderData.value,
 
 		orderData.value.amount = amount.value
 		orderData.value.amountWord = amountWord.value
-
-		console.log(orderData.value)
 	},
 	{ deep: true }
 )
@@ -193,17 +193,6 @@ const addProduct = () => {
 	}
 
 	orderData.value.products.push(product)
-
-	if (requestedData === 'purchases-good') {
-		purchasesStore.addNewGood(orderData.value.orderNumber, product)
-	} else if (requestedData === 'purchases-service') {
-		purchasesStore.addNewService(orderData.value.orderNumber, product)
-	} else if (requestedData === 'sales-good') {
-		salesStore.addNewGood(orderData.value.orderNumber, product)
-	} else if (requestedData === 'sales-service') {
-		salesStore.addNewService(orderData.value.orderNumber, product)
-	}
-
 }
 
 const disabledInput = inject<Ref<boolean>>('disabledInput', ref(true))

@@ -86,7 +86,7 @@
 
 						<div>
 							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" @click="inDevelopment()"/>
+								:disabled="activeButtons" @click="saveChanges(tabIndex)"/>
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
@@ -155,6 +155,7 @@ const insertLastPurchasesService = (): void => {
 	disabledInput.value = !disabledInput.value
 	disabledInput.value = !disabledInput.value
 }
+
 const insertLastSalesGood = (): void => {
 	insertState.value.salesStateGood = !insertState.value.salesStateGood
 	disabledInput.value = !disabledInput.value
@@ -227,8 +228,8 @@ const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | n
 }
 
 //Button edit
-let disabledInput: Ref<boolean> = ref(true)
-let activeButtons: Ref<boolean> = ref(false)
+const disabledInput: Ref<boolean> = ref(true)
+const activeButtons: Ref<boolean> = ref(false)
 
 provide('disabledInput', disabledInput)
 
@@ -238,7 +239,7 @@ const editButton = () => {
 }
 
 //Button clearForm
-let clearState: Ref<boolean> = ref(false)
+const clearState: Ref<boolean> = ref(false)
 
 provide('clearState', clearState)
 
@@ -254,7 +255,7 @@ const clearCurrentForm = (tabIndex: string) => {
 }
 
 //Button removeCurrentDeal
-let removeDealState: Ref<Boolean> = ref(false)
+const removeDealState: Ref<Boolean> = ref(false)
 
 provide('removeDealState', removeDealState)
 
@@ -265,7 +266,17 @@ const removeCurrentDeal = (tabIndex: string) => {
 	}
 }
 
+// save button 
+const changeState: Ref<Boolean> = ref(false)
 
+provide('changeStateOrder', changeState)
+
+const saveChanges = (tabIndex: string) => {
+		if (tabIndex === '0') {
+			changeState.value = !changeState.value
+			changeState.value = !changeState.value
+	}
+}
 </script>
 
 <style scoped>

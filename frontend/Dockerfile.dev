@@ -1,0 +1,34 @@
+# Dockerfile для разработки frontend
+FROM node:20-slim
+
+WORKDIR /app
+
+# Устанавливаем системные зависимости
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Создаем пользователя для безопасности
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Копируем файлы зависимостей
+COPY package.json package-lock.json ./
+
+# Устанавливаем зависимости (включая dev для разработки)
+RUN npm install
+
+# Создаем необходимые директории
+RUN mkdir -p /app/.nuxt /app/node_modules/.cache
+
+# Оставляем root для разработки (для упрощения прав доступа)
+# USER appuser
+
+# Устанавливаем переменные окружения для разработки
+ENV NODE_ENV=development
+ENV NUXT_UI_FONTS=false
+
+# Открываем порт
+EXPOSE 3000
+
+# Команда по умолчанию (будет переопределена в docker-compose)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

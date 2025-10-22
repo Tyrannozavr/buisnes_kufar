@@ -75,7 +75,17 @@ services:
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     depends_on:
       - backend
-
+  nginx-local:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/app/static:/usr/share/nginx/html/static
+    network_mode: "host"
 volumes:
   frontend_node_modules:
   frontend_npm_cache:

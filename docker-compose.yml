@@ -9,6 +9,7 @@ services:
     environment:
       SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
       DEV_REDIRECT_URL: "http://frontend:3000"
+      BACKEND_CORS_ORIGINS: '["https://tradesynergy.ru","https://www.tradesynergy.ru","http://tradesynergy.ru","http://www.tradesynergy.ru","http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
     volumes:
       - ./logs/backend:/app/logging
       - ./backend/cache:/app/cache

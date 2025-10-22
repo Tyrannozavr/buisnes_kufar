@@ -53,6 +53,12 @@ class Settings(BaseSettings):
 
     # CORS настройки
     BACKEND_CORS_ORIGINS: list[str] = [
+        # Production домены
+        "https://tradesynergy.ru",
+        "https://www.tradesynergy.ru",
+        "http://tradesynergy.ru",
+        "http://www.tradesynergy.ru",
+        # Development домены
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://0.0.0.0:3000",  # Для Docker dev окружения

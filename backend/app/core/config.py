@@ -60,6 +60,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8000",
         "http://localhost",  # Для nginx прокси
         "http://127.0.0.1",  # Для nginx прокси
+        "http://frontend:3000",  # Для Docker внутренней сети
     ]
 
     MAIL_USERNAME: str | None = "mock_email@example.com"

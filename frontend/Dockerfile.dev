@@ -20,6 +20,10 @@ RUN npm install
 # Создаем необходимые директории
 RUN mkdir -p /app/.nuxt /app/node_modules/.cache
 
+# Устанавливаем правильные права доступа
+RUN chown -R root:root /app/.nuxt /app/node_modules/.cache
+RUN chmod -R 755 /app/.nuxt /app/node_modules/.cache
+
 # Оставляем root для разработки (для упрощения прав доступа)
 # USER appuser
 

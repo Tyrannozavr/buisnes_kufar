@@ -31,7 +31,7 @@ services:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1"]'
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -75,7 +75,7 @@ services:
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     depends_on:
       - backend
-  nginx-local:
+  nginx:
     build:
       context: ./nginx
       dockerfile: Dockerfile.local
@@ -85,7 +85,9 @@ services:
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/app/static:/usr/share/nginx/html/static
-    network_mode: "host"
+    depends_on:
+      - backend
+      - frontend
 volumes:
   frontend_node_modules:
   frontend_npm_cache:

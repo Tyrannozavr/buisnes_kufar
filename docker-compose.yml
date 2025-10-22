@@ -25,7 +25,9 @@ services:
       - ./frontend/.env
     environment:
       NUXT_UI_FONTS: "false"
+      # Для production используем относительный путь через nginx proxy
       VITE_PUBLIC_API_URL: "/api"
+      API_BASE_URL: "http://backend:8000/api"
     restart: unless-stopped
     ports:
       - "3000:3000"

@@ -16,11 +16,11 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys that are exposed to the server
-    apiBaseUrl: process.env.API_BASE_URL || 'http://backend:8000/api',
+    apiBaseUrl: process.env.API_BASE_URL,
     
     // Keys within public are also exposed to the client
     public: {
-      apiBaseUrl: process.env.VITE_PUBLIC_API_URL || '/api'
+      apiBaseUrl: process.env.VITE_PUBLIC_API_URL
     }
   },
   // Настройки для работы через nginx
@@ -80,9 +80,13 @@ export default defineNuxtConfig({
   },
   // Настройки для правильной генерации путей
   vite: {
-    server: {
-      host: '0.0.0.0',
-      port: 3000
+    // Другие настройки Vite можно добавить здесь
+  },
+  // Конфигурация PostCSS
+  postcss: {
+    plugins: {
+      '@tailwindcss/postcss': {},
+      autoprefixer: {},
     }
   }
 })

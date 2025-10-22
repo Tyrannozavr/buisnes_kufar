@@ -31,6 +31,7 @@ services:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1"]'
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -57,7 +58,9 @@ services:
       - ./frontend/.env
     environment:
       NUXT_UI_FONTS: "false"
-      VITE_PUBLIC_API_URL: "/api"
+      # Для dev используем полный URL для прямого обращения к backend
+      VITE_PUBLIC_API_URL: "http://localhost:8000/api"
+      API_BASE_URL: "http://backend:8000/api"
       NODE_ENV: "development"
     restart: unless-stopped
     ports:

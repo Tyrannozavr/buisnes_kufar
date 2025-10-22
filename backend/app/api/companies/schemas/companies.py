@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -17,21 +17,21 @@ class CompanyListItem(CompanyLogoUrlMixin):
     trade_activity: TradeActivity
     business_type: BusinessType
     activity_type: str
-    description: Optional[str] = None
+    description: str | None = None
     country: str
     federal_district: str
     region: str
     city: str
     full_name: str
-    inn: str
-    ogrn: str
+    inn: str | None = None
+    ogrn: str | None = None
     kpp: str
     registration_date: datetime
     legal_address: str
-    production_address: Optional[str] = None
+    production_address: str | None = None
     phone: str
     email: str
-    website: Optional[str] = None
+    website: str | None = None
     officials: List[CompanyOfficial]
     total_views: int
     monthly_views: int

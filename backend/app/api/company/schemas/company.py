@@ -174,9 +174,9 @@ class CompanyResponse(CompanyLogoUrlMixin):
     region: str
     city: str
     full_name: str
-    inn: str
+    inn: str | None
     ogrn: str | int | None
-    kpp: str | int
+    kpp: str | int | None
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None

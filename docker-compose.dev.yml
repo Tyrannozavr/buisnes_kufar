@@ -1,4 +1,54 @@
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "postgres"
+    command: >
+      -c shared_buffers=512MB
+      -c max_connections=200
+      -c idle_in_transaction_session_timeout=10s
+      -c tcp_keepalives_idle=60
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres-data-dev:/var/lib/postgresql/data:cached
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Пробрасываем весь код backend для hot reload
+      - ./backend:/app:cached
+      # Кэшируем зависимости poetry для быстрой установки
+      - backend_poetry_cache:/root/.cache/pypoetry
+      # Кэшируем виртуальное окружение poetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      # Пробрасываем логи и кэш для разработки
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
@@ -20,7 +70,11 @@ services:
       # Кэшируем npm кэш для jiti и других инструментов
       - frontend_npm_cache:/app/node_modules/.cache
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    depends_on:
+      - backend
 
 volumes:
   frontend_node_modules:
   frontend_npm_cache:
+  backend_poetry_cache:
+  backend_venv:

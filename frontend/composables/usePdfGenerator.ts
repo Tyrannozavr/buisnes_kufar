@@ -40,14 +40,13 @@ export const usePdfGenerator = () => {
 
   const downloadPdf = async (element: HTMLElement | null, fileName: string) => {		
 		const newElement = replaceTextareasAndInputs(element)
-    console.log(newElement);
 
     const canvas = await html2canvas(newElement, { scale: 1, useCORS: true });
     const imgData = canvas.toDataURL("img/pdf");
 
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.width;
+    const pageHeight = pdf.internal.pageSize.height;
 
     const imgWidth = pageWidth * 0.85;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -69,7 +68,7 @@ export const usePdfGenerator = () => {
 
 const printDocument = (element: HTMLElement | any): void => {
 	const newElement = replaceTextareasAndInputs(element)
-	const printWindow = window.open('','', 'height=842, width=595')
+	const printWindow = window.open('','', 'height=600, width=900')
 	printWindow?.document.writeln(`
 	<html>
 		<head>

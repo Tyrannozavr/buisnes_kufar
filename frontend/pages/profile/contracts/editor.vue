@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<UTabs v-model="activeTab" color="neutral" :items="items" size="md" variant="pill"
-			class="max-h-screen overflow-x-auto overscroll-auto">
+			class="max-h-[100%] overflow-y-hidden">
 			<template #order="{ item }">
 				<Order />
 

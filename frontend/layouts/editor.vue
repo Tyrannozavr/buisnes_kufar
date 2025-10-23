@@ -3,13 +3,13 @@
 		<div class="flex flex-row justify-between">
 
 			<!-- template -->
-			<div class="w-2/3 mr-5 p-3">
+			<div class="w-[70%] mr-1 p-3 h-[100%] overflow-y-hidden">
 				<Editor @tabIndex="getTabs">
 					<slot />
 				</Editor>
 			</div>
 			<!-- editor -->
-			<div class="basis-1/3">
+			<div class="w-[30%]">
 				<UCard variant="subtle" class="  top-26">
 
 					<div class="flex flex-col justify-between gap-5">
@@ -40,23 +40,23 @@
 						</div>
 
 						<div class="flex flex-col gap-2">
-							<UButton label="Создать СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
+							<UButton label="СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
 								:disabled="activeButtons" @click="inDevelopment()"/>
-							<UButton label="Создать ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
+							<UButton label="ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
 								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
-							<UButton label="Создать Сопроводительные документы на основании" color="neutral" variant="subtle"
+							<UButton label="Сопроводительные документы на основании" color="neutral" variant="subtle"
 								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
-							<UButton label="Создать СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
+							<UButton label="СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
 								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
 						</div>
 
-						<div class="flex flex-row justify-between">
+						<div class="flex flex-row justify-between gap-1 w-full">
 							<UCollapsible class="gap-3">
 								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
-									icon="i-lucide-search" class="p-3 h-[44px]" />
+									icon="i-lucide-search" class="p-1 h-10 text-sm" />
 
 								<template #content>
-									<div class="mt-4 w-101 absolute">
+									<div class="mt-4 w-79 absolute">
 										<input type="text" name="search" v-model="inputValue"
 											@input="searchInCurrentDocument(tabIndex, orderElement)"
 											class="border border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
@@ -66,11 +66,11 @@
 							</UCollapsible>
 
 							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
-								class="p-3 w-[97px] h-[44px]" :disabled="activeButtons" />
+								class="p-1 w-[97px] h-10 text-sm" :disabled="activeButtons" />
 							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
-								icon="i-lucide-dock" class="p-3 w-[81px] h-[44px]" :disabled="activeButtons" />
+								icon="i-lucide-dock" class="p-1 w-[81px] h-10 text-sm" :disabled="activeButtons" />
 							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
-								class="p-3 w-[77px] h-[44px]" :disabled="activeButtons" />
+								class="p-1 w-[77px] h-10 text-sm" :disabled="activeButtons" />
 						</div>
 
 						<div class="flex flex-col gap-2">
@@ -85,7 +85,7 @@
 						</div>
 
 						<div>
-							<UButton label="Сохранить документ" icon="i-lucide-save" size="xl" class="w-full justify-center"
+							<UButton label="Сохранить изменения" icon="i-lucide-save" size="xl" class="w-full justify-center"
 								:disabled="activeButtons" @click="saveChanges(tabIndex)"/>
 						</div>
 

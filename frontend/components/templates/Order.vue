@@ -266,7 +266,8 @@ const removeProduct = (product: any): void => {
 </script>
 
 <template>
-	<div ref="element" class="font-serif text-l text-justify text-pretty w-full p-5">
+	<div class="shadow-md m-1 bg-gray-50 overflow-y-hidden">
+	<div ref="element" class="font-serif text-md text-justify text-pretty p-5 mt-3 h-[99%] overflow-y-hidden">
 		<table>
 			<tr>
 				<td><span>Поставщик:</span> </td>
@@ -299,11 +300,11 @@ const removeProduct = (product: any): void => {
 
 		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 			<thead>
-				<th class="w-7 border"><span>№</span></th>
-				<th class="w-55 border"><span>Название продукта</span></th>
+				<th class="w-5 border"><span>№</span></th>
+				<th class="w-50 border"><span>Название продукта</span></th>
 				<th class="w-15 border"><span>Артикул</span></th>
 				<th class="w-10 border"><span>Кол-во</span></th>
-				<th class="w-10 border"><span>Ед. изм.</span></th>
+				<th class="w-13 border"><span>Ед. изм.</span></th>
 				<th class="w-15 border"><span>Цена</span></th>
 				<th class="w-20 border"><span>Сумма</span></th>
 				<th class="w-1"><span></span></th>
@@ -314,22 +315,22 @@ const removeProduct = (product: any): void => {
 						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-75" placeholder="Название" v-model.lazy="product.name" />
+						<input :disabled="disabledInput" class="w-72" placeholder="Название" v-model.lazy="product.name" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Артикул"
+						<input :disabled="disabledInput" class="w-21 text-center" placeholder="Артикул"
 							v-model.lazy="product.article" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Кол-во"
+						<input :disabled="disabledInput" class="w-14 text-center" placeholder="Кол-во"
 							v-model.lazy="product.quantity" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-13 text-center" placeholder="Ед. изм."
+						<input :disabled="disabledInput" class="w-18 text-center" placeholder="Ед. изм."
 							v-model.lazy="product.units" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-20 text-center" placeholder="Цена" v-model.lazy="product.price" />
+						<input :disabled="disabledInput" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
 						<span class="">{{ product.amount }}</span>
@@ -371,7 +372,8 @@ const removeProduct = (product: any): void => {
 		<br />
 
 		<textarea :disabled="disabledInput" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
-			class="w-full max-h-20" />
+			class="w-full h-15 max-h-40" />
+	</div>
 	</div>
 </template>
 

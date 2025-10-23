@@ -225,7 +225,14 @@ class CompanyProductsRepository:
             base_query = base_query.where(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id)).where(
+            and_(
+                Product.type == ProductType.GOOD,
+                Product.is_deleted == False
+            )
+        )
+        if not include_hidden:
+            count_query = count_query.where(Product.is_hidden == False)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
@@ -258,7 +265,14 @@ class CompanyProductsRepository:
             base_query = base_query.where(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id)).where(
+            and_(
+                Product.type == ProductType.GOOD,
+                Product.is_deleted == False
+            )
+        )
+        if not include_hidden:
+            count_query = count_query.where(Product.is_hidden == False)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 

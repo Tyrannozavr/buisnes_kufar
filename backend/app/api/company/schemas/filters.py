@@ -17,6 +17,7 @@ class CompanyFiltersResponse(BaseModel):
 
 class ProductFilterRequest(BaseModel):
     search: Optional[str] = None
+    cities: Optional[List[int]] = None  # Добавляем массив ID городов
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
@@ -30,6 +31,7 @@ class ProductFilterRequest(BaseModel):
 
 class ServiceFilterRequest(BaseModel):
     search: Optional[str] = None
+    cities: Optional[List[int]] = None  # Добавляем массив ID городов
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None

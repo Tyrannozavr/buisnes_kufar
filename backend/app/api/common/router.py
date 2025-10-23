@@ -11,8 +11,8 @@ from ..common.schemas.location import LocationResponse
 from ..common.utils.caching import get_cached_regions, get_cached_cities
 from ..common.utils.location_api import LocationAPIError
 from ..common.utils.location_data import (
-    get_countries,
-    get_federal_districts,
+    get_countries as fetch_countries,
+    get_federal_districts as fetch_federal_districts,
 )
 
 router = APIRouter(tags=["locations"])
@@ -67,7 +67,7 @@ async def unify_list(items: list) -> list:
 async def get_countries():
     """Получить список всех стран"""
     try:
-        countries = await get_countries()
+        countries = fetch_countries()
         return LocationResponse(
             items=countries,
             total=len(countries)
@@ -80,7 +80,7 @@ async def get_countries():
 async def get_federal_districts(country: str = Query(..., description="Название страны")):
     """Получить список федеральных округов по стране"""
     try:
-        districts = await get_federal_districts(country)
+        districts = fetch_federal_districts()
         return LocationResponse(
             items=districts,
             total=len(districts)
@@ -96,7 +96,22 @@ async def get_regions(
 ):
     """Получить список регионов по стране и федеральному округу"""
     try:
-        regions = await get_cached_regions(country, federal_district)
+        cache_key, regions = get_cached_regions(country, federal_district)
+        return LocationResponse(
+            items=regions,
+            total=len(regions)
+        )
+    except LocationAPIError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/regions/{country_code}", response_model=LocationResponse)
+async def get_regions_by_country(
+    country_code: str = Path(..., description="Код страны")
+):
+    """Получить список регионов по коду страны"""
+    try:
+        cache_key, regions = get_cached_regions(country_code, None)
         return LocationResponse(
             items=regions,
             total=len(regions)
@@ -116,7 +131,7 @@ async def get_cities(
 ):
     """Получить список городов по стране, региону и федеральному округу"""
     try:
-        cities = await get_cached_cities(
+        cache_key, cities = await get_cached_cities(
             country, region, federal_district, search, 
             million_cities_only, regional_centers_only
         )

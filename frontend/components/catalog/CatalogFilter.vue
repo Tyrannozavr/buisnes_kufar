@@ -319,7 +319,7 @@ onMounted(async () => {
 // Загружаем страны из нового API
 const loadCountriesFromNewAPI = async () => {
   try {
-    const response = await $api.get('/v1/locations/v2/countries')
+    const response = await $api.get('/v1/locations/countries')
     filterData.value.countries = response.items || []
   } catch (error) {
     console.error('Error loading countries from new API:', error)
@@ -332,7 +332,7 @@ const loadAllRegionsAndCities = async () => {
     // Загружаем регионы для всех стран
     const regionsPromises = filterData.value.countries.map(async (country) => {
       try {
-        const response = await $api.get(`/v1/locations/v2/regions?country_code=${country.value}`)
+        const response = await $api.get(`/v1/locations/regions/${country.value}`)
         return response.items || []
       } catch (error) {
         console.error(`Error loading regions for ${country.value}:`, error)
@@ -347,7 +347,7 @@ const loadAllRegionsAndCities = async () => {
     const citiesPromises = allRegions.value.map(async (region) => {
       try {
         const countryCode = region.value.split('_')[0]
-        const response = await $api.get(`/v1/locations/v2/cities?country_code=${countryCode}&region_code=${region.value}`)
+        const response = await $api.get(`/v1/locations/cities?country=${countryCode}&region=${region.value}`)
         return response.items || []
       } catch (error) {
         console.error(`Error loading cities for ${region.value}:`, error)

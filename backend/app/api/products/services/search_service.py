@@ -118,6 +118,10 @@ class ProductSearchService:
                 )
             )
 
+        # Фильтр по городам (массив ID городов)
+        if filter_request.cities:
+            conditions.append(Company.city_id.in_(filter_request.cities))
+
         # Фильтр по стране
         if filter_request.country:
             conditions.append(Company.country == filter_request.country)

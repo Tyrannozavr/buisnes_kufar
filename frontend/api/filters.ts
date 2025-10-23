@@ -23,6 +23,7 @@ export interface CompanyFiltersResponse {
 
 export interface ProductFilterRequest {
   search?: string
+  cities?: number[] // Добавляем массив ID городов
   country?: string
   federal_district?: string
   region?: string
@@ -36,6 +37,7 @@ export interface ProductFilterRequest {
 
 export interface ServiceFilterRequest {
   search?: string
+  cities?: number[] // Добавляем массив ID городов
   country?: string
   federal_district?: string
   region?: string
@@ -55,21 +57,21 @@ export const useProductFilters = () => {
   }
   
   const getCitiesByLocation = async (countryCode: string, regionCode?: string): Promise<FilterItem[]> => {
-    const params = new URLSearchParams({ country_code: countryCode })
+    const params = new URLSearchParams({ country: countryCode })
     if (regionCode) {
-      params.append('region_code', regionCode)
+      params.append('region', regionCode)
     }
-    const response = await $api.get(`/v1/locations/v2/cities?${params.toString()}`)
+    const response = await $api.get(`/v1/locations/cities?${params.toString()}`)
     return response.items || []
   }
   
   const getRegionsByCountry = async (countryCode: string): Promise<FilterItem[]> => {
-    const response = await $api.get(`/v1/locations/v2/regions?country_code=${countryCode}`)
+    const response = await $api.get(`/v1/locations/regions/${countryCode}`)
     return response.items || []
   }
   
   const getFederalDistrictsByCountry = async (countryCode: string): Promise<FilterItem[]> => {
-    const response = await $api.get(`/v1/locations/v2/federal-districts?country_code=${countryCode}`)
+    const response = await $api.get(`/v1/locations/federal-districts?country=${countryCode}`)
     return response.items || []
   }
   

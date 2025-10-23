@@ -90,6 +90,13 @@ def get_regions(country: str, federal_district: Optional[str] = None) -> List[Di
     return REGIONS.get(country, [])
 
 
-def get_cities(country: str, region: str) -> List[Dict[str, str]]:
+def get_cities(
+    country: str, 
+    region: Optional[str] = None, 
+    federal_district: Optional[str] = None, 
+    search: Optional[str] = None, 
+    million_cities_only: bool = False, 
+    regional_centers_only: bool = False
+) -> List[Dict[str, str]]:
     """Получить список городов по региону"""
     return CITIES.get(region, [])

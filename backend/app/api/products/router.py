@@ -9,7 +9,7 @@ from app.api.authentication.models.user import User
 from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest
 from app.api.products.dependencies import product_service_dep, get_filter_service, get_search_service
 from app.api.products.models.product import ProductType
-from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse
+from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse, CitiesProductCountResponse
 from app.api.products.schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -255,6 +255,15 @@ async def get_service_filters(
 ):
     """Получить фильтры для услуг"""
     return await filter_service.get_service_filters()
+
+
+@public_router.get("/cities-count", response_model=CitiesProductCountResponse)
+async def get_cities_product_count(
+        filter_service: Annotated[FilterService, Depends(get_filter_service)]
+):
+    """Получить количество товаров для всех городов"""
+    cities_data = await filter_service.get_cities_product_count(ProductType.GOOD)
+    return CitiesProductCountResponse(cities=cities_data)
 
 
 @public_router.get("/", response_model=ProductListResponse)

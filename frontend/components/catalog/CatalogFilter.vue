@@ -81,6 +81,10 @@ const citiesData = ref<any>(null)
 const citiesLoading = ref(false)
 const citiesError = ref<string | null>(null)
 
+// Данные о количестве товаров по городам
+const citiesProductCount = ref<any[]>([])
+const citiesProductCountLoading = ref(false)
+
 // Filter mode
 const isAdvancedMode = ref(false)
 
@@ -95,7 +99,7 @@ const expandedRegions = ref<number[]>([])
 const loadFilters = async () => {
   filtersLoading.value = true
   filtersError.value = null
-  
+
   try {
     let response
     if (props.type === 'products') {
@@ -103,7 +107,7 @@ const loadFilters = async () => {
     } else {
       response = await getServiceFilters()
     }
-    
+
     filterData.value = {
       countries: response.countries,
       federal_districts: response.federal_districts,
@@ -112,9 +116,22 @@ const loadFilters = async () => {
     }
   } catch (error) {
     filtersError.value = `Ошибка загрузки фильтров: ${error}`
-    console.error('Error loading filters:', error)
+    console.error('❌ Ошибка загрузки фильтров:', error)
   } finally {
     filtersLoading.value = false
+  }
+}
+
+const loadCitiesProductCount = async () => {
+  citiesProductCountLoading.value = true
+  try {
+    const response = await $api.get('/v1/products/cities-count')
+    citiesProductCount.value = response.cities || []
+  } catch (error) {
+    console.error('❌ Ошибка загрузки количества товаров по городам:', error)
+    citiesProductCount.value = []
+  } finally {
+    citiesProductCountLoading.value = false
   }
 }
 
@@ -297,6 +314,13 @@ const isRegionSelected = (regionId: number): boolean => {
 
 // Stats functions
 const getCountryStats = (country: any): string => {
+  // Ищем страну в данных фильтров
+  const filterCountry = filterData.value.countries.find(c => c.value === country.name)
+  if (filterCountry && filterCountry.count > 0) {
+    return `${filterCountry.count} товаров`
+  }
+  
+  // Fallback к старой логике
   const totalCities = country.federal_districts.reduce((sum: number, fd: any) => 
     sum + fd.regions.reduce((regionSum: number, region: any) => regionSum + region.cities.length, 0), 0
   )
@@ -304,13 +328,52 @@ const getCountryStats = (country: any): string => {
 }
 
 const getFederalDistrictStats = (fd: any): string => {
+  // Ищем федеральный округ в данных фильтров
+  const filterFD = filterData.value.federal_districts.find(f => f.value === fd.name)
+  if (filterFD && filterFD.count > 0) {
+    return `${filterFD.count} товаров`
+  }
+  
+  // Fallback к старой логике
   const totalCities = fd.regions.reduce((sum: number, region: any) => sum + region.cities.length, 0)
   return `${totalCities} городов`
+}
+
+const getRegionStats = (region: any): string => {
+  // Проверяем, загружены ли данные о количестве товаров по городам
+  if (citiesProductCountLoading.value) {
+    return '...'
+  }
+  
+  // Суммируем количество товаров из всех городов этого региона
+  const totalProducts = region.cities.reduce((sum: number, city: any) => {
+    const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
+    return sum + (cityData ? cityData.product_count : 0)
+  }, 0)
+  
+  return `${totalProducts} товаров`
+}
+
+const getCityStats = (city: any): string => {
+  // Проверяем, загружены ли данные о количестве товаров по городам
+  if (citiesProductCountLoading.value) {
+    return '...'
+  }
+  
+  // Ищем город в данных о количестве товаров
+  const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
+  if (cityData) {
+    return `${cityData.product_count} товаров`
+  }
+  
+  // Если город не найден, значит для него нет товаров
+  return '0 товаров'
 }
 
 // Load initial data
 onMounted(async () => {
   await loadFilters()
+  await loadCitiesProductCount()
   await loadCountriesFromNewAPI()
   await loadAllRegionsAndCities()
   await loadCitiesData()
@@ -494,7 +557,7 @@ const loadAllRegionsAndCities = async () => {
                                 class="w-4 h-4 text-gray-500"
                               />
                               <span class="text-sm">{{ region.name }}</span>
-                              <span class="text-xs text-gray-500">({{ region.cities.length }})</span>
+                              <span class="text-xs text-gray-500">({{ getRegionStats(region) }})</span>
                             </div>
                           </div>
                           
@@ -507,25 +570,8 @@ const loadAllRegionsAndCities = async () => {
                                   @update:model-value="toggleCitySelection(city.id)"
                                 />
                                 <div class="flex items-center gap-2 flex-1">
-                                  <span class="text-sm">{{ city.name }}</span>
-                                  <div class="flex gap-1">
-                                    <UBadge 
-                                      v-if="city.is_million_city" 
-                                      size="xs" 
-                                      color="blue" 
-                                      variant="soft"
-                                    >
-                                      Миллионник
-                                    </UBadge>
-                                    <UBadge 
-                                      v-if="city.is_regional_center" 
-                                      size="xs" 
-                                      color="green" 
-                                      variant="soft"
-                                    >
-                                      Центр
-                                    </UBadge>
-                                  </div>
+                <span class="text-sm">{{ city.name }}</span>
+                <span class="text-xs text-gray-500">({{ getCityStats(city) }})</span>
                                 </div>
                               </div>
                             </div>

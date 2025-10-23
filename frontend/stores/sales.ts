@@ -7,6 +7,7 @@ import type {
 	Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
+import { salesGoodsData, salesServiceData } from "~/examples/exampleStoreData";
 
 interface Sales {
 	sales: {
@@ -19,129 +20,11 @@ export const useSalesStore = defineStore("sales", {
 	state: (): Sales => ({
 		sales: {
 			goodsDeals: [
-				{
-					dealNumber: 777777,
-					goods: {
-						goodsList: [
-							{
-								name: "Что-то жесткое",
-								article: 33333,
-								quantity: 3,
-								units: "штуковина",
-								price: 33_000,
-								amount: 0,
-								type: "товар",
-							},
-						],
-						amountPrice: 0,
-						amountWord: "",
-						comments: "",
-					},
-					date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-					saller: {
-						inn: 7777777,
-						name: "Кузя",
-						companyName: "Кузя принимает",
-						legalAddress: "432 ГВКМЦ",
-						mobileNumber: "+77777777",
-					},
-					buyer: {
-						inn: 3423423,
-						name: "Sergey",
-						companyName: "Home secrets",
-						legalAddress: "Minsk, Svisloch river",
-						mobileNumber: "+3754445457474",
-					},
-					state: "Активно",
-					bill: "создать счет",
-					supplyContract: "создать договор поставки",
-					accompanyingDocuments: "создать сопроводительные документы",
-					invoice: "создать счет-фактуру",
-					othersDocuments: "просмотр",
-				},
-				{
-					dealNumber: 444,
-					goods: {
-						goodsList: [
-							{
-								name: "Купилка",
-								article: 7788,
-								quantity: 1,
-								units: "штучка",
-								price: 77_888,
-								amount: 0,
-								type: "товар",
-							},
-						],
-						amountPrice: 0,
-						amountWord: "",
-						comments: "",
-					},
-					date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-					saller: {
-						inn: 3423423,
-						name: "Sergey",
-						companyName: "Home secrets",
-						legalAddress: "Minsk, Svisloch river",
-						mobileNumber: "+3754445457474",
-					},
-					buyer: {
-						inn: 6666666,
-						name: "Yasha Lava",
-						companyName: "DeppAndHard",
-						legalAddress: "somewhere",
-						mobileNumber: "+23423423433",
-					},
-					state: "Завершено",
-					bill: "00012 от 8.04.25",
-					supplyContract: "00236 от 8.04.25 г.",
-					accompanyingDocuments: "УПД 12345 от 8.04.25 г",
-					invoice: "просмотр",
-					othersDocuments: "просмотр",
-				},
+				...salesGoodsData
 			],
 
 			servicesDeals: [
-				{
-					dealNumber: 555,
-					services: {
-						servicesList: [
-							{
-								name: "Какая-то странная услуга",
-								article: 68686,
-								quantity: 1,
-								units: "услуга",
-								price: 68_000,
-								amount: 0,
-								type: "услуга",
-							},
-						],
-						amountPrice: 0,
-						amountWord: "",
-						comments: "",
-					},
-					date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-					saller: {
-						inn: 3423423,
-						name: "Sergey",
-						companyName: "Home secrets",
-						legalAddress: "Minsk, Svisloch river",
-						mobileNumber: "+3754445457474",
-					},
-					buyer: {
-						inn: 7777777,
-						name: "Yasha Lava",
-						companyName: "DeppAndHard",
-						legalAddress: "somewhere",
-						mobileNumber: "+23423423433",
-					},
-					state: "Активно",
-					bill: "просмотр",
-					contract: "просмотр",
-					act: "просмотр",
-					invoice: "просмотр",
-					othersDocuments: "просмотр",
-				},
+				...salesServiceData
 			],
 		},
 	}),

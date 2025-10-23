@@ -6,6 +6,7 @@ import type {
   Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
+import { purchasesGoodsData, purchasesServiceData } from "~/examples/exampleStoreData";
 
 interface Purchases {
   purchases: {
@@ -18,129 +19,11 @@ export const usePurchasesStore = defineStore("purchases", {
   state: (): Purchases => ({
     purchases: {
       goodsDeals: [
-        {
-          dealNumber: 7777,
-          goods: {
-            goodsList: [
-              {
-                name: "Что-то жесткое",
-                article: 33333,
-                quantity: 3,
-                units: "штуковина",
-                price: 33_000,
-                amount: 0,
-                type: "товар",
-              },
-            ],
-            amountPrice: 0,
-            amountWord: "",
-            comments: "",
-          },
-          date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-          saller: {
-            inn: 7777777,
-            name: "Кузя",
-            companyName: "Кузя принимает",
-            legalAddress: "432 ГВКМЦ",
-            mobileNumber: "+77777777",
-          },
-          buyer: {
-            inn: 3423423,
-            name: "Sergey",
-            companyName: "Home secrets",
-            legalAddress: "Minsk, Svisloch river",
-            mobileNumber: "+3754445457474",
-          },
-          state: "Активно",
-          bill: "просмотр",
-          supplyContract: "просмотр",
-          accompanyingDocuments: "просмотр",
-          invoice: "просмотр",
-          othersDocuments: "просмотр",
-        },
-        {
-          dealNumber: 6666,
-          goods: {
-            goodsList: [
-              {
-                name: "Что-то уругое",
-                article: 696969,
-                quantity: 1,
-                units: "штучка",
-                price: 69_000,
-                amount: 0,
-                type: "товар",
-              },
-            ],
-            amountPrice: 0,
-            amountWord: "",
-            comments: "",
-          },
-          date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-          saller: {
-            inn: 6666666,
-            name: "Yasha Lava",
-            companyName: "DeppAndHard",
-            legalAddress: "somewhere",
-            mobileNumber: "+23423423433",
-          },
-          buyer: {
-            inn: 3423423,
-            name: "Sergey",
-            companyName: "Home secrets",
-            legalAddress: "Minsk, Svisloch river",
-            mobileNumber: "+3754445457474",
-          },
-          state: "Завершено",
-          bill: "просмотр",
-          supplyContract: "просмотр",
-          accompanyingDocuments: "просмотр",
-          invoice: "просмотр",
-          othersDocuments: "просмотр",
-        },
+				...purchasesGoodsData
       ],
 
       servicesDeals: [
-        {
-          dealNumber: 666,
-          services: {
-            servicesList: [
-              {
-                name: "Что-то уругое",
-                article: 696969,
-                quantity: 2,
-                units: "штучка",
-                price: 69_000,
-                amount: 0,
-                type: "товар",
-              },
-            ],
-            amountPrice: 0,
-            amountWord: "",
-            comments: "",
-          },
-          date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-          saller: {
-            inn: 7777777,
-            name: "Yasha Lava",
-            companyName: "DeppAndHard",
-            legalAddress: "somewhere",
-            mobileNumber: "+23423423433",
-          },
-          buyer: {
-            inn: 3423423,
-            name: "Sergey",
-            companyName: "Home secrets",
-            legalAddress: "Minsk, Svisloch river",
-            mobileNumber: "+3754445457474",
-          },
-          state: "Активно",
-          bill: "просмотр",
-          contract: "просмотр",
-          act: "просмотр",
-          invoice: "просмотр",
-          othersDocuments: "просмотр",
-        },
+        ...purchasesServiceData
       ],
     },
   }),

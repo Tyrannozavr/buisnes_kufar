@@ -13,6 +13,21 @@ services:
     profiles:
       - migrations
 
+  cache-init:
+    image: postgres:15-alpine
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ./scripts:/scripts
+    command: ["/scripts/init_cache.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    profiles:
+      - cache-init
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -163,8 +178,8 @@ services:
       RABBITMQ_DEFAULT_PASS: "admin123"
       RABBITMQ_DEFAULT_VHOST: "/"
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:

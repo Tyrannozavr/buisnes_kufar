@@ -3,7 +3,8 @@ import type { OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
-import type { Insert } from '~/types/contracts';
+import { injectionKeys } from '~/constants/keys';
+import { RequestedType } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
@@ -26,14 +27,14 @@ let orderData: Ref<OrderData> = ref({
 	products,
 })
 
-const insertState = inject<Ref<Insert>>('insertState', ref({
+const insertState = inject(injectionKeys.insertStateKey, ref({
 	purchasesStateGood: false,
 	purchasesStateService: false,
 	salesStateGood: false,
 	salesStateService: false,
 }))
 
-let requestedData: string = ''
+let requestedData = ''
 
 watch(() => insertState.value,
 	() => {
@@ -41,28 +42,28 @@ watch(() => insertState.value,
 		let lastServicesDeal: ServicesDeal | undefined = undefined
 
 		if (insertState.value.purchasesStateGood) {
-			requestedData = 'purchases-good'
+			requestedData = RequestedType.PURCHASES_GOOD
 			if (purchasesStore.lastGoodsDeal) {
 				lastGoodsDeal = purchasesStore.lastGoodsDeal
 			}
 			insertState.value.purchasesStateGood = false
 
 		} else if (insertState.value.purchasesStateService) {
-			requestedData = 'purchases-service'
+			requestedData = RequestedType.PURCHASES_SERVICE
 			if (purchasesStore.lastServicesDeal) {
 				lastServicesDeal = purchasesStore.lastServicesDeal
 			}
 			insertState.value.purchasesStateService = false
 
 		} else if (insertState.value.salesStateGood) {
-			requestedData = 'sales-good'
+			requestedData = RequestedType.SALES_GOOD
 			if (salesStore.lastGoodsDeal) {
 				lastGoodsDeal = salesStore.lastGoodsDeal
 			}
 			insertState.value.salesStateGood = false
 
 		} else if (insertState.value.salesStateService) {
-			requestedData = 'sales-service'
+			requestedData = RequestedType.SALES_SERVICE
 			if (salesStore.lastServicesDeal) {
 				lastServicesDeal = salesStore.lastServicesDeal
 			}
@@ -71,7 +72,8 @@ watch(() => insertState.value,
 
 		console.log(requestedData)
 
-		if ((requestedData === 'purchases-good' || 'sales-good') && typeof (lastGoodsDeal) !== 'undefined') {
+		if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD) 
+		&& lastGoodsDeal) {
 			
 			products = lastGoodsDeal.goods.goodsList?.map((product: Product) => ({
 				name: product.name,
@@ -101,7 +103,8 @@ watch(() => insertState.value,
 			}
 		}
 
-		if ((requestedData === 'purchases-service' || 'sales-service') && typeof (lastServicesDeal) !== 'undefined') {
+		if ((requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE) 
+		&& lastServicesDeal) {
 			
 			products = lastServicesDeal.services.servicesList?.map((product: Product) => ({
 				name: product.name,
@@ -134,11 +137,11 @@ watch(() => insertState.value,
 	{ deep: true }
 )
 
-const changeState: Ref<Boolean> = inject('changeStateOrder', ref(false))
+const changeState = inject(injectionKeys.changeStateOrderKey, ref(false))
 
 watch(() => changeState.value,
 	() => {
-		if (requestedData === 'purchases-good') {
+		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			purchasesStore.editGood(orderData.value.orderNumber, products)
 			purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
 			purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
@@ -146,7 +149,7 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				purchasesStore.editGoodsComments(orderData.value.orderNumber, orderData.value.comments)
 			}
-		} else if (requestedData === 'purchases-service') {
+		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 			purchasesStore.editService(orderData.value.orderNumber, products)
 			purchasesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
 			purchasesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
@@ -154,7 +157,7 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
-		} else if (requestedData === 'sales-good') {
+		} else if (requestedData === RequestedType.SALES_GOOD) {
 			salesStore.editGood(orderData.value.orderNumber, products)
 			salesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
 			salesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
@@ -162,7 +165,7 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
-		} else if (requestedData === 'sales-service') {
+		} else if (requestedData === RequestedType.SALES_SERVICE) {
 			salesStore.editService(orderData.value.orderNumber, products)
 			salesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
 			salesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
@@ -181,7 +184,11 @@ watch(() => changeState.value,
 const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
 const addProduct = () => {
-	const productType: string = requestedData === 'purchases-good' || 'sales-good' ? 'товар' : 'услуга'
+	const productType: string = 
+	(requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD) 
+	? 'товар' 
+	: 'услуга'
+
 	const product: Product = {
 		name: '',
 		article: Number(),
@@ -195,10 +202,11 @@ const addProduct = () => {
 	orderData.value.products.push(product)
 }
 
-const disabledInput = inject<Ref<boolean>>('disabledInput', ref(true))
+const isDisabled = inject(injectionKeys.isDisabledKey, ref(true)) 
+
 
 //clear form button
-let clearState = inject<Ref<boolean>>('clearState', ref(false))
+const clearState = inject(injectionKeys.clearStateKey, ref(false))
 
 const clearForm = () => {
 	console.log('clearForm')
@@ -206,8 +214,8 @@ const clearForm = () => {
 	saller = {} as Person
 	buyer = {} as Person
 
-	amount = computed(() => NaN)
-	amountWord = computed(() => '')
+	amount = computed(() => NaN),
+	amountWord = computed(() => ''),
 
 	orderData.value = {
 		orderNumber: NaN,
@@ -232,19 +240,19 @@ watch(() => clearState.value,
 )
 
 //delete deal button
-const removeDealState = inject<Ref<boolean>>('removeDealState', ref(false))
+const removeDealState = inject(injectionKeys.removeDealStateKey, ref(false))
 
 const removeDeal = (requestedData: string) => {
-	if (requestedData === 'purchases-good') {
+	if (requestedData === RequestedType.PURCHASES_GOOD) {
 		purchasesStore.removeGoodsDeal(orderData.value.orderNumber)
 
-	} else if (requestedData === 'purchases-service') {
+	} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 		purchasesStore.removeServicesDeal(orderData.value.orderNumber)
 
-	} else if (requestedData === 'sales-good') {
+	} else if (requestedData === RequestedType.SALES_GOOD) {
 		salesStore.removeGoodsDeal(orderData.value.orderNumber)
 
-	} else if (requestedData === 'sales-service') {
+	} else if (requestedData === RequestedType.SALES_SERVICE) {
 		salesStore.removeServicesDeal(orderData.value.orderNumber)
 	}
 
@@ -272,11 +280,11 @@ const removeProduct = (product: any): void => {
 			<tr>
 				<td><span>Поставщик:</span> </td>
 				<td style="padding-inline: 10px;">
-					<input :disabled="disabledInput" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
-					<input :disabled="disabledInput" placeholder="Название компании"
+					<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
+					<input :disabled="isDisabled" placeholder="Название компании"
 						v-model.lazy="orderData.saller.companyName" /><br />
-					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
-					<input :disabled="disabledInput" placeholder="Контактный телефон"
+					<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
+					<input :disabled="isDisabled" placeholder="Контактный телефон"
 						v-model.trim.lazy="orderData.saller.mobileNumber" />
 				</td>
 			</tr>
@@ -285,10 +293,10 @@ const removeProduct = (product: any): void => {
 					<span>Покупатель:</span>
 				</td>
 				<td style="padding-inline: 10px;">
-					<input :disabled="disabledInput" placeholder="Название компании"
+					<input :disabled="isDisabled" placeholder="Название компании"
 						v-model.lazy="orderData.buyer.companyName" /><br />
-					<input :disabled="disabledInput" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
-					<input :disabled="disabledInput" placeholder="Контактный телефон"
+					<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
+					<input :disabled="isDisabled" placeholder="Контактный телефон"
 						v-model.lazy="orderData.buyer.mobileNumber" /><br />
 				</td>
 			</tr>
@@ -315,28 +323,28 @@ const removeProduct = (product: any): void => {
 						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-72" placeholder="Название" v-model.lazy="product.name" />
+						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-21 text-center" placeholder="Артикул"
+						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
 							v-model.lazy="product.article" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-14 text-center" placeholder="Кол-во"
+						<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
 							v-model.lazy="product.quantity" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-18 text-center" placeholder="Ед. изм."
+						<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
 							v-model.lazy="product.units" />
 					</td>
 					<td class="border">
-						<input :disabled="disabledInput" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
+						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
 						<span class="">{{ product.amount }}</span>
 					</td>
 					<td>
-						<span :hidden="disabledInput" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
+						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
 							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
 								width="32" height="32" viewBox="0 0 24 24">
 								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
@@ -349,7 +357,7 @@ const removeProduct = (product: any): void => {
 					</td>
 
 				</tr>
-				<tr :hidden="disabledInput">
+				<tr :hidden="isDisabled">
 					<td @click="addProduct()" colspan="7"
 						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
@@ -365,13 +373,13 @@ const removeProduct = (product: any): void => {
 		<br />
 		<p>
 			<span style="text-align: start;">Менеджер </span>
-			<input :disabled="disabledInput" placeholder="Имя продавца" v-model.lazy="orderData.saller.name" />
+			<input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.name" />
 			<span style="text-align: center;">Покупатель</span>
-			<input :disabled="disabledInput" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.name" />
+			<input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.name" />
 		</p>
 		<br />
 
-		<textarea :disabled="disabledInput" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
+		<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
 			class="w-full h-15 max-h-40" />
 	</div>
 	</div>

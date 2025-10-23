@@ -117,6 +117,7 @@ import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { usePurchasesStore } from '~/stores/purchases';
 import type { Insert } from '~/types/contracts';
+import { injectionKeys } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
@@ -142,30 +143,30 @@ const insertState: Ref<Insert> = ref({
 	salesStateService: false,
 })
 
-provide('insertState', insertState)
+provide(injectionKeys.insertStateKey, insertState)
 
 const insertLastPurchasesGood = (): void => {
 	insertState.value.purchasesStateGood = !insertState.value.purchasesStateGood
-	disabledInput.value = !disabledInput.value
-	disabledInput.value = !disabledInput.value
+	isDisabled.value = !isDisabled.value
+	isDisabled.value = !isDisabled.value
 }
 
 const insertLastPurchasesService = (): void => {
 	insertState.value.purchasesStateService = !insertState.value.purchasesStateService
-	disabledInput.value = !disabledInput.value
-	disabledInput.value = !disabledInput.value
+	isDisabled.value = !isDisabled.value
+	isDisabled.value = !isDisabled.value
 }
 
 const insertLastSalesGood = (): void => {
 	insertState.value.salesStateGood = !insertState.value.salesStateGood
-	disabledInput.value = !disabledInput.value
-	disabledInput.value = !disabledInput.value
+	isDisabled.value = !isDisabled.value
+	isDisabled.value = !isDisabled.value
 }
 
 const insertLastSalesService = (): void => {
 	insertState.value.salesStateService = !insertState.value.salesStateService
-	disabledInput.value = !disabledInput.value
-	disabledInput.value = !disabledInput.value
+	isDisabled.value = !isDisabled.value
+	isDisabled.value = !isDisabled.value
 }
 
 //DOCX
@@ -228,20 +229,20 @@ const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | n
 }
 
 //Button edit
-const disabledInput: Ref<boolean> = ref(true)
+const isDisabled: Ref<boolean> = ref(true)
 const activeButtons: Ref<boolean> = ref(false)
 
-provide('disabledInput', disabledInput)
+provide(injectionKeys.isDisabledKey, isDisabled)
 
 const editButton = () => {
-	disabledInput.value = !disabledInput.value
+	isDisabled.value = !isDisabled.value
 	activeButtons.value = !activeButtons.value
 }
 
 //Button clearForm
 const clearState: Ref<boolean> = ref(false)
 
-provide('clearState', clearState)
+provide(injectionKeys.clearStateKey, clearState)
 
 const clearCurrentForm = (tabIndex: string) => {
 	if (tabIndex === '0') {
@@ -257,7 +258,7 @@ const clearCurrentForm = (tabIndex: string) => {
 //Button removeCurrentDeal
 const removeDealState: Ref<Boolean> = ref(false)
 
-provide('removeDealState', removeDealState)
+provide(injectionKeys.removeDealStateKey, removeDealState)
 
 const removeCurrentDeal = (tabIndex: string) => {
 	if (tabIndex === '0') {
@@ -269,7 +270,7 @@ const removeCurrentDeal = (tabIndex: string) => {
 // save button 
 const changeState: Ref<Boolean> = ref(false)
 
-provide('changeStateOrder', changeState)
+provide(injectionKeys.changeStateOrderKey, changeState)
 
 const saveChanges = (tabIndex: string) => {
 		if (tabIndex === '0') {

@@ -6,6 +6,17 @@ from pydantic import BaseModel
 class FilterItem(BaseModel):
     label: str
     value: str
+    count: int = 0  # Количество компаний для этого фильтра
+
+
+class CompanyCityCount(BaseModel):
+    city_name: str
+    region_name: str
+    company_count: int
+
+
+class CompanyCitiesCountResponse(BaseModel):
+    cities: List[CompanyCityCount]
 
 
 class CompanyFiltersResponse(BaseModel):

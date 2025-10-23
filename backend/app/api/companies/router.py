@@ -52,7 +52,11 @@ async def get_companies(
 async def get_services_companies(
         page: int = Query(1, ge=1, description="Номер страницы"),
         per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
-        filtration_parameters: List[Dict[str, Any]] = Body(default=[], description="Параметры фильтрации"),
+        search: Optional[str] = Query(None, description="Поиск по названию компании"),
+        country: Optional[str] = Query(None, description="Фильтр по стране"),
+        federalDistrict: Optional[str] = Query(None, description="Фильтр по федеральному округу"),
+        region: Optional[str] = Query(None, description="Фильтр по региону"),
+        city: Optional[str] = Query(None, description="Фильтр по городу"),
         companies_repository: companies_repository_dep = None
 ) -> CompaniesResponse:
     """
@@ -61,18 +65,26 @@ async def get_services_companies(
     Args:
         page: Номер страницы (начиная с 1)
         per_page: Количество элементов на странице (1-100)
-        filtration_parameters: Список словарей с параметрами фильтрации
+        search: Поиск по названию компании
+        country: Фильтр по стране
+        federalDistrict: Фильтр по федеральному округу
+        region: Фильтр по региону
+        city: Фильтр по городу
         companies_repository: Репозиторий компаний
         
     Returns:
         CompaniesResponse: Список компаний с информацией о пагинации
     """
-    print(f"Параметры фильтрации для услуг: {filtration_parameters}")
+    print(f"Параметры фильтрации для услуг: search={search}, country={country}, federalDistrict={federalDistrict}, region={region}, city={city}")
 
     companies, total_count = await companies_repository.get_services_companies(
         page=page,
         per_page=per_page,
-        # filtration_parameters=filtration_parameters
+        search=search,
+        country=country,
+        federal_district=federalDistrict,
+        region=region,
+        city=city
     )
 
     # Вычисляем общее количество страниц

@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, List
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -109,7 +109,12 @@ class CompaniesRepository:
     async def get_services_companies(
             self,
             page: int = 1,
-            per_page: int = 10
+            per_page: int = 10,
+            search: Optional[str] = None,
+            country: Optional[str] = None,
+            federal_district: Optional[str] = None,
+            region: Optional[str] = None,
+            city: Optional[str] = None
     ) -> Tuple[List[Company], int]:
         """
         Получить компании, предоставляющие услуги (включая те, что делают оба)
@@ -117,28 +122,42 @@ class CompaniesRepository:
         Args:
             page: Номер страницы (начиная с 1)
             per_page: Количество элементов на странице
+            search: Поиск по названию компании
+            country: Фильтр по стране
+            federal_district: Фильтр по федеральному округу
+            region: Фильтр по региону
+            city: Фильтр по городу
             
         Returns:
             Tuple[List[Company], int]: (список компаний, общее количество)
         """
+        # Базовые условия
+        conditions = [
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.SERVICES,
+                Company.business_type == BusinessType.BOTH
+            )
+        ]
+        
+        # Добавляем фильтры
+        if search:
+            conditions.append(Company.name.ilike(f"%{search}%"))
+        if country:
+            conditions.append(Company.country == country)
+        if federal_district:
+            conditions.append(Company.federal_district == federal_district)
+        if region:
+            conditions.append(Company.region == region)
+        if city:
+            conditions.append(Company.city == city)
+        
         base_query = select(Company).options(
             selectinload(Company.officials)
-        ).where(
-            Company.is_active == True,
-            or_(
-                Company.business_type == BusinessType.SERVICES,
-                Company.business_type == BusinessType.BOTH
-            )
-        ).order_by(Company.registration_date.desc())
+        ).where(*conditions).order_by(Company.registration_date.desc())
 
         # Получаем общее количество
-        count_query = select(func.count(Company.id)).where(
-            Company.is_active == True,
-            or_(
-                Company.business_type == BusinessType.SERVICES,
-                Company.business_type == BusinessType.BOTH
-            )
-        )
+        count_query = select(func.count(Company.id)).where(*conditions)
         count_result = await self.session.execute(count_query)
         total_count = count_result.scalar()
 

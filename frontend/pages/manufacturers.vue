@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {searchManufacturersSSR} from "~/api";
+import CustomPagination from "~/components/ui/CustomPagination.vue";
 
 const route = useRoute()
 const title = 'Производители товаров'
@@ -70,6 +71,10 @@ if (route.query.created === 'true') {
     showSuccessMessage.value = false
   }, 5000)
 }
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page
+}
 </script>
 
 <template>
@@ -137,10 +142,11 @@ if (route.query.created === 'true') {
 
       <!-- Pagination -->
       <div class="mt-8 flex justify-center">
-        <UPagination
-          v-model="currentPage"
+        <CustomPagination
+          :current-page="currentPage"
           :total="pagination.total"
           :per-page="perPage"
+          @update:page="handlePageChange"
         />
       </div>
     </section>

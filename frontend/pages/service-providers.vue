@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type {CompanyShort} from '~/types/company'
 import {searchServiceProvidersSSR} from "~/api";
+import CustomPagination from "~/components/ui/CustomPagination.vue";
+import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 
 const route = useRoute()
 const title = 'Поставщики услуг'
@@ -38,17 +40,24 @@ watch(currentPage, async (newPage) => {
 
 const handleSearch = async (params: {
   search?: string
-  country?: string
-  federalDistrict?: string
-  region?: string
-  city?: string
-  product?: string
+  cities?: string[]
+  minPrice?: number
+  maxPrice?: number
+  inStock?: boolean
 }) => {
   manufacturersPending.value = true
   manufacturersError.value = null
 
   try {
-    const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, params)
+    // Преобразуем параметры для API
+    const apiParams: any = {}
+    if (params.search) apiParams.search = params.search
+    if (params.cities && params.cities.length > 0) {
+      // Для компаний используем первый выбранный город
+      apiParams.city = params.cities[0]
+    }
+    
+    const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, apiParams)
     // Update the response data
     Object.assign(response, newResponse)
   } catch (error) {
@@ -68,6 +77,10 @@ if (route.query.created === 'true') {
   setTimeout(() => {
     showSuccessMessage.value = false
   }, 5000)
+}
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page
 }
 </script>
 
@@ -101,7 +114,7 @@ if (route.query.created === 'true') {
     <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
 
     <!-- Search Form -->
-    <CompaniesFilter @search="handleSearch"/>
+    <CatalogFilter type="companies" @search="handleSearch"/>
     
     <!-- Loading state -->
     <section v-if="manufacturersPending" class="bg-white rounded-lg p-6 shadow-sm">
@@ -136,10 +149,11 @@ if (route.query.created === 'true') {
 
       <!-- Pagination -->
       <div class="mt-8 flex justify-center">
-        <UPagination
-          v-model="currentPage"
+        <CustomPagination
+          :current-page="currentPage"
           :total="pagination.total"
           :per-page="perPage"
+          @update:page="handlePageChange"
         />
       </div>
     </section>

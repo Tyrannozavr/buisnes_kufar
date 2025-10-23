@@ -73,6 +73,34 @@ const loadFilters = async () => {
   }
 }
 
+const getCountryStats = (country: any): string => {
+  if (country.count && country.count > 0) {
+    return `${country.count} компаний`
+  }
+  return ''
+}
+
+const getFederalDistrictStats = (fd: any): string => {
+  if (fd.count && fd.count > 0) {
+    return `${fd.count} компаний`
+  }
+  return ''
+}
+
+const getRegionStats = (region: any): string => {
+  if (region.count && region.count > 0) {
+    return `${region.count} компаний`
+  }
+  return ''
+}
+
+const getCityStats = (city: any): string => {
+  if (city.count && city.count > 0) {
+    return `${city.count} компаний`
+  }
+  return ''
+}
+
 const handleCountryChange = async (country: LocationItem) => {
   selectedCountry.value = country
   selectedFederalDistrict.value = undefined
@@ -138,7 +166,12 @@ onMounted(() => {
             placeholder="Выберите страну"
             searchable
             @update:model-value="handleCountryChange"
-        />
+        >
+          <template #label>
+            <span>{{ item.label }}</span>
+            <span v-if="getCountryStats(item)" class="text-xs text-gray-500 ml-2">({{ getCountryStats(item) }})</span>
+          </template>
+        </USelectMenu>
       </UFormField>
       <!-- Federal District (only for Russia) -->
       <UFormField

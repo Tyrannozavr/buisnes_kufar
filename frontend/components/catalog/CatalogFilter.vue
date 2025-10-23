@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { ProductSearchParams, ServiceSearchParams, LocationItem } from '~/types/filters'
 import { isLocationItem } from '~/types/filters'
-import { useProductFilters, useServiceFilters } from '~/api/filters'
+import { useProductFilters, useServiceFilters, useCompanyFilters } from '~/api/filters'
 import CitiesFilterTree from './CitiesFilterTree.vue'
 
 const props = defineProps<{
-  type: 'products' | 'services'
-  title: string
+  type: 'products' | 'services' | 'companies'
+  title?: string
   locationPrefix?: string
 }>()
 
@@ -22,6 +22,7 @@ const {
   getFederalDistrictsByCountry 
 } = useProductFilters()
 const { getServiceFilters } = useServiceFilters()
+const { getCompanyFilters } = useCompanyFilters()
 
 // API instance
 const { $api } = useNuxtApp()
@@ -104,15 +105,19 @@ const loadFilters = async () => {
     let response
     if (props.type === 'products') {
       response = await getProductFilters()
-    } else {
+    } else if (props.type === 'services') {
       response = await getServiceFilters()
+    } else if (props.type === 'companies') {
+      response = await getCompanyFilters()
     }
 
-    filterData.value = {
-      countries: response.countries,
-      federal_districts: response.federal_districts,
-      regions: response.regions,
-      cities: response.cities
+    if (response) {
+      filterData.value = {
+        countries: response.countries,
+        federal_districts: response.federal_districts,
+        regions: response.regions,
+        cities: response.cities
+      }
     }
   } catch (error) {
     filtersError.value = `Ошибка загрузки фильтров: ${error}`
@@ -125,7 +130,12 @@ const loadFilters = async () => {
 const loadCitiesProductCount = async () => {
   citiesProductCountLoading.value = true
   try {
-    const response = await $api.get('/v1/products/cities-count')
+    let response
+    if (props.type === 'products' || props.type === 'services') {
+      response = await $api.get('/v1/products/cities-count')
+    } else if (props.type === 'companies') {
+      response = await $api.get('/v1/company/cities-count')
+    }
     citiesProductCount.value = response.cities || []
   } catch (error) {
     console.error('❌ Ошибка загрузки количества товаров по городам:', error)
@@ -348,10 +358,18 @@ const getRegionStats = (region: any): string => {
   // Суммируем количество товаров из всех городов этого региона
   const totalProducts = region.cities.reduce((sum: number, city: any) => {
     const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
-    return sum + (cityData ? cityData.product_count : 0)
+    if (props.type === 'companies') {
+      return sum + (cityData ? cityData.company_count : 0)
+    } else {
+      return sum + (cityData ? cityData.product_count : 0)
+    }
   }, 0)
   
-  return `${totalProducts} товаров`
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
 }
 
 const getCityStats = (city: any): string => {
@@ -363,11 +381,19 @@ const getCityStats = (city: any): string => {
   // Ищем город в данных о количестве товаров
   const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
   if (cityData) {
-    return `${cityData.product_count} товаров`
+    if (props.type === 'companies') {
+      return `${cityData.company_count} компаний`
+    } else {
+      return `${cityData.product_count} товаров`
+    }
   }
   
   // Если город не найден, значит для него нет товаров
-  return '0 товаров'
+  if (props.type === 'companies') {
+    return '0 компаний'
+  } else {
+    return '0 товаров'
+  }
 }
 
 // Load initial data

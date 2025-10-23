@@ -15,7 +15,7 @@ from app.api.company.schemas.company import CompanyUpdate, CompanyResponse, Comp
     CompanyRelationResponse, CompanyRelationType
 from app.api.company.schemas.company_officials import CompanyOfficialCreate, CompanyOfficialUpdate, CompanyOfficial, \
     CompanyOfficialPartialUpdate
-from app.api.company.schemas.filters import CompanyFiltersResponse
+from app.api.company.schemas.filters import CompanyFiltersResponse, CompanyCitiesCountResponse
 from app.api.company.services.announcement_service import AnnouncementService
 from app.api.company.services.filter_service import CompanyFilterService
 from app.db.dependencies import async_db_dep
@@ -430,3 +430,12 @@ async def get_company_filters(
 ):
     """Получить фильтры для компаний"""
     return await filter_service.get_company_filters()
+
+
+@router.get("/cities-count", response_model=CompanyCitiesCountResponse)
+async def get_cities_company_count(
+        filter_service: Annotated[CompanyFilterService, Depends(get_company_filter_service)]
+):
+    """Получить количество компаний для всех городов"""
+    cities_data = await filter_service.get_cities_company_count()
+    return CompanyCitiesCountResponse(cities=cities_data)

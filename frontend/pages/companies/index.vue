@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCompaniesApi } from '~/api/companies'
 import type { CompanyShort } from '~/types/company'
+import CustomPagination from "~/components/ui/CustomPagination.vue";
 
 // API
 const { searchManufacturers } = useCompaniesApi()
@@ -96,6 +97,10 @@ const getActivityColor = (tradeActivity: string) => {
     default:
       return 'neutral'
   }
+}
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page
 }
 </script>
 
@@ -216,10 +221,11 @@ const getActivityColor = (tradeActivity: string) => {
 
       <!-- Pagination -->
       <div class="mt-8 flex justify-center">
-        <UPagination
-          v-model="currentPage"
+        <CustomPagination
+          :current-page="currentPage"
           :total="pagination.total"
           :per-page="perPage"
+          @update:page="handlePageChange"
         />
       </div>
     </section>

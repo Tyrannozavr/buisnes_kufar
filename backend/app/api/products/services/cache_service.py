@@ -156,23 +156,17 @@ class ProductLocationCache:
             if cached_data:
                 return cached_data
 
-            # Получаем все активные компании с локациями из новых таблиц
+            # Получаем все активные компании с локациями из прямых полей
             query = text("""
                 SELECT DISTINCT 
-                    country.name as country_name,
-                    fd.name as federal_district_name,
-                    r.name as region_name,
-                    city.name as city_name
+                    c.country as country_name,
+                    c.federal_district as federal_district_name,
+                    c.region as region_name,
+                    c.city as city_name
                 FROM companies c
-                LEFT JOIN countries country ON c.country_id = country.id
-                LEFT JOIN federal_districts fd ON c.federal_district_id = fd.id
-                LEFT JOIN regions r ON c.region_id = r.id
-                LEFT JOIN cities city ON c.city_id = city.id
                 WHERE c.is_active = true
-                    AND (country.is_active = true OR country.is_active IS NULL)
-                    AND (fd.is_active = true OR fd.is_active IS NULL)
-                    AND (r.is_active = true OR r.is_active IS NULL)
-                    AND (city.is_active = true OR city.is_active IS NULL)
+                    AND c.country IS NOT NULL
+                    AND c.country != ''
             """)
 
             result = await session.execute(query)

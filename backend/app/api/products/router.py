@@ -259,10 +259,12 @@ async def get_service_filters(
 
 @public_router.get("/cities-count", response_model=CitiesProductCountResponse)
 async def get_cities_product_count(
-        filter_service: Annotated[FilterService, Depends(get_filter_service)]
+        filter_service: Annotated[FilterService, Depends(get_filter_service)],
+        type: str = Query("products", description="Тип продуктов: products или services")
 ):
-    """Получить количество товаров для всех городов"""
-    cities_data = await filter_service.get_cities_product_count(ProductType.GOOD)
+    """Получить количество товаров/услуг для всех городов"""
+    product_type = ProductType.GOOD if type == "products" else ProductType.SERVICE
+    cities_data = await filter_service.get_cities_product_count(product_type)
     return CitiesProductCountResponse(cities=cities_data)
 
 

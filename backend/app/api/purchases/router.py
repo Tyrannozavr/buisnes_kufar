@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Q
 from app.db.dependencies import async_db_dep
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
-from app.api.purchases.dependencies import deal_service_dep
+from app.api.purchases.dependencies import deal_service_dep_annotated
 from app.api.purchases.services import DealService
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse, 
@@ -22,7 +22,7 @@ router = APIRouter(
 async def create_deal(
     deal_data: DealCreate,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)]
+    deal_service: deal_service_dep_annotated
 ):
     """
     Создание нового заказа
@@ -45,7 +45,7 @@ async def create_deal(
 @router.get("/buyer/deals", response_model=List[BuyerDealResponse], tags=["buyer", "orders", "list"])
 async def get_buyer_deals(
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)],
+    deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
@@ -86,7 +86,7 @@ async def get_buyer_deals(
 @router.get("/seller/deals", response_model=List[SellerDealResponse], tags=["seller", "orders", "list"])
 async def get_seller_deals(
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)],
+    deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000)
 ):
@@ -128,7 +128,7 @@ async def get_seller_deals(
 async def get_deal(
     deal_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)]
+    deal_service: deal_service_dep_annotated
 ):
     """
     Получение конкретного заказа
@@ -152,7 +152,7 @@ async def update_deal(
     deal_id: int,
     deal_data: DealUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)]
+    deal_service: deal_service_dep_annotated
 ):
     """
     Обновление заказа
@@ -175,7 +175,7 @@ async def update_deal(
 async def upload_document(
     deal_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)],
+    deal_service: deal_service_dep_annotated,
     document_type: str = Form(...),
     document_number: str = Form(None),
     document_date: str = Form(None),
@@ -222,7 +222,7 @@ async def upload_document(
 async def create_order_from_checkout(
     checkout_data: CheckoutRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: Annotated[DealService, Depends(deal_service_dep)]
+    deal_service: deal_service_dep_annotated
 ):
     """
     Создание заказа из корзины
@@ -250,7 +250,7 @@ async def create_order_from_checkout(
 
 @router.get("/units", response_model=List[dict], tags=["units", "measurement"])
 async def get_units_of_measurement(
-    deal_service: Annotated[DealService, Depends(deal_service_dep)]
+    deal_service: deal_service_dep_annotated
 ):
     """
     Получение единиц измерения с кодами ОКЕИ

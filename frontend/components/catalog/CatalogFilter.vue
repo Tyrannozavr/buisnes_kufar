@@ -131,8 +131,10 @@ const loadCitiesProductCount = async () => {
   citiesProductCountLoading.value = true
   try {
     let response
-    if (props.type === 'products' || props.type === 'services') {
-      response = await $api.get('/v1/products/cities-count')
+    if (props.type === 'products') {
+      response = await $api.get('/v1/products/cities-count?type=products')
+    } else if (props.type === 'services') {
+      response = await $api.get('/v1/products/cities-count?type=services')
     } else if (props.type === 'companies') {
       response = await $api.get('/v1/company/cities-count')
     }

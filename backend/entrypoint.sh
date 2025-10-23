@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Entrypoint скрипт для backend контейнера
-# Применяет миграции Alembic перед запуском приложения
+# Запускает FastAPI приложение без применения миграций
 
 set -e
 
@@ -27,18 +27,9 @@ while True:
     sleep 2
 done
 
-# Применяем миграции Alembic
-echo "🔄 Skipping migrations for now..."
-# if alembic upgrade head; then
-#     echo "✅ Migrations applied successfully!"
-# else
-#     echo "❌ Failed to apply migrations!"
-#     exit 1
-# fi
-
-# Показываем текущее состояние миграций
+# Показываем текущее состояние миграций (только для информации)
 echo "📊 Current migration status:"
-alembic current
+alembic current || echo "⚠️  No migrations applied yet"
 
 # Запускаем основное приложение
 echo "🎉 Starting FastAPI application..."

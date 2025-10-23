@@ -9,7 +9,10 @@ def setup_admin(app, engine):
     from app.api.admin.announcements import AnnouncementAdmin
     from app.api.admin.chats import ChatAdmin, ChatParticipantAdmin
     from app.api.admin.messages import MessageAdmin
-    # from app.api.admin.purchases import DealAdmin, DealItemAdmin, DealDocumentAdmin, DealChangeAdmin
+    from app.api.admin.purchases import (
+        OrderAdmin, OrderItemAdmin, OrderHistoryAdmin, 
+        OrderDocumentAdmin, UnitOfMeasurementAdmin
+    )
 
     admin = Admin(app, engine)
 
@@ -26,9 +29,10 @@ def setup_admin(app, engine):
     admin.add_view(MessageAdmin)
     
     # Добавляем представления для системы заказов
-    # admin.add_view(DealAdmin)
-    # admin.add_view(DealItemAdmin)
-    # admin.add_view(DealDocumentAdmin)
-    # admin.add_view(DealChangeAdmin)
+    admin.add_view(OrderAdmin)
+    admin.add_view(OrderItemAdmin)
+    admin.add_view(OrderHistoryAdmin)
+    admin.add_view(OrderDocumentAdmin)
+    admin.add_view(UnitOfMeasurementAdmin)
 
     return admin

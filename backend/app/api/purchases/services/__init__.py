@@ -76,75 +76,94 @@ class DealService:
 
     async def _order_to_deal_response(self, order: Order) -> DealResponse:
         """Преобразование Order в DealResponse"""
-        # Преобразуем позиции заказа
-        items = []
-        for item in order.order_items:
-            # Рассчитываем сумму если она не задана
-            amount = item.amount if hasattr(item, 'amount') and item.amount else item.quantity * item.price
+        print(f"DEBUG: _order_to_deal_response для заказа {order.id}")
+        
+        try:
+            # Преобразуем позиции заказа
+            print(f"DEBUG: Обрабатываем {len(order.order_items)} позиций заказа")
+            items = []
+            for item in order.order_items:
+                # Рассчитываем сумму если она не задана
+                amount = item.amount if hasattr(item, 'amount') and item.amount else item.quantity * item.price
+                
+                items.append(OrderItemResponse(
+                    id=item.id,
+                    order_id=item.order_id,
+                    product_id=item.product_id,
+                    product_name=item.product_name,
+                    product_slug=item.product_slug,
+                    product_description=item.product_description,
+                    product_article=item.product_article,
+                    product_type=item.product_type,
+                    logo_url=item.logo_url,
+                    quantity=item.quantity,
+                    unit_of_measurement=item.unit_of_measurement,
+                    price=item.price,
+                    amount=amount,
+                    position=item.position,
+                    created_at=item.created_at,
+                    updated_at=item.updated_at
+                ))
+        
+            # Информация о компаниях - загружаем отдельно
+            print(f"DEBUG: Загружаем компании")
+            buyer_company_info = None
+            seller_company_info = None
             
-            items.append(OrderItemResponse(
-                id=item.id,
-                order_id=item.order_id,
-                product_id=item.product_id,
-                product_name=item.product_name,
-                product_slug=item.product_slug,
-                product_description=item.product_description,
-                product_article=item.product_article,
-                product_type=item.product_type,
-                logo_url=item.logo_url,
-                quantity=item.quantity,
-                unit_of_measurement=item.unit_of_measurement,
-                price=item.price,
-                amount=amount,
-                position=item.position,
-                created_at=item.created_at,
-                updated_at=item.updated_at
-            ))
+            # Загружаем компании отдельно
+            print(f"DEBUG: Загружаем компанию покупателя {order.buyer_company_id}")
+            buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
+            print(f"DEBUG: Загружаем компанию продавца {order.seller_company_id}")
+            seller_company = await self.repository.get_company_by_id(order.seller_company_id)
         
-        # Информация о компаниях
-        buyer_company_info = None
-        seller_company_info = None
+            if buyer_company:
+                buyer_company_info = {
+                    "id": buyer_company.id,
+                    "name": buyer_company.name,
+                    "slug": buyer_company.slug,
+                    "inn": buyer_company.inn,
+                    "phone": buyer_company.phone,
+                    "email": buyer_company.email
+                }
+            
+            if seller_company:
+                seller_company_info = {
+                    "id": seller_company.id,
+                    "name": seller_company.name,
+                    "slug": seller_company.slug,
+                    "inn": seller_company.inn,
+                    "phone": seller_company.phone,
+                    "email": seller_company.email
+                }
+            
+            print(f"DEBUG: Создаем DealResponse")
+            return DealResponse(
+                id=order.id,
+                buyer_company_id=order.buyer_company_id,
+                seller_company_id=order.seller_company_id,
+                buyer_order_number=order.buyer_order_number,
+                seller_order_number=order.seller_order_number,
+                status=order.status,
+                deal_type=order.deal_type,
+                total_amount=order.total_amount,
+                comments=order.comments,
+                invoice_number=order.invoice_number,
+                contract_number=order.contract_number,
+                invoice_date=order.invoice_date,
+                contract_date=order.contract_date,
+                created_at=order.created_at,
+                updated_at=order.updated_at,
+                items=items,
+                buyer_company=buyer_company_info,
+                seller_company=seller_company_info
+            )
         
-        if order.buyer_company:
-            buyer_company_info = {
-                "id": order.buyer_company.id,
-                "name": order.buyer_company.name,
-                "slug": order.buyer_company.slug,
-                "inn": order.buyer_company.inn,
-                "phone": order.buyer_company.phone,
-                "email": order.buyer_company.email
-            }
-        
-        if order.seller_company:
-            seller_company_info = {
-                "id": order.seller_company.id,
-                "name": order.seller_company.name,
-                "slug": order.seller_company.slug,
-                "inn": order.seller_company.inn,
-                "phone": order.seller_company.phone,
-                "email": order.seller_company.email
-            }
-        
-        return DealResponse(
-            id=order.id,
-            buyer_company_id=order.buyer_company_id,
-            seller_company_id=order.seller_company_id,
-            buyer_order_number=order.buyer_order_number,
-            seller_order_number=order.seller_order_number,
-            status=order.status,
-            deal_type=order.deal_type,
-            total_amount=order.total_amount,
-            comments=order.comments,
-            invoice_number=order.invoice_number,
-            contract_number=order.contract_number,
-            invoice_date=order.invoice_date,
-            contract_date=order.contract_date,
-            created_at=order.created_at,
-            updated_at=order.updated_at,
-            items=items,
-            buyer_company=buyer_company_info,
-            seller_company=seller_company_info
-        )
+        except Exception as e:
+            print(f"DEBUG: Ошибка в _order_to_deal_response: {e}")
+            print(f"DEBUG: Тип ошибки: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание заказа из корзины (соответствует фронтенду)"""

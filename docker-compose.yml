@@ -1,4 +1,18 @@
 services:
+  migrations:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrations
+    env_file:
+      - ./backend/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrations
+
   backend:
     build: ./backend
     restart: unless-stopped

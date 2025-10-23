@@ -3,7 +3,7 @@ from sqladmin.fields import QuerySelectField
 
 from app.api.company.models.company import Company
 from app.api.products.models.product import Product
-# from app.api.purchases.models import Deal, DealItem, DealDocument, DealChange
+from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement
 
 
 # class DealAdmin(ModelView, model=Deal):
@@ -490,3 +490,229 @@ from app.api.products.models.product import Product
 #         form.deal.query_factory = lambda: Deal.query.all()
 #         form.changed_by.query_factory = lambda: Company.query.all()
 #         return form
+
+
+# Новые админские представления для Order, OrderItem, OrderHistory, OrderDocument
+
+class OrderAdmin(ModelView, model=Order):
+    name = "Заказ"
+    name_plural = "Заказы"
+    icon = "fa-solid fa-handshake"
+    
+    column_list = [
+        Order.id,
+        Order.buyer_order_number,
+        Order.seller_order_number,
+        Order.status,
+        Order.deal_type,
+        Order.total_amount,
+        Order.created_at
+    ]
+    
+    column_searchable_list = [
+        Order.buyer_order_number,
+        Order.seller_order_number,
+        Order.comments
+    ]
+    
+    column_filters = [
+        Order.status,
+        Order.deal_type,
+        Order.created_at
+    ]
+    
+    column_sortable_list = [
+        Order.id,
+        Order.buyer_order_number,
+        Order.total_amount,
+        Order.created_at
+    ]
+    
+    column_labels = {
+        Order.id: "ID",
+        Order.buyer_order_number: "Номер заказа покупателя",
+        Order.seller_order_number: "Номер заказа продавца",
+        Order.status: "Статус",
+        Order.deal_type: "Тип заказа",
+        Order.total_amount: "Общая сумма",
+        Order.created_at: "Дата создания"
+    }
+    
+    column_default_sort = [(Order.created_at, True)]
+    can_create = False
+    can_edit = True
+    can_delete = True
+    can_view_details = True
+
+
+class OrderItemAdmin(ModelView, model=OrderItem):
+    name = "Позиция заказа"
+    name_plural = "Позиции заказов"
+    icon = "fa-solid fa-list"
+    
+    column_list = [
+        OrderItem.id,
+        OrderItem.product_name,
+        OrderItem.product_article,
+        OrderItem.quantity,
+        OrderItem.unit_of_measurement,
+        OrderItem.price,
+        OrderItem.amount
+    ]
+    
+    column_searchable_list = [
+        OrderItem.product_name,
+        OrderItem.product_article
+    ]
+    
+    column_filters = [
+        OrderItem.unit_of_measurement,
+        OrderItem.created_at
+    ]
+    
+    column_sortable_list = [
+        OrderItem.id,
+        OrderItem.product_name,
+        OrderItem.price,
+        OrderItem.amount
+    ]
+    
+    column_labels = {
+        OrderItem.id: "ID",
+        OrderItem.product_name: "Наименование",
+        OrderItem.product_article: "Артикул",
+        OrderItem.quantity: "Количество",
+        OrderItem.unit_of_measurement: "Единица измерения",
+        OrderItem.price: "Цена",
+        OrderItem.amount: "Сумма"
+    }
+    
+    column_default_sort = [(OrderItem.created_at, True)]
+    can_create = False
+    can_edit = True
+    can_delete = False
+    can_view_details = True
+
+
+class OrderHistoryAdmin(ModelView, model=OrderHistory):
+    name = "История изменений"
+    name_plural = "История изменений заказов"
+    icon = "fa-solid fa-history"
+    
+    column_list = [
+        OrderHistory.id,
+        OrderHistory.change_type,
+        OrderHistory.change_description,
+        OrderHistory.created_at
+    ]
+    
+    column_searchable_list = [
+        OrderHistory.change_description
+    ]
+    
+    column_filters = [
+        OrderHistory.change_type,
+        OrderHistory.created_at
+    ]
+    
+    column_sortable_list = [
+        OrderHistory.id,
+        OrderHistory.created_at
+    ]
+    
+    column_labels = {
+        OrderHistory.id: "ID",
+        OrderHistory.change_type: "Тип изменения",
+        OrderHistory.change_description: "Описание",
+        OrderHistory.created_at: "Дата изменения"
+    }
+    
+    column_default_sort = [(OrderHistory.created_at, True)]
+    can_create = False
+    can_edit = False
+    can_delete = False
+    can_view_details = True
+
+
+class OrderDocumentAdmin(ModelView, model=OrderDocument):
+    name = "Документ заказа"
+    name_plural = "Документы заказов"
+    icon = "fa-solid fa-file"
+    
+    column_list = [
+        OrderDocument.id,
+        OrderDocument.document_type,
+        OrderDocument.document_number,
+        OrderDocument.document_date,
+        OrderDocument.is_sent,
+        OrderDocument.created_at
+    ]
+    
+    column_searchable_list = [
+        OrderDocument.document_number
+    ]
+    
+    column_filters = [
+        OrderDocument.document_type,
+        OrderDocument.is_sent,
+        OrderDocument.document_date
+    ]
+    
+    column_sortable_list = [
+        OrderDocument.id,
+        OrderDocument.document_number,
+        OrderDocument.document_date
+    ]
+    
+    column_labels = {
+        OrderDocument.id: "ID",
+        OrderDocument.document_type: "Тип документа",
+        OrderDocument.document_number: "Номер документа",
+        OrderDocument.document_date: "Дата документа",
+        OrderDocument.is_sent: "Отправлен",
+        OrderDocument.created_at: "Дата создания"
+    }
+    
+    column_default_sort = [(OrderDocument.created_at, True)]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_view_details = True
+
+
+class UnitOfMeasurementAdmin(ModelView, model=UnitOfMeasurement):
+    name = "Единица измерения"
+    name_plural = "Единицы измерения"
+    icon = "fa-solid fa-ruler"
+    
+    column_list = [
+        UnitOfMeasurement.id,
+        UnitOfMeasurement.name,
+        UnitOfMeasurement.symbol,
+        UnitOfMeasurement.code
+    ]
+    
+    column_searchable_list = [
+        UnitOfMeasurement.name,
+        UnitOfMeasurement.symbol,
+        UnitOfMeasurement.code
+    ]
+    
+    column_sortable_list = [
+        UnitOfMeasurement.id,
+        UnitOfMeasurement.name,
+        UnitOfMeasurement.code
+    ]
+    
+    column_labels = {
+        UnitOfMeasurement.id: "ID",
+        UnitOfMeasurement.name: "Наименование",
+        UnitOfMeasurement.symbol: "Обозначение",
+        UnitOfMeasurement.code: "Код ОКЕИ"
+    }
+    
+    column_default_sort = [(UnitOfMeasurement.name, False)]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_view_details = True

@@ -3,8 +3,7 @@ import type { OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
-import { injectionKeys } from '~/constants/keys';
-import { RequestedType } from '~/constants/keys';
+import { injectionKeys, RequestedType } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
@@ -13,15 +12,12 @@ let products: Product[] = []
 let saller = {} as Person
 let buyer = {} as Person
 
-let amount: ComputedRef<number> = computed(() => NaN)
-let amountWord: ComputedRef<string> = computed(() => '')
-
-let orderData: Ref<OrderData> = ref({
+const orderData: Ref<OrderData> = ref({
 	orderNumber: NaN,
 	orderDate: '',
 	comments: '',
-	amount: amount.value,
-	amountWord: amountWord.value,
+	amount: 0,
+	amountWord: '',
 	saller,
 	buyer,
 	products,
@@ -70,8 +66,6 @@ watch(() => insertState.value,
 			insertState.value.salesStateService = false
 		}
 
-		console.log(requestedData)
-
 		if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD) 
 		&& lastGoodsDeal) {
 			
@@ -88,15 +82,12 @@ watch(() => insertState.value,
 			saller = Object.assign({}, lastGoodsDeal?.saller)
 			buyer = Object.assign({}, lastGoodsDeal?.buyer)
 
-			amount = computed(() => lastGoodsDeal?.goods.amountPrice)
-			amountWord = computed(() => lastGoodsDeal?.goods.amountWord)
-
 			orderData.value = {
 				orderNumber: Number(lastGoodsDeal?.dealNumber),
 				orderDate: lastGoodsDeal?.date,
 				comments: lastGoodsDeal?.goods.comments,
-				amount: amount.value,
-				amountWord: amountWord.value,
+				amount: lastGoodsDeal?.goods.amountPrice,
+				amountWord: lastGoodsDeal?.goods.amountWord,
 				saller,
 				buyer,
 				products,
@@ -119,15 +110,12 @@ watch(() => insertState.value,
 			saller = Object.assign({}, lastServicesDeal?.saller)
 			buyer = Object.assign({}, lastServicesDeal?.buyer)
 
-			amount = computed(() => lastServicesDeal?.services.amountPrice)
-			amountWord = computed(() => lastServicesDeal?.services.amountWord)
-
 			orderData.value = {
 				orderNumber: Number(lastServicesDeal?.dealNumber),
 				orderDate: lastServicesDeal?.date,
 				comments: lastServicesDeal?.services.comments,
-				amount: amount.value,
-				amountWord: amountWord.value,
+				amount: lastServicesDeal?.services.amountPrice,
+				amountWord: lastServicesDeal?.services.amountWord,
 				saller,
 				buyer,
 				products,
@@ -149,6 +137,12 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				purchasesStore.editGoodsComments(orderData.value.orderNumber, orderData.value.comments)
 			}
+
+			setTimeout(() => {
+				orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
+				orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
+			}, 1)
+			
 		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 			purchasesStore.editService(orderData.value.orderNumber, products)
 			purchasesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
@@ -157,6 +151,12 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
+
+			setTimeout(() => {
+				orderData.value.amount = purchasesStore?.lastServicesDeal?.services.amountPrice
+				orderData.value.amountWord = purchasesStore?.lastServicesDeal?.services.amountWord
+			}, 1)
+
 		} else if (requestedData === RequestedType.SALES_GOOD) {
 			salesStore.editGood(orderData.value.orderNumber, products)
 			salesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
@@ -165,6 +165,12 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
+
+			setTimeout(() => {
+				orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
+				orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
+			}, 1)
+
 		} else if (requestedData === RequestedType.SALES_SERVICE) {
 			salesStore.editService(orderData.value.orderNumber, products)
 			salesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
@@ -173,10 +179,12 @@ watch(() => changeState.value,
 			if (orderData.value.comments) {
 				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
 			}
-		}
 
-		orderData.value.amount = amount.value
-		orderData.value.amountWord = amountWord.value
+			setTimeout(() => {
+				orderData.value.amount = salesStore?.lastServicesDeal?.services.amountPrice
+				orderData.value.amountWord = salesStore?.lastServicesDeal?.services.amountWord
+			}, 1)
+		}
 	},
 	{ deep: true }
 )
@@ -209,20 +217,16 @@ const isDisabled = inject(injectionKeys.isDisabledKey, ref(true))
 const clearState = inject(injectionKeys.clearStateKey, ref(false))
 
 const clearForm = () => {
-	console.log('clearForm')
 	products = []
 	saller = {} as Person
 	buyer = {} as Person
-
-	amount = computed(() => NaN),
-	amountWord = computed(() => ''),
 
 	orderData.value = {
 		orderNumber: NaN,
 		orderDate: '',
 		comments: '',
-		amount: amount.value,
-		amountWord: amountWord.value,
+		amount: 0,
+		amountWord: '',
 		saller,
 		buyer,
 		products,

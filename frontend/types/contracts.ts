@@ -22,11 +22,10 @@ export interface OrderData {
   orderNumber: number;
   orderDate?: string;
   comments?: string;
+  amount?: number ;
+  amountWord?: string;
 
   products: ProductsInOrder[];
-
-  amount?: number;
-  amountWord?: string;
 }
 
 export interface Insert {

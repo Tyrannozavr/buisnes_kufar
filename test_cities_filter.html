@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фильтр городов - Тест</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .cities-filter-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .country-section {
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .country-header {
+            background: #4a90e2;
+            color: white;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .country-header:hover {
+            background: #357abd;
+        }
+        .federal-district-section {
+            margin: 10px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+        }
+        .federal-district-header {
+            background: #6bb6ff;
+            color: white;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .federal-district-header:hover {
+            background: #4a90e2;
+        }
+        .region-section {
+            margin: 8px;
+            border: 1px solid #c0c0c0;
+            border-radius: 3px;
+        }
+        .region-header {
+            background: #87ceeb;
+            color: #333;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .region-header:hover {
+            background: #6bb6ff;
+        }
+        .city-list {
+            display: none;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        .city-item {
+            padding: 5px 10px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .city-item:hover {
+            background: #e8f4fd;
+        }
+        .city-item:last-child {
+            border-bottom: none;
+        }
+        .city-name {
+            font-weight: bold;
+        }
+        .city-population {
+            color: #666;
+            font-size: 12px;
+        }
+        .city-badges {
+            float: right;
+        }
+        .badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        .badge.million {
+            background: #4ecdc4;
+        }
+        .badge.regional {
+            background: #45b7d1;
+        }
+        .stats {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stats-item {
+            display: inline-block;
+            margin: 0 20px;
+            font-size: 14px;
+        }
+        .stats-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+    <div class="cities-filter-container">
+        <h1>Фильтр по городам</h1>
+        
+        <div class="stats">
+            <div class="stats-item">
+                <div class="stats-number">25</div>
+                <div>Всего городов</div>
+            </div>
+            <div class="stats-item">
+                <div class="stats-number">6</div>
+                <div>Города-миллионники</div>
+            </div>
+            <div class="stats-item">
+                <div class="stats-number">8</div>
+                <div>Региональные центры</div>
+            </div>
+            <div class="stats-item">
+                <div class="stats-number">4</div>
+                <div>Федеральных округов</div>
+            </div>
+            <div class="stats-item">
+                <div class="stats-number">12</div>
+                <div>Регионов</div>
+            </div>
+        </div>
+
+        <div class="country-section">
+            <div class="country-header" onclick="toggleSection(this)">
+                🇷🇺 Россия
+            </div>
+            
+            <div class="federal-district-section">
+                <div class="federal-district-header" onclick="toggleSection(this)">
+                    Центральный федеральный округ
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Москва
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Москва</span>
+                            <span class="city-badges">
+                                <span class="badge million">Миллионник</span>
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 12,500,000</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Московская область
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Подольск</span>
+                            <div class="city-population">Население: 300,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Химки</span>
+                            <div class="city-population">Население: 250,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Королёв</span>
+                            <div class="city-population">Население: 220,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Мытищи</span>
+                            <div class="city-population">Население: 200,000</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Тульская область
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Тула</span>
+                            <span class="city-badges">
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 470,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Новомосковск</span>
+                            <div class="city-population">Население: 120,000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="federal-district-section">
+                <div class="federal-district-header" onclick="toggleSection(this)">
+                    Северо-Западный федеральный округ
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Санкт-Петербург
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Санкт-Петербург</span>
+                            <span class="city-badges">
+                                <span class="badge million">Миллионник</span>
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 5,400,000</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Ленинградская область
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Выборг</span>
+                            <div class="city-population">Население: 80,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Гатчина</span>
+                            <div class="city-population">Население: 95,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Тихвин</span>
+                            <div class="city-population">Население: 60,000</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Новгородская область
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Великий Новгород</span>
+                            <span class="city-badges">
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 220,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Боровичи</span>
+                            <div class="city-population">Население: 50,000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="federal-district-section">
+                <div class="federal-district-header" onclick="toggleSection(this)">
+                    Южный федеральный округ
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Краснодарский край
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Краснодар</span>
+                            <span class="city-badges">
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 900,000</div>
+                        </div>
+                        <div class="city-item">
+                            <span class="city-name">Сочи</span>
+                            <div class="city-population">Население: 400,000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="federal-district-section">
+                <div class="federal-district-header" onclick="toggleSection(this)">
+                    Приволжский федеральный округ
+                </div>
+                
+                <div class="region-section">
+                    <div class="region-header" onclick="toggleSection(this)">
+                        Нижегородская область
+                    </div>
+                    <div class="city-list">
+                        <div class="city-item">
+                            <span class="city-name">Нижний Новгород</span>
+                            <span class="city-badges">
+                                <span class="badge million">Миллионник</span>
+                                <span class="badge regional">Региональный центр</span>
+                            </span>
+                            <div class="city-population">Население: 1,250,000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="country-section">
+            <div class="country-header" onclick="toggleSection(this)">
+                🇺🇦 Украина
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Киевская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Киев</span>
+                        <span class="city-badges">
+                            <span class="badge million">Миллионник</span>
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 2,900,000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Харьковская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Харьков</span>
+                        <span class="city-badges">
+                            <span class="badge million">Миллионник</span>
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 1,400,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Чугуев</span>
+                        <div class="city-population">Население: 30,000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Донецкая область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Донецк</span>
+                        <span class="city-badges">
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 900,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Мариуполь</span>
+                        <div class="city-population">Население: 450,000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="country-section">
+            <div class="country-header" onclick="toggleSection(this)">
+                🇧🇾 Беларусь
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Минская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Минск</span>
+                        <span class="city-badges">
+                            <span class="badge million">Миллионник</span>
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 2,000,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Борисов</span>
+                        <div class="city-population">Население: 140,000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Гомельская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Гомель</span>
+                        <span class="city-badges">
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 500,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Мозырь</span>
+                        <div class="city-population">Население: 110,000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="country-section">
+            <div class="country-header" onclick="toggleSection(this)">
+                🇰🇿 Казахстан
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Алматинская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Алматы</span>
+                        <span class="city-badges">
+                            <span class="badge million">Миллионник</span>
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 1,800,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Талдыкорган</span>
+                        <div class="city-population">Население: 150,000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="region-section">
+                <div class="region-header" onclick="toggleSection(this)">
+                    Восточно-Казахстанская область
+                </div>
+                <div class="city-list">
+                    <div class="city-item">
+                        <span class="city-name">Усть-Каменогорск</span>
+                        <span class="city-badges">
+                            <span class="badge regional">Региональный центр</span>
+                        </span>
+                        <div class="city-population">Население: 300,000</div>
+                    </div>
+                    <div class="city-item">
+                        <span class="city-name">Семей</span>
+                        <div class="city-population">Население: 350,000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(element) {
+            const nextElement = element.nextElementSibling;
+            if (nextElement && nextElement.classList.contains('city-list')) {
+                // Для регионов - показываем/скрываем города
+                if (nextElement.style.display === 'none' || nextElement.style.display === '') {
+                    nextElement.style.display = 'block';
+                } else {
+                    nextElement.style.display = 'none';
+                }
+            } else if (nextElement) {
+                // Для стран и федеральных округов - показываем/скрываем все дочерние элементы
+                const sections = nextElement.querySelectorAll('.region-section, .city-list');
+                let isVisible = false;
+                
+                // Проверяем, есть ли видимые элементы
+                sections.forEach(section => {
+                    if (section.style.display !== 'none' && section.style.display !== '') {
+                        isVisible = true;
+                    }
+                });
+                
+                // Если есть видимые элементы - скрываем все, иначе показываем все
+                sections.forEach(section => {
+                    if (isVisible) {
+                        section.style.display = 'none';
+                    } else {
+                        section.style.display = 'block';
+                    }
+                });
+            }
+        }
+
+        // Добавляем обработчики клика для городов
+        document.addEventListener('DOMContentLoaded', function() {
+            const cityItems = document.querySelectorAll('.city-item');
+            cityItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const cityName = this.querySelector('.city-name').textContent;
+                    alert(`Выбран город: ${cityName}`);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

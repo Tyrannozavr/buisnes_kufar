@@ -131,13 +131,9 @@ class CompaniesRepository:
         Returns:
             Tuple[List[Company], int]: (список компаний, общее количество)
         """
-        # Базовые условия
+        # Базовые условия - все активные компании могут предоставлять услуги
         conditions = [
-            Company.is_active == True,
-            or_(
-                Company.business_type == BusinessType.SERVICES,
-                Company.business_type == BusinessType.BOTH
-            )
+            Company.is_active == True
         ]
         
         # Добавляем фильтры

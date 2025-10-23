@@ -21,6 +21,24 @@ services:
     volumes:
       - ./postgres-data-dev:/var/lib/postgresql/data:cached
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "admin123"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data_dev:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -32,6 +50,8 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -48,6 +68,8 @@ services:
     command: ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
       db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   frontend:
@@ -88,9 +110,60 @@ services:
     depends_on:
       - backend
       - frontend
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./backend:/app:cached
+      - backend_poetry_cache:/root/.cache/pypoetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "worker", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./backend:/app:cached
+      - backend_poetry_cache:/root/.cache/pypoetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
 volumes:
   frontend_node_modules:
   frontend_npm_cache:
-  frontend_nuxt_cache:
   backend_poetry_cache:
   backend_venv:
+  rabbitmq_data_dev:

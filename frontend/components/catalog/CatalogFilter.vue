@@ -436,7 +436,11 @@ const loadAllRegionsAndCities = async () => {
               <div v-else class="space-y-2">
                 <div v-for="country in citiesData?.countries" :key="country.id" class="border rounded-lg">
                   <!-- Country Header -->
-                  <div class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100">
+                  <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg transition-colors">
+                    <UCheckbox 
+                      :model-value="isCountrySelected(country.id)"
+                      @update:model-value="toggleCountrySelection(country.id)"
+                    />
                     <div 
                       class="flex items-center gap-2 cursor-pointer flex-1"
                       @click="toggleCountry(country.id)"
@@ -448,17 +452,17 @@ const loadAllRegionsAndCities = async () => {
                       <span class="font-medium text-sm">{{ country.name }}</span>
                       <span class="text-xs text-gray-500">({{ getCountryStats(country) }})</span>
                     </div>
-                    <UCheckbox 
-                      :model-value="isCountrySelected(country.id)"
-                      @update:model-value="toggleCountrySelection(country.id)"
-                    />
                   </div>
                   
                   <!-- Federal Districts (only for Russia) -->
                   <div v-if="expandedCountries.includes(country.id)" class="border-t">
-                    <div v-for="fd in country.federal_districts" :key="fd.id" class="border-b last:border-b-0">
-                      <!-- Federal District Header -->
-                      <div class="flex items-center justify-between p-2 pl-6 bg-gray-25 hover:bg-gray-50">
+                    <div v-for="fd in country.federal_districts.filter(fd => fd.regions.some(region => region.cities.length > 0))" :key="fd.id" class="border-b last:border-b-0">
+                      <!-- Federal District Header (only show if not default virtual district) -->
+                      <div v-if="fd.id !== -1" class="flex items-center gap-3 p-2 pl-6 bg-gray-25 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                        <UCheckbox 
+                          :model-value="isFederalDistrictSelected(fd.id)"
+                          @update:model-value="toggleFederalDistrictSelection(fd.id)"
+                        />
                         <div 
                           class="flex items-center gap-2 cursor-pointer flex-1"
                           @click="toggleFederalDistrict(fd.id)"
@@ -470,17 +474,17 @@ const loadAllRegionsAndCities = async () => {
                           <span class="text-sm">{{ fd.name }}</span>
                           <span class="text-xs text-gray-500">({{ getFederalDistrictStats(fd) }})</span>
                         </div>
-                        <UCheckbox 
-                          :model-value="isFederalDistrictSelected(fd.id)"
-                          @update:model-value="toggleFederalDistrictSelection(fd.id)"
-                        />
                       </div>
                       
                       <!-- Regions -->
-                      <div v-if="expandedFederalDistricts.includes(fd.id)" class="border-t">
-                        <div v-for="region in fd.regions" :key="region.id" class="border-b last:border-b-0">
+                      <div v-if="fd.id === -1 || expandedFederalDistricts.includes(fd.id)" class="border-t">
+                        <div v-for="region in fd.regions.filter(region => region.cities.length > 0)" :key="region.id" class="border-b last:border-b-0">
                           <!-- Region Header -->
-                          <div class="flex items-center justify-between p-2 pl-10 bg-white hover:bg-gray-25">
+                          <div class="flex items-center gap-3 p-2 pl-6 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                            <UCheckbox 
+                              :model-value="isRegionSelected(region.id)"
+                              @update:model-value="toggleRegionSelection(region.id)"
+                            />
                             <div 
                               class="flex items-center gap-2 cursor-pointer flex-1"
                               @click="toggleRegion(region.id)"
@@ -492,17 +496,17 @@ const loadAllRegionsAndCities = async () => {
                               <span class="text-sm">{{ region.name }}</span>
                               <span class="text-xs text-gray-500">({{ region.cities.length }})</span>
                             </div>
-                            <UCheckbox 
-                              :model-value="isRegionSelected(region.id)"
-                              @update:model-value="toggleRegionSelection(region.id)"
-                            />
                           </div>
                           
                           <!-- Cities -->
                           <div v-if="expandedRegions.includes(region.id)" class="border-t">
                             <div v-for="city in region.cities" :key="city.id" class="border-b last:border-b-0">
-                              <div class="flex items-center justify-between p-2 pl-14 hover:bg-gray-25">
-                                <div class="flex items-center gap-2">
+                              <div class="flex items-center gap-3 p-2 pl-10 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                                <UCheckbox 
+                                  :model-value="selectedCities.includes(city.id)"
+                                  @update:model-value="toggleCitySelection(city.id)"
+                                />
+                                <div class="flex items-center gap-2 flex-1">
                                   <span class="text-sm">{{ city.name }}</span>
                                   <div class="flex gap-1">
                                     <UBadge 
@@ -523,10 +527,6 @@ const loadAllRegionsAndCities = async () => {
                                     </UBadge>
                                   </div>
                                 </div>
-                                <UCheckbox 
-                                  :model-value="selectedCities.includes(city.id)"
-                                  @update:model-value="toggleCitySelection(city.id)"
-                                />
                               </div>
                             </div>
                           </div>
@@ -537,22 +537,22 @@ const loadAllRegionsAndCities = async () => {
                 </div>
               </div>
               
-              <!-- Selected Cities Summary -->
-              <div v-if="selectedCities.length > 0" class="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-medium text-blue-900">
-                    Выбрано городов: {{ selectedCities.length }}
-                  </span>
-                  <UButton 
-                    size="xs" 
-                    color="red" 
-                    variant="ghost"
-                    @click="clearAllSelections"
-                  >
-                    Очистить все
-                  </UButton>
-                </div>
-              </div>
+                    <!-- Selected Cities Summary -->
+                    <div v-if="selectedCities.length > 0" class="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-green-900">
+                          Выбрано городов: {{ selectedCities.length }}
+                        </span>
+                        <UButton 
+                          size="xs" 
+                          color="red" 
+                          variant="ghost"
+                          @click="clearAllSelections"
+                        >
+                          Очистить все
+                        </UButton>
+                      </div>
+                    </div>
             </div>
           </UFormField>
         </div>

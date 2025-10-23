@@ -86,6 +86,53 @@ async def get_cities_filter_tree():
                     
                     country_data["federal_districts"].append(fd_data)
                 
+                # Если нет федеральных округов, создаем виртуальный округ "по умолчанию"
+                if not federal_districts:
+                    regions_result = await db.execute(
+                        select(Region)
+                        .where(Region.country_id == country.id, Region.is_active == True)
+                        .order_by(Region.name)
+                    )
+                    regions = regions_result.scalars().all()
+                    
+                    # Создаем виртуальный федеральный округ "по умолчанию"
+                    default_fd = {
+                        "id": -1,  # Специальный ID для виртуального округа
+                        "name": "Области",
+                        "code": "DEFAULT",
+                        "regions": []
+                    }
+                    
+                    for region in regions:
+                        region_data = {
+                            "id": region.id,
+                            "name": region.name,
+                            "code": region.code,
+                            "cities": []
+                        }
+                        
+                        # Получаем города для региона
+                        cities_result = await db.execute(
+                            select(City)
+                            .where(City.region_id == region.id, City.is_active == True)
+                            .order_by(City.name)
+                        )
+                        cities = cities_result.scalars().all()
+                        
+                        for city in cities:
+                            city_data = {
+                                "id": city.id,
+                                "name": city.name,
+                                "population": city.population,
+                                "is_million_city": city.is_million_city,
+                                "is_regional_center": city.is_regional_center
+                            }
+                            region_data["cities"].append(city_data)
+                        
+                        default_fd["regions"].append(region_data)
+                    
+                    country_data["federal_districts"].append(default_fd)
+                
                 location_tree.append(country_data)
             
             return {

@@ -91,5 +91,6 @@ services:
 volumes:
   frontend_node_modules:
   frontend_npm_cache:
+  frontend_nuxt_cache:
   backend_poetry_cache:
   backend_venv:

@@ -147,7 +147,7 @@ const handlePageChange = async (page: number) => {
       />
 
       <div v-if="isPending || loading" class="flex justify-center items-center h-64">
-        <ULoadingIcon />
+        <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin" />
       </div>
 
       <div v-else-if="error" class="text-red-500 text-center">

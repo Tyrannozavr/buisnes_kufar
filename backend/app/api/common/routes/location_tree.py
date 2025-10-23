@@ -19,7 +19,7 @@ async def get_db():
 
 
 @router.get("/countries", response_model=LocationResponse)
-async def get_countries(db: AsyncSession = Depends(get_db)):
+async def get_countries(db = Depends(get_db)):
     """Получить список всех стран"""
     try:
         result = await db.execute(
@@ -40,7 +40,7 @@ async def get_countries(db: AsyncSession = Depends(get_db)):
 @router.get("/federal-districts", response_model=LocationResponse)
 async def get_federal_districts(
     country_code: str = Query(..., description="Код страны"),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """Получить список федеральных округов по стране"""
     try:
@@ -77,7 +77,7 @@ async def get_federal_districts(
 async def get_regions(
     country_code: str = Query(..., description="Код страны"),
     federal_district_code: Optional[str] = Query(None, description="Код федерального округа"),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """Получить список регионов по стране и федеральному округу"""
     try:
@@ -128,7 +128,7 @@ async def get_cities(
     search: Optional[str] = Query(None, description="Поиск по названию города"),
     million_cities_only: bool = Query(False, description="Только города-миллионники"),
     regional_centers_only: bool = Query(False, description="Только региональные центры"),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     """Получить список городов по стране, региону и федеральному округу"""
     try:
@@ -194,7 +194,7 @@ async def get_cities(
 
 
 @router.get("/location-tree", response_model=dict)
-async def get_location_tree(db: AsyncSession = Depends(get_db)):
+async def get_location_tree(db = Depends(get_db)):
     """Получить полное дерево локаций для фронтенда"""
     try:
         # Получаем все страны с их федеральными округами, регионами и городами

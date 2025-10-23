@@ -54,12 +54,34 @@ export const useProductFilters = () => {
     return await $api.get('/v1/products/filters')
   }
   
+  const getCitiesByLocation = async (countryCode: string, regionCode?: string): Promise<FilterItem[]> => {
+    const params = new URLSearchParams({ country_code: countryCode })
+    if (regionCode) {
+      params.append('region_code', regionCode)
+    }
+    const response = await $api.get(`/v1/locations/v2/cities?${params.toString()}`)
+    return response.items || []
+  }
+  
+  const getRegionsByCountry = async (countryCode: string): Promise<FilterItem[]> => {
+    const response = await $api.get(`/v1/locations/v2/regions?country_code=${countryCode}`)
+    return response.items || []
+  }
+  
+  const getFederalDistrictsByCountry = async (countryCode: string): Promise<FilterItem[]> => {
+    const response = await $api.get(`/v1/locations/v2/federal-districts?country_code=${countryCode}`)
+    return response.items || []
+  }
+  
   const searchProducts = async (filters: ProductFilterRequest): Promise<any> => {
     return await $api.post('/v1/products/search', filters)
   }
   
   return {
     getProductFilters,
+    getCitiesByLocation,
+    getRegionsByCountry,
+    getFederalDistrictsByCountry,
     searchProducts
   }
 }

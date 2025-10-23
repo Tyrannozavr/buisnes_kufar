@@ -21,7 +21,7 @@ class FederalDistrict(Base):
     code: Mapped[str] = mapped_column(String(10), nullable=False)  # Код округа (ЦФО, СЗФО, etc.)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # Relationships
     country: Mapped["Country"] = relationship("Country", back_populates="federal_districts")

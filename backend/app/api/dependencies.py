@@ -1,8 +1,2 @@
-from typing import Annotated
-
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.dependencies import get_async_db
-
-async_db_dep = Annotated[AsyncSession, Depends(get_async_db)]
+# Общие зависимости для API
+# async_db_dep теперь определен в app.db.dependencies

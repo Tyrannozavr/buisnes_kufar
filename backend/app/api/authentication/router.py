@@ -11,7 +11,7 @@ from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreat
 from app.api.authentication.services.auth_service import AuthService
 from app.api.authentication.services.recaptcha_service import recaptcha_service
 from app.api.company.dependencies import company_service_dep
-from app.api.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.schemas.user import UserLogin

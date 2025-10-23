@@ -18,7 +18,7 @@ from app.api.company.schemas.company_officials import CompanyOfficialCreate, Com
 from app.api.company.schemas.filters import CompanyFiltersResponse
 from app.api.company.services.announcement_service import AnnouncementService
 from app.api.company.services.filter_service import CompanyFilterService
-from app.api.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep
 
 router = APIRouter(tags=["company"])
 

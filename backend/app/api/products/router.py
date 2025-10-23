@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile, Form
 
-from app.api.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
 from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest

@@ -128,62 +128,50 @@ watch(() => insertState.value,
 const changeState = inject(injectionKeys.changeStateOrderKey, ref(false))
 
 watch(() => changeState.value,
-	() => {
+	async () => {
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
-			purchasesStore.editGood(orderData.value.orderNumber, products)
-			purchasesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
-			purchasesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
+			 await purchasesStore.fullUpdateGoodsDeal(
+				orderData.value.orderNumber,
+				saller,
+				buyer,
+				products,
+				orderData.value.comments)
 
-			if (orderData.value.comments) {
-				purchasesStore.editGoodsComments(orderData.value.orderNumber, orderData.value.comments)
-			}
-
-			setTimeout(() => {
-				orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
-				orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
-			}, 1)
+			orderData.value.amount = await purchasesStore?.lastGoodsDeal?.goods.amountPrice
+			orderData.value.amountWord = await purchasesStore?.lastGoodsDeal?.goods.amountWord
 			
 		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
-			purchasesStore.editService(orderData.value.orderNumber, products)
-			purchasesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
-			purchasesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
+			await purchasesStore.fullUpdateServicesDeal(
+				orderData.value.orderNumber,
+				saller,
+				buyer,
+				products,
+				orderData.value.comments)
 
-			if (orderData.value.comments) {
-				purchasesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
-			}
-
-			setTimeout(() => {
-				orderData.value.amount = purchasesStore?.lastServicesDeal?.services.amountPrice
-				orderData.value.amountWord = purchasesStore?.lastServicesDeal?.services.amountWord
-			}, 1)
+			orderData.value.amount = await purchasesStore?.lastServicesDeal?.services.amountPrice
+			orderData.value.amountWord = await purchasesStore?.lastServicesDeal?.services.amountWord
 
 		} else if (requestedData === RequestedType.SALES_GOOD) {
-			salesStore.editGood(orderData.value.orderNumber, products)
-			salesStore.editSallerGoodsDeal(orderData.value.orderNumber, saller)
-			salesStore.editBuyerGoodsDeal(orderData.value.orderNumber, buyer)
+			await salesStore.fullUpdateGoodsDeal(
+				orderData.value.orderNumber,
+				saller,
+				buyer,
+				products,
+				orderData.value.comments)
 
-			if (orderData.value.comments) {
-				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
-			}
-
-			setTimeout(() => {
-				orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
-				orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
-			}, 1)
+			orderData.value.amount = await salesStore?.lastGoodsDeal?.goods.amountPrice
+			orderData.value.amountWord = await salesStore?.lastGoodsDeal?.goods.amountWord
 
 		} else if (requestedData === RequestedType.SALES_SERVICE) {
-			salesStore.editService(orderData.value.orderNumber, products)
-			salesStore.editSallerServicesDeal(orderData.value.orderNumber, saller)
-			salesStore.editBuyerServicesDeal(orderData.value.orderNumber, buyer)
+			await salesStore.fullUpdateServicesDeal(
+				orderData.value.orderNumber,
+				saller,
+				buyer,
+				products,
+				orderData.value.comments)
 
-			if (orderData.value.comments) {
-				salesStore.editServicesComments(orderData.value.orderNumber, orderData.value.comments)
-			}
-
-			setTimeout(() => {
-				orderData.value.amount = salesStore?.lastServicesDeal?.services.amountPrice
-				orderData.value.amountWord = salesStore?.lastServicesDeal?.services.amountWord
-			}, 1)
+			orderData.value.amount = await salesStore?.lastServicesDeal?.services.amountPrice
+			orderData.value.amountWord = await salesStore?.lastServicesDeal?.services.amountWord
 		}
 	},
 	{ deep: true }

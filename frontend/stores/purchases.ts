@@ -6,7 +6,10 @@ import type {
   Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
-import { purchasesGoodsData, purchasesServiceData } from "~/examples/exampleStoreData";
+import {
+  purchasesGoodsData,
+  purchasesServiceData,
+} from "~/examples/exampleStoreData";
 
 interface Purchases {
   purchases: {
@@ -18,13 +21,9 @@ interface Purchases {
 export const usePurchasesStore = defineStore("purchases", {
   state: (): Purchases => ({
     purchases: {
-      goodsDeals: [
-				...purchasesGoodsData
-      ],
+      goodsDeals: [...purchasesGoodsData],
 
-      servicesDeals: [
-        ...purchasesServiceData
-      ],
+      servicesDeals: [...purchasesServiceData],
     },
   }),
 
@@ -181,17 +180,17 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     editGood(dealNumber: number, newGoodsList: Product[]) {
-			const goodsDeal = this.findGoodsDeal(dealNumber)
-			if (goodsDeal) {
-				goodsDeal.goods.goodsList = [...newGoodsList]
-			}
+      const goodsDeal = this.findGoodsDeal(dealNumber);
+      if (goodsDeal) {
+        goodsDeal.goods.goodsList = [...newGoodsList];
+      }
     },
 
     editService(dealNumber: number, newServiceList: Product[]) {
-			const serviceDeal = this.findServicesDeal(dealNumber)
-			if (serviceDeal) {
-				serviceDeal.services.servicesList = [...newServiceList]
-			}
+      const serviceDeal = this.findServicesDeal(dealNumber);
+      if (serviceDeal) {
+        serviceDeal.services.servicesList = [...newServiceList];
+      }
     },
 
     editGoodsComments(dealNumber: number, comments: string) {
@@ -211,16 +210,16 @@ export const usePurchasesStore = defineStore("purchases", {
     removeGoodsDeal(dealNumber: number) {
       if (dealNumber) {
         const goodsDeal = this.findGoodsDeal(dealNumber);
-				const goodsDeals = this.purchases.goodsDeals
+        const goodsDeals = this.purchases.goodsDeals;
 
         if (goodsDeal) {
           const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
             return goods.dealNumber === goodsDeal.dealNumber;
           });
 
-					if (index !== -1 && typeof (index) !== 'undefined') {
-						goodsDeals?.splice(index, 1);
-					}
+          if (index !== -1 && typeof index !== "undefined") {
+            goodsDeals?.splice(index, 1);
+          }
         }
       }
     },
@@ -228,18 +227,54 @@ export const usePurchasesStore = defineStore("purchases", {
     removeServicesDeal(dealNumber: number) {
       if (dealNumber) {
         const servicesDeal = this.findServicesDeal(dealNumber);
-				const servicesDeals = this.purchases.servicesDeals
+        const servicesDeals = this.purchases.servicesDeals;
 
         if (servicesDeal) {
           const index = servicesDeals?.findIndex((service: ServicesDeal) => {
             return service.dealNumber === servicesDeal.dealNumber;
           });
 
-					if (index !== -1 && typeof (index) !== 'undefined') {
-						servicesDeals?.splice(index, 1);
-					}
+          if (index !== -1 && typeof index !== "undefined") {
+            servicesDeals?.splice(index, 1);
+          }
         }
       }
     },
+
+    async fullUpdateGoodsDeal(
+      orderNumber: number,
+      saller: EditPersonDeal,
+      buyer: EditPersonDeal,
+      newGoodsList: Product[],
+      comments?: string
+    ) {
+      this.amountInGoodsList();
+      this.amountPriceInGoods();
+      this.amountWordGoods();
+      this.editSallerGoodsDeal(orderNumber, saller);
+      this.editBuyerGoodsDeal(orderNumber, buyer);
+      this.editGood(orderNumber, newGoodsList);
+      if (comments) {
+        this.editGoodsComments(orderNumber, comments);
+      }
+    },
+
+		async fullUpdateServicesDeal(
+			orderNumber: number,
+			saller: EditPersonDeal,
+			buyer: EditPersonDeal,
+			newServiceList: Product[],
+			comments?: string
+		) {
+			this.amountInServicesList();
+			this.amountPriceInServices();
+			this.amountWordServices();
+			this.editSallerServicesDeal(orderNumber, saller);
+			this.editBuyerServicesDeal(orderNumber, buyer);
+			this.editService(orderNumber, newServiceList);
+			if (comments) {
+				this.editServicesComments(orderNumber, comments);
+			}
+		},
   },
 });

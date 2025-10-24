@@ -241,5 +241,41 @@ export const useSalesStore = defineStore("sales", {
 				}
 			}
 		},
+
+		async fullUpdateGoodsDeal(
+      orderNumber: number,
+      saller: EditPersonDeal,
+      buyer: EditPersonDeal,
+      newGoodsList: Product[],
+      comments?: string
+    ) {
+      this.amountInGoodsList();
+      this.amountPriceInGoods();
+      this.amountWordGoods();
+      this.editSallerGoodsDeal(orderNumber, saller);
+      this.editBuyerGoodsDeal(orderNumber, buyer);
+      this.editGood(orderNumber, newGoodsList);
+      if (comments) {
+        this.editGoodsComments(orderNumber, comments);
+      }
+    },
+
+		async fullUpdateServicesDeal(
+			orderNumber: number,
+			saller: EditPersonDeal,
+			buyer: EditPersonDeal,
+			newServiceList: Product[],
+			comments?: string
+		) {
+			this.amountInServicesList();
+			this.amountPriceInServices();
+			this.amountWordServices();
+			this.editSallerServicesDeal(orderNumber, saller);
+			this.editBuyerServicesDeal(orderNumber, buyer);
+			this.editService(orderNumber, newServiceList);
+			if (comments) {
+				this.editServicesComments(orderNumber, comments);
+			}
+		},
 	},
 });

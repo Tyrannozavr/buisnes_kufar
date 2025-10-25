@@ -228,16 +228,24 @@ class CompanyRepository:
         # Устанавливаем права владельца
         owner_permissions = PermissionManager.set_permissions_for_role(UserRole.OWNER)
         
-        # Обновляем пользователя
-        user.company_id = company.id
-        user.role = UserRole.OWNER
-        user.permissions = owner_permissions
-        
+        # Обновляем пользователя через SQL update
+        from app.api.authentication.models.user import User
+        from app.api.authentication.models.roles_positions import Position
+        await self.session.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values(
+                company_id=company.id,
+                role=UserRole.OWNER,
+                position=Position.OWNER.value,  # Устанавливаем должность "Владелец"
+                permissions=owner_permissions
+            )
+        )
         await self.session.commit()
 
         # Создаем запись в CompanyOfficial для текущего пользователя
         official = CompanyOfficial(
-            position=user.position or "Руководитель",
+            position=Position.OWNER.value,  # Используем должность "Владелец"
             full_name=user_full_name,
             company_id=company.id
         )

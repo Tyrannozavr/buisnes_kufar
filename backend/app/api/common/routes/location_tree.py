@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
+from fastapi import Query as FastAPIQuery
+import logging
 
 from app.db.base import AsyncSessionLocal
 from app.api.common.models.country import Country
@@ -11,6 +13,7 @@ from app.api.common.models.city import City
 from app.api.common.schemas.location import LocationItem, LocationResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 async def get_db():
@@ -123,48 +126,82 @@ async def get_regions(
 @router.get("/cities", response_model=LocationResponse)
 async def get_cities(
     country_code: str = Query(..., description="Код страны"),
-    region_code: Optional[str] = Query(None, description="Код региона"),
-    federal_district_code: Optional[str] = Query(None, description="Код федерального округа"),
-    search: Optional[str] = Query(None, description="Поиск по названию города"),
+    region_code: Optional[str] = Query(default=None, description="Код региона"),
+    federal_district_code: Optional[str] = Query(default=None, description="Код федерального округа"),
+    search: Optional[str] = Query(default=None, description="Поиск по названию города"),
     million_cities_only: bool = Query(False, description="Только города-миллионники"),
     regional_centers_only: bool = Query(False, description="Только региональные центры"),
     db = Depends(get_db)
 ):
     """Получить список городов по стране, региону и федеральному округу"""
+    print(f"🔍 Запрос городов: country_code={country_code}, region_code={region_code}, federal_district_code={federal_district_code}, search={search}")
     try:
-        # Сначала получаем страну
+        # Сначала получаем страну (сначала по коду, потом по названию)
         country_result = await db.execute(
             select(Country).where(Country.code == country_code, Country.is_active == True)
         )
         country = country_result.scalar_one_or_none()
         
+        # Если не нашли по коду, пробуем найти по названию (для обратной совместимости)
+        if not country:
+            country_result = await db.execute(
+                select(Country).where(Country.name == country_code, Country.is_active == True)
+            )
+            country = country_result.scalar_one_or_none()
+        
         if not country:
             raise HTTPException(status_code=404, detail="Страна не найдена")
+        
+        logger.info(f"🔍 DEBUG: Найдена страна {country.name} с ID {country.id}")
         
         # Строим запрос
         query = select(City).where(City.country_id == country.id, City.is_active == True)
         
         # Если указан регион, фильтруем по нему
         if region_code:
+            # Сначала пробуем найти по коду
             region_result = await db.execute(
                 select(Region)
                 .where(Region.code == region_code, Region.is_active == True)
             )
             region = region_result.scalar_one_or_none()
             
+            # Если не нашли по коду, пробуем найти по названию (для обратной совместимости)
+            if not region:
+                region_result = await db.execute(
+                    select(Region)
+                    .where(Region.name == region_code, Region.is_active == True)
+                )
+                region = region_result.scalar_one_or_none()
+            
             if region:
                 query = query.where(City.region_id == region.id)
+                logger.info(f"🔍 DEBUG: Найден регион {region.name} с ID {region.id}")
+            else:
+                logger.warning(f"❌ DEBUG: Регион с кодом/названием {region_code} не найден")
         
         # Если указан федеральный округ, фильтруем по нему
-        if federal_district_code:
+        if federal_district_code and isinstance(federal_district_code, str):
+            # Сначала пробуем найти по коду
             fd_result = await db.execute(
                 select(FederalDistrict)
                 .where(FederalDistrict.code == federal_district_code, FederalDistrict.is_active == True)
             )
             federal_district = fd_result.scalar_one_or_none()
             
+            # Если не нашли по коду, пробуем найти по названию (для обратной совместимости)
+            if not federal_district:
+                fd_result = await db.execute(
+                    select(FederalDistrict)
+                    .where(FederalDistrict.name == federal_district_code, FederalDistrict.is_active == True)
+                )
+                federal_district = fd_result.scalar_one_or_none()
+            
             if federal_district:
                 query = query.where(City.federal_district_id == federal_district.id)
+                logger.info(f"🔍 DEBUG: Найден федеральный округ {federal_district.name} с ID {federal_district.id}")
+            else:
+                logger.warning(f"❌ DEBUG: Федеральный округ с кодом/названием {federal_district_code} не найден")
         
         # Фильтры по типу города
         if million_cities_only:
@@ -180,6 +217,10 @@ async def get_cities(
         query = query.order_by(City.name)
         result = await db.execute(query)
         cities = result.scalars().all()
+        
+        logger.info(f"🔍 DEBUG: Найдено {len(cities)} городов")
+        if cities:
+            logger.info(f"🔍 DEBUG: Первые 3 города: {[city.name for city in cities[:3]]}")
         
         items = [{"label": city.name, "value": city.name} for city in cities]
         

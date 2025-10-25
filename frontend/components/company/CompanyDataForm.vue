@@ -10,7 +10,7 @@ import type {
   TradeActivity
 } from '~/types/company'
 import type {LocationItem} from '~/types/location'
-import {useLocationsApi} from '~/api/locations'
+import {useLocationsDbApi} from '~/api/locations-db'
 import {useUserStore} from '~/stores/user'
 import {uploadCompanyLogo} from '~/api/companyOwner'
 import UCombobox from "~/components/ui/UCombobox.vue";
@@ -36,7 +36,7 @@ const {
   loadRegions,
   loadCities,
   searchCities
-} = useLocationsApi()
+} = useLocationsDbApi()
 
 // Загружаем списки локаций
 const countries = ref<LocationItem[]>([])
@@ -91,8 +91,8 @@ onMounted(async () => {
   countries.value = countryOptions.value
   
   // Если есть данные о стране, загружаем федеральные округа
-  if (props.company?.country) {
-    await loadFederalDistricts()
+  if (props.company?.country === 'Россия') {
+    await loadFederalDistricts('RU')
     federalDistricts.value = federalDistrictOptions.value
   }
   
@@ -299,8 +299,8 @@ const handleCountryChange = async (country: LocationItem | undefined) => {
   cities.value = []
   isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
   
-  if (country?.value === 'Россия') {
-    await loadFederalDistricts()
+  if (country?.value === 'RU') {
+    await loadFederalDistricts('RU')
     federalDistricts.value = federalDistrictOptions.value
   } else {
     federalDistricts.value = []

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CompanyDataFormState } from '~/types/company'
 import type { LocationItem } from '~/types/location'
-import { useLocationsApi } from '~/api/locations'
+import { useLocationsDbApi } from '~/api/locations-db'
 import UCombobox from '~/components/ui/UCombobox.vue'
 import CompanyTypeSelect from '~/components/company/CompanyTypeSelect.vue'
 
@@ -39,7 +39,7 @@ const {
   loadFederalDistricts,
   loadRegions,
   loadCities
-} = useLocationsApi()
+} = useLocationsDbApi()
 
 // Добавляем состояние для поискового запроса города
 const citySearchQuery = ref('')
@@ -62,8 +62,8 @@ watch(() => props.formState.country, async (newCountry) => {
 
   try {
     // Загружаем федеральные округи только для России
-    if (newCountry.value === 'Россия') {
-      await loadFederalDistricts()
+    if (newCountry.value === 'RU') {
+      await loadFederalDistricts(newCountry.value)
     } else {
       // Для других стран сразу загружаем регионы
       await loadRegions(newCountry.value)
@@ -83,7 +83,7 @@ watch(() => props.formState.federalDistrict, async (newFederalDistrict) => {
   })
   citySearchQuery.value = '' // Сбрасываем поисковый запрос
 
-  if (!newFederalDistrict || !props.formState.country || props.formState.country.value !== 'Россия') {
+  if (!newFederalDistrict || !props.formState.country || props.formState.country.value !== 'RU') {
     return
   }
 
@@ -105,7 +105,17 @@ watch(() => props.formState.region, async (newRegion) => {
     citySearchQuery.value = '' // Сбрасываем поисковый запрос
     return
   }
-  // Убираем автоматическую загрузку городов при выборе региона
+  
+  try {
+    // Загружаем города для выбранного региона
+    await loadCities(
+      props.formState.country.value,
+      newRegion.value,
+      props.formState.federalDistrict?.value
+    )
+  } catch (error) {
+    console.error('Error loading cities for region:', error)
+  }
 })
 
 // Watch для поискового запроса города
@@ -115,9 +125,8 @@ watch(citySearchQuery, async (newQuery: string) => {
     clearTimeout(citySearchTimeout.value)
   }
 
-  // Если запрос короче 2 символов, очищаем список городов
+  // Если запрос короче 2 символов, не делаем поиск, но оставляем уже загруженные города
   if (newQuery.length < 2) {
-    cityOptions.value = []
     return
   }
 
@@ -128,7 +137,7 @@ watch(citySearchQuery, async (newQuery: string) => {
         await loadCities(
           props.formState.country.value,
           props.formState.region.value,
-          1,
+          props.formState.federalDistrict?.value,
           newQuery
         )
       }
@@ -240,7 +249,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :items="federalDistrictOptions || []"
             :loading="federalDistrictsLoading"
             class="w-48"
-            :disabled="formState.country?.value !== 'Россия' || federalDistrictsLoading || !!federalDistrictsError"
+            :disabled="formState.country?.value !== 'RU' || federalDistrictsLoading || !!federalDistrictsError"
             placeholder="Выберите федеральный округ"
             :search-input="{
                 placeholder: 'Поиск...',
@@ -252,7 +261,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
         <p v-if="federalDistrictsError" class="text-red-500 text-sm mt-1">
           Не удалось загрузить список федеральных округов. Пожалуйста, попробуйте позже.
         </p>
-        <p v-if="formState.country && formState.country.value !== 'Россия'" class="text-gray-500 text-sm mt-1">
+        <p v-if="formState.country && formState.country.value !== 'RU'" class="text-gray-500 text-sm mt-1">
           Федеральный округ доступен только для России
         </p>
       </UFormField>
@@ -264,7 +273,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :loading="regionsLoading"
             class="w-48"
             :disabled="!formState.country ||
-                     (formState.country.value === 'Россия' && !formState.federalDistrict) ||
+                     (formState.country.value === 'RU' && !formState.federalDistrict) ||
                      regionsLoading"
             placeholder="Выберите регион"
             :search-input="{
@@ -278,7 +287,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
           Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
         </p>
         <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
-          {{ formState.country.value === 'Россия'
+          {{ formState.country.value === 'RU'
             ? 'Выберите федеральный округ для загрузки списка регионов'
             : 'Для выбранной страны регионы не требуются' }}
         </p>
@@ -292,7 +301,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :disabled="!formState.region"
             :disabled-message="!formState.region ? 'Сначала выберите регион' : ''"
             class="w-48"
-            placeholder="Введите название города (минимум 2 символа)"
+            placeholder="Выберите город или введите для поиска"
             :search-input="{
                 modelValue: citySearchQuery,
                 'onUpdate:modelValue': (val: string) => { citySearchQuery = val },
@@ -305,7 +314,7 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
           Не удалось загрузить список городов: {{ citiesError?.message || 'Неизвестная ошибка' }}
         </p>
         <p v-if="citySearchQuery.length > 0 && citySearchQuery.length < 2" class="text-gray-500 text-sm mt-1">
-          Введите минимум 2 символа для поиска города
+          Введите минимум 2 символа для поиска или выберите из списка
         </p>
       </UFormField>
     </div>

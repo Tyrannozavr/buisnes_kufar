@@ -37,12 +37,17 @@ class EmployeeService:
         
         employee = await self.employee_repository.create_employee(employee_data, company_id, created_by)
         
-        # Десериализуем permissions из JSON-строки в dict, если необходимо
-        if hasattr(employee, 'permissions') and isinstance(employee.permissions, str):
-            import json
-            employee.permissions = json.loads(employee.permissions)
+        # Десериализуем permissions из JSON-строки в dict для валидации
+        employee_dict = employee.__dict__.copy()
+        if employee.permissions and isinstance(employee.permissions, str):
+            try:
+                employee_dict['permissions'] = json.loads(employee.permissions)
+            except json.JSONDecodeError:
+                employee_dict['permissions'] = {}
+        else:
+            employee_dict['permissions'] = {}
         
-        return EmployeeResponse.model_validate(employee)
+        return EmployeeResponse.model_validate(employee_dict)
 
     async def get_employees(self, company_id: int, page: int = 1, per_page: int = 50) -> EmployeeListResponse:
         """Получить список сотрудников компании"""

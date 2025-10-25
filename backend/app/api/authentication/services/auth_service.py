@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, User, ChangePasswordRequest, \
     ChangeEmailRequest
+from app.api.authentication.models.user import User as UserModel, UserRole
 from app.api.company.repositories.company_repository import CompanyRepository
 from app.core.config import settings
 from app.core.email_utils import send_verification_email, send_password_reset_email, send_email_change_code, \
@@ -100,10 +101,38 @@ class AuthService:
             None  # Пока что ищем по email, потом найдем компанию
         )
         
+        logger.info(f"🔍 Looking for employee with email: {updated_user.email}")
+        logger.info(f"🔍 Employee found: {employee is not None}")
+        if employee:
+            logger.info(f"🔍 Employee details: ID={employee.id}, company_id={employee.company_id}, position={employee.position}")
+        else:
+            logger.info(f"🔍 No employee found for email: {updated_user.email}")
+        
         if employee:
             # Если найден сотрудник, привязываем пользователя к сотруднику
             await employee_repository.activate_employee(employee.id, updated_user.id)
-            logger.info(f"Activated employee {employee.id} for user {updated_user.id}")
+            
+            # Получаем пользователя заново из текущей сессии
+            logger.info(f"🔍 Getting user by ID: {updated_user.id}")
+            user_to_update = await self.user_repository.get_user_by_id(updated_user.id)
+            if user_to_update:
+                logger.info(f"🔍 User found: ID={user_to_update.id}, current company_id={user_to_update.company_id}, current position={user_to_update.position}")
+                
+                # Обновляем данные пользователя из данных сотрудника
+                logger.info(f"🔍 Updating user with: company_id={employee.company_id}, position={employee.position}")
+                user_to_update.company_id = employee.company_id
+                user_to_update.position = employee.position
+                user_to_update.role = UserRole.USER
+                
+                logger.info(f"🔍 Adding user to session and committing...")
+                self.db.add(user_to_update)
+                await self.db.commit()
+                await self.db.refresh(user_to_update)
+                
+                logger.info(f"✅ Activated employee {employee.id} for user {user_to_update.id}, updated user data")
+                logger.info(f"✅ Final user company_id: {user_to_update.company_id}, position: {user_to_update.position}")
+            else:
+                logger.error(f"❌ User {updated_user.id} not found for update")
         else:
             # Если не найден сотрудник, создаем компанию по умолчанию (владелец)
             try:

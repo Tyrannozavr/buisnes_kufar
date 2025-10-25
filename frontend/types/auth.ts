@@ -4,16 +4,12 @@ export interface RegisterStep1Data {
   patronymic?: string
   email: string
   phone: string
-  recaptcha_token: string
+  recaptcha_token?: string  // Опциональный для localhost
   agreement?: boolean
 }
 
 export interface RegisterStep2Data {
   inn: string
-  position: {
-    label: string,
-    value: string,
-  }
   password: string
   confirmPassword: string
   token: string

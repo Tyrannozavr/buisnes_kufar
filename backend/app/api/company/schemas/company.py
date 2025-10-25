@@ -207,7 +207,7 @@ class CompanyProfileResponse(BaseModel):
     logo: Optional[str] = None
     slug: Optional[str] = None
     email: str
-    inn: str
+    inn: Optional[str] = None
     position: Optional[str] = None
     is_company_created: bool = False
 
@@ -233,7 +233,7 @@ class CompanyProfileResponse(BaseModel):
             name=None,
             logo=None,
             email=user.email,
-            inn=user.inn,
+            inn=None,  # ИНН не относится к пользователю
             position=user.position,
             is_company_created=False
         )
@@ -246,7 +246,7 @@ class CompanyProfileResponse(BaseModel):
             name=company.name,
             logo=company.logo,
             email=user.email,
-            inn=user.inn,
+            inn=company.inn,  # ИНН берется из компании
             position=user.position,
             is_company_created=True
         )

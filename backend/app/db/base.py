@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 # Import all models here to ensure they are registered with SQLAlchemy metadata
 from app.api.authentication.models.user import User, RegistrationToken, PasswordResetToken, EmailChangeToken, \
     PasswordRecoveryCode  # noqa
+from app.api.authentication.models.employee import Employee, EmployeePermission  # noqa
 from app.api.chats.models.chat import Chat  # noqa
 from app.api.chats.models.chat_participant import ChatParticipant  # noqa
 from app.api.company.models.company import Company  # noqa

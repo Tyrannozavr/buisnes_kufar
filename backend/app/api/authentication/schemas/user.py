@@ -23,14 +23,25 @@ class UserCreateStep1(BaseModel):
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone: constr(min_length=10, max_length=15)
-    recaptcha_token: str  # Токен reCAPTCHA v3
+    recaptcha_token: Optional[str] = None  # Токен reCAPTCHA v3 (опциональный для localhost)
 
 
 class UserCreateStep2(BaseModel):
     token: str
     inn: constr(min_length=10, max_length=12)
-    position: str
     password: constr(min_length=8)
+
+
+class UserUpdate(BaseModel):
+    """Схема для обновления профиля пользователя"""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone: Optional[constr(min_length=10, max_length=15)] = None
+    inn: Optional[str] = None
+    position: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserInDB(UserBase):

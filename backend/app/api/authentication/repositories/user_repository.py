@@ -32,15 +32,31 @@ class UserRepository:
         return UserInDB.model_validate(user)
 
     async def update_user_step2(self, user: User, user_data: UserCreateStep2) -> UserInDB:
+        # Проверяем уникальность ИНН перед обновлением
+        if user_data.inn and user_data.inn != user.inn:
+            # Ищем пользователя с таким ИНН
+            result = await self.session.execute(
+                select(User).where(User.inn == user_data.inn)
+            )
+            existing_user = result.scalar_one_or_none()
+            if existing_user and existing_user.id != user.id:
+                raise ValueError(f"ИНН {user_data.inn} уже используется другим пользователем")
+        
         user.inn = user_data.inn
-        user.position = user_data.position
         user.is_active = True
         user.hashed_password = get_password_hash(user_data.password)
         user.updated_at = datetime.utcnow()
         self.session.add(user)
-        await self.session.commit()
-        await self.session.refresh(user)
-        return UserInDB.model_validate(user)
+        
+        try:
+            await self.session.commit()
+            await self.session.refresh(user)
+            return UserInDB.model_validate(user)
+        except Exception as e:
+            await self.session.rollback()
+            if "users_inn_key" in str(e):
+                raise ValueError(f"ИНН {user_data.inn} уже используется другим пользователем")
+            raise
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
         result = await self.session.execute(
@@ -54,20 +70,31 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_user_by_inn(self, inn: str) -> Optional[User]:
-        """Get user by INN"""
-        logger.info(f"Searching for user with INN: {inn}")
-
-        result = await self.session.execute(
-            select(User).where(User.inn == inn)
-        )
-        user = result.scalar_one_or_none()
-
-        if user:
-            logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
+    async def get_user_by_email_or_phone(self, login: str) -> Optional[User]:
+        """Get user by email or phone"""
+        logger.info(f"Searching for user with login: {login}")
+        
+        # Определяем, это email или телефон
+        is_email = '@' in login
+        
+        if is_email:
+            result = await self.session.execute(
+                select(User).where(User.email == login)
+            )
         else:
-            logger.warning(f"No user found with INN: {inn}")
-
+            # Убираем все нецифровые символы для поиска по телефону
+            phone_digits = ''.join(filter(str.isdigit, login))
+            result = await self.session.execute(
+                select(User).where(User.phone.contains(phone_digits))
+            )
+        
+        user = result.scalar_one_or_none()
+        
+        if user:
+            logger.info(f"User found: ID={user.id}, email={user.email}, phone={user.phone}")
+        else:
+            logger.warning(f"No user found with login: {login}")
+        
         return user
 
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
@@ -94,6 +121,36 @@ class UserRepository:
         )
         db_token = result.scalar_one_or_none()
         return RegistrationToken.model_validate(db_token) if db_token else None
+
+    async def update_user_profile(self, user_id: int, user_data: dict) -> Optional[UserInDB]:
+        """Обновить профиль пользователя с проверкой уникальности ИНН"""
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+        
+        # Проверяем уникальность ИНН если он изменился
+        if "inn" in user_data and user_data["inn"] and user_data["inn"] != user.inn:
+            existing_user = await self.get_user_by_inn(user_data["inn"])
+            if existing_user and existing_user.id != user.id:
+                raise ValueError(f"ИНН {user_data['inn']} уже используется другим пользователем")
+        
+        # Обновляем поля
+        for field, value in user_data.items():
+            if hasattr(user, field):
+                setattr(user, field, value)
+        
+        user.updated_at = datetime.utcnow()
+        self.session.add(user)
+        
+        try:
+            await self.session.commit()
+            await self.session.refresh(user)
+            return UserInDB.model_validate(user)
+        except Exception as e:
+            await self.session.rollback()
+            if "users_inn_key" in str(e):
+                raise ValueError(f"ИНН {user_data.get('inn', '')} уже используется другим пользователем")
+            raise
 
     async def mark_token_as_used(self, token: str) -> bool:
         result = await self.session.execute(

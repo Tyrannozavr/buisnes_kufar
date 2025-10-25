@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse, \
+from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, UserUpdate, Token, VerifyTokenResponse, \
     ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, \
     PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
 from app.api.authentication.services.auth_service import AuthService
@@ -28,9 +28,12 @@ async def register_step1(
 ):
     # Получаем IP адрес клиента
     client_ip = request.client.host if request.client else None
+    
+    # Получаем origin заголовок для проверки домена
+    origin = request.headers.get("origin")
 
     # Проверяем reCAPTCHA
-    await recaptcha_service.verify_recaptcha(data.recaptcha_token, client_ip)
+    await recaptcha_service.verify_recaptcha(data.recaptcha_token, client_ip, origin)
 
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
     await auth_service.register_step1(data)
@@ -92,7 +95,7 @@ async def login(
         db: async_db_dep
 ):
     """
-    Login user with INN and password.
+    Login user with email/phone and password.
     Password must be at least 8 characters long.
     """
     if len(user_data.password) < 8:
@@ -102,11 +105,11 @@ async def login(
         )
 
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
-    user = await auth_service.authenticate_user_by_inn(user_data.inn, user_data.password)
+    user = await auth_service.authenticate_user_by_login(user_data.login, user_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect INN or password",
+            detail="Incorrect email/phone or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -129,15 +132,15 @@ async def login(
         grant_type: Optional[str] = Form(None),
 ):
     """
-    Login user with username (INN) and password.
+    Login user with username (email/phone) and password.
 
     """
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
-    user = await auth_service.authenticate_user_by_inn(username, password)
+    user = await auth_service.authenticate_user_by_login(username, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect INN or password",
+            detail="Incorrect email/phone or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -338,3 +341,64 @@ async def debug_password_hash(
         "current_verify": current_verify,
         "new_verify": verify_password(password, new_hash)
     }
+
+
+@router.get("/me", response_model=User)
+async def get_my_profile(
+        request: Request,
+        db: async_db_dep
+):
+    """Получить профиль текущего пользователя"""
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    user = await auth_service.get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    return user
+
+
+@router.put("/me", response_model=User)
+async def update_my_profile(
+        user_data: UserUpdate,
+        request: Request,
+        db: async_db_dep
+):
+    """Обновить профиль текущего пользователя"""
+    auth_service = AuthService(user_repository=UserRepository(session=db), db=db)
+    user = await auth_service.get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    user_repository = UserRepository(session=db)
+    
+    try:
+        # Фильтруем только переданные поля
+        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
+        
+        updated_user = await user_repository.update_user_profile(user.id, update_data)
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return updated_user
+        
+    except ValueError as e:
+        # Ошибка уникальности ИНН
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update profile: {str(e)}"
+        )

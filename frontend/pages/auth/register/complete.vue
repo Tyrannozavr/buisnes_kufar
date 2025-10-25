@@ -3,7 +3,6 @@ import type {RegisterStep2Data, ApiError} from '~/types/auth'
 import {useAuthApi} from '~/api/auth'
 import {useUserStore} from "~/stores/user"
 import type {CompanyInfo} from "~/types/company";
-import UCombobox from "~/components/ui/UCombobox.vue";
 
 const route = useRoute()
 const router = useRouter()
@@ -13,7 +12,6 @@ const userStore = useUserStore()
 const form = ref<RegisterStep2Data>({
   token: '',
   inn: '',
-  position: '',
   password: '',
   confirmPassword: ''
 })
@@ -24,7 +22,6 @@ const showConfirmPassword = ref(false)
 
 // Error states for form fields
 const innError = ref('')
-const positionError = ref('')
 const passwordError = ref('')
 const confirmPasswordError = ref('')
 
@@ -32,22 +29,6 @@ const isLoading = ref(false)
 const isTokenValid = ref(false)
 const isTokenChecking = ref(true)
 
-// Опции должностей (такие же как в CompanyOfficialsSection)
-const positions = [
-  {label: 'Генеральный директор', value: 'Генеральный директор'},
-  {label: 'Финансовый директор', value: 'Финансовый директор'},
-  {label: 'Главный бухгалтер', value: 'Главный бухгалтер'},
-  {label: 'Коммерческий директор', value: 'Коммерческий директор'},
-  {label: 'Технический директор', value: 'Технический директор'},
-  {label: 'Руководитель отдела продаж', value: 'Руководитель отдела продаж'},
-  {label: 'Руководитель отдела закупок', value: 'Руководитель отдела закупок'},
-  {label: 'Руководитель производства', value: 'Руководитель производства'}
-]
-
-const positionOptions = positions.map(pos => ({
-  label: pos.label,
-  value: pos.value
-}))
 
 const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
@@ -83,16 +64,6 @@ const validateInn = () => {
   return true
 }
 
-const validatePosition = () => {
-  const result = rules.required(form.value.position)
-  if (result !== true) {
-    positionError.value = result
-    return false
-  }
-
-  positionError.value = ''
-  return true
-}
 
 const validatePassword = () => {
   const result = rules.required(form.value.password)
@@ -135,7 +106,6 @@ const validateConfirmPassword = () => {
 // Run all validations
 const validateForm = () => {
   validateInn()
-  validatePosition()
   validatePassword()
   validateConfirmPassword()
 }
@@ -143,11 +113,9 @@ const validateForm = () => {
 // Computed property for form validity
 const isFormValid = computed(() => {
   return !!form.value.inn &&
-      !!form.value.position &&
       !!form.value.password &&
       !!form.value.confirmPassword &&
       !innError.value &&
-      !positionError.value &&
       !passwordError.value &&
       !confirmPasswordError.value
 })
@@ -263,18 +231,6 @@ const handleSubmit = async () => {
                 class="w-full"
             />
             <p v-if="innError" class="mt-1 text-sm text-red-500">{{ innError }}</p>
-          </UFormField>
-
-          <UFormField label="Должность">
-            <UCombobox
-                v-model="form.position"
-                :items="positionOptions"
-                placeholder="Выберите должность"
-                :color="positionError ? 'error' : undefined"
-                @update:model-value="validatePosition"
-                class="w-full"
-            />
-            <p v-if="positionError" class="mt-1 text-sm text-red-500">{{ positionError }}</p>
           </UFormField>
 
           <UFormField label="Пароль">

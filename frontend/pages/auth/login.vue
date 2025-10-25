@@ -7,16 +7,16 @@
       
       <form class="mt-8 space-y-6" @submit.prevent="handleSubmit">
         <div class="space-y-4 flex flex-col w-full">
-          <UFormField label="ИНН" class="w-full">
+          <UFormField label="Email или телефон" class="w-full">
             <UInput
-              v-model="form.inn"
+              v-model="form.login"
               type="text"
-              placeholder="Введите ИНН"
-              :rules="[rules.required, rules.inn]"
-              :color="innError ? 'error' : undefined"
+              placeholder="Введите email или номер телефона"
+              :rules="[rules.required]"
+              :color="loginError ? 'error' : undefined"
               class="w-full"
             />
-            <p v-if="innError && form.inn" class="mt-1 text-sm text-red-500">{{ innError }}</p>
+            <p v-if="loginError && form.login" class="mt-1 text-sm text-red-500">{{ loginError }}</p>
           </UFormField>
 
           <UFormField label="Пароль" class="w-full">
@@ -71,7 +71,7 @@ import { useAuthApi } from '~/api/auth'
 import type { CompanyInfo } from '~/types/company'
 
 const form = ref({
-  inn: '',
+  login: '',
   password: ''
 })
 
@@ -80,20 +80,15 @@ const userStore = useUserStore()
 
 const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
-  inn: (value: string) => {
-    if (!value) return true
-    return /^\d{10}$/.test(value) || 'ИНН должен содержать 10 цифр'
-  },
   password: (value: string) => {
     if (!value) return true
     return value.length >= 8 || 'Пароль должен содержать минимум 8 символов'
   }
 }
 
-const innError = computed(() => {
-  if (!form.value.inn) return ''
-  const result = rules.inn(form.value.inn)
-  return result === true ? '' : result
+const loginError = computed(() => {
+  if (!form.value.login) return ''
+  return ''
 })
 
 const passwordError = computed(() => {
@@ -103,8 +98,8 @@ const passwordError = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return !!form.value.inn && !!form.value.password &&
-    !innError.value && !passwordError.value
+  return !!form.value.login && !!form.value.password &&
+    !loginError.value && !passwordError.value
 })
 
 const handleSubmit = async () => {
@@ -113,13 +108,13 @@ const handleSubmit = async () => {
   isLoading.value = true
   try {
     console.log('🔐 Starting login process...')
-    console.log('📝 Form data:', { inn: form.value.inn, password: '***' })
+    console.log('📝 Form data:', { login: form.value.login, password: '***' })
     
     const authApi = useAuthApi()
     
     // Login to get the token
     console.log('🚀 Calling authApi.login...')
-    await authApi.login(form.value.inn, form.value.password)
+    await authApi.login(form.value.login, form.value.password)
     console.log('✅ Login successful, token should be set in cookie')
     
     // Check if token is in cookie

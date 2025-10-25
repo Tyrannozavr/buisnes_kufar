@@ -12,7 +12,7 @@ const form = ref<RegisterStep1Data>({
   patronymic: '',
   email: '',
   phone: '',
-  recaptcha_token: '',
+  recaptcha_token: undefined,  // Будет установлен при отправке
   agreement: false
 })
 
@@ -122,9 +122,17 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    // Execute reCAPTCHA
-    const recaptchaToken = await (($recaptcha as any).execute('register'))
-    form.value.recaptcha_token = recaptchaToken
+    // Execute reCAPTCHA только если не localhost:3000
+    const isLocalhost = process.client && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '3000'
+    
+    if (isLocalhost) {
+      // Для localhost:3000 используем фиктивный токен
+      form.value.recaptcha_token = 'localhost-development-token'
+    } else {
+      // Execute reCAPTCHA для продакшена
+      const recaptchaToken = await (($recaptcha as any).execute('register'))
+      form.value.recaptcha_token = recaptchaToken
+    }
 
     await authApi.registerStep1(form.value)
 
@@ -135,7 +143,7 @@ const handleSubmit = async () => {
       patronymic: '',
       email: '',
       phone: '',
-      recaptcha_token: '',
+      recaptcha_token: undefined,
       agreement: false
     }
 
@@ -178,6 +186,15 @@ const handleSubmit = async () => {
         color: 'info',
         icon: 'i-heroicons-information-circle'
       })
+    } else if (apiError.detail && typeof apiError.detail === 'object' && apiError.detail.error_type === 'email_service_unavailable') {
+      // Обработка ошибки сервиса email
+      useToast().add({
+        title: 'Временные трудности',
+        description: apiError.detail.message || 'Временные технические трудности с отправкой email. Пожалуйста, попробуйте позже.',
+        color: 'warning',
+        icon: 'i-heroicons-exclamation-triangle'
+      })
+      console.error('Email service error:', apiError.detail.verbose_error)
     } else {
       // Display general error message
       useToast().add({

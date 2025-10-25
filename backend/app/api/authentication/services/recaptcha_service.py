@@ -12,18 +12,27 @@ class RecaptchaService:
         self.min_score = settings.RECAPTCHA_MIN_SCORE
         self.verify_url = "https://www.google.com/recaptcha/api/siteverify"
 
-    async def verify_recaptcha(self, token: str, remote_ip: str = None) -> bool:
+    async def verify_recaptcha(self, token: str, remote_ip: str = None, origin: str = None) -> bool:
         """
         Проверяет токен reCAPTCHA v3
         
         Args:
             token: Токен reCAPTCHA от клиента
             remote_ip: IP адрес клиента (опционально)
+            origin: Origin заголовок для проверки домена (опционально)
             
         Returns:
             bool: True если проверка прошла успешно
         """
+        # Пропускаем проверку reCAPTCHA для localhost:3000 (разработка)
+        if origin and ('localhost:3000' in origin or '127.0.0.1:3000' in origin):
+            return True
+            
+        # Пропускаем проверку если токен не передан (для localhost)
         if not token:
+            # Если это localhost, разрешаем без токена
+            if origin and ('localhost' in origin or '127.0.0.1' in origin):
+                return True
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="reCAPTCHA token is required"

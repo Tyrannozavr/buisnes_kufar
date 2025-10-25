@@ -61,6 +61,12 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
           type: 'label'
         },
         {
+          label: 'Документы',
+          icon: 'i-heroicons-document',
+          to: '/profile/documents',
+          active: route.path === '/profile/documents'
+        },
+        {
           label: 'Договоры',
           icon: 'i-heroicons-document-text',
           to: '/profile/contracts',
@@ -95,6 +101,12 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
           icon: 'i-heroicons-key',
           to: '/profile/auth',
           active: route.path === '/profile/auth'
+        },
+        {
+          label: 'Администрирование',
+          icon: 'i-heroicons-users',
+          to: '/profile/administration',
+          active: route.path === '/profile/administration'
         }
       ]
     ]

@@ -46,10 +46,20 @@ class AuthService:
         # Отправляем email с ссылкой для верификации
         email_sent = await send_verification_email(user_data.email, verification_url)
         if not email_sent:
-            # Если не удалось отправить email, можно удалить токен (опционально)
+            # Если не удалось отправить email, выводим ссылку в консоль для разработки
+            logger.error(f"EMAIL SERVICE ERROR: Failed to send verification email to {user_data.email}")
+            logger.error(f"VERIFICATION LINK FOR DEVELOPMENT: {verification_url}")
+            logger.error("This is likely due to incorrect SMTP credentials or email service configuration.")
+            logger.error("For development purposes, you can use the verification link above.")
+            
+            # Возвращаем дружелюбное сообщение пользователю
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send verification email"
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "message": "Временные технические трудности с отправкой email. Пожалуйста, попробуйте позже.",
+                    "error_type": "email_service_unavailable",
+                    "verbose_error": "Email service configuration issue - check SMTP credentials"
+                }
             )
 
     async def register_step2(self, user_data: UserCreateStep2) -> User:
@@ -80,14 +90,30 @@ class AuthService:
         # Обновляем пользователя (ИНН, должность, пароль)
         updated_user = await self.user_repository.update_user_step2(db_user, user_data)
 
-        # Создаем компанию по умолчанию для пользователя
-        try:
-            company_repository = CompanyRepository(session=self.db)
-            await company_repository.create_by_default(updated_user)
-            logger.info(f"Created default company for user {updated_user.id}")
-        except Exception as e:
-            logger.error(f"Failed to create default company for user {updated_user.id}: {str(e)}")
-            # Не прерываем регистрацию, если не удалось создать компанию
+        # Проверяем, является ли пользователь сотрудником компании
+        from app.api.authentication.repositories.employee_repository import EmployeeRepository
+        employee_repository = EmployeeRepository(session=self.db)
+        
+        # Ищем сотрудника по email и ИНН
+        employee = await employee_repository.get_employee_by_email_and_company(
+            updated_user.email, 
+            None  # Пока что ищем по email, потом найдем компанию
+        )
+        
+        if employee:
+            # Если найден сотрудник, привязываем пользователя к сотруднику
+            await employee_repository.activate_employee(employee.id, updated_user.id)
+            logger.info(f"Activated employee {employee.id} for user {updated_user.id}")
+        else:
+            # Если не найден сотрудник, создаем компанию по умолчанию (владелец)
+            try:
+                from app.api.company.repositories.company_repository import CompanyRepository
+                company_repository = CompanyRepository(session=self.db)
+                await company_repository.create_by_default(updated_user)
+                logger.info(f"Created default company for user {updated_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to create default company for user {updated_user.id}: {str(e)}")
+                # Не прерываем регистрацию, если не удалось создать компанию
 
         # Помечаем токен как использованный
         await self.user_repository.mark_token_as_used(user_data.token)
@@ -142,16 +168,16 @@ class AuthService:
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
 
-    async def authenticate_user_by_inn(self, inn: str, password: str) -> Optional[User]:
-        """Authenticate user by INN and password"""
-        logger.info(f"Attempting authentication for INN: {inn}")
+    async def authenticate_user_by_login(self, login: str, password: str) -> Optional[User]:
+        """Authenticate user by email/phone and password"""
+        logger.info(f"Attempting authentication for login: {login}")
 
-        user = await self.user_repository.get_user_by_inn(inn)
+        user = await self.user_repository.get_user_by_email_or_phone(login)
         if not user:
-            logger.error(f"User not found for INN: {inn}")
+            logger.error(f"User not found for login: {login}")
             return None
 
-        logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
+        logger.info(f"User found: ID={user.id}, email={user.email}, phone={user.phone}")
 
         if not user.hashed_password:
             logger.error(f"User {user.id} has no password hash")

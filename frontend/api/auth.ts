@@ -194,7 +194,6 @@ export function useAuthApi() {
         body: {
           token: data.token,
           inn: data.inn,
-          position: data.position.value,
           password: data.password
         },
         credentials: 'include',
@@ -213,12 +212,12 @@ export function useAuthApi() {
     }
   }
 
-  const login = async (inn: string, password: string): Promise<void> => {
-    console.log('🔐 login function called with INN:', inn)
+  const login = async (login: string, password: string): Promise<void> => {
+    console.log('🔐 login function called with login:', login)
     try {
       const response = await $fetch<{ access_token: string, token_type: string }>(`${apiBaseUrl}${AUTH_API.LOGIN}`, {
         method: 'POST',
-        body: { inn, password },
+        body: { login, password },
         credentials: 'include',
         headers: {
           'Accept': 'application/json',

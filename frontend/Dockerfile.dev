@@ -17,11 +17,14 @@ COPY package.json package-lock.json ./
 # Устанавливаем зависимости (включая dev для разработки)
 RUN npm install
 
-# Создаем только кэш директорию для npm
-RUN mkdir -p /app/node_modules/.cache
+# Создаем необходимые директории для Nuxt
+RUN mkdir -p /app/node_modules/.cache && \
+    mkdir -p /app/.nuxt && \
+    mkdir -p /app/.output
 
 # Устанавливаем правильные права доступа для всех файлов
-RUN chmod -R 755 /app
+RUN chmod -R 755 /app && \
+    chown -R root:root /app
 
 # Для разработки оставляем root пользователя для упрощения работы с правами доступа
 # USER appuser

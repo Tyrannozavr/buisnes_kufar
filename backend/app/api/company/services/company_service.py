@@ -61,7 +61,7 @@ class CompanyService:
         # Создаем данные для неактивной компании
         company_data = CompanyCreateInactive(
             full_name=f"ООО '{user.first_name or 'Компания'}'",
-            inn=user.inn,
+            inn="0000000000",  # Временное значение, так как ИНН теперь только в компании
             registration_date=user.created_at,
             phone=user.phone,
             email=user.email

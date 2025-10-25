@@ -170,19 +170,20 @@ class CompanyAdmin(ModelView, model=Company):
     can_delete = True
     can_view_details = True
 
-    async def delete_model(self, request, pk):
-        """Кастомная логика удаления компании с правильным каскадным удалением"""
-        from app.db.base import AsyncSessionLocal
-        
-        async with AsyncSessionLocal() as session:
-            # Получаем компанию
-            company = await session.get(Company, pk)
-            if not company:
-                return
-            
-            # Удаляем компанию - каскадное удаление должно сработать автоматически
-            await session.delete(company)
-            await session.commit()
+    # Убираем кастомную логику удаления - используем стандартную SQLAdmin с каскадным удалением
+    # async def delete_model(self, request, pk):
+    #     """Кастомная логика удаления компании с правильным каскадным удалением"""
+    #     from app.db.base import AsyncSessionLocal
+    #     
+    #     async with AsyncSessionLocal() as session:
+    #         # Получаем компанию
+    #         company = await session.get(Company, pk)
+    #         if not company:
+    #             return
+    #         
+    #         # Удаляем компанию - каскадное удаление должно сработать автоматически
+    #         await session.delete(company)
+    #         await session.commit()
 
 
 class CompanyOfficialAdmin(ModelView, model=CompanyOfficial):

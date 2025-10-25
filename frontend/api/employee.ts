@@ -1,4 +1,4 @@
-import type { ApiError } from '~/types/api'
+import type { ApiError } from '~/types/auth'
 
 export interface EmployeeResponse {
   id: number
@@ -59,8 +59,11 @@ export interface AdminDeletionRequest {
 
 export const EMPLOYEE_API = {
   EMPLOYEES: '/v1/auth/employees',
+  COMPANY_EMPLOYEES: '/v1/auth/company-employees',
   PERMISSIONS: '/v1/auth/permissions',
-  PROCESS_DELETIONS: '/v1/auth/process-pending-deletions'
+  PROCESS_DELETIONS: '/v1/auth/process-pending-deletions',
+  POSITIONS: '/v1/auth/positions',
+  ROLES: '/v1/auth/roles'
 } as const
 
 function formatErrorResponse(error: any): ApiError {
@@ -78,7 +81,7 @@ export function useEmployeeApi() {
 
   const getEmployees = async (page: number = 1, per_page: number = 50): Promise<EmployeeListResponse> => {
     try {
-      const response = await $fetch<EmployeeListResponse>(`${apiBaseUrl}${EMPLOYEE_API.EMPLOYEES}?page=${page}&per_page=${per_page}`, {
+      const response = await $fetch<EmployeeListResponse>(`${apiBaseUrl}${EMPLOYEE_API.COMPANY_EMPLOYEES}?page=${page}&per_page=${per_page}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -243,6 +246,38 @@ export function useEmployeeApi() {
     }
   }
 
+  const getPositions = async (): Promise<{ positions: Array<{value: string, label: string}> }> => {
+    try {
+      const response = await $fetch<{ positions: Array<{value: string, label: string}> }>(`${apiBaseUrl}${EMPLOYEE_API.POSITIONS}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken.value}`
+        }
+      })
+      return response
+    } catch (error: any) {
+      throw formatErrorResponse(error)
+    }
+  }
+
+  const getRoles = async (): Promise<{ roles: Array<{value: string, label: string, description: string}> }> => {
+    try {
+      const response = await $fetch<{ roles: Array<{value: string, label: string, description: string}> }>(`${apiBaseUrl}${EMPLOYEE_API.ROLES}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken.value}`
+        }
+      })
+      return response
+    } catch (error: any) {
+      throw formatErrorResponse(error)
+    }
+  }
+
   return {
     getEmployees,
     getEmployee,
@@ -253,6 +288,8 @@ export function useEmployeeApi() {
     requestAdminDeletion,
     rejectAdminDeletion,
     getAvailablePermissions,
-    processPendingDeletions
+    processPendingDeletions,
+    getPositions,
+    getRoles
   }
 }

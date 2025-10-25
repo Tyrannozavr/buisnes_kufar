@@ -109,7 +109,7 @@ class AuthService:
             try:
                 from app.api.company.repositories.company_repository import CompanyRepository
                 company_repository = CompanyRepository(session=self.db)
-                await company_repository.create_by_default(updated_user)
+                await company_repository.create_by_default(updated_user, user_data.inn)
                 logger.info(f"Created default company for user {updated_user.id}")
             except Exception as e:
                 logger.error(f"Failed to create default company for user {updated_user.id}: {str(e)}")

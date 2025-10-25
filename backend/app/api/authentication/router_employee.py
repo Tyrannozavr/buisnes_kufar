@@ -1,16 +1,16 @@
-from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 
 from app.api.authentication.dependencies import get_current_user_id_dep
-from app.db.dependencies import async_db_dep, get_async_db
+from app.api.authentication.employee_dependencies import employee_service_dep
+from app.api.authentication.models.roles_positions import RoleManager, UserRole
 from app.api.authentication.schemas.employee import (
     EmployeeCreate, EmployeeUpdate, EmployeeResponse, EmployeeListResponse,
-    PermissionUpdateRequest, AdminDeletionRequest, AdminDeletionRejectRequest
+    PermissionUpdateRequest, AdminDeletionRequest
 )
-from app.api.authentication.employee_dependencies import employee_service_dep
+from app.api.authentication.schemas.positions import PositionsListResponse, PositionResponse
 from app.api.company.dependencies import company_service_dep
+from app.db.dependencies import async_db_dep
 from app_logging.logger import logger
-from starlette.requests import Request
 
 router = APIRouter()
 
@@ -18,42 +18,82 @@ router = APIRouter()
 @router.post("/employees", response_model=EmployeeResponse)
 async def create_employee(
     employee_data: EmployeeCreate,
-    company_service: company_service_dep,
-    employee_service: employee_service_dep,
-    current_user_id: int = Depends(get_current_user_id_dep)
+    db: async_db_dep,
+    current_user_id: get_current_user_id_dep
 ):
     """Создать нового сотрудника"""
-    # Получаем компанию текущего пользователя
-    company_profile = await company_service.get_company_by_user_id(current_user_id)
-    if not company_profile.company_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
-        )
+    logger.info(f"🔍 POST /employees called")
+    logger.info(f"📝 Employee data: {employee_data}")
+    logger.info(f"📝 Current user ID: {current_user_id}")
     
-    employee = await employee_service.create_employee(employee_data, company_profile.company_id, current_user_id)
-    return employee
+    try:
+        # Создаем сервисы напрямую
+        from app.api.company.repositories.company_repository import CompanyRepository
+        from app.api.company.services.company_service import CompanyService
+        from app.api.authentication.repositories.employee_repository import EmployeeRepository
+        from app.api.authentication.repositories.user_repository import UserRepository
+        from app.api.authentication.services.employee_service import EmployeeService
+        
+        company_repository = CompanyRepository(db)
+        company_service = CompanyService(company_repository, db)
+        
+        employee_repository = EmployeeRepository(session=db)
+        user_repository = UserRepository(session=db)
+        employee_service = EmployeeService(employee_repository, user_repository)
+        
+        # Получаем компанию текущего пользователя
+        logger.info(f"📝 Getting company for user {current_user_id}")
+        company_profile = await company_service.get_company_by_user_id(current_user_id)
+        if not company_profile.id:
+            logger.error(f"❌ Company not found for user {current_user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+        
+        logger.info(f"📝 Creating employee for company {company_profile.id}")
+        employee = await employee_service.create_employee(employee_data, company_profile.id, current_user_id)
+        logger.info(f"✅ Successfully created employee: {employee}")
+        return employee
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating employee: {str(e)}")
+        logger.error(f"❌ Error type: {type(e)}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        raise
 
 
-@router.get("/employees", response_model=EmployeeListResponse)
+@router.get("/company-employees", response_model=EmployeeListResponse)
 async def get_employees(
-    employee_service: employee_service_dep,
     company_service: company_service_dep,
-    current_user_id: int = Depends(get_current_user_id_dep),
+    employee_service: employee_service_dep,
+    current_user_id: get_current_user_id_dep,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100)
 ):
     """Получить список сотрудников компании"""
-    # Получаем компанию текущего пользователя
-    company_profile = await company_service.get_company_by_user_id(current_user_id)
-    if not company_profile.company_id:
+    try:
+        # Получаем компанию текущего пользователя
+        company_profile = await company_service.get_company_by_user_id(current_user_id)
+        
+        # Проверяем, есть ли у пользователя компания
+        if not company_profile or not company_profile.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found for current user"
+            )
+        
+        employees = await employee_service.get_employees(company_profile.id, page, per_page)
+        return employees
+        
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting employees: {str(e)}"
         )
-    
-    employees = await employee_service.get_employees(company_profile.company_id, page, per_page)
-    return employees
 
 
 @router.get("/employees/{employee_id}", response_model=EmployeeResponse)
@@ -189,3 +229,45 @@ async def process_pending_deletions(
     
     processed_count = await employee_service.process_pending_deletions()
     return {"processed_count": processed_count, "message": f"Processed {processed_count} pending deletions"}
+
+
+@router.get("/positions", response_model=PositionsListResponse)
+async def get_available_positions():
+    """Получить список поддерживаемых должностей"""
+    positions_data = RoleManager.get_all_positions()
+    
+    positions = [
+        PositionResponse(value=pos["value"], label=pos["label"])
+        for pos in positions_data
+    ]
+    
+    return PositionsListResponse(positions=positions)
+
+
+@router.get("/registration-roles")
+async def get_registration_roles():
+    """Получить список ролей для регистрации (Администратор и Пользователь)"""
+    return {"roles": RoleManager.get_registration_roles()}
+
+
+@router.get("/roles")
+async def get_available_roles():
+    """Получить список всех ролей для администрирования"""
+    roles_data = [
+        {
+            "value": UserRole.OWNER.value,
+            "label": RoleManager.ROLE_LABELS[UserRole.OWNER],
+            "description": "Создатель компании с полными правами"
+        },
+        {
+            "value": UserRole.ADMIN.value,
+            "label": RoleManager.ROLE_LABELS[UserRole.ADMIN],
+            "description": "Полные права доступа (до 3 администраторов в компании)"
+        },
+        {
+            "value": UserRole.USER.value,
+            "label": RoleManager.ROLE_LABELS[UserRole.USER],
+            "description": "Стандартный набор прав (неограниченное количество)"
+        }
+    ]
+    return {"roles": roles_data}

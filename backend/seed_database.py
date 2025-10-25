@@ -10,8 +10,8 @@ import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
-import bcrypt
 from sqlalchemy import text
+from app.core.security import get_password_hash
 
 from app.api.authentication.models.user import User
 from app.api.company.models.announcement import Announcement
@@ -253,7 +253,7 @@ class DatabaseSeeder:
                 phone=f"+7 9{random.randint(10, 99)} {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}",
                 inn=f"{random.randint(1000000000, 9999999999)}",
                 position=random.choice(POSITIONS),
-                hashed_password=bcrypt.hashpw("password123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                hashed_password=get_password_hash("password123"),
                 is_active=True
             )
             self.session.add(user)

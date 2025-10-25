@@ -36,6 +36,12 @@ class EmployeeService:
             employee_data.permissions = {key: False for key in AVAILABLE_PERMISSIONS.keys()}
         
         employee = await self.employee_repository.create_employee(employee_data, company_id, created_by)
+        
+        # Десериализуем permissions из JSON-строки в dict, если необходимо
+        if hasattr(employee, 'permissions') and isinstance(employee.permissions, str):
+            import json
+            employee.permissions = json.loads(employee.permissions)
+        
         return EmployeeResponse.model_validate(employee)
 
     async def get_employees(self, company_id: int, page: int = 1, per_page: int = 50) -> EmployeeListResponse:

@@ -24,7 +24,7 @@ class Employee(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Связь с пользователем
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Может быть null если еще не зарегистрирован
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)  # Может быть null если еще не зарегистрирован
     
     # Связь с компанией
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)

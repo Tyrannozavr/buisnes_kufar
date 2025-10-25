@@ -38,7 +38,7 @@ async def quick_seed():
         print("👥 Создание 10 пользователей...")
         for i in range(10):
             from app.api.authentication.models.user import User
-            import bcrypt
+            from app.core.security import get_password_hash
             import random
             from seed_database import FIRST_NAMES, LAST_NAMES, POSITIONS
             
@@ -54,7 +54,7 @@ async def quick_seed():
                 phone=f"+7 9{random.randint(10, 99)} {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}",
                 inn=f"{random.randint(1000000000, 9999999999)}",
                 position=random.choice(POSITIONS),
-                hashed_password=bcrypt.hashpw("password123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                hashed_password=get_password_hash("password123"),
                 is_active=True
             )
             seeder.session.add(user)

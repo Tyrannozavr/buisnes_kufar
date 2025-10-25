@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 from uuid import uuid4
 
 from pydantic import BaseModel, EmailStr, ConfigDict, constr
 
 from app.api.company.schemas.company import CompanyLogoUrlMixin
+from app.api.authentication.models.user import UserRole
 
 
 class UserBase(BaseModel):
@@ -13,7 +14,6 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone: constr(min_length=10, max_length=15)
-    inn: Optional[str] = None
     position: Optional[str] = None
 
 
@@ -38,7 +38,6 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
     phone: Optional[constr(min_length=10, max_length=15)] = None
-    inn: Optional[str] = None
     position: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -50,6 +49,9 @@ class UserInDB(UserBase):
     hashed_password: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    company_id: Optional[int] = None
+    role: UserRole = UserRole.USER
+    permissions: Optional[str] = None  # JSON строка с правами
 
     class Config:
         from_attributes = True
@@ -141,3 +143,34 @@ class PasswordRecoveryResetRequest(BaseModel):
     email: EmailStr
     code: str
     newPassword: constr(min_length=8)
+
+
+# Схемы для управления правами пользователей
+class UserPermissionUpdate(BaseModel):
+    """Схема для обновления прав пользователя"""
+    permissions: Dict[str, bool]  # Ключ - право, значение - разрешено ли
+
+
+class UserRoleUpdate(BaseModel):
+    """Схема для обновления роли пользователя"""
+    role: UserRole
+
+
+class UserWithPermissions(UserInDB):
+    """Пользователь с расширенной информацией о правах"""
+    permissions_dict: Optional[Dict[str, bool]] = None  # Распарсенные права для удобства
+    
+    @classmethod
+    def from_user(cls, user, permissions_dict: Optional[Dict[str, bool]] = None):
+        """Создать объект из пользователя с правами"""
+        data = user.__dict__.copy()
+        data['permissions_dict'] = permissions_dict
+        return cls(**data)
+
+
+class UserListResponse(BaseModel):
+    """Список пользователей компании"""
+    users: list[UserWithPermissions]
+    total: int
+    page: int
+    per_page: int

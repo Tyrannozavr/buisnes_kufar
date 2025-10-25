@@ -17,5 +17,6 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
+
 # Правильная аннотация зависимости
 async_db_dep = Annotated[AsyncSession, Depends(get_async_db)]

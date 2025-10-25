@@ -83,21 +83,18 @@ class AdminDeletionRejectRequest(BaseModel):
     reason: Optional[str] = None
 
 
-# Список всех доступных прав в системе
+# Список всех доступных прав в системе согласно требованиям
 AVAILABLE_PERMISSIONS = {
     "company_management": "Управление компанией",
-    "company_data": "Данные компании", 
-    "products": "Продукция",
-    "announcements": "Объявления",
-    "business_connections": "Бизнес-связи",
-    "partners": "Партнеры",
-    "suppliers": "Поставщики", 
-    "buyers": "Покупатели",
+    "user_management": "Управление пользователями",
     "documents": "Документы",
-    "contracts": "Договоры",
+    "contracts": "Договоры", 
     "sales": "Продажи",
     "purchases": "Закупки",
-    "communications": "Коммуникации",
     "messages": "Сообщения",
-    "administration": "Администрирование"
+    "authorization": "Авторизация",
+    "product_management": "Управление продуктами",
+    "announcement_management": "Управление объявлениями",
+    "chat_access": "Доступ к чатам",
+    "view_statistics": "Просмотр статистики"
 }

@@ -2,8 +2,8 @@ import asyncio
 import random
 from datetime import datetime, timedelta
 
-import bcrypt
 from sqlalchemy import text
+from app.core.security import get_password_hash
 
 from app.api.authentication.models.user import User
 from app.api.company.models.announcement import Announcement
@@ -51,7 +51,7 @@ async def seed():
                 phone=f"+7 900 000-{str(i).zfill(4)}",
                 inn=f"{1000000000 + i}",
                 position="Менеджер",
-                hashed_password=bcrypt.hashpw("12345678".encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                hashed_password=get_password_hash("12345678"),
                 is_active=True
             )
             session.add(user)

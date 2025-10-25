@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, \
-    EmailChangeToken, PasswordRecoveryCode
+    EmailChangeToken, PasswordRecoveryCode, UserRole
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
+from app.api.authentication.permissions import PermissionManager
 from app.core.security import get_password_hash, verify_password
 from app_logging.logger import logger
 
@@ -32,17 +33,8 @@ class UserRepository:
         return UserInDB.model_validate(user)
 
     async def update_user_step2(self, user: User, user_data: UserCreateStep2) -> UserInDB:
-        # Проверяем уникальность ИНН перед обновлением
-        if user_data.inn and user_data.inn != user.inn:
-            # Ищем пользователя с таким ИНН
-            result = await self.session.execute(
-                select(User).where(User.inn == user_data.inn)
-            )
-            existing_user = result.scalar_one_or_none()
-            if existing_user and existing_user.id != user.id:
-                raise ValueError(f"ИНН {user_data.inn} уже используется другим пользователем")
-        
-        user.inn = user_data.inn
+        # ИНН больше не хранится в пользователе, он хранится в компании
+        # Просто активируем пользователя и устанавливаем пароль
         user.is_active = True
         user.hashed_password = get_password_hash(user_data.password)
         user.updated_at = datetime.utcnow()
@@ -54,8 +46,6 @@ class UserRepository:
             return UserInDB.model_validate(user)
         except Exception as e:
             await self.session.rollback()
-            if "users_inn_key" in str(e):
-                raise ValueError(f"ИНН {user_data.inn} уже используется другим пользователем")
             raise
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
@@ -123,20 +113,14 @@ class UserRepository:
         return RegistrationToken.model_validate(db_token) if db_token else None
 
     async def update_user_profile(self, user_id: int, user_data: dict) -> Optional[UserInDB]:
-        """Обновить профиль пользователя с проверкой уникальности ИНН"""
+        """Обновить профиль пользователя"""
         user = await self.get_user_by_id(user_id)
         if not user:
             return None
         
-        # Проверяем уникальность ИНН если он изменился
-        if "inn" in user_data and user_data["inn"] and user_data["inn"] != user.inn:
-            existing_user = await self.get_user_by_inn(user_data["inn"])
-            if existing_user and existing_user.id != user.id:
-                raise ValueError(f"ИНН {user_data['inn']} уже используется другим пользователем")
-        
-        # Обновляем поля
+        # Обновляем поля (исключаем inn, так как он больше не хранится в пользователе)
         for field, value in user_data.items():
-            if hasattr(user, field):
+            if hasattr(user, field) and field != 'inn':
                 setattr(user, field, value)
         
         user.updated_at = datetime.utcnow()
@@ -148,8 +132,6 @@ class UserRepository:
             return UserInDB.model_validate(user)
         except Exception as e:
             await self.session.rollback()
-            if "users_inn_key" in str(e):
-                raise ValueError(f"ИНН {user_data.get('inn', '')} уже используется другим пользователем")
             raise
 
     async def mark_token_as_used(self, token: str) -> bool:
@@ -331,6 +313,69 @@ class UserRepository:
                 PasswordRecoveryCode.code == code
             )
             .values(is_used=True)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def get_users_by_company_id(self, company_id: int, page: int = 1, per_page: int = 50) -> tuple[List[User], int]:
+        """Получить пользователей компании с пагинацией"""
+        # Подсчет общего количества
+        count_result = await self.session.execute(
+            select(User).where(User.company_id == company_id)
+        )
+        total = len(count_result.scalars().all())
+        
+        # Получение пользователей с пагинацией
+        offset = (page - 1) * per_page
+        result = await self.session.execute(
+            select(User)
+            .where(User.company_id == company_id)
+            .offset(offset)
+            .limit(per_page)
+        )
+        users = list(result.scalars().all())
+        
+        return users, total
+
+    async def update_user_role(self, user_id: int, role: UserRole) -> bool:
+        """Обновить роль пользователя"""
+        # Получаем права по умолчанию для новой роли
+        default_permissions = PermissionManager.set_permissions_for_role(role)
+        
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(role=role, permissions=default_permissions, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def update_user_permissions(self, user_id: int, permissions_json: str) -> bool:
+        """Обновить права пользователя"""
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(permissions=permissions_json, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def get_user_by_company_and_role(self, company_id: int, role: UserRole) -> Optional[User]:
+        """Получить пользователя компании по роли"""
+        result = await self.session.execute(
+            select(User).where(
+                User.company_id == company_id,
+                User.role == role
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_user(self, user_id: int) -> bool:
+        """Удалить пользователя (мягкое удаление - деактивация)"""
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(is_active=False, updated_at=datetime.utcnow())
         )
         await self.session.commit()
         return result.rowcount > 0

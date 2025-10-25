@@ -22,7 +22,7 @@ class BusinessType(str, enum.Enum):
 
 if TYPE_CHECKING:
     from app.api.company.models.official import CompanyOfficial
-    from app.api.authentication.models import User
+    from app.api.authentication.models.user import User
     from app.api.products.models import Product
     from app.api.company.models.announcement import Announcement
     from app.api.chats.models.chat_participant import ChatParticipant
@@ -80,14 +80,11 @@ class Company(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Foreign keys
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="company")
+    users: Mapped[List["User"]] = relationship("User", back_populates="company")
     officials: Mapped[List["CompanyOfficial"]] = relationship("CompanyOfficial", back_populates="company",
                                                               cascade="all, delete-orphan")
     products: Mapped[List["Product"]] = relationship("Product", back_populates="company", cascade="all, delete-orphan")

@@ -48,13 +48,6 @@ class CompanyRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_user_id(self, user_id: int) -> Optional[Company]:
-        query = select(Company).options(
-            selectinload(Company.officials)
-        ).where(Company.user_id == user_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
     async def get_by_slug(self, slug: str) -> Optional[Company]:
         query = select(Company).options(
             selectinload(Company.officials)
@@ -62,7 +55,7 @@ class CompanyRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def create(self, company_data: CompanyCreate, user_id: int) -> Company:
+    async def create(self, company_data: CompanyCreate) -> Company:
         data = company_data.model_dump()
         # Ensure all datetime fields are naive (no tzinfo)
         for field in ["registration_date", "created_at", "updated_at"]:
@@ -71,7 +64,6 @@ class CompanyRepository:
         company = Company(
             **data,
             slug=await self.create_company_slug(company_data.name),
-            user_id=user_id,
             is_active=True  # Активная компания при создании через форму
         )
         self.session.add(company)
@@ -166,7 +158,7 @@ class CompanyRepository:
         await self.session.commit()
         return await self.get_by_id(company_id)
 
-    async def create_by_default(self, user) -> Company:
+    async def create_by_default(self, user, inn: str) -> Company:
         """
         Создает компанию с данными по умолчанию на основе данных пользователя.
         ИНН берется из данных пользователя, остальные поля заполняются значениями по умолчанию.
@@ -204,7 +196,7 @@ class CompanyRepository:
 
             # Legal information
             full_name="Полное наименование не указано",
-            inn=user.inn,  # ИНН из данных пользователя
+            inn=inn,  # ИНН из параметра
             ogrn=None,  # Временное значение
             kpp="000000000",  # Временное значение
             registration_date=datetime.now(),
@@ -221,14 +213,27 @@ class CompanyRepository:
             monthly_views=0,
             total_purchases=0,
 
-            # Связи и статус
-            user_id=user.id,
+            # Статус
             is_active=False  # Компания неактивна по умолчанию
         )
 
         self.session.add(company)
         await self.session.commit()
         await self.session.refresh(company)
+
+        # Обновляем пользователя - устанавливаем company_id и роль владельца
+        from app.api.authentication.models.user import UserRole
+        from app.api.authentication.permissions import PermissionManager
+        
+        # Устанавливаем права владельца
+        owner_permissions = PermissionManager.set_permissions_for_role(UserRole.OWNER)
+        
+        # Обновляем пользователя
+        user.company_id = company.id
+        user.role = UserRole.OWNER
+        user.permissions = owner_permissions
+        
+        await self.session.commit()
 
         # Создаем запись в CompanyOfficial для текущего пользователя
         official = CompanyOfficial(

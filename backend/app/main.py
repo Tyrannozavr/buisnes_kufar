@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -21,13 +22,66 @@ from app.db.base import Base
 
 load_dotenv()
 
+# Database setup
+engine = create_async_engine(settings.ASYNC_DATABASE_URL)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🔧 Creating database tables...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created!")
+    yield
+    # Shutdown
+    print("🔄 Disposing database engine...")
+    await engine.dispose()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
     redoc_url=None,
-    swagger_ui_parameters={"persistAuthorization": True}
+    swagger_ui_parameters={"persistAuthorization": True},
+    lifespan=lifespan
 )
+
+# Настройка схемы безопасности для Swagger UI
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version="0.1.0",
+        description="Business Trade API",
+        routes=app.routes,
+    )
+    
+    # Добавляем схему безопасности Bearer
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    
+    # Применяем схему безопасности только к эндпоинтам аутентификации
+    for path in openapi_schema["paths"]:
+        for method in openapi_schema["paths"][path]:
+            if method in ["get", "post", "put", "delete", "patch"]:
+                # Применяем только к эндпоинтам, которые требуют авторизации
+                if "/auth/" in path and not any(public_path in path for public_path in ["/login", "/register", "/token"]):
+                    openapi_schema["paths"][path][method]["security"] = [{"BearerAuth": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 favicon_path = 'app/favicon.ico'
 
 
@@ -54,26 +108,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database setup
-engine = create_async_engine(settings.ASYNC_DATABASE_URL)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
 # Admin panel setup
 admin = setup_admin(app, engine)
 
 # Templates setup
 templates = Jinja2Templates(directory="app/templates")
-
-
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await engine.dispose()
 
 
 # Include routers

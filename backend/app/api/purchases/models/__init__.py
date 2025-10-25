@@ -50,8 +50,8 @@ class Order(Base):
     status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.ACTIVE)
     
     # Стороны сделки
-    buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
-    seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
+    buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     
     # Связанные документы (номера)
     invoice_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета
@@ -82,7 +82,7 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     # Связь с заказом
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     
     # Информация о продукте
     product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)  # Может быть null для ручного ввода
@@ -122,7 +122,7 @@ class OrderHistory(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False)
     
     # Информация об изменении
-    changed_by_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)  # Кто изменил
+    changed_by_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)  # Кто изменил
     change_type: Mapped[str] = mapped_column(String(50), nullable=False)  # Тип изменения (created, updated, etc.)
     change_description: Mapped[str] = mapped_column(Text, nullable=False)  # Описание изменения
     
@@ -146,7 +146,7 @@ class OrderDocument(Base):
     __tablename__ = "order_documents"
 
     # Связь с заказом
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     
     # Информация о документе
     document_type: Mapped[str] = mapped_column(String(50), nullable=False)  # Тип документа (invoice, contract, act, etc.)

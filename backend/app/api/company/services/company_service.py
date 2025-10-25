@@ -21,10 +21,11 @@ class CompanyService:
 
     async def get_company_by_user_id(self, user_id: int) -> CompanyProfileResponse:
         """Get company profile data for user. If company doesn't exist, returns user data with default values."""
-        company = await self.company_repository.get_by_user_id(user_id)
         user = await self.user_repository.get_user_by_id(user_id)
+        if not user or not user.company_id:
+            return CompanyProfileResponse.create_default(user)
 
-        # Always return a response with user data
+        company = await self.company_repository.get_by_id(user.company_id)
         if not company:
             return CompanyProfileResponse.create_default(user)
 
@@ -32,7 +33,27 @@ class CompanyService:
         return CompanyProfileResponse.create_with_company(company, user)
 
     async def create_company(self, user: User, company_data: CompanyCreate) -> CompanyResponse:
-        company = await self.company_repository.create(company_data, user.id)
+        company = await self.company_repository.create(company_data)
+        
+        # Обновляем пользователя - устанавливаем company_id и роль владельца
+        from app.api.authentication.models.user import UserRole
+        from app.api.authentication.permissions import PermissionManager
+        
+        # Устанавливаем права владельца
+        owner_permissions = PermissionManager.set_permissions_for_role(UserRole.OWNER)
+        
+        await self.user_repository.update_user_role(user.id, UserRole.OWNER)
+        await self.user_repository.update_user_permissions(user.id, owner_permissions)
+        
+        # Обновляем company_id у пользователя
+        from sqlalchemy import update
+        await self.db.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values(company_id=company.id)
+        )
+        await self.db.commit()
+        
         return CompanyResponse.model_validate(company.__dict__)
 
     async def create_inactive_company(self, user: User) -> CompanyResponse:
@@ -50,13 +71,21 @@ class CompanyService:
         return CompanyResponse.model_validate(company.__dict__)
 
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
-        company = await self.company_repository.get_by_user_id(user.id)
-        if not company:
-            company_data = CompanyCreate(**company_data.model_dump())  # Convert to CompanyCreate if not provided
-            return await self.create_company(user, company_data)
+        if not user.company_id:
+            # Если у пользователя нет компании, создаем новую
+            company_data_create = CompanyCreate(**company_data.model_dump())
+            return await self.create_company(user, company_data_create)
 
-        # Verify user owns the company
-        if company.user_id != user.id:
+        company = await self.company_repository.get_by_id(user.company_id)
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+
+        # Проверяем права доступа
+        from app.api.authentication.permissions import PermissionManager, Permission
+        if not PermissionManager.has_permission(user.permissions or "", Permission.COMPANY_MANAGEMENT):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this company"
@@ -107,18 +136,18 @@ class CompanyService:
         return True
 
     async def upload_logo(self, user: User, file: UploadFile) -> CompanyResponse:
-        company = await self.company_repository.get_by_user_id(user.id)
-        if not company:
+        # Получаем компанию пользователя через company_id
+        if not user.company_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
-
-        # Verify user owns the company
-        if company.user_id != user.id:
+        
+        company = await self.company_repository.get_by_id(user.company_id)
+        if not company:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this company"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
             )
 
         # Validate file type
@@ -160,7 +189,14 @@ class CompanyService:
 
     async def get_full_company(self, user_id: int) -> CompanyResponse:
         """Get full company data for user."""
-        company = await self.company_repository.get_by_user_id(user_id)
+        user = await self.user_repository.get_user_by_id(user_id)
+        if not user or not user.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+        
+        company = await self.company_repository.get_by_id(user.company_id)
         if not company:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

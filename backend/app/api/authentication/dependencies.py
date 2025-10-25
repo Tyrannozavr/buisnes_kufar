@@ -2,11 +2,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models import User
-from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.repositories.employee_repository import EmployeeRepository
+from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.user import TokenData
 from app.api.authentication.services.auth_service import AuthService
 from app.api.authentication.services.employee_service import EmployeeService
@@ -18,7 +17,7 @@ from app.db.dependencies import async_db_dep, get_async_db
 # Create OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/token",
-    auto_error=True,
+    auto_error=True,  # Возвращаем обратно для продакшена
     scheme_name="Bearer",
     scopes=None,
     description="OAuth2 password bearer token",
@@ -104,6 +103,10 @@ async def get_current_user_id(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    if token is None:
+        raise credentials_exception
+        
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -128,15 +131,11 @@ async def get_company_repository(
 
 async def get_employee_service(
         employee_repository: Annotated[EmployeeRepository, Depends(get_employee_repository)],
-        user_repository: Annotated[UserRepository, Depends(get_user_repository)],
-        company_repository: Annotated[CompanyRepository, Depends(get_company_repository)],
-        db: async_db_dep
+        user_repository: Annotated[UserRepository, Depends(get_user_repository)]
 ) -> EmployeeService:
     return EmployeeService(
         employee_repository=employee_repository,
-        user_repository=user_repository,
-        company_repository=company_repository,
-        db=db
+        user_repository=user_repository
     )
 
 

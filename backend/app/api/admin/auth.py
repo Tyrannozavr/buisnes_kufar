@@ -16,7 +16,6 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
         User.is_active,
         User.created_at,
@@ -28,8 +27,7 @@ class UserAdmin(ModelView, model=User):
         User.email,
         User.first_name,
         User.last_name,
-        User.phone,
-        User.inn
+        User.phone
     ]
 
     # Настройка фильтров
@@ -56,7 +54,6 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
         User.is_active,
         User.created_at,
@@ -70,7 +67,6 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
         User.is_active,
     ]
@@ -83,7 +79,6 @@ class UserAdmin(ModelView, model=User):
         User.last_name: "Фамилия",
         User.patronymic: "Отчество",
         User.phone: "Телефон",
-        User.inn: "ИНН",
         User.position: "Должность",
         User.is_active: "Активен",
         User.created_at: "Дата создания",

@@ -5,9 +5,14 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.authentication.dependencies import AuthServiceDep, token_data_dep
 from app.api.authentication.repositories.user_repository import UserRepository
-from app.api.authentication.schemas.user import User, UserCreateStep1, UserCreateStep2, UserUpdate, Token, VerifyTokenResponse, \
-    ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest, PasswordResetRequest, \
-    PasswordResetConfirmRequest, PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest
+from app.api.authentication.schemas.employee import EmployeeCreate
+from app.api.authentication.schemas.user import (
+    UserCreateStep1, UserCreateStep2, Token, VerifyTokenResponse,
+    ChangePasswordRequest, ChangeEmailRequest, ChangeEmailConfirmRequest,
+    PasswordResetRequest, PasswordResetConfirmRequest,
+    PasswordRecoveryRequest, PasswordRecoveryVerifyRequest, PasswordRecoveryResetRequest,
+    User, UserUpdate
+)
 from app.api.authentication.services.auth_service import AuthService
 from app.api.authentication.services.recaptcha_service import recaptcha_service
 from app.api.company.dependencies import company_service_dep
@@ -15,6 +20,7 @@ from app.db.dependencies import async_db_dep
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.schemas.user import UserLogin
+from app_logging.logger import logger
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -335,7 +341,6 @@ async def debug_password_hash(
     return {
         "user_id": user.id,
         "user_email": user.email,
-        "user_inn": user.inn,
         "current_hash": user.hashed_password,
         "new_hash": new_hash,
         "current_verify": current_verify,

@@ -11,7 +11,7 @@ fastapi = "^0.115.12"
 sqlalchemy = "^2.0.41"
 alembic = "^1.16.1"
 pydantic-settings = ">=2.0.0,<3.0.0"
-sqladmin = "^0.20.1"
+sqladmin = "0.20.1"
 aiosqlite = "^0.21.0"
 httpx = "^0.28.1"
 python-jose = {extras = ["cryptography"], version = "^3.5.0"}

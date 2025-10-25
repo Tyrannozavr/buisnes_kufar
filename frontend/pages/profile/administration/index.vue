@@ -14,6 +14,10 @@ const selectedEmployee = ref<EmployeeResponse | null>(null)
 const showDeleteModal = ref(false)
 const showAdminDeletionModal = ref(false)
 
+// Данные для форм
+const positions = ref<Array<{value: string, label: string}>>([])
+const roles = ref<Array<{value: string, label: string, description: string}>>([])
+
 // Форма добавления сотрудника
 const newEmployee = ref({
   email: '',
@@ -49,6 +53,30 @@ const filteredEmployees = computed(() => {
 const adminsCount = computed(() => {
   return employees.value.filter(emp => emp.role === 'admin' && emp.status === 'active').length
 })
+
+// Методы для управления модальными окнами
+const closeAllModals = () => {
+  showAddEmployeeModal.value = false
+  showDeleteModal.value = false
+  showAdminDeletionModal.value = false
+}
+
+const openAddEmployeeModal = () => {
+  closeAllModals()
+  showAddEmployeeModal.value = true
+}
+
+const openDeleteModal = (employee: EmployeeResponse) => {
+  closeAllModals()
+  selectedEmployee.value = employee
+  showDeleteModal.value = true
+}
+
+const openAdminDeletionModal = (employee: EmployeeResponse) => {
+  closeAllModals()
+  selectedEmployee.value = employee
+  showAdminDeletionModal.value = true
+}
 
 // Методы
 const loadEmployees = async () => {
@@ -183,17 +211,40 @@ const getStatusLabel = (status: string) => {
 
 const getStatusColor = (status: string) => {
   const colors = {
-    pending: 'yellow',
-    active: 'green',
-    inactive: 'gray',
-    deleted: 'red'
+    pending: 'warning',
+    active: 'success',
+    inactive: 'neutral',
+    deleted: 'error'
   }
-  return colors[status as keyof typeof colors] || 'gray'
+  return colors[status as keyof typeof colors] || 'neutral'
+}
+
+// Функции загрузки данных
+const loadPositions = async () => {
+  try {
+    const response = await employeeApi.getPositions()
+    positions.value = response.positions
+  } catch (err) {
+    console.error('Ошибка загрузки должностей:', err)
+  }
+}
+
+const loadRoles = async () => {
+  try {
+    const response = await employeeApi.getRoles()
+    roles.value = response.roles
+  } catch (err) {
+    console.error('Ошибка загрузки ролей:', err)
+  }
 }
 
 // Жизненный цикл
 onMounted(async () => {
-  await loadEmployees()
+  await Promise.all([
+    loadEmployees(),
+    loadPositions(),
+    loadRoles()
+  ])
 })
 
 definePageMeta({
@@ -205,7 +256,7 @@ definePageMeta({
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-2xl font-bold text-gray-900">Администрирование</h1>
-      <UButton @click="showAddEmployeeModal = true" color="primary">
+      <UButton @click="openAddEmployeeModal" color="primary">
         <UIcon name="i-heroicons-plus" class="mr-2" />
         Добавить сотрудника
       </UButton>
@@ -285,7 +336,7 @@ definePageMeta({
                   <div class="flex-shrink-0 h-10 w-10">
                     <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                       <span class="text-sm font-medium text-gray-700">
-                        {{ employee.first_name?.[0] || employee.email[0].toUpperCase() }}
+                        {{ employee.first_name?.[0] || employee.email?.[0]?.toUpperCase() || '?' }}
                       </span>
                     </div>
                   </div>
@@ -303,12 +354,12 @@ definePageMeta({
                 {{ employee.email }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <UBadge :color="employee.role === 'owner' ? 'purple' : employee.role === 'admin' ? 'blue' : 'gray'">
+                <UBadge :color="employee.role === 'owner' ? 'primary' : employee.role === 'admin' ? 'primary' : 'neutral'">
                   {{ getRoleLabel(employee.role) }}
                 </UBadge>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <UBadge :color="getStatusColor(employee.status)">
+                <UBadge :color="getStatusColor(employee.status) as any">
                   {{ getStatusLabel(employee.status) }}
                 </UBadge>
                 <div v-if="employee.deletion_requested_at" class="text-xs text-red-600 mt-1">
@@ -327,9 +378,9 @@ definePageMeta({
                   </UButton>
                   <UButton
                     size="sm"
-                    color="red"
+                    color="error"
                     variant="outline"
-                    @click="selectedEmployee = employee; showDeleteModal = true"
+                    @click="openDeleteModal(employee)"
                   >
                     Удалить
                   </UButton>
@@ -340,7 +391,7 @@ definePageMeta({
                   <UButton
                     v-if="employee.deletion_requested_at && !employee.deletion_rejected_at"
                     size="sm"
-                    color="green"
+                    color="success"
                     variant="outline"
                     @click="rejectAdminDeletion(employee)"
                   >
@@ -349,9 +400,9 @@ definePageMeta({
                   <UButton
                     v-else-if="!employee.deletion_requested_at"
                     size="sm"
-                    color="red"
+                    color="error"
                     variant="outline"
-                    @click="selectedEmployee = employee; showAdminDeletionModal = true"
+                    @click="openAdminDeletionModal(employee)"
                   >
                     Удалить
                   </UButton>
@@ -370,12 +421,12 @@ definePageMeta({
 
     <!-- Модальное окно добавления сотрудника -->
     <UModal v-if="showAddEmployeeModal" v-model="showAddEmployeeModal">
-      <UCard>
+      <UCard @click.stop>
         <template #header>
-          <h3 class="text-lg font-semibold">Добавить сотрудника</h3>
+          <h3 class="text-lg font-semibold" id="add-employee-title">Добавить сотрудника</h3>
         </template>
 
-        <div class="space-y-4">
+        <div class="space-y-4" aria-describedby="add-employee-description" @click.stop>
           <UFormField label="Email *">
             <UInput v-model="newEmployee.email" type="email" placeholder="email@example.com" />
           </UFormField>
@@ -396,25 +447,26 @@ definePageMeta({
           <UFormField label="Телефон">
             <UInput v-model="newEmployee.phone" placeholder="+7 (999) 123-45-67" />
           </UFormField>
-
           <UFormField label="Должность">
-            <UInput v-model="newEmployee.position" placeholder="Должность" />
+            <USelect
+              v-model="newEmployee.position"
+              :items="positions"
+              placeholder="Выберите должность"
+            />
           </UFormField>
 
           <UFormField label="Роль">
             <USelect
               v-model="newEmployee.role"
-              :options="[
-                { label: 'Пользователь', value: 'user' },
-                { label: 'Администратор', value: 'admin' }
-              ]"
+              :items="roles.filter(r => r.value !== 'owner')"
+              placeholder="Выберите роль"
             />
           </UFormField>
         </div>
 
         <template #footer>
-          <div class="flex justify-end space-x-2">
-            <UButton variant="outline" @click="showAddEmployeeModal = false">
+          <div class="flex justify-end space-x-2" @click.stop>
+            <UButton variant="outline" @click="closeAllModals">
               Отмена
             </UButton>
             <UButton @click="addEmployee" :disabled="!newEmployee.email">
@@ -429,21 +481,21 @@ definePageMeta({
     <UModal v-if="showDeleteModal" v-model="showDeleteModal">
       <UCard>
         <template #header>
-          <h3 class="text-lg font-semibold text-red-600">Удалить сотрудника</h3>
+          <h3 class="text-lg font-semibold text-red-600" id="delete-employee-title">Удалить сотрудника</h3>
         </template>
 
-        <p class="text-gray-700">
+        <p class="text-gray-700" id="delete-employee-description">
           Вы уверены, что хотите удалить сотрудника 
           <strong>{{ selectedEmployee?.first_name }} {{ selectedEmployee?.last_name }}</strong>?
           Это действие нельзя отменить.
         </p>
 
         <template #footer>
-          <div class="flex justify-end space-x-2">
-            <UButton variant="outline" @click="showDeleteModal = false">
+          <div class="flex justify-end space-x-2" @click.stop>
+            <UButton variant="outline" @click="closeAllModals">
               Отмена
             </UButton>
-            <UButton color="red" @click="deleteEmployee">
+            <UButton color="error" @click="deleteEmployee">
               Удалить
             </UButton>
           </div>
@@ -455,11 +507,11 @@ definePageMeta({
     <UModal v-if="showAdminDeletionModal" v-model="showAdminDeletionModal">
       <UCard>
         <template #header>
-          <h3 class="text-lg font-semibold text-red-600">Удалить администратора</h3>
+          <h3 class="text-lg font-semibold text-red-600" id="delete-admin-title">Удалить администратора</h3>
         </template>
 
-        <div class="space-y-4">
-          <p class="text-gray-700">
+        <div class="space-y-4" aria-describedby="delete-admin-description">
+          <p class="text-gray-700" id="delete-admin-description">
             Вы уверены, что хотите удалить администратора 
             <strong>{{ selectedEmployee?.first_name }} {{ selectedEmployee?.last_name }}</strong>?
           </p>
@@ -482,11 +534,11 @@ definePageMeta({
         </div>
 
         <template #footer>
-          <div class="flex justify-end space-x-2">
-            <UButton variant="outline" @click="showAdminDeletionModal = false">
+          <div class="flex justify-end space-x-2" @click.stop>
+            <UButton variant="outline" @click="closeAllModals">
               Отмена
             </UButton>
-            <UButton color="red" @click="requestAdminDeletion">
+            <UButton color="error" @click="requestAdminDeletion">
               Запросить удаление
             </UButton>
           </div>

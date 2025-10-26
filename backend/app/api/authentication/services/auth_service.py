@@ -23,7 +23,16 @@ class AuthService:
         self.db = db
 
     async def register_step1(self, user_data: UserCreateStep1) -> None:
-        # Проверяем, не существует ли уже пользователь с таким email
+        # СНАЧАЛА проверяем, есть ли активный неиспользованный токен регистрации для этого email
+        active_token = await self.user_repository.get_active_registration_token_by_email(user_data.email)
+        if active_token:
+            logger.warning(f"Registration email already sent for {user_data.email}, token expires at {active_token.expires_at}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration email already sent for this email address"
+            )
+        
+        # Затем проверяем, не существует ли уже пользователь с таким email
         existing_user = await self.user_repository.get_user_by_email(user_data.email)
         if existing_user:
             raise HTTPException(

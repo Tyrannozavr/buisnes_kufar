@@ -55,12 +55,12 @@ export const useLocationsDbApi = () => {
     regionsLoading.value = true
     regionsError.value = null
     try {
-      const params: any = {}
+      const params: any = { country_code: countryCode }
       if (federalDistrictCode) {
-        params.federal_district = federalDistrictCode
+        params.federal_district_code = federalDistrictCode
       }
       
-      const response = await $api.get(`/v1/locations/regions/${countryCode}`, { params })
+      const response = await $api.get('/v1/locations/regions', { params })
       const data = response as LocationResponse
       regionOptions.value = data.items || []
     } catch (error) {
@@ -132,6 +132,56 @@ export const useLocationsDbApi = () => {
     }
   }
 
+  // Создание нового региона
+  const createRegion = async (countryCode: string, regionName: string, federalDistrictCode?: string) => {
+    try {
+      const payload = {
+        country_code: countryCode,
+        federal_district_code: federalDistrictCode,
+        name: regionName,
+        code: regionName.toUpperCase().replace(/[^A-ZА-Я0-9]/g, '') // Генерируем код из названия
+      }
+      
+      console.log('📤 Отправка запроса на создание региона:', payload)
+      
+      const response = await $api.post('/v1/locations/regions', payload)
+      
+      console.log('📥 Ответ от сервера:', response.data)
+      
+      return response.data
+    } catch (error) {
+      console.error('❌ Error creating region:', error)
+      throw error
+    }
+  }
+
+  // Создание нового города
+  const createCity = async (
+    countryCode: string,
+    regionName: string,
+    cityName: string,
+    federalDistrictCode?: string,
+    population?: number,
+    isMillionCity?: boolean,
+    isRegionalCenter?: boolean
+  ) => {
+    try {
+      const response = await $api.post('/v1/locations/cities', {
+        country_code: countryCode,
+        region_name: regionName,
+        federal_district_code: federalDistrictCode,
+        name: cityName,
+        population: population,
+        is_million_city: isMillionCity || false,
+        is_regional_center: isRegionalCenter || false
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error creating city:', error)
+      throw error
+    }
+  }
+
   // Загрузка полного дерева локаций
   const loadLocationTree = async () => {
     try {
@@ -173,6 +223,8 @@ export const useLocationsDbApi = () => {
     loadRegions,
     loadCities,
     searchCities,
+    createRegion,
+    createCity,
     loadLocationTree
   }
 }

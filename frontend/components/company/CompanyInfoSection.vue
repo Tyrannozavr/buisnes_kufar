@@ -38,7 +38,9 @@ const {
   citiesError,
   loadFederalDistricts,
   loadRegions,
-  loadCities
+  loadCities,
+  createRegion,
+  createCity
 } = useLocationsDbApi()
 
 // Добавляем состояние для поискового запроса города
@@ -140,6 +142,167 @@ watch(citySearchQuery, async (newQuery: string) => {
     }
   }, 300) // Задержка 300мс для предотвращения частых запросов
 })
+
+// Функция для форматирования названий (первая буква заглавная, остальные строчные)
+const formatLocationName = (name: string): string => {
+  if (!name || name.length === 0) return name
+  
+  // Разбиваем по пробелам и форматируем каждое слово
+  return name
+    .split(' ')
+    .map(word => {
+      if (word.length === 0) return word
+      return word[0].toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join(' ')
+}
+
+// Обработчик blur для региона - создание нового региона при необходимости
+const handleRegionBlur = async () => {
+  const currentRegionValue = props.formState.region?.value || props.formState.region?.label
+  
+  console.log('🔍 handleRegionBlur вызван', {
+    currentRegionValue,
+    regionValue: props.formState.region?.value,
+    regionLabel: props.formState.region?.label,
+    countryValue: props.formState.country?.value
+  })
+  
+  // Если регион не выбран и есть текст
+  if (!currentRegionValue || currentRegionValue.trim().length === 0) {
+    console.log('⚠️ Регион пустой, выходим')
+    return
+  }
+
+  // Проверяем, существует ли регион в списке
+  const regionExists = regionOptions.value.some(
+    r => r.value.toLowerCase() === currentRegionValue.toLowerCase() || 
+         r.label.toLowerCase() === currentRegionValue.toLowerCase()
+  )
+  
+  console.log('🔍 Проверка существования региона', { regionExists, currentRegionValue })
+
+  if (!regionExists && props.formState.country?.value) {
+    try {
+      const formattedName = formatLocationName(currentRegionValue)
+      
+      console.log('✨ Создание региона', {
+        countryCode: props.formState.country.value,
+        regionName: formattedName,
+        federalDistrictCode: props.formState.federalDistrict?.value
+      })
+      
+      // Пытаемся создать новый регион
+      const result = await createRegion(
+        props.formState.country.value,
+        formattedName,
+        props.formState.federalDistrict?.value
+      )
+      
+      console.log('✅ Результат создания региона', result)
+      if (result.success) {
+        // Добавляем созданный регион в список опций
+        regionOptions.value.push({
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Устанавливаем созданный регион как выбранный
+        updateField('region', {
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Показываем уведомление
+        useToast().add({
+          title: 'Успешно',
+          description: `Регион "${formattedName}" создан`,
+          color: 'success'
+        })
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating region:', error)
+      // Не показываем ошибку, регион может уже существовать
+    }
+  } else {
+    console.log('ℹ️ Регион уже существует или страна не выбрана')
+  }
+}
+
+// Обработчик blur для города - создание нового города при необходимости
+const handleCityBlur = async () => {
+  const currentCityValue = props.formState.city?.value || props.formState.city?.label
+  
+  console.log('🔍 handleCityBlur вызван', {
+    currentCityValue,
+    cityValue: props.formState.city?.value,
+    cityLabel: props.formState.city?.label,
+    countryValue: props.formState.country?.value,
+    regionValue: props.formState.region?.value
+  })
+  
+  // Если город не выбран и есть текст
+  if (!currentCityValue || currentCityValue.trim().length === 0) {
+    console.log('⚠️ Город пустой, выходим')
+    return
+  }
+
+  // Проверяем, существует ли город в списке
+  const cityExists = cityOptions.value.some(
+    c => c.value.toLowerCase() === currentCityValue.toLowerCase() || 
+         c.label.toLowerCase() === currentCityValue.toLowerCase()
+  )
+  
+  console.log('🔍 Проверка существования города', { cityExists, currentCityValue })
+
+  if (!cityExists && props.formState.country?.value && props.formState.region?.value) {
+    try {
+      const formattedName = formatLocationName(currentCityValue)
+      const regionName = props.formState.region.label || props.formState.region.value
+      
+      console.log('✨ Создание города', {
+        countryCode: props.formState.country.value,
+        regionName: regionName,
+        cityName: formattedName,
+        federalDistrictCode: props.formState.federalDistrict?.value
+      })
+      
+      // Пытаемся создать новый город
+      const result = await createCity(
+        props.formState.country.value,
+        regionName,
+        formattedName,
+        props.formState.federalDistrict?.value
+      )
+      
+      console.log('✅ Результат создания города', result)
+      if (result.success) {
+        // Добавляем созданный город в список опций
+        cityOptions.value.push({
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Устанавливаем созданный город как выбранный
+        updateField('city', {
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Показываем уведомление
+        useToast().add({
+          title: 'Успешно',
+          description: `Город "${formattedName}" создан`,
+          color: 'success'
+        })
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating city:', error)
+    }
+  } else {
+    console.log('ℹ️ Город уже существует или регион не выбран')
+  }
+}
 
 const updateField = (field: keyof CompanyDataFormState, value: any) => {
   emit('update:formState', {
@@ -272,6 +435,8 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
                 : '')"
             placeholder="Выберите регион или введите произвольное название"
             searchable
+            allow-custom-input
+            :on-blur="handleRegionBlur"
             @update:model-value="value => updateField('region', value)"
         />
         <p v-if="regionsError" class="text-gray-500 text-sm mt-1">
@@ -290,6 +455,8 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             class="w-48"
             placeholder="Выберите город или введите произвольное название"
             searchable
+            allow-custom-input
+            :on-blur="handleCityBlur"
             @update:model-value="(value: LocationItem | undefined) => updateField('city', value)"
         />
         <p class="text-gray-500 text-sm mt-1">

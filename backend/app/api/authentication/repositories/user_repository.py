@@ -112,6 +112,19 @@ class UserRepository:
         db_token = result.scalar_one_or_none()
         return RegistrationToken.model_validate(db_token) if db_token else None
 
+    async def get_active_registration_token_by_email(self, email: str) -> Optional[RegistrationToken]:
+        """Проверить, есть ли активный неиспользованный токен регистрации для данного email"""
+        now = datetime.utcnow()
+        result = await self.session.execute(
+            select(DBRegistrationToken).where(
+                DBRegistrationToken.email == email,
+                DBRegistrationToken.is_used == False,
+                DBRegistrationToken.expires_at > now
+            )
+        )
+        db_token = result.scalar_one_or_none()
+        return RegistrationToken.model_validate(db_token) if db_token else None
+
     async def update_user_profile(self, user_id: int, user_data: dict) -> Optional[UserInDB]:
         """Обновить профиль пользователя"""
         user = await self.get_user_by_id(user_id)

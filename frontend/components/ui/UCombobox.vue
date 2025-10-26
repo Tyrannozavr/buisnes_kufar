@@ -9,12 +9,15 @@ interface Props {
   disabled?: boolean
   placeholder?: string
   disabledMessage?: string
+  searchable?: boolean
+  onBlur?: () => void
   searchInput?: {
     modelValue: string
     'onUpdate:modelValue': (value: string) => void
     placeholder?: string
     icon?: string
   }
+  allowCustomInput?: boolean // Разрешить ввод произвольных значений
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,11 +25,15 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   placeholder: '',
   disabledMessage: '',
-  searchInput: undefined
+  searchable: false,
+  searchInput: undefined,
+  onBlur: undefined,
+  allowCustomInput: true
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: LocationItem | undefined]
+  'blur': []
 }>()
 
 const isOpen = ref(false)
@@ -44,8 +51,8 @@ watch(() => props.searchInput?.modelValue, (newValue) => {
 
 // Обработка клика вне компонента для закрытия выпадающего списка
 onClickOutside(dropdownRef, () => {
-  // Сохраняем введенное значение перед сбросом - проверяем currentInputValue напрямую
-  if (currentInputValue.value && currentInputValue.value.trim()) {
+  // Сохраняем введенное значение перед сбросом
+  if (props.allowCustomInput && currentInputValue.value && currentInputValue.value.trim()) {
     // Проверяем, что значение изменилось
     if (!props.modelValue || props.modelValue.value !== currentInputValue.value.trim()) {
       const newItem: LocationItem = {
@@ -79,10 +86,8 @@ const handleFocus = () => {
   if (!props.disabled) {
     isOpen.value = true
     isSearching.value = true
-    // Сохраняем текущее значение при фокусе
-    if (props.modelValue) {
-      currentInputValue.value = props.modelValue.value
-    }
+    // При фокусе НЕ восстанавливаем старое значение
+    // Это позволяет пользователю вводить новое значение
   }
 }
 
@@ -90,8 +95,19 @@ const handleFocus = () => {
 const handleBlur = () => {
   // Даем время для клика вне компонента, чтобы избежать конфликтов
   setTimeout(() => {
-    // Если поле все еще активно и есть введенное значение, создаем элемент
-    if (isSearching.value && props.searchInput && currentInputValue.value.trim()) {
+    // Если включен ручной ввод и есть введенное значение
+    if (props.allowCustomInput && isSearching.value && currentInputValue.value.trim()) {
+      // Проверяем, что значение действительно изменилось
+      if (!props.modelValue || props.modelValue.value !== currentInputValue.value.trim()) {
+        const newItem: LocationItem = {
+          value: currentInputValue.value.trim(),
+          label: currentInputValue.value.trim()
+        }
+        selectItem(newItem)
+      }
+    }
+    // Если используется searchInput
+    else if (isSearching.value && props.searchInput && currentInputValue.value.trim()) {
       const newItem: LocationItem = {
         value: currentInputValue.value.trim(),
         label: currentInputValue.value.trim()
@@ -101,19 +117,30 @@ const handleBlur = () => {
         selectItem(newItem)
       }
     }
+    
     isSearching.value = false
     isOpen.value = false
+    
+    // Вызываем пользовательский обработчик onBlur
+    if (props.onBlur) {
+      props.onBlur()
+    }
+    emit('blur')
   }, 200)
 }
 
 // Обработка ввода в поле поиска
 const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const value = target.value
+  
+  // Всегда сохраняем введенное значение в currentInputValue
+  currentInputValue.value = value
+  isSearching.value = true
+  
+  // Если используется searchInput, обновляем его
   if (props.searchInput) {
-    const target = event.target as HTMLInputElement
-    const value = target.value
     props.searchInput['onUpdate:modelValue'](value)
-    currentInputValue.value = value // Сохраняем введенное значение
-    isSearching.value = true
   }
 }
 

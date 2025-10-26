@@ -105,6 +105,18 @@ class CompanyService:
         # Проверяем права доступа
         from app.api.authentication.permissions import PermissionManager, Permission
         from app.api.authentication.models.roles_positions import UserRole
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Логируем информацию о пользователе
+        logger.info(f"🔍 Update company permission check:")
+        logger.info(f"   User ID: {user.id}")
+        logger.info(f"   User Email: {user.email}")
+        logger.info(f"   User Role: {user.role}")
+        logger.info(f"   User Permissions: {user.permissions}")
+        logger.info(f"   Company ID: {company.id if company else None}")
+        logger.info(f"   User company_id: {user.company_id}")
         
         # Если пользователь - владелец компании или имеет права, разрешаем обновление
         has_permission = False
@@ -112,6 +124,30 @@ class CompanyService:
         # Проверяем роль
         if user.role == UserRole.OWNER:
             has_permission = True
+            logger.info(f"   ✓ Permission granted: User is OWNER")
+        
+        # Проверяем, является ли пользователь владельцем через company_id (создатель компании)
+        # Если у пользователя есть company_id и это первый пользователь компании, считаем его владельцем
+        if not has_permission and user.company_id:
+            from sqlalchemy import select
+            # Получаем всех пользователей этой компании
+            users_result = await self.db.execute(
+                select(User).where(User.company_id == user.company_id).order_by(User.id.asc())
+            )
+            company_users = users_result.scalars().all()
+            # Если текущий пользователь - первый пользователь компании, считаем его владельцем
+            if company_users and company_users[0].id == user.id:
+                has_permission = True
+                logger.info(f"   ✓ Permission granted: User is first user of company (owner)")
+                # Обновляем role в базе для корректности
+                logger.info(f"   🔄 Updating user role from {user.role} to OWNER")
+                from sqlalchemy import update
+                await self.db.execute(
+                    update(User)
+                    .where(User.id == user.id)
+                    .values(role=UserRole.OWNER)
+                )
+                await self.db.commit()
         
         # Если есть permissions, проверяем их
         if user.permissions:
@@ -125,8 +161,11 @@ class CompanyService:
             has_perm = PermissionManager.has_permission(user_perms_str, Permission.COMPANY_MANAGEMENT)
             if has_perm:
                 has_permission = True
+                logger.info(f"   ✓ Permission granted: Has COMPANY_MANAGEMENT permission")
         
         if not has_permission:
+            logger.warning(f"   ❌ Permission DENIED: User {user.id} ({user.email}) cannot update company")
+            logger.warning(f"   ⚠️  User role: {user.role}, Permissions: {user.permissions}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this company"

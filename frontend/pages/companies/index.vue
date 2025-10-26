@@ -29,11 +29,13 @@ const fetchCompanies = async () => {
   error.value = null
   
   try {
-    const response = await searchManufacturers({
+    const params = {
       page: currentPage.value,
       perPage: perPage.value,
       ...searchParams.value
-    })
+    }
+    
+    const response = await searchManufacturers(params)
     
     // Update the response data
     companies.value = response.data || []

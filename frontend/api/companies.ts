@@ -37,11 +37,41 @@ export const useCompaniesApi = () => {
   }
 
   const searchManufacturers = async (params: any = {}) => {
-    return await $api.get('/v1/companies/products', { params })
+    // Формируем body для POST запроса (как в products)
+    const body: any = {
+      search: params.search || undefined,
+      cities: params.cities || undefined, // Массив ID городов
+      skip: ((params.page || 1) - 1) * (params.perPage || 10),
+      limit: params.perPage || 10
+    }
+    
+    // Убираем undefined значения
+    Object.keys(body).forEach(key => {
+      if (body[key] === undefined || body[key] === null) {
+        delete body[key]
+      }
+    })
+    
+    return await $api.post('/v1/companies/products/search', body)
   }
 
   const searchServiceProviders = async (params: any = {}) => {
-    return await $api.get('/v1/companies/services', { params })
+    // Формируем body для POST запроса
+    const body: any = {
+      search: params.search || undefined,
+      cities: params.cities || undefined,
+      skip: ((params.page || 1) - 1) * (params.perPage || 10),
+      limit: params.perPage || 10
+    }
+    
+    // Убираем undefined значения
+    Object.keys(body).forEach(key => {
+      if (body[key] === undefined || body[key] === null) {
+        delete body[key]
+      }
+    })
+    
+    return await $api.post('/v1/companies/services/search', body)
   }
 
   const deletePartnerById = async (id: string) => {
@@ -101,47 +131,55 @@ export const getLatestCompaniesSSR = async (limit: number = 6) => {
 }
 
 export const searchManufacturersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const queryParams: any = {
-    page,
-    per_page: perPage
+  // Формируем body для POST запроса (как в products)
+  const body: any = {
+    search: params.search || undefined,
+    cities: params.cities || undefined,
+    skip: (page - 1) * perPage,
+    limit: perPage
   }
   
-  // Добавляем параметры фильтрации
-  if (params.search) queryParams.search = params.search
-  if (params.cities && params.cities.length > 0) {
-    queryParams.cities = params.cities.join(',')
-  }
+  // Убираем undefined значения
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null) {
+      delete body[key]
+    }
+  })
   
-  // Используем $fetch для SSR
+  // Используем $fetch для SSR с POST
   const config = useRuntimeConfig()
-  // В production используем apiBaseUrl, в dev - localhost
   const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
-  const url = `${baseUrl}/v1/companies` // Убираем trailing slash
+  const url = `${baseUrl}/v1/companies/products/search`
   
   return await $fetch(url, {
-    query: queryParams
+    method: 'POST',
+    body
   }) as PaginationResponse<CompanyShort>
 }
 
 export const searchServiceProvidersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const queryParams: any = {
-    page,
-    per_page: perPage
+  // Формируем body для POST запроса
+  const body: any = {
+    search: params.search || undefined,
+    cities: params.cities || undefined,
+    skip: (page - 1) * perPage,
+    limit: perPage
   }
   
-  // Добавляем параметры фильтрации
-  if (params.search) queryParams.search = params.search
-  if (params.cities && Array.isArray(params.cities) && params.cities.length > 0) {
-    queryParams.cities = params.cities.join(',')
-  }
+  // Убираем undefined значения
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null) {
+      delete body[key]
+    }
+  })
   
-  // Используем $fetch для SSR
+  // Используем $fetch для SSR с POST
   const config = useRuntimeConfig()
-  // В production используем apiBaseUrl, в dev - localhost
   const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
-  const url = `${baseUrl}/v1/companies/services`
+  const url = `${baseUrl}/v1/companies/services/search`
   
   return await $fetch(url, {
-    query: queryParams
+    method: 'POST',
+    body
   }) as PaginationResponse<CompanyShort>
 } 

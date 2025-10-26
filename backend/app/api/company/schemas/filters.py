@@ -52,3 +52,16 @@ class ServiceFilterRequest(BaseModel):
     in_stock: Optional[bool] = None
     skip: int = 0
     limit: int = 100
+
+
+class CompanyFilterRequest(BaseModel):
+    search: Optional[str] = None
+    cities: Optional[List[int]] = None  # ID городов
+    business_type: Optional[str] = None  # goods, services, both
+    trade_activity: Optional[str] = None  # buyer, seller, both
+    country: Optional[str] = None
+    federal_district: Optional[str] = None
+    region: Optional[str] = None
+    city: Optional[str] = None
+    skip: int = 0
+    limit: int = 100

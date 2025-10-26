@@ -80,7 +80,16 @@ export default defineNuxtConfig({
   },
   // Настройки для правильной генерации путей
   vite: {
-    // Другие настройки Vite можно добавить здесь
+    // Proxy для dev режима - проксируем /api запросы на backend
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
+        }
+      }
+    }
   },
   // Конфигурация PostCSS
   postcss: {

@@ -407,7 +407,7 @@ async def get_latest_products(
 
 
 # Новые endpoints для поиска с фильтрацией
-@public_router.post("/search", response_model=ProductListResponse)
+@public_router.post("/search", response_model=ProductListResponse, tags=["search"])
 async def search_products_with_filters(
         filter_request: ProductFilterRequest,
         search_service: Annotated[ProductSearchService, Depends(get_search_service)]
@@ -416,7 +416,7 @@ async def search_products_with_filters(
     return await search_service.search_products(filter_request)
 
 
-@public_router.post("/services/search", response_model=ProductListResponse)
+@public_router.post("/services/search", response_model=ProductListResponse, tags=["search"])
 async def search_services_with_filters(
         filter_request: ServiceFilterRequest,
         search_service: Annotated[ProductSearchService, Depends(get_search_service)]

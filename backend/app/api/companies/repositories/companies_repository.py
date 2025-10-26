@@ -228,35 +228,60 @@ class CompaniesRepository:
             self,
             page: int = 1,
             per_page: int = 10,
-            search: str = None
+            search: str = None,
+            cities: Optional[List[int]] = None
     ) -> Tuple[List[Company], int]:
         """
         Получить компании, производящие товары (включая те, что делают оба)
+        
+        Args:
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            search: Поиск по названию компании
+            cities: Список ID городов для фильтрации
+            
+        Returns:
+            Tuple[List[Company], int]: (список компаний, общее количество)
         """
         from sqlalchemy import or_, func
+        from app.api.common.models.city import City
+        
+        # Базовые условия
+        conditions = [
+            Company.is_active == True,
+            or_(
+                Company.business_type == BusinessType.GOODS,
+                Company.business_type == BusinessType.BOTH
+            )
+        ]
+        
+        # Добавляем фильтр по названию
+        if search:
+            conditions.append(Company.name.ilike(f"%{search}%"))
+        
+        # Добавляем фильтр по городам
+        if cities:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"🔍 Companies filter cities={cities}")
+            
+            # Получаем названия городов по их ID
+            cities_query = select(City.name).where(City.id.in_(cities))
+            cities_result = await self.session.execute(cities_query)
+            city_names = [row[0] for row in cities_result]
+            logger.info(f"🌆 City names: {city_names}")
+            
+            if city_names:
+                # Фильтруем по названию города
+                conditions.append(Company.city.in_(city_names))
+                logger.info(f"✅ Added city filter")
+        
         base_query = select(Company).options(
             selectinload(Company.officials)
-        ).where(
-            Company.is_active == True,
-            or_(
-                Company.business_type == BusinessType.GOODS,
-                Company.business_type == BusinessType.BOTH
-            )
-        )
-        if search:
-            base_query = base_query.where(Company.name.ilike(f"%{search}%"))
-        base_query = base_query.order_by(Company.registration_date.desc())
+        ).where(*conditions).order_by(Company.registration_date.desc())
 
         # Получаем общее количество
-        count_query = select(func.count(Company.id)).where(
-            Company.is_active == True,
-            or_(
-                Company.business_type == BusinessType.GOODS,
-                Company.business_type == BusinessType.BOTH
-            )
-        )
-        if search:
-            count_query = count_query.where(Company.name.ilike(f"%{search}%"))
+        count_query = select(func.count(Company.id)).where(*conditions)
         count_result = await self.session.execute(count_query)
         total_count = count_result.scalar()
 

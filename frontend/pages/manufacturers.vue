@@ -16,11 +16,14 @@ const currentPage = ref(1)
 const perPage = ref(10)
 
 // Fetch manufacturers with pagination using SSR function
-const response = await searchManufacturersSSR(currentPage.value, perPage.value)
+const initialResponse = await searchManufacturersSSR(currentPage.value, perPage.value)
+
+// Make response reactive
+const response = ref(initialResponse)
 
 // Computed properties
-const manufacturers = computed(() => response?.data || [])
-const pagination = computed(() => response?.pagination || {
+const manufacturers = computed(() => response.value?.data || [])
+const pagination = computed(() => response.value?.pagination || {
   total: 0,
   page: 1,
   perPage: 10,
@@ -30,12 +33,18 @@ const pagination = computed(() => response?.pagination || {
 const manufacturersPending = ref(false)
 const manufacturersError = ref<Error | null>(null)
 
+// Store current filters
+const currentFilters = ref<any>({})
+
 // Watch for page changes
 watch(currentPage, async (newPage) => {
-  // Refresh data when page changes
-  const newResponse = await searchManufacturersSSR(newPage, perPage.value)
-  // Update the response data
-  Object.assign(response, newResponse)
+  manufacturersPending.value = true
+  try {
+    const newResponse = await searchManufacturersSSR(newPage, perPage.value, currentFilters.value)
+    response.value = newResponse
+  } finally {
+    manufacturersPending.value = false
+  }
 })
 
 const handleSearch = async (params: {
@@ -44,11 +53,12 @@ const handleSearch = async (params: {
 }) => {
   manufacturersPending.value = true
   manufacturersError.value = null
+  currentFilters.value = params
+  currentPage.value = 1 // Reset to page 1 when searching
 
   try {
     const newResponse = await searchManufacturersSSR(currentPage.value, perPage.value, params)
-    // Update the response data
-    Object.assign(response, newResponse)
+    response.value = newResponse
   } catch (error) {
     console.error('Search error:', error)
     manufacturersError.value = error as Error

@@ -74,9 +74,32 @@ const toggleRegion = (regionId: number) => {
   }
 }
 
+// Helper functions
+const findCountryById = (id: number): any => {
+  return citiesData.value?.countries?.find((c: any) => c.id === id) || null
+}
+
+const findFederalDistrictById = (id: number): any => {
+  for (const country of citiesData.value?.countries || []) {
+    const fd = country.federal_districts.find((fd: any) => fd.id === id)
+    if (fd) return fd
+  }
+  return null
+}
+
+const findRegionById = (id: number): any => {
+  for (const country of citiesData.value?.countries || []) {
+    for (const fd of country.federal_districts) {
+      const region = fd.regions.find((r: any) => r.id === id)
+      if (region) return region
+    }
+  }
+  return null
+}
+
 // Check if location is selected
 const isCountrySelected = (countryId: number): boolean => {
-  const country = citiesData?.countries?.find((c: any) => c.id === countryId)
+  const country = findCountryById(countryId)
   if (!country) return false
   
   return country.federal_districts.every((fd: any) => 
@@ -87,9 +110,7 @@ const isCountrySelected = (countryId: number): boolean => {
 }
 
 const isFederalDistrictSelected = (fdId: number): boolean => {
-  const fd = citiesData?.countries
-    ?.flatMap((c: any) => c.federal_districts)
-    ?.find((fd: any) => fd.id === fdId)
+  const fd = findFederalDistrictById(fdId)
   if (!fd) return false
   
   return fd.regions.every((region: any) =>
@@ -98,10 +119,7 @@ const isFederalDistrictSelected = (fdId: number): boolean => {
 }
 
 const isRegionSelected = (regionId: number): boolean => {
-  const region = citiesData?.countries
-    ?.flatMap((c: any) => c.federal_districts)
-    ?.flatMap((fd: any) => fd.regions)
-    ?.find((r: any) => r.id === regionId)
+  const region = findRegionById(regionId)
   if (!region) return false
   
   return region.cities.every((city: any) => selectedCities.value.includes(city.id))
@@ -109,56 +127,49 @@ const isRegionSelected = (regionId: number): boolean => {
 
 // Toggle selection functions
 const toggleCountrySelection = (countryId: number) => {
-  const country = citiesData?.countries?.find((c: any) => c.id === countryId)
+  const country = findCountryById(countryId)
   if (!country) return
   
-  const allCities = country.federal_districts
-    .flatMap((fd: any) => fd.regions)
-    .flatMap((region: any) => region.cities)
-    .map((city: any) => city.id)
-  
-  const allSelected = allCities.every(id => selectedCities.value.includes(id))
+  const countryCityIds = country.federal_districts.flatMap((fd: any) => 
+    fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  )
+  const allSelected = countryCityIds.every(id => selectedCities.value.includes(id))
   
   if (allSelected) {
-    selectedCities.value = selectedCities.value.filter(id => !allCities.includes(id))
+    selectedCities.value = selectedCities.value.filter(id => !countryCityIds.includes(id))
   } else {
-    selectedCities.value = [...selectedCities.value, ...allCities.filter(id => !selectedCities.value.includes(id))]
+    const newSelections = countryCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
   }
 }
 
 const toggleFederalDistrictSelection = (fdId: number) => {
-  const fd = citiesData?.countries
-    ?.flatMap((c: any) => c.federal_districts)
-    ?.find((fd: any) => fd.id === fdId)
+  const fd = findFederalDistrictById(fdId)
   if (!fd) return
   
-  const allCities = fd.regions
-    .flatMap((region: any) => region.cities)
-    .map((city: any) => city.id)
-  
-  const allSelected = allCities.every(id => selectedCities.value.includes(id))
+  const fdCityIds = fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  const allSelected = fdCityIds.every(id => selectedCities.value.includes(id))
   
   if (allSelected) {
-    selectedCities.value = selectedCities.value.filter(id => !allCities.includes(id))
+    selectedCities.value = selectedCities.value.filter(id => !fdCityIds.includes(id))
   } else {
-    selectedCities.value = [...selectedCities.value, ...allCities.filter(id => !selectedCities.value.includes(id))]
+    const newSelections = fdCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
   }
 }
 
 const toggleRegionSelection = (regionId: number) => {
-  const region = citiesData?.countries
-    ?.flatMap((c: any) => c.federal_districts)
-    ?.flatMap((fd: any) => fd.regions)
-    ?.find((r: any) => r.id === regionId)
+  const region = findRegionById(regionId)
   if (!region) return
   
-  const allCities = region.cities.map((city: any) => city.id)
-  const allSelected = allCities.every(id => selectedCities.value.includes(id))
+  const regionCityIds = region.cities.map((city: any) => city.id)
+  const allSelected = regionCityIds.every(id => selectedCities.value.includes(id))
   
   if (allSelected) {
-    selectedCities.value = selectedCities.value.filter(id => !allCities.includes(id))
+    selectedCities.value = selectedCities.value.filter(id => !regionCityIds.includes(id))
   } else {
-    selectedCities.value = [...selectedCities.value, ...allCities.filter(id => !selectedCities.value.includes(id))]
+    const newSelections = regionCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
   }
 }
 
@@ -319,7 +330,7 @@ onMounted(async () => {
               <div v-else class="space-y-2">
                 <div v-for="country in citiesData?.countries" :key="country.id" class="border rounded-lg">
                   <!-- Country Header -->
-                  <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg">
+                  <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg transition-colors">
                     <UCheckbox 
                       :model-value="isCountrySelected(country.id)"
                       @update:model-value="toggleCountrySelection(country.id)"
@@ -332,16 +343,16 @@ onMounted(async () => {
                         :name="expandedCountries.includes(country.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
                         class="w-4 h-4 text-gray-500"
                       />
-                      <span class="text-sm">{{ country.name }}</span>
+                      <span class="font-medium text-sm">{{ country.name }}</span>
                       <span class="text-xs text-gray-500">({{ getCountryStats(country) }})</span>
                     </div>
                   </div>
                   
                   <!-- Federal Districts -->
                   <div v-if="expandedCountries.includes(country.id)" class="border-t">
-                    <div v-for="fd in country.federal_districts.filter(fd => fd.regions.length > 0)" :key="fd.id" class="border-b last:border-b-0">
+                    <div v-for="fd in country.federal_districts.filter(fd => fd.regions.some(region => region.cities.length > 0))" :key="fd.id" class="border-b last:border-b-0">
                       <!-- Federal District Header -->
-                      <div class="flex items-center gap-3 p-2 pl-6 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                      <div v-if="fd.id !== -1" class="flex items-center gap-3 p-2 pl-6 bg-gray-25 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
                         <UCheckbox 
                           :model-value="isFederalDistrictSelected(fd.id)"
                           @update:model-value="toggleFederalDistrictSelection(fd.id)"
@@ -418,7 +429,7 @@ onMounted(async () => {
             <!-- Action Buttons -->
             <div class="flex justify-between">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="outline"
                 @click="clearCitiesSelection"
               >

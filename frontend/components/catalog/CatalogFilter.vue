@@ -395,7 +395,7 @@ onMounted(async () => {
         <UButton 
           color="neutral" 
           variant="outline" 
-          class="w-full justify-between"
+          class="w-full justify-between cursor-pointer"
           @click="openCitiesDialog"
         >
           <span>{{ selectedCities.length > 0 ? `Выбрано городов: ${selectedCities.length}` : 'Города не выбраны' }}</span>
@@ -416,6 +416,7 @@ onMounted(async () => {
       <div class="flex justify-end">
         <UButton
           color="primary"
+          class="cursor-pointer"
           @click="handleSearch"
         >
           Найти
@@ -435,6 +436,7 @@ onMounted(async () => {
               color="neutral" 
               variant="ghost" 
               icon="i-heroicons-x-mark"
+              class="cursor-pointer"
               @click="closeCitiesDialog"
             />
           </div>
@@ -518,7 +520,7 @@ onMounted(async () => {
                     <!-- Cities -->
                     <div v-if="expandedRegions.includes(region.id)" class="border-t">
                       <div v-for="city in region.cities" :key="city.id" class="border-b last:border-b-0">
-                        <div class="flex items-center gap-3 p-2 pl-16 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                        <div class="flex items-center gap-3 p-2 pl-16 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors cursor-pointer" @click="toggleCitySelection(city.id)">
                           <UCheckbox 
                             :model-value="selectedCities.includes(city.id)"
                             @update:model-value="toggleCitySelection(city.id)"
@@ -545,8 +547,9 @@ onMounted(async () => {
             </span>
             <UButton 
               size="xs" 
-              color="red" 
+              color="error" 
               variant="ghost"
+              class="cursor-pointer"
               @click="clearAllSelections"
             >
               Очистить все
@@ -569,14 +572,16 @@ onMounted(async () => {
             <!-- Action Buttons -->
             <div class="flex justify-between">
               <UButton 
-                color="gray" 
+                color="neutral" 
                 variant="outline"
+                class="cursor-pointer"
                 @click="clearCitiesSelection"
               >
                 Сброс
               </UButton>
               <UButton 
                 color="primary"
+                class="cursor-pointer"
                 @click="applyCitiesSelection"
               >
                 Выбрать

@@ -17,11 +17,25 @@ const initialPage = pageParam && typeof pageParam === 'string' ? parseInt(pagePa
 const currentPage = ref(initialPage > 0 ? initialPage : 1)
 const perPage = ref(10)
 
+// Parse filters from URL
+const urlFilters = {
+  search: route.query.search as string | undefined,
+  cities: route.query.cities ? (route.query.cities as string).split(',').map(Number) : undefined,
+  minPrice: route.query.minPrice ? parseFloat(route.query.minPrice as string) : undefined,
+  maxPrice: route.query.maxPrice ? parseFloat(route.query.maxPrice as string) : undefined,
+  inStock: route.query.inStock === 'true'
+}
+
 // Fetch service providers with pagination using SSR function
-const initialResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value)
+const initialResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, urlFilters)
 
 // Make response reactive
 const response = ref(initialResponse)
+
+// Apply filters from URL if present
+if (urlFilters.search || urlFilters.cities?.length || urlFilters.minPrice || urlFilters.maxPrice || urlFilters.inStock) {
+  currentFilters.value = urlFilters
+}
 
 // Computed properties
 const manufacturers = computed(() => response.value?.data || [])
@@ -63,6 +77,19 @@ const handleSearch = async (params: {
   currentFilters.value = params
   currentPage.value = 1 // Reset to page 1 when searching
 
+  // Update URL with filters
+  await router.push({
+    query: {
+      ...route.query,
+      page: '1',
+      search: params.search || undefined,
+      cities: params.cities?.length ? params.cities.join(',') : undefined,
+      minPrice: params.minPrice || undefined,
+      maxPrice: params.maxPrice || undefined,
+      inStock: params.inStock || undefined
+    }
+  })
+
   try {
     const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, params)
     response.value = newResponse
@@ -85,7 +112,14 @@ if (route.query.created === 'true') {
   }, 5000)
 }
 
-const handlePageChange = (page: number) => {
+const handlePageChange = async (page: number) => {
+  // Update URL with page
+  await router.push({
+    query: {
+      ...route.query,
+      page: page.toString()
+    }
+  })
   currentPage.value = page
 }
 
@@ -122,7 +156,7 @@ const handlePageChange = (page: number) => {
     <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
 
     <!-- Search Form -->
-    <CatalogFilter type="companies" @search="handleSearch"/>
+    <CatalogFilter type="services" @search="handleSearch"/>
     
     <!-- Loading state -->
     <section v-if="manufacturersPending" class="bg-white rounded-lg p-6 shadow-sm">

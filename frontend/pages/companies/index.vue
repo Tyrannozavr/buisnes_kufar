@@ -71,10 +71,32 @@ watch([currentPage, searchParams], () => {
 const handleSearch = (params: any) => {
   searchParams.value = params
   currentPage.value = 1 // Reset to first page when searching
+  
+  // Update URL with filters
+  const router = useRouter()
+  router.push({
+    query: {
+      ...route.query,
+      page: '1',
+      search: params.search || undefined,
+      cities: params.cities?.length ? params.cities.join(',') : undefined,
+    }
+  })
+}
+
+// Parse filters from URL
+const route = useRoute()
+const urlFilters = {
+  search: route.query.search as string | undefined,
+  cities: route.query.cities ? (route.query.cities as string).split(',').map(Number) : undefined,
 }
 
 // Initial data fetch
 onMounted(() => {
+  // Apply filters from URL if present
+  if (urlFilters.search || urlFilters.cities?.length) {
+    searchParams.value = urlFilters
+  }
   fetchCompanies()
 })
 
@@ -101,7 +123,15 @@ const getActivityColor = (tradeActivity: string) => {
   }
 }
 
-const handlePageChange = (page: number) => {
+const handlePageChange = async (page: number) => {
+  // Update URL with page
+  const router = useRouter()
+  await router.push({
+    query: {
+      ...route.query,
+      page: page.toString()
+    }
+  })
   currentPage.value = page
 }
 </script>

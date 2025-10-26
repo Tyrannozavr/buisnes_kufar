@@ -70,8 +70,11 @@ class CitiesFilterRepository:
     
     @staticmethod
     async def get_cities_with_companies_count():
-        """Получить города с количеством компаний через JOIN по city_id"""
+        """Получить города с количеством компаний-производителей товаров (по business_type)"""
         async with AsyncSessionLocal() as db:
+            from app.api.company.models.company import BusinessType
+            from sqlalchemy import or_
+            
             # Получаем города с количеством компаний через JOIN по city_id
             cities_with_companies = await db.execute(
                 select(
@@ -85,6 +88,10 @@ class CitiesFilterRepository:
                 .join(Company, City.id == Company.city_id)  # JOIN по city_id
                 .where(
                     and_(
+                        or_(
+                            Company.business_type == BusinessType.GOODS,
+                            Company.business_type == BusinessType.BOTH
+                        ),
                         Company.is_active == True,
                         City.is_active == True
                     )
@@ -120,9 +127,13 @@ class CitiesFilterRepository:
     
     @staticmethod
     async def get_cities_with_services_count():
-        """Получить города с количеством услуг через JOIN"""
+        """Получить города с количеством компаний-поставщиков услуг (по business_type)"""
         async with AsyncSessionLocal() as db:
-            # Получаем города с количеством услуг через JOIN
+            # Получаем города с количеством компаний-поставщиков услуг
+            # Подсчитываем компании с business_type = SERVICES или BOTH
+            from app.api.company.models.company import Company, BusinessType
+            from sqlalchemy import or_
+            
             cities_with_services = await db.execute(
                 select(
                     City.id.label('city_id'),
@@ -130,15 +141,15 @@ class CitiesFilterRepository:
                     City.region_id,
                     City.federal_district_id,
                     City.country_id,
-                    func.count(Product.id).label('products_count')
+                    func.count(func.distinct(Company.id)).label('products_count')
                 )
                 .join(Company, City.id == Company.city_id)
-                .join(Product, Company.id == Product.company_id)
                 .where(
                     and_(
-                        Product.type == ProductType.SERVICE,
-                        Product.is_deleted == False,
-                        Product.is_hidden == False,
+                        or_(
+                            Company.business_type == BusinessType.SERVICES,
+                            Company.business_type == BusinessType.BOTH
+                        ),
                         City.is_active == True,
                         Company.is_active == True
                     )
@@ -163,10 +174,10 @@ class CitiesFilterRepository:
                     'products_count': row.products_count
                 }
             
-            print(f"🏙️ Найдено городов с услугами: {len(cities_data)}")
+            print(f"🏙️ Найдено городов с поставщиками услуг: {len(cities_data)}")
             if cities_data:
                 city_example = list(cities_data.values())[0]
-                print(f"📊 Пример: {city_example['name']} - {city_example['products_count']} услуг")
+                print(f"📊 Пример: {city_example['name']} - {city_example['products_count']} поставщиков услуг")
             
             return cities_data
     

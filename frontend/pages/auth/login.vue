@@ -151,6 +151,8 @@ const handleSubmit = async () => {
     
     if (errorMessage === 'Incorrect INN or password') {
       message = 'Неверный ИНН или пароль'
+    } else if (errorMessage === 'Incorrect email/phone or password') {
+      message = 'Неверный логин или пароль'
     } else if (errorMessage === 'Password must be at least 8 characters long') {
       message = 'Пароль должен содержать минимум 8 символов'
     }

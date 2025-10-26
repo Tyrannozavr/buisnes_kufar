@@ -48,6 +48,10 @@ export default defineNuxtConfig({
   icon: {
     size: '24px',
     class: 'icon',
+    provider: 'server',
+    serverBundle: {
+      collections: ['heroicons', 'lucide', 'simple-icons']
+    },
     aliases: {
       'nuxt': 'logos:nuxt-icon',
     }
@@ -83,10 +87,12 @@ export default defineNuxtConfig({
     // Proxy для dev режима - проксируем /api запросы на backend
     server: {
       proxy: {
-        '/api': {
+        // Исключаем _nuxt_icon из прокси
+        '^/api/(?!_nuxt_icon)': {
           target: 'http://localhost:8000',
           changeOrigin: true,
-          secure: false
+          secure: false,
+          rewrite: (path) => path
         }
       }
     }

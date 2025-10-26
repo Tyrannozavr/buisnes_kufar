@@ -510,7 +510,7 @@ const handleKeydown = (event: KeyboardEvent) => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo_url || undefined"
+                :src="formState.logo_url || null"
                 size="xl"
                 :alt="formState.name"
             />

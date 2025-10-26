@@ -55,12 +55,12 @@ export const useLocationsDbApi = () => {
     regionsLoading.value = true
     regionsError.value = null
     try {
-      const params: any = { country_code: countryCode }
+      const params: any = {}
       if (federalDistrictCode) {
-        params.federal_district_code = federalDistrictCode
+        params.federal_district = federalDistrictCode
       }
       
-      const response = await $api.get('/v1/locations/regions', { params })
+      const response = await $api.get(`/v1/locations/regions/${countryCode}`, { params })
       const data = response as LocationResponse
       regionOptions.value = data.items || []
     } catch (error) {

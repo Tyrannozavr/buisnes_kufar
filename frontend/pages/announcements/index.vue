@@ -81,7 +81,7 @@ const formatDate = (dateString: string) => {
               v-for="announcement in announcements"
               :key="announcement.id"
               class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex px-2"
-              @click="navigateTo(`/announcements/${announcement.id}`)"
+              @click="announcement.id && navigateTo(`/announcements/${announcement.id}`)"
           >
             <div class="w-24 h-24 flex-shrink-0">
               <NuxtImg

@@ -21,6 +21,7 @@ const formatDate = (dateString: string) => {
 
 const router = useRouter()
 const navigateToAnnouncement = (id: string) => {
+  if (!id) return
   router.push(`/announcements/${id}`)
 }
 </script>

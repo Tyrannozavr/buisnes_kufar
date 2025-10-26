@@ -3,6 +3,45 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 
+class CountryCreate(BaseModel):
+    """Схема для создания страны"""
+    code: str = Field(..., description="ISO код страны (3 символа)", min_length=2, max_length=3)
+    name: str = Field(..., description="Название страны", max_length=100)
+
+
+class FederalDistrictCreate(BaseModel):
+    """Схема для создания федерального округа"""
+    country_code: str = Field(..., description="ISO код страны", min_length=2, max_length=3)
+    name: str = Field(..., description="Название федерального округа", max_length=100)
+    code: str = Field(..., description="Код округа (ЦФО, СЗФО и т.д.)", max_length=10)
+
+
+class RegionCreate(BaseModel):
+    """Схема для создания региона"""
+    country_code: str = Field(..., description="ISO код страны", min_length=2, max_length=3)
+    federal_district_code: Optional[str] = Field(None, description="Код федерального округа")
+    name: str = Field(..., description="Название региона", max_length=100)
+    code: str = Field(..., description="Код региона", max_length=20)
+
+
+class CityCreate(BaseModel):
+    """Схема для создания города"""
+    country_code: str = Field(..., description="ISO код страны", min_length=2, max_length=3)
+    region_name: str = Field(..., description="Название региона", max_length=100)
+    federal_district_code: Optional[str] = Field(None, description="Код федерального округа")
+    name: str = Field(..., description="Название города", max_length=100)
+    population: Optional[int] = Field(None, description="Население города", ge=0)
+    is_million_city: bool = Field(False, description="Город-миллионник")
+    is_regional_center: bool = Field(False, description="Региональный центр")
+
+
+class LocationCreateResponse(BaseModel):
+    """Схема ответа при создании локации"""
+    success: bool = Field(..., description="Успешно ли создано")
+    message: str = Field(..., description="Сообщение о результате")
+    data: Optional[dict] = Field(None, description="Данные созданной локации")
+
+
 class LocationItem(BaseModel):
     """Базовая модель для элементов локации (страны, регионы, города)"""
     label: str = Field(..., description="Отображаемое название")

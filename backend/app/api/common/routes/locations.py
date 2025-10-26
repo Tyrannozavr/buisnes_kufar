@@ -28,12 +28,16 @@ async def get_countries():
 
 
 @router.get("/regions/{country_code}", response_model=LocationResponse)
-async def get_regions(country_code: str):
+async def get_regions(country_code: str, federal_district: Optional[str] = Query(None)):
     """
     Получить список регионов для указанной страны.
+    
+    Args:
+        country_code: Код страны (например, 'RU')
+        federal_district: Название федерального округа (необязательно)
     """
     try:
-        regions = await location_api.get_regions(country_code)
+        regions = await location_api.get_regions(country_code, federal_district)
         return LocationResponse(
             items=regions,
             total=len(regions)

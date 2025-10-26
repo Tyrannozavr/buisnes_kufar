@@ -17,7 +17,7 @@ defineProps<CompanyHeaderProps>()
   <div class="bg-white rounded-lg p-6 shadow-sm">
     <div class="flex items-start gap-6">
       <UAvatar
-        :src="getFullImageUrl(logo) || undefined"
+        :src="getFullImageUrl(logo) || null"
         :alt="name"
         size="xl"
         class="flex-shrink-0"

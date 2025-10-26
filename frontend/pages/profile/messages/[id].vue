@@ -328,7 +328,8 @@ const formatFileSize = (bytes: number) => {
           </button>
           
           <NuxtLink
-            :to="`/companies/${otherParticipant?.company_slug}`"
+            v-if="otherParticipant?.company_slug"
+            :to="`/companies/${otherParticipant.company_slug}`"
             class="flex items-center space-x-3 flex-1"
             :class="{ 'opacity-50 pointer-events-none': chatPending }"
           >
@@ -355,6 +356,35 @@ const formatFileSize = (bytes: number) => {
               </div>
             </div>
           </NuxtLink>
+          
+          <div
+            v-else
+            class="flex items-center space-x-3 flex-1"
+            :class="{ 'opacity-50 pointer-events-none': chatPending }"
+          >
+            <NuxtImg
+              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
+              :alt="otherParticipant?.company_name"
+              class="w-10 h-10 rounded-full object-cover"
+            />
+            <div class="flex-1">
+              <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
+              <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1">
+                  <div 
+                    class="w-2 h-2 rounded-full"
+                    :class="isOtherParticipantOnline ? 'bg-green-500' : 'bg-red-500'"
+                  ></div>
+                  <span class="text-xs text-gray-500">
+                    {{ isOtherParticipantOnline ? 'Онлайн' : 'Офлайн' }}
+                  </span>
+                </div>
+                <span v-if="isTyping" class="text-xs text-blue-500">
+                  печатает...
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

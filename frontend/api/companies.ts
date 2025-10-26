@@ -116,7 +116,7 @@ export const searchManufacturersSSR = async (page: number = 1, perPage: number =
   const config = useRuntimeConfig()
   // В production используем apiBaseUrl, в dev - localhost
   const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
-  const url = `${baseUrl}/v1/companies/`
+  const url = `${baseUrl}/v1/companies` // Убираем trailing slash
   
   return await $fetch(url, {
     query: queryParams

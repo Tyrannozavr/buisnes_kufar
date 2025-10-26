@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+import asyncio
+import sys
+import os
+
+# Добавляем путь к проекту
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.db.base import AsyncSessionLocal
+from sqlalchemy import text
+from app.core.security import get_password_hash
+
+async def set_passwords_correct():
+    """Устанавливаем правильные пароли"""
+    async with AsyncSessionLocal() as db:
+        try:
+            # Генерируем правильный хеш для пароля "password123"
+            password_hash = get_password_hash("password123")
+            print(f"Сгенерированный хеш: {password_hash}")
+            
+            # Обновляем пароль для владельца
+            await db.execute(
+                text("UPDATE users SET hashed_password = :password WHERE id = :user_id"),
+                {"password": password_hash, "user_id": 5}
+            )
+            print("Установлен пароль для владельца (ID: 5)")
+            
+            # Обновляем пароль для сотрудника
+            await db.execute(
+                text("UPDATE users SET hashed_password = :password WHERE id = :user_id"),
+                {"password": password_hash, "user_id": 6}
+            )
+            print("Установлен пароль для сотрудника (ID: 6)")
+            
+            await db.commit()
+            print("Пароли установлены успешно!")
+            print("Пароль для всех пользователей: password123")
+            
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            await db.rollback()
+
+if __name__ == "__main__":
+    asyncio.run(set_passwords_correct())

@@ -101,7 +101,6 @@ export const getLatestCompaniesSSR = async (limit: number = 6) => {
 }
 
 export const searchManufacturersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const { $api } = useNuxtApp()
   const queryParams: any = {
     page,
     per_page: perPage
@@ -113,13 +112,16 @@ export const searchManufacturersSSR = async (page: number = 1, perPage: number =
     queryParams.cities = params.cities.join(',')
   }
   
-  return await $api.get('/v1/companies/', {
-    params: queryParams
+  // Используем $fetch для SSR
+  const config = useRuntimeConfig()
+  const url = `${config.public.apiBase || ''}/v1/companies/`
+  
+  return await $fetch(url, {
+    query: queryParams
   }) as PaginationResponse<CompanyShort>
 }
 
 export const searchServiceProvidersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const { $api } = useNuxtApp()
   const queryParams: any = {
     page,
     per_page: perPage
@@ -131,7 +133,11 @@ export const searchServiceProvidersSSR = async (page: number = 1, perPage: numbe
     queryParams.cities = params.cities.join(',')
   }
   
-  return await $api.get('/v1/companies/services', {
-    params: queryParams
+  // Используем $fetch для SSR
+  const config = useRuntimeConfig()
+  const url = `${config.public.apiBase || ''}/v1/companies/services`
+  
+  return await $fetch(url, {
+    query: queryParams
   }) as PaginationResponse<CompanyShort>
 } 

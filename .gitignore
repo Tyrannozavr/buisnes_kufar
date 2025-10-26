@@ -20923,7 +20923,6 @@ nginx/letsencrypt/renewal/
 /logs/backend/app_2025-10-25.log
 /logs/backend/app_2025-10-26.log
 /backend/new_venv/lib64/
-/backend/app/api/authentication/schemas/positions.py
 /nginx/letsencrypt/live/tradesynergy.ru-0001/privkey.pem
 /nginx/letsencrypt/live/tradesynergy.ru-0001/README
 /nginx/letsencrypt/live/tradesynergy.ru

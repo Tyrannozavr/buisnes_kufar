@@ -117,10 +117,10 @@ class CitiesFilterService:
     
     @staticmethod
     async def build_companies_location_tree():
-        """Построить упрощенное дерево локаций с количеством компаний"""
+        """Построить дерево локаций с количеством компаний"""
         cities_result = await CitiesFilterRepository.get_cities_with_companies_count()
         
-        # Если это плоская структура (без иерархии)
+        # Если это плоская структура (без иерархии - города не найдены в cities)
         if isinstance(cities_result, dict) and 'cities' in cities_result:
             # Создаем упрощенное дерево без иерархии
             return [{
@@ -143,6 +143,7 @@ class CitiesFilterService:
                 "products_count": cities_result['total_companies']
             }]
         
+        # Обычная иерархическая структура
         return await CitiesFilterService._build_tree_from_cities_data(cities_result)
     
     @staticmethod

@@ -56,11 +56,29 @@ class CompanyRepository:
         return result.scalar_one_or_none()
 
     async def create(self, company_data: CompanyCreate) -> Company:
+        from app.api.common.repositories.city_repository import CityRepository
+        
         data = company_data.model_dump()
         # Ensure all datetime fields are naive (no tzinfo)
         for field in ["registration_date", "created_at", "updated_at"]:
             if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
                 data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
+        
+        # Найти или создать город и заполнить city_id
+        if 'city' in data and data['city']:
+            try:
+                city_obj = await CityRepository.find_or_create_city(
+                    city_name=data['city'],
+                    region_name=data.get('region', ''),
+                    federal_district_name=data.get('federal_district', ''),
+                    country_name=data.get('country', 'Россия')
+                )
+                # Заполняем city_id вместо city
+                data['city_id'] = city_obj.id
+                print(f"✅ Найден/создан город {data['city']} с ID {city_obj.id}")
+            except Exception as e:
+                print(f"⚠️ Ошибка при поиске/создании города {data['city']}: {e}")
+        
         company = Company(
             **data,
             slug=await self.create_company_slug(company_data.name),
@@ -73,23 +91,37 @@ class CompanyRepository:
 
     async def create_inactive(self, company_data: CompanyCreateInactive, user_id: int) -> Company:
         """Создает неактивную компанию при регистрации пользователя"""
+        from app.api.authentication.models.user import User
+        from sqlalchemy import update
+        
         data = company_data.model_dump()
         # Ensure all datetime fields are naive (no tzinfo)
         for field in ["registration_date", "created_at", "updated_at"]:
             if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
                 data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
+        
         company = Company(
             **data,
             slug=await self.create_company_slug(company_data.name),
-            user_id=user_id,
             is_active=False  # Неактивная компания при регистрации
         )
         self.session.add(company)
         await self.session.commit()
         await self.session.refresh(company)
+        
+        # Обновляем пользователя - устанавливаем company_id
+        await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(company_id=company.id)
+        )
+        await self.session.commit()
+        
         return company
 
     async def update(self, company_id: int, company_data: CompanyUpdate) -> Optional[Company]:
+        from app.api.common.repositories.city_repository import CityRepository
+        
         # Update company fields
         update_data = company_data.model_dump(exclude_unset=True)
 
@@ -104,6 +136,22 @@ class CompanyRepository:
         for field in ["ogrn", "kpp"]:
             if field in update_data and update_data[field] is not None:
                 update_data[field] = str(update_data[field])
+
+        # Найти или создать город и заполнить city_id если city обновляется
+        if 'city' in update_data and update_data['city']:
+            try:
+                company = await self.get_by_id(company_id)
+                city_obj = await CityRepository.find_or_create_city(
+                    city_name=update_data['city'],
+                    region_name=update_data.get('region', company.region if company else ''),
+                    federal_district_name=update_data.get('federal_district', company.federal_district if company else ''),
+                    country_name=update_data.get('country', company.country if company else 'Россия')
+                )
+                # Заполняем city_id вместо city
+                update_data['city_id'] = city_obj.id
+                print(f"✅ Найден/создан город {update_data['city']} с ID {city_obj.id}")
+            except Exception as e:
+                print(f"⚠️ Ошибка при поиске/создании города {update_data.get('city', '')}: {e}")
 
         # Check if company should be activated
         company = await self.get_by_id(company_id)

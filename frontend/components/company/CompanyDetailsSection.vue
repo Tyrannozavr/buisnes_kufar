@@ -31,22 +31,27 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
       <UFormField label="ИНН" required>
         <UInput
             :model-value="formState.inn"
-            type="number"
-            @update:model-value="value => updateField('inn', value)"
+            type="text"
+            placeholder="10 цифр"
+            maxlength="10"
+            @input="event => event.target.value = event.target.value.slice(0, 10)"
+            @update:model-value="value => updateField('inn', value?.toString().slice(0, 10))"
         />
       </UFormField>
 
       <UFormField label="ОГРН" required>
         <UInput
             :model-value="formState.ogrn"
-            type="number"
+            type="text"
+            placeholder="13 цифр"
             @update:model-value="value => updateField('ogrn', value)"
         />
       </UFormField>
       <UFormField label="КПП" required>
         <UInput
             :model-value="formState.kpp"
-            type="number"
+            type="text"
+            placeholder="9 цифр"
             @input="event => event.target.value = event.target.value.slice(0, 9)"
             @update:model-value="value => updateField('kpp', value?.toString().slice(0,9))"
         />

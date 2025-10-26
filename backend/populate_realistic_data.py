@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any
 
-DATABASE_URL = 'postgresql://postgres:postgres@db/postgres'
+DATABASE_URL = 'postgresql://postgres:postgres@db/buisnes_kufar'
 
 class RealisticDataPopulator:
     def __init__(self):

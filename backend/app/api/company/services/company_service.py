@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 
 import aiofiles
 from fastapi import HTTPException, status, UploadFile
@@ -61,7 +62,8 @@ class CompanyService:
         # Создаем данные для неактивной компании
         company_data = CompanyCreateInactive(
             full_name=f"ООО '{user.first_name or 'Компания'}'",
-            inn="0000000000",  # Временное значение, так как ИНН теперь только в компании
+            inn="0000000000",  # Временное значение
+            ogrn="",  # Временное значение
             registration_date=user.created_at,
             phone=user.phone,
             email=user.email
@@ -72,9 +74,26 @@ class CompanyService:
 
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
         if not user.company_id:
-            # Если у пользователя нет компании, создаем новую
-            company_data_create = CompanyCreate(**company_data.model_dump())
-            return await self.create_company(user, company_data_create)
+            # Если у пользователя нет компании, сначала создадим неактивную компанию
+            # или обновим существующую неактивную компанию пользователя
+            from app.api.company.schemas.company import CompanyCreateInactive
+            
+            # Используем минимальные данные для создания неактивной компании
+            company_data_inactive = CompanyCreateInactive(
+                full_name=company_data.full_name or user.first_name or "Новая компания",
+                inn="0000000000",  # Временное значение, будет обновлено при заполнении формы
+                ogrn="",  # Временное значение
+                registration_date=datetime.now(),
+                phone=company_data.phone or user.phone or "",
+                email=company_data.email or user.email or ""
+            )
+            company = await self.company_repository.create_inactive(company_data_inactive, user.id)
+            
+            # Обновляем пользователя с company_id (уже сделано в create_inactive)
+            # Перезагружаем пользователя из БД
+            from app.api.authentication.repositories.user_repository import UserRepository
+            user_repo = UserRepository(self.db)
+            user = await user_repo.get_user_by_id(user.id)
 
         company = await self.company_repository.get_by_id(user.company_id)
         if not company:
@@ -85,7 +104,29 @@ class CompanyService:
 
         # Проверяем права доступа
         from app.api.authentication.permissions import PermissionManager, Permission
-        if not PermissionManager.has_permission(user.permissions or "", Permission.COMPANY_MANAGEMENT):
+        from app.api.authentication.models.roles_positions import UserRole
+        
+        # Если пользователь - владелец компании или имеет права, разрешаем обновление
+        has_permission = False
+        
+        # Проверяем роль
+        if user.role == UserRole.OWNER:
+            has_permission = True
+        
+        # Если есть permissions, проверяем их
+        if user.permissions:
+            # Приводим permissions к строке если это массив
+            import json
+            if isinstance(user.permissions, list):
+                user_perms_str = json.dumps(user.permissions, ensure_ascii=False)
+            else:
+                user_perms_str = user.permissions or ""
+            
+            has_perm = PermissionManager.has_permission(user_perms_str, Permission.COMPANY_MANAGEMENT)
+            if has_perm:
+                has_permission = True
+        
+        if not has_permission:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this company"

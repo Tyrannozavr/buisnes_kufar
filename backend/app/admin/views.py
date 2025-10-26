@@ -14,6 +14,9 @@ def setup_admin(app, engine):
         OrderAdmin, OrderItemAdmin, OrderHistoryAdmin, 
         OrderDocumentAdmin, UnitOfMeasurementAdmin
     )
+    from app.api.admin.locations import (
+        CountryAdmin, FederalDistrictAdmin, RegionAdmin, CityAdmin
+    )
 
     admin = Admin(app, engine)
 
@@ -37,5 +40,11 @@ def setup_admin(app, engine):
     admin.add_view(OrderHistoryAdmin)
     admin.add_view(OrderDocumentAdmin)
     admin.add_view(UnitOfMeasurementAdmin)
+    
+    # Добавляем представления для локаций (страны, регионы, города)
+    admin.add_view(CountryAdmin)
+    admin.add_view(FederalDistrictAdmin)
+    admin.add_view(RegionAdmin)
+    admin.add_view(CityAdmin)
 
     return admin

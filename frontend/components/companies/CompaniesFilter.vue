@@ -338,7 +338,7 @@ onMounted(async () => {
                   </div>
                   
                   <!-- Federal Districts -->
-                  <div v-if="country.id === -1 || expandedCountries.includes(country.id)" class="border-t">
+                  <div v-if="expandedCountries.includes(country.id)" class="border-t">
                     <div v-for="fd in country.federal_districts.filter(fd => fd.regions.length > 0)" :key="fd.id" class="border-b last:border-b-0">
                       <!-- Federal District Header -->
                       <div class="flex items-center gap-3 p-2 pl-6 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">

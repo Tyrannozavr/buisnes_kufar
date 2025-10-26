@@ -70,41 +70,53 @@ class CitiesFilterRepository:
     
     @staticmethod
     async def get_cities_with_companies_count():
-        """Получить города с количеством компаний напрямую из таблицы companies"""
+        """Получить города с количеством компаний через JOIN по city_id"""
         async with AsyncSessionLocal() as db:
-            # Получаем количество компаний по городам
-            companies_query = await db.execute(
+            # Получаем города с количеством компаний через JOIN по city_id
+            cities_with_companies = await db.execute(
                 select(
-                    Company.city,
+                    City.id.label('city_id'),
+                    City.name.label('city_name'),
+                    City.region_id,
+                    City.federal_district_id,
+                    City.country_id,
                     func.count(func.distinct(Company.id)).label('companies_count')
                 )
-                .where(Company.is_active == True)
-                .group_by(Company.city)
+                .join(Company, City.id == Company.city_id)  # JOIN по city_id
+                .where(
+                    and_(
+                        Company.is_active == True,
+                        City.is_active == True
+                    )
+                )
+                .group_by(
+                    City.id,
+                    City.name,
+                    City.region_id,
+                    City.federal_district_id,
+                    City.country_id
+                )
             )
             
-            # Создаем упрощенную структуру без иерархии
-            cities_data = []
-            city_id = 1
-            total_companies = 0
-            
-            for row in companies_query:
-                city_info = {
-                    'id': city_id,
-                    'name': row.city,
+            # Создаем словарь городов с количеством компаний
+            cities_data = {}
+            for row in cities_with_companies:
+                cities_data[row.city_id] = {
+                    'id': row.city_id,
+                    'name': row.city_name,
+                    'region_id': row.region_id,
+                    'federal_district_id': row.federal_district_id,
+                    'country_id': row.country_id,
                     'companies_count': row.companies_count,
                     'products_count': row.companies_count
                 }
-                cities_data.append(city_info)
-                total_companies += row.companies_count
-                city_id += 1
             
-            print(f"🏙️ Найдено городов с компаниями: {len(cities_data)}, всего компаний: {total_companies}")
+            print(f"🏙️ Найдено городов с компаниями: {len(cities_data)}")
+            if cities_data:
+                city_example = list(cities_data.values())[0]
+                print(f"📊 Пример: {city_example['name']} - {city_example['companies_count']} компаний")
             
-            # Возвращаем плоскую структуру вместо иерархии
-            return {
-                'cities': cities_data,
-                'total_companies': total_companies
-            }
+            return cities_data
     
     @staticmethod
     async def get_cities_with_services_count():

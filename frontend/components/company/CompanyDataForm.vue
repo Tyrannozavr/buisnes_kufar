@@ -118,6 +118,11 @@ const findLocationItem = (items: LocationItem[], value: string): LocationItem | 
   return items.find(item => item.value === value)
 }
 
+// Функция для поиска локации по label
+const findLocationByLabel = (items: LocationItem[], label: string): LocationItem | undefined => {
+  return items.find(item => item.label === label)
+}
+
 // Transform company data from snake_case to camelCase
 const transformCompanyData = (companyData: CompanyResponse | undefined): CompanyDataFormState => {
   if (!companyData) {
@@ -173,6 +178,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     type: typeValue
   } = companyData
 
+  // Для локации создаем объекты LocationItem из строковых значений
+  // Поддерживаем как существующие значения из списков, так и произвольные
   const country = countryValue ? { label: countryValue, value: countryValue } : undefined
   const federalDistrict = federalDistrictValue ? { label: federalDistrictValue, value: federalDistrictValue } : undefined
   const region = regionValue ? { label: regionValue, value: regionValue } : undefined
@@ -234,9 +241,9 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
   return {
     name: nameValue,
     full_name: fullNameValue,
-    inn: innValue,
-    kpp: kppValue,
-    ogrn: ogrnValue,
+    inn: innValue ? String(innValue).trim() : innValue,
+    kpp: kppValue ? String(kppValue).trim() : kppValue,
+    ogrn: ogrnValue ? String(ogrnValue).trim() : ogrnValue,
     registration_date: registrationDateValue,
     type: typeValue,
     trade_activity: tradeActivityValue,
@@ -532,7 +539,6 @@ const handleKeydown = (event: KeyboardEvent) => {
         <!-- 2. Информация о компании -->
         <CompanyInfoSection
             v-model:formState="formState"
-
         />
 
         <!-- 3. Реквизиты компании -->

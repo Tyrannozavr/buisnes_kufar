@@ -63,8 +63,8 @@ class CompanyCreateInactive(BaseModel):
 
     # Legal information - заполняем из данных пользователя
     full_name: str
-    inn: str
-    ogrn: str = None  # Временное значение
+    inn: str = "0000000000"  # Временное значение
+    ogrn: Optional[str] = ""  # Временное значение
     kpp: str = "000000000"  # Временное значение
     registration_date: datetime
     legal_address: str = "Адрес не указан"

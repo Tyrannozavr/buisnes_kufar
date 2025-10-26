@@ -33,9 +33,29 @@ const isOpen = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
 const isSearching = ref(false)
+const currentInputValue = ref('') // Сохраняем введенное значение
+
+// Отслеживаем изменения в searchInput.modelValue
+watch(() => props.searchInput?.modelValue, (newValue) => {
+  if (newValue !== undefined && newValue !== currentInputValue.value) {
+    currentInputValue.value = newValue
+  }
+}, { immediate: true })
 
 // Обработка клика вне компонента для закрытия выпадающего списка
 onClickOutside(dropdownRef, () => {
+  // Сохраняем введенное значение перед сбросом - проверяем currentInputValue напрямую
+  if (currentInputValue.value && currentInputValue.value.trim()) {
+    // Проверяем, что значение изменилось
+    if (!props.modelValue || props.modelValue.value !== currentInputValue.value.trim()) {
+      const newItem: LocationItem = {
+        value: currentInputValue.value.trim(),
+        label: currentInputValue.value.trim()
+      }
+      emit('update:modelValue', newItem)
+    }
+  }
+  
   isOpen.value = false
   isSearching.value = false
 })
@@ -45,8 +65,12 @@ const selectItem = (item: LocationItem) => {
   emit('update:modelValue', item)
   isOpen.value = false
   isSearching.value = false
+  currentInputValue.value = '' // Очищаем сохраненное значение
+  // Очищаем поле поиска после небольшой задержки, чтобы значение успело сохраниться
   if (props.searchInput) {
-    props.searchInput['onUpdate:modelValue']('')
+    setTimeout(() => {
+      props.searchInput['onUpdate:modelValue']('')
+    }, 0)
   }
 }
 
@@ -55,14 +79,40 @@ const handleFocus = () => {
   if (!props.disabled) {
     isOpen.value = true
     isSearching.value = true
+    // Сохраняем текущее значение при фокусе
+    if (props.modelValue) {
+      currentInputValue.value = props.modelValue.value
+    }
   }
+}
+
+// Обработка потери фокуса
+const handleBlur = () => {
+  // Даем время для клика вне компонента, чтобы избежать конфликтов
+  setTimeout(() => {
+    // Если поле все еще активно и есть введенное значение, создаем элемент
+    if (isSearching.value && props.searchInput && currentInputValue.value.trim()) {
+      const newItem: LocationItem = {
+        value: currentInputValue.value.trim(),
+        label: currentInputValue.value.trim()
+      }
+      // Проверяем, что значение действительно изменилось
+      if (!props.modelValue || props.modelValue.value !== newItem.value) {
+        selectItem(newItem)
+      }
+    }
+    isSearching.value = false
+    isOpen.value = false
+  }, 200)
 }
 
 // Обработка ввода в поле поиска
 const handleInput = (event: Event) => {
   if (props.searchInput) {
     const target = event.target as HTMLInputElement
-    props.searchInput['onUpdate:modelValue'](target.value)
+    const value = target.value
+    props.searchInput['onUpdate:modelValue'](value)
+    currentInputValue.value = value // Сохраняем введенное значение
     isSearching.value = true
   }
 }
@@ -70,23 +120,41 @@ const handleInput = (event: Event) => {
 // Обработка клавиш для навигации
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
+    event.preventDefault()
     isOpen.value = false
     isSearching.value = false
-  } else if (event.key === 'Enter' && props.searchInput && props.searchInput.modelValue.trim()) {
+    currentInputValue.value = ''
+    if (props.searchInput) {
+      props.searchInput['onUpdate:modelValue']('')
+    }
+  } else if (event.key === 'Enter' && props.searchInput && currentInputValue.value.trim()) {
+    event.preventDefault()
     // Создаем новый элемент из введенного текста
     const newItem: LocationItem = {
-      value: props.searchInput.modelValue.trim(),
-      label: props.searchInput.modelValue.trim()
+      value: currentInputValue.value.trim(),
+      label: currentInputValue.value.trim()
     }
     selectItem(newItem)
+    // Закрываем выпадающий список
+    isOpen.value = false
+    isSearching.value = false
+  } else if (event.key === 'Enter' && !props.searchInput) {
+    // Если нет searchInput, просто закрываем список
+    event.preventDefault()
+    isOpen.value = false
   }
 }
 
 // Вычисляемое свойство для отображения значения в инпуте
 const displayValue = computed(() => {
-  if (isSearching.value && props.searchInput) {
-    return props.searchInput.modelValue
+  // Если мы ищем и есть введенное значение, показываем его
+  if (isSearching.value) {
+    if (props.searchInput?.modelValue) {
+      return props.searchInput.modelValue
+    }
+    return currentInputValue.value
   }
+  // Иначе показываем выбранное значение
   return props.modelValue?.label || ''
 })
 </script>
@@ -108,6 +176,7 @@ const displayValue = computed(() => {
             'pr-10': true
           }"
           @focus="handleFocus"
+          @blur="handleBlur"
           @input="handleInput"
           @keydown="handleKeydown"
       />

@@ -40,8 +40,8 @@ const citiesLoading = ref(false)
 const citiesError = ref<string | null>(null)
 
 
-// Filter mode
-const isAdvancedMode = ref(false)
+// Dialog state for cities filter
+const showCitiesDialog = ref(false)
 
 // Cities filter state
 const expandedCountries = ref<number[]>([])
@@ -87,6 +87,26 @@ const loadCitiesData = async () => {
   } finally {
     citiesLoading.value = false
   }
+}
+
+// Dialog functions
+const openCitiesDialog = () => {
+  showCitiesDialog.value = true
+}
+
+const closeCitiesDialog = () => {
+  showCitiesDialog.value = false
+}
+
+const applyCitiesSelection = () => {
+  // Сохраняем выбор
+  closeCitiesDialog()
+  // Автоматически применяем поиск
+  handleSearch()
+}
+
+const clearCitiesSelection = () => {
+  selectedCities.value = []
 }
 
 // Toggle functions
@@ -296,22 +316,6 @@ onMounted(async () => {
 
 <template>
   <UCard class="mb-6">
-    <!-- Advanced Mode Toggle -->
-    <div class="flex justify-end mb-4">
-      <UButton
-        color="neutral"
-        variant="ghost"
-        class="flex items-center gap-2"
-        @click="isAdvancedMode = !isAdvancedMode"
-      >
-        <span class="text-sm text-gray-500">Расширенный режим</span>
-        <Icon
-          :name="isAdvancedMode ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-          class="w-4 h-4 text-gray-500"
-        />
-      </UButton>
-    </div>
-
     <div v-if="filtersLoading" class="flex justify-center py-8">
       <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin" />
     </div>
@@ -349,135 +353,26 @@ onMounted(async () => {
         </div>
       </UFormField>
 
-      <!-- Advanced Filters (Visible only in advanced mode) -->
-      <template v-if="isAdvancedMode">
-        <!-- Cities Filter Tree -->
-        <div class="col-span-full">
-          <UFormField label="Фильтр по городам">
-            <div class="cities-filter-tree border rounded-lg p-4 max-h-96 overflow-y-auto">
-              <div v-if="citiesLoading" class="flex justify-center py-4">
-                <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin" />
-              </div>
-              
-              <div v-else-if="citiesError" class="text-red-500 text-sm py-2">
-                {{ citiesError }}
-              </div>
-              
-              <div v-else class="space-y-2">
-                <div v-for="country in citiesData?.countries" :key="country.id" class="border rounded-lg">
-                  <!-- Country Header -->
-                  <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg transition-colors">
-                    <UCheckbox 
-                      :model-value="isCountrySelected(country.id)"
-                      @update:model-value="toggleCountrySelection(country.id)"
-                    />
-                    <div 
-                      class="flex items-center gap-2 cursor-pointer flex-1"
-                      @click="toggleCountry(country.id)"
-                    >
-                      <UIcon 
-                        :name="expandedCountries.includes(country.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
-                        class="w-4 h-4 text-gray-500"
-                      />
-                      <span class="font-medium text-sm">{{ country.name }}</span>
-                      <span class="text-xs text-gray-500">({{ getCountryStats(country) }})</span>
-                    </div>
-                  </div>
-                  
-                  <!-- Federal Districts (only for Russia) -->
-                  <div v-if="expandedCountries.includes(country.id)" class="border-t">
-                    <div v-for="fd in country.federal_districts.filter(fd => fd.regions.some(region => region.cities.length > 0))" :key="fd.id" class="border-b last:border-b-0">
-                      <!-- Federal District Header (only show if not default virtual district) -->
-                      <div v-if="fd.id !== -1" class="flex items-center gap-3 p-2 pl-6 bg-gray-25 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
-                        <UCheckbox 
-                          :model-value="isFederalDistrictSelected(fd.id)"
-                          @update:model-value="toggleFederalDistrictSelection(fd.id)"
-                        />
-                        <div 
-                          class="flex items-center gap-2 cursor-pointer flex-1"
-                          @click="toggleFederalDistrict(fd.id)"
-                        >
-                          <UIcon 
-                            :name="expandedFederalDistricts.includes(fd.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
-                            class="w-4 h-4 text-gray-500"
-                          />
-                          <span class="text-sm">{{ fd.name }}</span>
-                          <span class="text-xs text-gray-500">({{ getFederalDistrictStats(fd) }})</span>
-                        </div>
-                      </div>
-                      
-                      <!-- Regions -->
-                      <div v-if="fd.id === -1 || expandedFederalDistricts.includes(fd.id)" class="border-t">
-                        <div v-for="region in fd.regions.filter(region => region.cities.length > 0)" :key="region.id" class="border-b last:border-b-0">
-                          <!-- Region Header -->
-                          <div class="flex items-center gap-3 p-2 pl-6 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
-                            <UCheckbox 
-                              :model-value="isRegionSelected(region.id)"
-                              @update:model-value="toggleRegionSelection(region.id)"
-                            />
-                            <div 
-                              class="flex items-center gap-2 cursor-pointer flex-1"
-                              @click="toggleRegion(region.id)"
-                            >
-                              <UIcon 
-                                :name="expandedRegions.includes(region.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
-                                class="w-4 h-4 text-gray-500"
-                              />
-                              <span class="text-sm">{{ region.name }}</span>
-                              <span class="text-xs text-gray-500">({{ getRegionStats(region) }})</span>
-                            </div>
-                          </div>
-                          
-                          <!-- Cities -->
-                          <div v-if="expandedRegions.includes(region.id)" class="border-t">
-                            <div v-for="city in region.cities" :key="city.id" class="border-b last:border-b-0">
-                              <div class="flex items-center gap-3 p-2 pl-10 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
-                                <UCheckbox 
-                                  :model-value="selectedCities.includes(city.id)"
-                                  @update:model-value="toggleCitySelection(city.id)"
-                                />
-                                <div class="flex items-center gap-2 flex-1">
-                <span class="text-sm">{{ city.name }}</span>
-                <span class="text-xs text-gray-500">({{ getCityStats(city) }})</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-                    <!-- Selected Cities Summary -->
-                    <div v-if="selectedCities.length > 0" class="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-green-900">
-                          Выбрано городов: {{ selectedCities.length }}
-                        </span>
-                        <UButton 
-                          size="xs" 
-                          color="red" 
-                          variant="ghost"
-                          @click="clearAllSelections"
-                        >
-                          Очистить все
-                        </UButton>
-                      </div>
-                    </div>
-            </div>
-          </UFormField>
-        </div>
+      <!-- Cities Filter -->
+      <UFormField label="Фильтр по городам">
+        <UButton 
+          color="neutral" 
+          variant="outline" 
+          class="w-full justify-between"
+          @click="openCitiesDialog"
+        >
+          <span>{{ selectedCities.length > 0 ? `Выбрано городов: ${selectedCities.length}` : 'Города не выбраны' }}</span>
+          <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
+        </UButton>
+      </UFormField>
 
-        <!-- In Stock -->
-        <UFormField label="Доступность">
-          <UCheckbox
-            v-model="inStock"
-            :label="type === 'products' ? 'В наличии' : 'Доступно'"
-          />
-        </UFormField>
-      </template>
+      <!-- In Stock -->
+      <UFormField label="Доступность">
+        <UCheckbox
+          v-model="inStock"
+          :label="type === 'products' ? 'В наличии' : 'Доступно'"
+        />
+      </UFormField>
     </div>
 
     <template #footer>
@@ -491,6 +386,170 @@ onMounted(async () => {
       </div>
     </template>
   </UCard>
+
+  <!-- Cities Modal Dialog -->
+  <UModal :open="showCitiesDialog" @close="closeCitiesDialog">
+    <template #content>
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Выберите города</h3>
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-x-mark"
+              @click="closeCitiesDialog"
+            />
+          </div>
+        </template>
+        
+        <div class="py-4">
+          <div class="cities-filter-tree border rounded-lg p-4 max-h-96 overflow-y-auto">
+        <div v-if="citiesLoading" class="flex justify-center py-4">
+          <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin" />
+        </div>
+        
+        <div v-else-if="citiesError" class="text-red-500 text-sm py-2">
+          {{ citiesError }}
+        </div>
+        
+        <div v-else class="space-y-2">
+          <div v-for="country in citiesData?.countries" :key="country.id" class="border rounded-lg">
+            <!-- Country Header -->
+            <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg transition-colors">
+              <UCheckbox 
+                :model-value="isCountrySelected(country.id)"
+                @update:model-value="toggleCountrySelection(country.id)"
+              />
+              <div 
+                class="flex items-center gap-2 cursor-pointer flex-1"
+                @click="toggleCountry(country.id)"
+              >
+                <UIcon 
+                  :name="expandedCountries.includes(country.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                  class="w-4 h-4 text-gray-500"
+                />
+                <span class="font-medium text-sm">{{ country.name }}</span>
+                <span class="text-xs text-gray-500">({{ getCountryStats(country) }})</span>
+              </div>
+            </div>
+            
+            <!-- Federal Districts (only for Russia) -->
+            <div v-if="expandedCountries.includes(country.id)" class="border-t">
+              <div v-for="fd in country.federal_districts.filter(fd => fd.regions.some(region => region.cities.length > 0))" :key="fd.id" class="border-b last:border-b-0">
+                <!-- Federal District Header (only show if not default virtual district) -->
+                <div v-if="fd.id !== -1" class="flex items-center gap-3 p-2 pl-6 bg-gray-25 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                  <UCheckbox 
+                    :model-value="isFederalDistrictSelected(fd.id)"
+                    @update:model-value="toggleFederalDistrictSelection(fd.id)"
+                  />
+                  <div 
+                    class="flex items-center gap-2 cursor-pointer flex-1"
+                    @click="toggleFederalDistrict(fd.id)"
+                  >
+                    <UIcon 
+                      :name="expandedFederalDistricts.includes(fd.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                      class="w-4 h-4 text-gray-500"
+                    />
+                    <span class="text-sm">{{ fd.name }}</span>
+                    <span class="text-xs text-gray-500">({{ getFederalDistrictStats(fd) }})</span>
+                  </div>
+                </div>
+                
+                <!-- Regions -->
+                <div v-if="fd.id === -1 || expandedFederalDistricts.includes(fd.id)" class="border-t">
+                  <div v-for="region in fd.regions.filter(region => region.cities.length > 0)" :key="region.id" class="border-b last:border-b-0">
+                    <!-- Region Header -->
+                    <div class="flex items-center gap-3 p-2 pl-12 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                      <UCheckbox 
+                        :model-value="isRegionSelected(region.id)"
+                        @update:model-value="toggleRegionSelection(region.id)"
+                      />
+                      <div 
+                        class="flex items-center gap-2 cursor-pointer flex-1"
+                        @click="toggleRegion(region.id)"
+                      >
+                        <UIcon 
+                          :name="expandedRegions.includes(region.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                          class="w-4 h-4 text-gray-500"
+                        />
+                        <span class="text-sm">{{ region.name }}</span>
+                        <span class="text-xs text-gray-500">({{ getRegionStats(region) }})</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Cities -->
+                    <div v-if="expandedRegions.includes(region.id)" class="border-t">
+                      <div v-for="city in region.cities" :key="city.id" class="border-b last:border-b-0">
+                        <div class="flex items-center gap-3 p-2 pl-16 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                          <UCheckbox 
+                            :model-value="selectedCities.includes(city.id)"
+                            @update:model-value="toggleCitySelection(city.id)"
+                          />
+                          <div class="flex items-center gap-2 flex-1">
+                            <span class="text-sm">{{ city.name }}</span>
+                            <span class="text-xs text-gray-500">({{ getCityStats(city) }})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Selected Cities Summary -->
+        <div v-if="selectedCities.length > 0" class="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-green-900">
+              Выбрано городов: {{ selectedCities.length }}
+            </span>
+            <UButton 
+              size="xs" 
+              color="red" 
+              variant="ghost"
+              @click="clearAllSelections"
+            >
+              Очистить все
+            </UButton>
+          </div>
+          </div>
+        </div>
+      </div>
+        
+        <template #footer>
+          <div class="space-y-3">
+            <!-- Selected Cities Counter -->
+            <div class="text-center">
+              <span class="text-sm font-medium text-gray-700">
+                Выбрано городов: 
+                <span class="text-primary font-semibold">{{ selectedCities.length }}</span>
+              </span>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex justify-between">
+              <UButton 
+                color="gray" 
+                variant="outline"
+                @click="clearCitiesSelection"
+              >
+                Сброс
+              </UButton>
+              <UButton 
+                color="primary"
+                @click="applyCitiesSelection"
+              >
+                Выбрать
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
 </template>
 
 <style scoped>

@@ -1,27 +1,22 @@
 from fastapi import APIRouter, HTTPException
-from datetime import datetime
 from app.api.common.services.cities_filter_service import CitiesFilterService
+from app.core.cache import redis_cache
 
 router = APIRouter()
 
-# Простой in-memory кэш
-_cache_data = None
-_cache_timestamp = None
+CACHE_KEY = "cities_filter_tree"
 CACHE_TTL = 60  # 60 секунд
 
 
 @router.get("/cities-filter")
 async def get_cities_filter_tree():
-    """Получить полное дерево локаций для фильтра городов с кэшированием"""
-    global _cache_data, _cache_timestamp
-    
+    """Получить полное дерево локаций для фильтра городов с Redis кэшированием"""
     try:
-        # Проверяем кэш
-        if _cache_data and _cache_timestamp:
-            age = (datetime.now() - _cache_timestamp).total_seconds()
-            if age < CACHE_TTL:
-                print("✅ Данные получены из in-memory кэша")
-                return _cache_data
+        # Проверяем кэш Redis
+        cached_data = await redis_cache.get(CACHE_KEY)
+        if cached_data:
+            print("✅ Данные получены из Redis кэша")
+            return cached_data
         
         # Загружаем данные через service
         print("🔄 Загрузка данных из БД...")
@@ -48,10 +43,9 @@ async def get_cities_filter_tree():
             "total_cities": total_cities
         }
         
-        # Сохраняем в кэш
-        _cache_data = response
-        _cache_timestamp = datetime.now()
-        print(f"✅ Данные сохранены в кэш ({total_cities} городов)")
+        # Сохраняем в Redis кэш
+        await redis_cache.set(CACHE_KEY, response, expire=CACHE_TTL)
+        print(f"✅ Данные сохранены в Redis кэш ({total_cities} городов)")
         
         return response
         

@@ -8,7 +8,7 @@ celery_app = Celery(
     broker=os.getenv("CELERY_BROKER_URL", "amqp://admin:admin123@localhost:5672//"),
     backend=os.getenv("CELERY_RESULT_BACKEND", "rpc://"),
     include=[
-        "app.tasks.cache_tasks",
+        # Удалены задачи кэширования - теперь используется прямой JOIN
     ]
 )
 
@@ -28,27 +28,9 @@ celery_app.conf.update(
 )
 
 # Периодические задачи (Celery Beat)
+# Убраны задачи кэширования - теперь используется JOIN напрямую через API
 celery_app.conf.beat_schedule = {
-    # Обновление кэша продуктов и городов каждые 30 минут
-    "update-product-city-cache": {
-        "task": "app.tasks.cache_tasks.update_product_city_cache",
-        "schedule": crontab(minute="*/30"),  # Каждые 30 минут
-    },
-    # Обновление кэша компаний и городов каждые 30 минут
-    "update-company-city-cache": {
-        "task": "app.tasks.cache_tasks.update_company_city_cache", 
-        "schedule": crontab(minute="*/30"),  # Каждые 30 минут
-    },
-    # Обновление количества товаров по городам каждые 15 минут
-    "update-cities-product-count": {
-        "task": "app.tasks.cache_tasks.update_cities_product_count",
-        "schedule": crontab(minute="*/15"),  # Каждые 15 минут
-    },
-    # Полное обновление всех кэшей каждый час
-    "refresh-all-caches": {
-        "task": "app.tasks.cache_tasks.refresh_all_caches",
-        "schedule": crontab(minute=0),  # Каждый час в 0 минут
-    },
+    # Задачи кэширования удалены - теперь используется прямая выборка через JOIN
 }
 
 # Настройки для разработки

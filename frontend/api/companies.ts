@@ -114,7 +114,9 @@ export const searchManufacturersSSR = async (page: number = 1, perPage: number =
   
   // Используем $fetch для SSR
   const config = useRuntimeConfig()
-  const url = `${config.public.apiBase || ''}/v1/companies/`
+  // В production используем apiBaseUrl, в dev - localhost
+  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const url = `${baseUrl}/v1/companies/`
   
   return await $fetch(url, {
     query: queryParams
@@ -135,7 +137,9 @@ export const searchServiceProvidersSSR = async (page: number = 1, perPage: numbe
   
   // Используем $fetch для SSR
   const config = useRuntimeConfig()
-  const url = `${config.public.apiBase || ''}/v1/companies/services`
+  // В production используем apiBaseUrl, в dev - localhost
+  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const url = `${baseUrl}/v1/companies/services`
   
   return await $fetch(url, {
     query: queryParams

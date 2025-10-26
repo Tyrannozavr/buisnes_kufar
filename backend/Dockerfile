@@ -50,6 +50,7 @@ COPY --from=builder /app/app_logging /app/app_logging
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/alembic /app/alembic
 COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 
 # Делаем entrypoint скрипт исполняемым в финальном образе
 RUN chmod +x /app/entrypoint.sh

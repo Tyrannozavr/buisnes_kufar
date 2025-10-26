@@ -14,13 +14,8 @@ const emit = defineEmits<{
   (e: 'search', params: ProductSearchParams | ServiceSearchParams): void
 }>()
 
-// API для фильтров
-const { 
-  getProductFilters, 
-  getCitiesByLocation, 
-  getRegionsByCountry, 
-  getFederalDistrictsByCountry 
-} = useProductFilters()
+// API для фильтров (оставляем только для совместимости, но не используем)
+const { getProductFilters } = useProductFilters()
 const { getServiceFilters } = useServiceFilters()
 const { getCompanyFilters } = useCompanyFilters()
 
@@ -31,40 +26,6 @@ const { $api } = useNuxtApp()
 const filtersLoading = ref(false)
 const filtersError = ref<string | null>(null)
 
-// Данные фильтров
-const filterData = ref<{
-  countries: LocationItem[]
-  federal_districts: LocationItem[]
-  regions: LocationItem[]
-  cities: LocationItem[]
-}>({
-  countries: [],
-  federal_districts: [],
-  regions: [],
-  cities: []
-})
-
-// Кэш для динамических данных (30 минут)
-const cache = ref<Map<string, { data: any, timestamp: number }>>(new Map())
-const CACHE_DURATION = 30 * 60 * 1000 // 30 минут в миллисекундах
-
-// Функция для проверки валидности кэша
-const isCacheValid = (key: string): boolean => {
-  const cached = cache.value.get(key)
-  if (!cached) return false
-  return Date.now() - cached.timestamp < CACHE_DURATION
-}
-
-// Функция для получения данных из кэша или API
-const getCachedData = async <T>(key: string, fetchFn: () => Promise<T>): Promise<T> => {
-  if (isCacheValid(key)) {
-    return cache.value.get(key)!.data
-  }
-  
-  const data = await fetchFn()
-  cache.value.set(key, { data, timestamp: Date.now() })
-  return data
-}
 
 // Search state
 const searchQuery = ref('')
@@ -73,18 +34,11 @@ const minPrice = ref<number | null>(null)
 const maxPrice = ref<number | null>(null)
 const inStock = ref(false)
 
-// Location tree data
-const allRegions = ref<LocationItem[]>([])
-const allCities = ref<LocationItem[]>([])
-
 // Cities filter data
 const citiesData = ref<any>(null)
 const citiesLoading = ref(false)
 const citiesError = ref<string | null>(null)
 
-// Данные о количестве товаров по городам
-const citiesProductCount = ref<any[]>([])
-const citiesProductCountLoading = ref(false)
 
 // Filter mode
 const isAdvancedMode = ref(false)
@@ -96,56 +50,8 @@ const expandedRegions = ref<number[]>([])
 
 // Computed properties
 
-// Methods
-const loadFilters = async () => {
-  filtersLoading.value = true
-  filtersError.value = null
+// Methods - убрали загрузку старых фильтров, используем citiesData
 
-  try {
-    let response
-    if (props.type === 'products') {
-      response = await getProductFilters()
-    } else if (props.type === 'services') {
-      response = await getServiceFilters()
-    } else if (props.type === 'companies') {
-      response = await getCompanyFilters()
-    }
-
-    if (response) {
-      filterData.value = {
-        countries: response.countries,
-        federal_districts: response.federal_districts,
-        regions: response.regions,
-        cities: response.cities
-      }
-    }
-  } catch (error) {
-    filtersError.value = `Ошибка загрузки фильтров: ${error}`
-    console.error('❌ Ошибка загрузки фильтров:', error)
-  } finally {
-    filtersLoading.value = false
-  }
-}
-
-const loadCitiesProductCount = async () => {
-  citiesProductCountLoading.value = true
-  try {
-    let response
-    if (props.type === 'products') {
-      response = await $api.get('/v1/products/cities-count?type=products')
-    } else if (props.type === 'services') {
-      response = await $api.get('/v1/products/cities-count?type=services')
-    } else if (props.type === 'companies') {
-      response = await $api.get('/v1/company/cities-count')
-    }
-    citiesProductCount.value = response.cities || []
-  } catch (error) {
-    console.error('❌ Ошибка загрузки количества товаров по городам:', error)
-    citiesProductCount.value = []
-  } finally {
-    citiesProductCountLoading.value = false
-  }
-}
 
 // Handle location tree selection
 const handleLocationSelection = (selection: { countries: string[]; regions: string[]; cities: string[] }) => {
@@ -326,45 +232,32 @@ const isRegionSelected = (regionId: number): boolean => {
 
 // Stats functions
 const getCountryStats = (country: any): string => {
-  // Ищем страну в данных фильтров
-  const filterCountry = filterData.value.countries.find(c => c.value === country.name)
-  if (filterCountry && filterCountry.count > 0) {
-    return `${filterCountry.count} товаров`
-  }
+  // Суммируем количество товаров из всех федеральных округов
+  const totalProducts = country.federal_districts.reduce((sum: number, fd: any) => {
+    return sum + getFederalDistrictProductsCount(fd)
+  }, 0)
   
-  // Fallback к старой логике
-  const totalCities = country.federal_districts.reduce((sum: number, fd: any) => 
-    sum + fd.regions.reduce((regionSum: number, region: any) => regionSum + region.cities.length, 0), 0
-  )
-  return `${totalCities} городов`
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
 }
 
 const getFederalDistrictStats = (fd: any): string => {
-  // Ищем федеральный округ в данных фильтров
-  const filterFD = filterData.value.federal_districts.find(f => f.value === fd.name)
-  if (filterFD && filterFD.count > 0) {
-    return `${filterFD.count} товаров`
-  }
+  const totalProducts = getFederalDistrictProductsCount(fd)
   
-  // Fallback к старой логике
-  const totalCities = fd.regions.reduce((sum: number, region: any) => sum + region.cities.length, 0)
-  return `${totalCities} городов`
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
 }
 
 const getRegionStats = (region: any): string => {
-  // Проверяем, загружены ли данные о количестве товаров по городам
-  if (citiesProductCountLoading.value) {
-    return '...'
-  }
-  
-  // Суммируем количество товаров из всех городов этого региона
+  // Суммируем количество товаров из всех городов в регионе
   const totalProducts = region.cities.reduce((sum: number, city: any) => {
-    const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
-    if (props.type === 'companies') {
-      return sum + (cityData ? cityData.company_count : 0)
-    } else {
-      return sum + (cityData ? cityData.product_count : 0)
-    }
+    return sum + (city.products_count || 0)
   }, 0)
   
   if (props.type === 'companies') {
@@ -375,84 +268,30 @@ const getRegionStats = (region: any): string => {
 }
 
 const getCityStats = (city: any): string => {
-  // Проверяем, загружены ли данные о количестве товаров по городам
-  if (citiesProductCountLoading.value) {
-    return '...'
-  }
+  // Используем products_count из города
+  const totalProducts = city.products_count || 0
   
-  // Ищем город в данных о количестве товаров
-  const cityData = citiesProductCount.value.find(c => c.city_name === city.name)
-  if (cityData) {
-    if (props.type === 'companies') {
-      return `${cityData.company_count} компаний`
-    } else {
-      return `${cityData.product_count} товаров`
-    }
-  }
-  
-  // Если город не найден, значит для него нет товаров
   if (props.type === 'companies') {
-    return '0 компаний'
+    return `${totalProducts} компаний`
   } else {
-    return '0 товаров'
+    return `${totalProducts} товаров`
   }
+}
+
+// Вспомогательная функция для подсчета товаров в федеральном округе
+const getFederalDistrictProductsCount = (fd: any): number => {
+  return fd.regions.reduce((sum: number, region: any) => {
+    return sum + region.cities.reduce((regionSum: number, city: any) => {
+      return regionSum + (city.products_count || 0)
+    }, 0)
+  }, 0)
 }
 
 // Load initial data
 onMounted(async () => {
-  await loadFilters()
-  await loadCitiesProductCount()
-  await loadCountriesFromNewAPI()
-  await loadAllRegionsAndCities()
   await loadCitiesData()
 })
 
-// Загружаем страны из нового API
-const loadCountriesFromNewAPI = async () => {
-  try {
-    const response = await $api.get('/v1/locations/countries')
-    filterData.value.countries = response.items || []
-  } catch (error) {
-    console.error('Error loading countries from new API:', error)
-  }
-}
-
-// Загружаем все регионы и города для дерева
-const loadAllRegionsAndCities = async () => {
-  try {
-    // Загружаем регионы для всех стран
-    const regionsPromises = filterData.value.countries.map(async (country) => {
-      try {
-        const response = await $api.get(`/v1/locations/regions/${country.value}`)
-        return response.items || []
-      } catch (error) {
-        console.error(`Error loading regions for ${country.value}:`, error)
-        return []
-      }
-    })
-    
-    const regionsResults = await Promise.all(regionsPromises)
-    allRegions.value = regionsResults.flat()
-    
-    // Загружаем города для всех регионов
-    const citiesPromises = allRegions.value.map(async (region) => {
-      try {
-        const countryCode = region.value.split('_')[0]
-        const response = await $api.get(`/v1/locations/cities?country=${countryCode}&region=${region.value}`)
-        return response.items || []
-      } catch (error) {
-        console.error(`Error loading cities for ${region.value}:`, error)
-        return []
-      }
-    })
-    
-    const citiesResults = await Promise.all(citiesPromises)
-    allCities.value = citiesResults.flat()
-    
-  } catch (error) {
-    console.error('Error loading all regions and cities:', error)
-  }
-}
 </script>
 
 <template>

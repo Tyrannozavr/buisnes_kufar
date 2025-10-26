@@ -442,13 +442,26 @@ class AuthService:
             )
 
         # Send recovery code email
+        recovery_url = f"{settings.FRONTEND_URL}/auth/recover-password?email={email}&code={code}"
         email_sent = await send_password_recovery_code(email, code)
         if not email_sent:
+            # Если не удалось отправить email, выводим код в консоль для разработки
+            logger.error(f"EMAIL SERVICE ERROR: Failed to send password recovery code to {email}")
+            logger.error(f"RECOVERY CODE FOR DEVELOPMENT: {code}")
+            logger.error(f"RECOVERY LINK FOR DEVELOPMENT: {recovery_url}")
+            logger.error("This is likely due to incorrect SMTP credentials or email service configuration.")
+            logger.error("For development purposes, you can use the recovery code or link above.")
+            
+            # Возвращаем дружелюбное сообщение пользователю
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send password recovery code"
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "message": "Временные технические трудности с отправкой email. Пожалуйста, попробуйте позже.",
+                    "error_type": "email_service_unavailable",
+                    "verbose_error": "Email service configuration issue - check SMTP credentials"
+                }
             )
-
+        
         logger.info(f"Password recovery code sent to {email}")
         return True
 

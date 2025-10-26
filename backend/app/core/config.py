@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "business_trade"
     SQLALCHEMY_DATABASE_URL: Optional[str] = None
+    
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     # Настройки фронтенда
     FRONTEND_URL: str = "http://localhost:3000"

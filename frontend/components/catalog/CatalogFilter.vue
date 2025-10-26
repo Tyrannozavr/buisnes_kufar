@@ -307,9 +307,33 @@ const getFederalDistrictProductsCount = (fd: any): number => {
   }, 0)
 }
 
-// Load initial data
+// Load initial data and parse URL params
 onMounted(async () => {
   await loadCitiesData()
+  
+  // Парсим параметры из URL
+  const route = useRoute()
+  const { cities } = route.query
+  
+  // Если есть cities в URL, парсим их
+  if (cities && typeof cities === 'string') {
+    const cityIds = cities.split(',').map(id => parseInt(id)).filter(id => !isNaN(id))
+    selectedCities.value = cityIds
+  }
+  
+  // Также парсим другие параметры
+  if (route.query.search) {
+    searchQuery.value = route.query.search as string
+  }
+  if (route.query.minPrice) {
+    minPrice.value = parseFloat(route.query.minPrice as string)
+  }
+  if (route.query.maxPrice) {
+    maxPrice.value = parseFloat(route.query.maxPrice as string)
+  }
+  if (route.query.inStock === 'true') {
+    inStock.value = true
+  }
 })
 
 </script>

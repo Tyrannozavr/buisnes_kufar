@@ -17,13 +17,17 @@ class RedisCache:
         """Подключиться к Redis"""
         if not self.redis_client:
             try:
+                redis_url = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}"
+                print(f"🔄 Подключение к Redis: {redis_url}")
                 self.redis_client = await redis.from_url(
-                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+                    redis_url,
                     encoding="utf-8",
                     decode_responses=True
                 )
+                print("✅ Подключено к Redis")
             except Exception as e:
                 print(f"⚠️ Не удалось подключиться к Redis: {e}")
+                print("ℹ️ Используется fallback без кэша")
                 self.redis_client = None
     
     async def disconnect(self):
@@ -34,29 +38,29 @@ class RedisCache:
     
     async def get(self, key: str) -> Optional[Any]:
         """Получить данные из кэша"""
-        if not self.redis_client:
-            await self.connect()
-        
-        if not self.redis_client:
-            return None
-        
         try:
+            if not self.redis_client:
+                await self.connect()
+            
+            if not self.redis_client:
+                return None
+            
             value = await self.redis_client.get(key)
             if value:
                 return json.loads(value)
         except Exception as e:
             print(f"⚠️ Ошибка получения из кэша: {e}")
-        return None
+            return None
     
     async def set(self, key: str, value: Any, expire: int = 60):
         """Сохранить данные в кэш"""
-        if not self.redis_client:
-            await self.connect()
-        
-        if not self.redis_client:
-            return
-        
         try:
+            if not self.redis_client:
+                await self.connect()
+            
+            if not self.redis_client:
+                return
+            
             await self.redis_client.setex(
                 key,
                 expire,
@@ -67,13 +71,13 @@ class RedisCache:
     
     async def delete(self, key: str):
         """Удалить данные из кэша"""
-        if not self.redis_client:
-            await self.connect()
-        
-        if not self.redis_client:
-            return
-        
         try:
+            if not self.redis_client:
+                await self.connect()
+            
+            if not self.redis_client:
+                return
+            
             await self.redis_client.delete(key)
         except Exception as e:
             print(f"⚠️ Ошибка удаления из кэша: {e}")

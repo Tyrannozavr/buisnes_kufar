@@ -1,87 +1,27 @@
 from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from celery.result import AsyncResult
 
 from app.celery_app import celery_app
-from app.tasks.cache_tasks import (
-    update_product_city_cache,
-    update_company_city_cache,
-    update_cities_product_count,
-    refresh_all_caches,
-    clear_all_caches
-)
+
+# Задачи кэширования удалены - теперь используется прямой JOIN
+# from app.tasks.cache_tasks import (
+#     update_product_city_cache,
+#     update_company_city_cache,
+#     update_cities_product_count,
+#     refresh_all_caches,
+#     clear_all_caches
+# )
 
 router = APIRouter(prefix="/celery", tags=["celery"])
 
 
-@router.post("/tasks/update-product-city-cache")
-async def trigger_update_product_city_cache() -> Dict[str, Any]:
-    """Запускает задачу обновления кэша продуктов и городов"""
-    try:
-        task = update_product_city_cache.delay()
-        return {
-            "task_id": task.id,
-            "status": "started",
-            "message": "Задача обновления кэша продуктов и городов запущена"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка запуска задачи: {str(e)}")
-
-
-@router.post("/tasks/update-company-city-cache")
-async def trigger_update_company_city_cache() -> Dict[str, Any]:
-    """Запускает задачу обновления кэша компаний и городов"""
-    try:
-        task = update_company_city_cache.delay()
-        return {
-            "task_id": task.id,
-            "status": "started",
-            "message": "Задача обновления кэша компаний и городов запущена"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка запуска задачи: {str(e)}")
-
-
-@router.post("/tasks/update-cities-product-count")
-async def trigger_update_cities_product_count() -> Dict[str, Any]:
-    """Запускает задачу обновления количества товаров по городам"""
-    try:
-        task = update_cities_product_count.delay()
-        return {
-            "task_id": task.id,
-            "status": "started",
-            "message": "Задача обновления количества товаров по городам запущена"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка запуска задачи: {str(e)}")
-
-
-@router.post("/tasks/refresh-all-caches")
-async def trigger_refresh_all_caches() -> Dict[str, Any]:
-    """Запускает задачу полного обновления всех кэшей"""
-    try:
-        task = refresh_all_caches.delay()
-        return {
-            "task_id": task.id,
-            "status": "started",
-            "message": "Задача полного обновления всех кэшей запущена"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка запуска задачи: {str(e)}")
-
-
-@router.post("/tasks/clear-all-caches")
-async def trigger_clear_all_caches() -> Dict[str, Any]:
-    """Запускает задачу очистки всех кэшей"""
-    try:
-        task = clear_all_caches.delay()
-        return {
-            "task_id": task.id,
-            "status": "started",
-            "message": "Задача очистки всех кэшей запущена"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка запуска задачи: {str(e)}")
+# Эндпоинты для кэширования удалены - теперь используется прямой JOIN и Redis
+# @router.post("/tasks/update-product-city-cache")
+# @router.post("/tasks/update-company-city-cache")
+# @router.post("/tasks/update-cities-product-count")
+# @router.post("/tasks/refresh-all-caches")
+# @router.post("/tasks/clear-all-caches")
 
 
 @router.get("/tasks/{task_id}")

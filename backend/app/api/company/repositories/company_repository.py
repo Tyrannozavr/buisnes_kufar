@@ -231,33 +231,40 @@ class CompanyRepository:
 
         # Проверяем, существует ли компания с таким ИНН
         from sqlalchemy import select
+        import random
+        
+        # Проверяем, существует ли компания с таким ИНН
         existing_company = await self.session.execute(
             select(Company).where(Company.inn == inn)
         )
-        company = existing_company.scalar_one_or_none()
+        company_check = existing_company.scalar_one_or_none()
         
-        if company:
-            # Если компания уже существует, возвращаем её
-            logger.info(f"Компания с ИНН {inn} уже существует, возвращаем существующую компанию")
-            return company
-        
-        # Генерируем уникальный временный ИНН, если переданный занят
-        import random
         unique_inn = inn
-        max_attempts = 10
-        attempt = 0
         
-        while attempt < max_attempts:
-            # Проверяем уникальность
-            check_company = await self.session.execute(
-                select(Company).where(Company.inn == unique_inn)
-            )
-            if not check_company.scalar_one_or_none():
-                # ИНН свободен, используем его
-                break
-            # Генерируем новый уникальный ИНН
-            unique_inn = f"{datetime.now().strftime('%d%m%y')}{random.randint(1000, 9999)}"
-            attempt += 1
+        if company_check:
+            # Если ИНН занят, генерируем уникальный временный ИНН
+            logger.warning(f"Компания с ИНН {inn} уже существует, генерируем уникальный временный ИНН")
+            
+            # Генерируем уникальный временный ИНН
+            max_attempts = 10
+            attempt = 0
+            
+            while attempt < max_attempts:
+                # Генерируем новый уникальный ИНН
+                unique_inn = f"{datetime.now().strftime('%d%m%y')}{random.randint(1000, 9999)}"
+                
+                # Проверяем уникальность
+                check_company = await self.session.execute(
+                    select(Company).where(Company.inn == unique_inn)
+                )
+                if not check_company.scalar_one_or_none():
+                    # ИНН свободен, используем его
+                    logger.info(f"Сгенерирован уникальный временный ИНН: {unique_inn}")
+                    break
+                attempt += 1
+            
+            if attempt >= max_attempts:
+                raise ValueError("Не удалось создать уникальный ИНН после 10 попыток")
         
         # Создаем компанию с данными по умолчанию
         company = Company(

@@ -20931,3 +20931,4 @@ nginx/letsencrypt/renewal/
 /backend/celery_beat.log
 /backend/celery_worker.log
 /backend/new_venv/lib64/
+/backend/new_venv/

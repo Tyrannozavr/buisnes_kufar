@@ -2,6 +2,7 @@ import random
 import time
 from datetime import datetime, timezone
 from typing import Optional
+import logging
 
 from pydantic import HttpUrl
 from slugify import slugify
@@ -11,6 +12,8 @@ from sqlalchemy.orm import selectinload
 
 from app.api.company.models.company import Company
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyCreateInactive
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyRepository:
@@ -226,6 +229,36 @@ class CompanyRepository:
 
         user_full_name = " ".join(full_name_parts) if full_name_parts else "Не указано"
 
+        # Проверяем, существует ли компания с таким ИНН
+        from sqlalchemy import select
+        existing_company = await self.session.execute(
+            select(Company).where(Company.inn == inn)
+        )
+        company = existing_company.scalar_one_or_none()
+        
+        if company:
+            # Если компания уже существует, возвращаем её
+            logger.info(f"Компания с ИНН {inn} уже существует, возвращаем существующую компанию")
+            return company
+        
+        # Генерируем уникальный временный ИНН, если переданный занят
+        import random
+        unique_inn = inn
+        max_attempts = 10
+        attempt = 0
+        
+        while attempt < max_attempts:
+            # Проверяем уникальность
+            check_company = await self.session.execute(
+                select(Company).where(Company.inn == unique_inn)
+            )
+            if not check_company.scalar_one_or_none():
+                # ИНН свободен, используем его
+                break
+            # Генерируем новый уникальный ИНН
+            unique_inn = f"{datetime.now().strftime('%d%m%y')}{random.randint(1000, 9999)}"
+            attempt += 1
+        
         # Создаем компанию с данными по умолчанию
         company = Company(
             name="Новая компания",
@@ -244,7 +277,7 @@ class CompanyRepository:
 
             # Legal information
             full_name="Полное наименование не указано",
-            inn=inn,  # ИНН из параметра
+            inn=unique_inn,  # Уникальный ИНН
             ogrn=None,  # Временное значение
             kpp="000000000",  # Временное значение
             registration_date=datetime.now(),

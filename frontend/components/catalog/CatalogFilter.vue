@@ -73,12 +73,25 @@ const handleSearch = () => {
 
 // Cities filter functions
 const loadCitiesData = async () => {
-  console.log('Loading cities data...')
+  console.log('Loading cities data for type:', props.type)
   citiesLoading.value = true
   citiesError.value = null
   
   try {
-    const response = await $api.get('/v1/cities-filter/cities-filter')
+    // Определяем правильный эндпоинт в зависимости от типа страницы
+    let endpoint = '/v1/cities-filter/'
+    if (props.type === 'products') {
+      endpoint += 'products'
+    } else if (props.type === 'services') {
+      endpoint += 'services'
+    } else if (props.type === 'companies') {
+      endpoint += 'companies'
+    } else {
+      // По умолчанию products
+      endpoint += 'products'
+    }
+    
+    const response = await $api.get(endpoint)
     console.log('Cities data loaded:', response)
     citiesData.value = response
   } catch (e) {

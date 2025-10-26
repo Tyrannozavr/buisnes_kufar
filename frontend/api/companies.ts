@@ -102,23 +102,35 @@ export const getLatestCompaniesSSR = async (limit: number = 6) => {
 
 export const searchManufacturersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
   const { $api } = useNuxtApp()
-  const queryParams = {
+  const queryParams: any = {
     page,
-    perPage,
-    ...params
+    per_page: perPage
   }
-  return await $api.get('/v1/companies/products', {
+  
+  // Добавляем параметры фильтрации
+  if (params.search) queryParams.search = params.search
+  if (params.cities && params.cities.length > 0) {
+    queryParams.cities = params.cities.join(',')
+  }
+  
+  return await $api.get('/v1/companies/', {
     params: queryParams
   }) as PaginationResponse<CompanyShort>
 }
 
 export const searchServiceProvidersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
   const { $api } = useNuxtApp()
-  const queryParams = {
+  const queryParams: any = {
     page,
-    perPage,
-    ...params
+    per_page: perPage
   }
+  
+  // Добавляем параметры фильтрации
+  if (params.search) queryParams.search = params.search
+  if (params.cities && Array.isArray(params.cities) && params.cities.length > 0) {
+    queryParams.cities = params.cities.join(',')
+  }
+  
   return await $api.get('/v1/companies/services', {
     params: queryParams
   }) as PaginationResponse<CompanyShort>

@@ -53,6 +53,63 @@ class CompaniesRepository:
 
         return list(companies), total_count
 
+    async def get_companies_with_filters(
+            self,
+            page: int = 1,
+            per_page: int = 10,
+            search: Optional[str] = None,
+            cities: Optional[List[int]] = None
+    ) -> Tuple[List[Company], int]:
+        """
+        Получить активные компании с фильтрацией по городам
+        
+        Args:
+            page: Номер страницы (начиная с 1)
+            per_page: Количество элементов на странице
+            search: Поиск по названию компании
+            cities: Список ID городов для фильтрации
+            
+        Returns:
+            Tuple[List[Company], int]: (список компаний, общее количество)
+        """
+        from sqlalchemy import text
+        from app.api.common.models.city import City
+        
+        # Базовые условия
+        conditions = [
+            Company.is_active == True
+        ]
+        
+        # Добавляем фильтр по названию
+        if search:
+            conditions.append(Company.name.ilike(f"%{search}%"))
+        
+        # Добавляем фильтр по городам
+        if cities:
+            # Получаем названия городов по их ID
+            cities_query = select(City.name).where(City.id.in_(cities))
+            cities_result = await self.session.execute(cities_query)
+            city_names = [row[0] for row in cities_result]
+            
+            if city_names:
+                conditions.append(Company.city.in_(city_names))
+        
+        # Получаем общее количество
+        count_query = select(func.count(Company.id)).where(and_(*conditions))
+        count_result = await self.session.execute(count_query)
+        total_count = count_result.scalar()
+        
+        # Получаем компании с пагинацией
+        offset = (page - 1) * per_page
+        query = select(Company).options(
+            selectinload(Company.officials)
+        ).where(and_(*conditions)).order_by(Company.registration_date.desc()).offset(offset).limit(per_page)
+        
+        result = await self.session.execute(query)
+        companies = result.scalars().all()
+        
+        return list(companies), total_count
+
     async def get_latest_companies(self, limit: int = 6) -> List[Company]:
         """
         Получить последние активные компании

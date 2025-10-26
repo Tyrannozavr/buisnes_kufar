@@ -40,11 +40,7 @@ watch(currentPage, async (newPage) => {
 
 const handleSearch = async (params: {
   search?: string
-  country?: string
-  federalDistrict?: string
-  region?: string
-  city?: string
-  product?: string
+  cities?: number[]
 }) => {
   manufacturersPending.value = true
   manufacturersError.value = null

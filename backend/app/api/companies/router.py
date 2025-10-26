@@ -48,15 +48,62 @@ async def get_companies(
     )
 
 
+@router.get("/", response_model=CompaniesResponse)
+async def get_all_companies(
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
+        search: Optional[str] = Query(None, description="Поиск по названию компании"),
+        cities: Optional[str] = Query(None, description="Фильтр по городам (через запятую)"),
+        companies_repository: companies_repository_dep = None
+) -> CompaniesResponse:
+    """
+    Получить список всех активных компаний с фильтрацией
+    
+    Args:
+        page: Номер страницы (начиная с 1)
+        per_page: Количество элементов на странице (1-100)
+        search: Поиск по названию компании
+        cities: ID городов через запятую
+        companies_repository: Репозиторий компаний
+        
+    Returns:
+        CompaniesResponse: Список компаний с информацией о пагинации
+    """
+    # Parse cities parameter
+    cities_list = None
+    if cities:
+        try:
+            cities_list = [int(c.strip()) for c in cities.split(',')]
+        except ValueError:
+            pass
+
+    companies, total_count = await companies_repository.get_companies_with_filters(
+        page=page,
+        per_page=per_page,
+        search=search,
+        cities=cities_list
+    )
+
+    # Вычисляем общее количество страниц
+    total_pages = (total_count + per_page - 1) // per_page
+
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total_count,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages
+        )
+    )
+
+
 @router.get("/services", response_model=CompaniesResponse)
 async def get_services_companies(
         page: int = Query(1, ge=1, description="Номер страницы"),
         per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
         search: Optional[str] = Query(None, description="Поиск по названию компании"),
-        country: Optional[str] = Query(None, description="Фильтр по стране"),
-        federalDistrict: Optional[str] = Query(None, description="Фильтр по федеральному округу"),
-        region: Optional[str] = Query(None, description="Фильтр по региону"),
-        city: Optional[str] = Query(None, description="Фильтр по городу"),
+        cities: Optional[str] = Query(None, description="Фильтр по городам (через запятую)"),
         companies_repository: companies_repository_dep = None
 ) -> CompaniesResponse:
     """
@@ -66,25 +113,25 @@ async def get_services_companies(
         page: Номер страницы (начиная с 1)
         per_page: Количество элементов на странице (1-100)
         search: Поиск по названию компании
-        country: Фильтр по стране
-        federalDistrict: Фильтр по федеральному округу
-        region: Фильтр по региону
-        city: Фильтр по городу
+        cities: ID городов через запятую
         companies_repository: Репозиторий компаний
         
     Returns:
         CompaniesResponse: Список компаний с информацией о пагинации
     """
-    print(f"Параметры фильтрации для услуг: search={search}, country={country}, federalDistrict={federalDistrict}, region={region}, city={city}")
+    # Parse cities parameter
+    cities_list = None
+    if cities:
+        try:
+            cities_list = [int(c.strip()) for c in cities.split(',')]
+        except ValueError:
+            pass
 
-    companies, total_count = await companies_repository.get_services_companies(
+    companies, total_count = await companies_repository.get_companies_with_filters(
         page=page,
         per_page=per_page,
         search=search,
-        country=country,
-        federal_district=federalDistrict,
-        region=region,
-        city=city
+        cities=cities_list
     )
 
     # Вычисляем общее количество страниц

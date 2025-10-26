@@ -12,8 +12,16 @@ const showSuccessMessage = ref(false)
 const successMessage = ref('')
 
 // Pagination state
-const currentPage = ref(1)
+const pageParam = route.query.page
+const initialPage = pageParam && typeof pageParam === 'string' ? parseInt(pageParam) : 1
+const currentPage = ref(initialPage > 0 ? initialPage : 1)
 const perPage = ref(10)
+
+// Initialize filters from URL
+const urlFilters = {
+  search: route.query.search as string || undefined,
+  cities: route.query.cities ? (route.query.cities as string).split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : undefined
+}
 
 // Fetch service providers with pagination using SSR function
 const response = await searchServiceProvidersSSR(currentPage.value, perPage.value)
@@ -38,9 +46,11 @@ watch(currentPage, async (newPage) => {
   Object.assign(response, newResponse)
 })
 
+const router = useRouter()
+
 const handleSearch = async (params: {
   search?: string
-  cities?: string[]
+  cities?: number[]
   minPrice?: number
   maxPrice?: number
   inStock?: boolean
@@ -49,12 +59,25 @@ const handleSearch = async (params: {
   manufacturersError.value = null
 
   try {
+    // Сохраняем фильтры в URL
+    const query: Record<string, any> = { page: currentPage.value }
+    if (params.search) query.search = params.search
+    if (params.cities && params.cities.length > 0) {
+      query.cities = params.cities.join(',')
+    }
+    if (params.minPrice) query.minPrice = params.minPrice
+    if (params.maxPrice) query.maxPrice = params.maxPrice
+    if (params.inStock) query.inStock = params.inStock
+    
+    // Обновляем URL с фильтрами
+    await router.push({ query })
+    
     // Преобразуем параметры для API
     const apiParams: any = {}
     if (params.search) apiParams.search = params.search
     if (params.cities && params.cities.length > 0) {
-      // Для компаний используем первый выбранный город
-      apiParams.city = params.cities[0]
+      // Для компаний передаем массив ID городов
+      apiParams.cities = params.cities
     }
     
     const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, apiParams)
@@ -82,6 +105,17 @@ if (route.query.created === 'true') {
 const handlePageChange = (page: number) => {
   currentPage.value = page
 }
+
+// Initialize filters from URL on mount
+onMounted(async () => {
+  // If there are URL filters, apply them
+  if (urlFilters.search || urlFilters.cities?.length) {
+    await handleSearch({
+      search: urlFilters.search,
+      cities: urlFilters.cities as number[]
+    })
+  }
+})
 </script>
 
 <template>

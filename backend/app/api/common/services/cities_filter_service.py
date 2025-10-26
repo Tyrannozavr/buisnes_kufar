@@ -9,11 +9,8 @@ class CitiesFilterService:
     """Service для агрегации данных о городах"""
     
     @staticmethod
-    async def build_location_tree():
-        """Построить дерево локаций с количеством товаров"""
-        # Получаем города с товарами
-        cities_data = await CitiesFilterRepository.get_cities_with_products_count()
-        
+    async def _build_tree_from_cities_data(cities_data):
+        """Вспомогательный метод для построения дерева из данных городов"""
         if not cities_data:
             return []
         
@@ -105,6 +102,53 @@ class CitiesFilterService:
                 location_tree.append(country_data)
         
         return location_tree
+    
+    @staticmethod
+    async def build_products_location_tree():
+        """Построить дерево локаций с количеством товаров"""
+        cities_data = await CitiesFilterRepository.get_cities_with_products_count()
+        return await CitiesFilterService._build_tree_from_cities_data(cities_data)
+    
+    @staticmethod
+    async def build_services_location_tree():
+        """Построить дерево локаций с количеством услуг"""
+        cities_data = await CitiesFilterRepository.get_cities_with_services_count()
+        return await CitiesFilterService._build_tree_from_cities_data(cities_data)
+    
+    @staticmethod
+    async def build_companies_location_tree():
+        """Построить упрощенное дерево локаций с количеством компаний"""
+        cities_result = await CitiesFilterRepository.get_cities_with_companies_count()
+        
+        # Если это плоская структура (без иерархии)
+        if isinstance(cities_result, dict) and 'cities' in cities_result:
+            # Создаем упрощенное дерево без иерархии
+            return [{
+                "id": 1,
+                "code": "RU",
+                "name": "Россия",
+                "federal_districts": [{
+                    "id": 1,
+                    "name": "Все города",
+                    "code": "ALL",
+                    "regions": [{
+                        "id": 1,
+                        "name": "Все города",
+                        "code": "ALL_CITIES",
+                        "cities": cities_result['cities'],
+                        "products_count": cities_result['total_companies']
+                    }],
+                    "products_count": cities_result['total_companies']
+                }],
+                "products_count": cities_result['total_companies']
+            }]
+        
+        return await CitiesFilterService._build_tree_from_cities_data(cities_result)
+    
+    @staticmethod
+    async def build_location_tree():
+        """Построить дерево локаций с количеством компаний (по умолчанию)"""
+        return await CitiesFilterService.build_companies_location_tree()
     
     @staticmethod
     async def get_cities_stats():

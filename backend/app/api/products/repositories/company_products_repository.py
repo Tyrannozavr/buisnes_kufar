@@ -49,27 +49,24 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты компании с пагинацией"""
-        # Базовый запрос
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.company_id == company_id,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.company_id == company_id,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id)).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем продукты с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         products = result.scalars().all()
 
@@ -83,27 +80,32 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты компании по slug с пагинацией"""
-        # Базовый запрос с join на компанию
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).join(Company).where(
-            and_(
-                Company.slug == company_slug,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [Product.is_deleted == False]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
-        # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        # Получаем общее количество с join на компанию
+        count_query = (
+            select(func.count(Product.id))
+            .join(Company, Product.company_id == Company.id)
+            .where(and_(*conditions))
+            .where(Company.slug == company_slug)
+        )
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем продукты с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = (
+            select(Product)
+            .options(selectinload(Product.company))
+            .join(Company, Product.company_id == Company.id)
+            .where(and_(*conditions))
+            .where(Company.slug == company_slug)
+            .offset(skip)
+            .limit(limit)
+        )
         result = await self.session.execute(query)
         products = result.scalars().all()
 
@@ -116,22 +118,21 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все продукты всех компаний с пагинацией"""
-        # Базовый запрос
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(Product.is_deleted == False)
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [Product.is_deleted == False]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id)).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем продукты с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         products = result.scalars().all()
 
@@ -144,27 +145,24 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все услуги всех компаний с пагинацией"""
-        # Базовый запрос для услуг
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.type == ProductType.SERVICE,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.type == ProductType.SERVICE,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
-
+            conditions.append(Product.is_hidden == False)
+        
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id)).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем услуги с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         services = result.scalars().all()
 
@@ -177,27 +175,26 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все услуги всех компаний с пагинацией и загруженными данными компании"""
-        # Базовый запрос для услуг с загрузкой данных компании
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.type == ProductType.SERVICE,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.type == ProductType.SERVICE,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
-        # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
-        count_result = await self.session.execute(count_query)
+        # Получаем общее количество напрямую из БД без JOIN
+        # Используем прямой SQL чтобы избежать cartesian product
+        from sqlalchemy import text
+        count_sql = text("SELECT COUNT(*) FROM products WHERE type = 'SERVICE' AND is_deleted = false AND is_hidden = false")
+        count_result = await self.session.execute(count_sql)
         total = count_result.scalar()
 
         # Получаем услуги с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         services = result.scalars().all()
 
@@ -250,34 +247,24 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все товары всех компаний с пагинацией и загруженными данными компании"""
-        # Базовый запрос для товаров с загрузкой данных компании
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.type == ProductType.GOOD,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.type == ProductType.GOOD,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).where(
-            and_(
-                Product.type == ProductType.GOOD,
-                Product.is_deleted == False
-            )
-        )
-        if not include_hidden:
-            count_query = count_query.where(Product.is_hidden == False)
+        count_query = select(func.count(Product.id)).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем товары с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         goods = result.scalars().all()
 
@@ -291,28 +278,25 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все услуги конкретной компании с пагинацией"""
-        # Базовый запрос для услуг компании
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.company_id == company_id,
-                Product.type == ProductType.SERVICE,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.company_id == company_id,
+            Product.type == ProductType.SERVICE,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id.distinct())).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем услуги с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         services = result.scalars().all()
 
@@ -326,28 +310,25 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить все товары конкретной компании с пагинацией"""
-        # Базовый запрос для товаров компании
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.company_id == company_id,
-                Product.type == ProductType.GOOD,
-                Product.is_deleted == False
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.company_id == company_id,
+            Product.type == ProductType.GOOD,
+            Product.is_deleted == False
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id.distinct())).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем товары с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         goods = result.scalars().all()
 
@@ -363,31 +344,28 @@ class CompanyProductsRepository:
         """Поиск продуктов по названию или описанию"""
         from sqlalchemy import or_
 
-        # Базовый запрос с поиском
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.is_deleted == False,
-                or_(
-                    Product.name.ilike(f"%{search_term}%"),
-                    Product.description.ilike(f"%{search_term}%"),
-                    Product.article.ilike(f"%{search_term}%")
-                )
+        # Базовые условия
+        conditions = [
+            Product.is_deleted == False,
+            or_(
+                Product.name.ilike(f"%{search_term}%"),
+                Product.description.ilike(f"%{search_term}%"),
+                Product.article.ilike(f"%{search_term}%")
             )
-        )
-
-        # Добавляем фильтр по видимости
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id.distinct())).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем продукты с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         products = result.scalars().all()
 
@@ -402,28 +380,25 @@ class CompanyProductsRepository:
             include_hidden: bool = False
     ) -> Tuple[List[Product], int]:
         """Получить продукты в диапазоне цен"""
-        # Базовый запрос с фильтром по цене
-        base_query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
-            and_(
-                Product.is_deleted == False,
-                Product.price >= min_price,
-                Product.price <= max_price
-            )
-        )
-
-        # Добавляем фильтр по видимости
+        # Базовые условия
+        conditions = [
+            Product.is_deleted == False,
+            Product.price >= min_price,
+            Product.price <= max_price
+        ]
+        
         if not include_hidden:
-            base_query = base_query.where(Product.is_hidden == False)
+            conditions.append(Product.is_hidden == False)
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_query = select(func.count(Product.id.distinct())).where(and_(*conditions))
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
         # Получаем продукты с пагинацией
-        query = base_query.offset(skip).limit(limit)
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(and_(*conditions)).offset(skip).limit(limit)
         result = await self.session.execute(query)
         products = result.scalars().all()
 
@@ -475,25 +450,42 @@ class CompanyProductsRepository:
         if company_id is None and company_slug is None:
             raise ValueError("Необходимо указать либо company_id, либо company_slug")
 
-        # Базовый запрос
-        base_query = select(Product).join(Company)
+        # Базовые условия
+        conditions = [
+            Product.is_deleted == False,
+            Product.is_hidden == False
+        ]
+        
         if company_id:
-            base_query = base_query.where(Company.id == company_id)
+            conditions.append(Company.id == company_id)
+            count_join = Company.id == Product.company_id
+            count_query = (
+                select(func.count(Product.id.distinct()))
+                .join(Company, count_join)
+                .where(and_(*conditions))
+            )
         else:
-            base_query = base_query.where(Company.slug == company_slug)
-
-        base_query = base_query.where(Product.is_deleted == False, Product.is_hidden == False)
+            conditions.append(Company.slug == company_slug)
+            count_join = Company.id == Product.company_id
+            count_query = (
+                select(func.count(Product.id.distinct()))
+                .join(Company, count_join)
+                .where(and_(*conditions))
+            )
 
         # Получаем общее количество
-        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
         count_result = await self.session.execute(count_query)
         total_count = count_result.scalar()
 
-        # Применяем пагинацию
+        # Получаем продукты с пагинацией
         offset = (page - 1) * per_page
-        paginated_query = base_query.offset(offset).limit(per_page)
-
-        # Выполняем запрос
+        paginated_query = (
+            select(Product)
+            .join(Company)
+            .where(and_(*conditions))
+            .offset(offset)
+            .limit(per_page)
+        )
         result = await self.session.execute(paginated_query)
         products = result.scalars().all()
 

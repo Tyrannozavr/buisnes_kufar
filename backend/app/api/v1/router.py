@@ -12,7 +12,7 @@ from app.api.companies.router import router as companies_router
 from app.api.chats.router import router as chats_router
 from app.api.purchases.router import router as purchases_router
 from app.api.products.router import owner_router as products_owner_router, public_router as public_products_router
-from app.api.common.routes import cities_filter
+from app.api.common.routes.cities_filter import router as cities_filter_router
 
 # Include routers
 
@@ -31,4 +31,4 @@ api_router.include_router(purchases_router, prefix="/purchases", tags=["purchase
 
 api_router.include_router(public_products_router, prefix="/products", tags=["public-products"])
 api_router.include_router(public_announcements_router, prefix="/announcements", tags=["public-announcements"])
-api_router.include_router(cities_filter.router, prefix="/cities-filter", tags=["cities-filter"])
+api_router.include_router(cities_filter_router, prefix="/cities-filter", tags=["cities-filter"])

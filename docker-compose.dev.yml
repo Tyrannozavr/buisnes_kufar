@@ -1,0 +1,185 @@
+services:
+  migrations:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrations
+    env_file:
+      - ./backend/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrations
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "buisnes_kufar"
+    command: >
+      -c shared_buffers=512MB
+      -c max_connections=200
+      -c idle_in_transaction_session_timeout=10s
+      -c tcp_keepalives_idle=60
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d buisnes_kufar" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres-data-dev:/var/lib/postgresql/data:cached
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "admin123"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data_dev:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Пробрасываем весь код backend для hot reload
+      - ./backend:/app:cached
+      # Кэшируем зависимости poetry для быстрой установки
+      - backend_poetry_cache:/root/.cache/pypoetry
+      # Кэшируем виртуальное окружение poetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      # Пробрасываем логи и кэш для разработки
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ./frontend/.env
+    environment:
+      NUXT_UI_FONTS: "false"
+      # Для dev используем полный URL для прямого обращения к backend
+      VITE_PUBLIC_API_URL: "http://localhost:8000/api"
+      API_BASE_URL: "http://backend:8000/api"
+      NODE_ENV: "development"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Пробрасываем весь код frontend для hot reload
+      - ./frontend:/app:cached
+      # Кэшируем node_modules для быстрой установки зависимостей
+      - frontend_node_modules:/app/node_modules
+      # Кэшируем npm кэш для jiti и других инструментов
+      - frontend_npm_cache:/app/node_modules/.cache
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    depends_on:
+      - backend
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/app/static:/usr/share/nginx/html/static
+    depends_on:
+      - backend
+      - frontend
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./backend:/app:cached
+      - backend_poetry_cache:/root/.cache/pypoetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "worker", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./backend:/app:cached
+      - backend_poetry_cache:/root/.cache/pypoetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+      - ./logs:/app/logs:cached
+      - ./cache:/app/cache:cached
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  frontend_node_modules:
+  frontend_npm_cache:
+  frontend_nuxt_cache:
+  backend_poetry_cache:
+  backend_venv:
+  rabbitmq_data_dev:

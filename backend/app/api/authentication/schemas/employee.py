@@ -1,0 +1,100 @@
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, EmailStr, ConfigDict
+from enum import Enum
+
+
+class EmployeeRoleEnum(str, Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    USER = "user"
+
+
+class EmployeeStatusEnum(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    DELETED = "deleted"
+
+
+class EmployeeBase(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
+    role: EmployeeRoleEnum = EmployeeRoleEnum.USER
+    permissions: Optional[Dict[str, bool]] = None
+
+
+class EmployeeCreate(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
+    role: EmployeeRoleEnum = EmployeeRoleEnum.USER
+    permissions: Optional[Dict[str, bool]] = None
+
+
+class EmployeeUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    patronymic: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
+    role: Optional[EmployeeRoleEnum] = None
+    permissions: Optional[Dict[str, bool]] = None
+
+
+class EmployeeResponse(EmployeeBase):
+    id: int
+    user_id: Optional[int] = None
+    company_id: int
+    status: EmployeeStatusEnum
+    deletion_requested_at: Optional[datetime] = None
+    deletion_requested_by: Optional[int] = None
+    deletion_rejected_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeListResponse(BaseModel):
+    employees: List[EmployeeResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class PermissionUpdateRequest(BaseModel):
+    permissions: Dict[str, bool]
+
+
+class AdminDeletionRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+class AdminDeletionRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+# Список всех доступных прав в системе согласно требованиям
+AVAILABLE_PERMISSIONS = {
+    "company_management": "Управление компанией",
+    "user_management": "Управление пользователями",
+    "documents": "Документы",
+    "contracts": "Договоры", 
+    "sales": "Продажи",
+    "purchases": "Закупки",
+    "messages": "Сообщения",
+    "authorization": "Авторизация",
+    "product_management": "Управление продуктами",
+    "announcement_management": "Управление объявлениями",
+    "chat_access": "Доступ к чатам",
+    "view_statistics": "Просмотр статистики"
+}

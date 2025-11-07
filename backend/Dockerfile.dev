@@ -1,0 +1,33 @@
+# Dockerfile для разработки backend
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Устанавливаем системные зависимости
+RUN apt-get update && \
+    apt-get install -y libpq-dev gcc curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем poetry
+RUN pip install --no-cache-dir poetry==1.8.2
+
+# Копируем файлы зависимостей
+COPY backend/pyproject.toml backend/poetry.lock ./
+
+# Устанавливаем зависимости
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi
+
+# Создаем директории для данных
+RUN mkdir -p /app/logging /app/cache /app/uploads /app/app/static
+
+# Устанавливаем переменные окружения для разработки
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Открываем порт
+EXPOSE 8000
+
+# Команда по умолчанию (будет переопределена в docker-compose)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

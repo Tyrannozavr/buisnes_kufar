@@ -57,8 +57,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "http://localhost:3000",  # Add this line
-        "http://127.0.0.1:3000",  # Add this line
+        "http://localhost",  # Для nginx прокси
+        "http://127.0.0.1",  # Для nginx прокси
     ]
 
     MAIL_USERNAME: str | None = "mock_email@example.com"

@@ -16,16 +16,26 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys that are exposed to the server
-
+    apiBaseUrl: process.env.API_BASE_URL || 'http://backend:8000/api',
+    
     // Keys within public are also exposed to the client
     public: {
       apiBaseUrl: process.env.VITE_PUBLIC_API_URL || '/api'
     }
   },
-  // Отключаем загрузку шрифтов через переменную окружения
+  // Настройки для работы через nginx
   nitro: {
     experimental: {
       wasm: true
+    },
+    // Указываем правильный baseURL для статических ресурсов
+    baseURL: '/',
+    // Настройки для правильной работы с API в production
+    routeRules: {
+      '/api/**': { 
+        headers: { 'cache-control': 's-maxage=60' },
+        cors: true
+      }
     }
   },
   // Add explicit colorMode configuration
@@ -50,6 +60,7 @@ export default defineNuxtConfig({
     classSuffix: ''      // убирает суффиксы классов (например 'light:')
   },
   app: {
+    baseURL: '/',
     head: {
       title: 'TradeSynergy',
       meta: [
@@ -60,6 +71,18 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
       ]
+    }
+  },
+  // Настройки для работы в dev режиме через nginx
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
+  },
+  // Настройки для правильной генерации путей
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      port: 3000
     }
   }
 })

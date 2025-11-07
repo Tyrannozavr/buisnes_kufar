@@ -11,7 +11,7 @@ from app.api.products.models.product import ProductType
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
 from app.api.products.repositories.my_products_repository import MyProductsRepository
 from app.api.products.schemas.product import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse, \
-    ProductCreateWithFiles, ProductListPublicResponse
+    ProductCreateWithFiles, ProductListPublicResponse, ProductListWithCompanyResponse, ServiceListWithCompanyResponse
 
 
 class ProductService:
@@ -342,6 +342,47 @@ class ProductService:
             per_page=limit
         )
 
+    async def get_all_services_with_company(
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
+    ) -> ServiceListWithCompanyResponse:
+        """Получить все услуги всех компаний с пагинацией и названием компании"""
+        services, total = await self.company_products_repo.get_all_services_with_company(
+            skip, limit, include_hidden
+        )
+
+        services_responses = []
+        for service in services:
+            # Создаем словарь с данными услуги и добавляем название компании
+            service_data = {
+                'id': service.id,
+                'name': service.name,
+                'description': service.description,
+                'article': service.article,
+                'type': service.type,
+                'price': service.price,
+                'unit_of_measurement': service.unit_of_measurement,
+                'is_hidden': service.is_hidden,
+                'slug': service.slug,
+                'raw_images': service.images,
+                'characteristics': service.characteristics,
+                'is_deleted': service.is_deleted,
+                'company_id': service.company_id,
+                'company_name': service.company.name if service.company else "Неизвестная компания",
+                'created_at': service.created_at,
+                'updated_at': service.updated_at
+            }
+            services_responses.append(service_data)
+
+        return ServiceListWithCompanyResponse(
+            products=services_responses,
+            total=total,
+            page=skip // limit + 1,
+            per_page=limit
+        )
+
     async def get_all_goods(
             self,
             skip: int = 0,
@@ -356,6 +397,47 @@ class ProductService:
         goods_responses = [ProductResponse.model_validate(good) for good in goods]
 
         return ProductListResponse(
+            products=goods_responses,
+            total=total,
+            page=skip // limit + 1,
+            per_page=limit
+        )
+
+    async def get_all_goods_with_company(
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
+    ) -> ProductListWithCompanyResponse:
+        """Получить все товары всех компаний с пагинацией и названием компании"""
+        goods, total = await self.company_products_repo.get_all_goods_with_company(
+            skip, limit, include_hidden
+        )
+
+        goods_responses = []
+        for good in goods:
+            # Создаем словарь с данными продукта и добавляем название компании
+            product_data = {
+                'id': good.id,
+                'name': good.name,
+                'description': good.description,
+                'article': good.article,
+                'type': good.type,
+                'price': good.price,
+                'unit_of_measurement': good.unit_of_measurement,
+                'is_hidden': good.is_hidden,
+                'slug': good.slug,
+                'raw_images': good.images,
+                'characteristics': good.characteristics,
+                'is_deleted': good.is_deleted,
+                'company_id': good.company_id,
+                'company_name': good.company.name if good.company else "Неизвестная компания",
+                'created_at': good.created_at,
+                'updated_at': good.updated_at
+            }
+            goods_responses.append(product_data)
+
+        return ProductListWithCompanyResponse(
             products=goods_responses,
             total=total,
             page=skip // limit + 1,

@@ -170,6 +170,39 @@ class CompanyProductsRepository:
 
         return list(services), total
 
+    async def get_all_services_with_company(
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
+    ) -> Tuple[List[Product], int]:
+        """Получить все услуги всех компаний с пагинацией и загруженными данными компании"""
+        # Базовый запрос для услуг с загрузкой данных компании
+        base_query = select(Product).options(
+            selectinload(Product.company)
+        ).where(
+            and_(
+                Product.type == ProductType.SERVICE,
+                Product.is_deleted == False
+            )
+        )
+
+        # Добавляем фильтр по видимости
+        if not include_hidden:
+            base_query = base_query.where(Product.is_hidden == False)
+
+        # Получаем общее количество
+        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_result = await self.session.execute(count_query)
+        total = count_result.scalar()
+
+        # Получаем услуги с пагинацией
+        query = base_query.offset(skip).limit(limit)
+        result = await self.session.execute(query)
+        services = result.scalars().all()
+
+        return list(services), total
+
     async def get_all_goods(
             self,
             skip: int = 0,
@@ -178,6 +211,39 @@ class CompanyProductsRepository:
     ) -> Tuple[List[Product], int]:
         """Получить все товары всех компаний с пагинацией"""
         # Базовый запрос для товаров
+        base_query = select(Product).options(
+            selectinload(Product.company)
+        ).where(
+            and_(
+                Product.type == ProductType.GOOD,
+                Product.is_deleted == False
+            )
+        )
+
+        # Добавляем фильтр по видимости
+        if not include_hidden:
+            base_query = base_query.where(Product.is_hidden == False)
+
+        # Получаем общее количество
+        count_query = select(func.count(Product.id)).select_from(base_query.subquery())
+        count_result = await self.session.execute(count_query)
+        total = count_result.scalar()
+
+        # Получаем товары с пагинацией
+        query = base_query.offset(skip).limit(limit)
+        result = await self.session.execute(query)
+        goods = result.scalars().all()
+
+        return list(goods), total
+
+    async def get_all_goods_with_company(
+            self,
+            skip: int = 0,
+            limit: int = 100,
+            include_hidden: bool = False
+    ) -> Tuple[List[Product], int]:
+        """Получить все товары всех компаний с пагинацией и загруженными данными компании"""
+        # Базовый запрос для товаров с загрузкой данных компании
         base_query = select(Product).options(
             selectinload(Product.company)
         ).where(

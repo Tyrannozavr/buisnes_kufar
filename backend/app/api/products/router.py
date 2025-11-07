@@ -15,7 +15,10 @@ from app.api.products.schemas.product import (
     ProductUpdate,
     ProductResponse,
     ProductListResponse,
-    ProductCreateWithFiles, ProductListPublicResponse
+    ProductCreateWithFiles, 
+    ProductListPublicResponse,
+    ProductListWithCompanyResponse,
+    ServiceListWithCompanyResponse
 )
 from app.api.products.services.cache_service import product_location_cache
 from app.api.products.services.filter_service import FilterService
@@ -265,7 +268,7 @@ async def get_all_products(
     return await product_service.get_all_products(skip, limit, include_hidden)
 
 
-@public_router.get("/services", response_model=ProductListResponse)
+@public_router.get("/services", response_model=ServiceListWithCompanyResponse)
 async def get_all_services(
         product_service: product_service_dep,
         skip: int = Query(0, ge=0),
@@ -273,10 +276,10 @@ async def get_all_services(
         include_hidden: bool = Query(False)
 ):
     """Получить все услуги всех компаний"""
-    return await product_service.get_all_services(skip, limit, include_hidden)
+    return await product_service.get_all_services_with_company(skip, limit, include_hidden)
 
 
-@public_router.get("/goods", response_model=ProductListResponse)
+@public_router.get("/goods", response_model=ProductListWithCompanyResponse)
 async def get_all_goods(
         product_service: product_service_dep,
         skip: int = Query(0, ge=0),
@@ -284,7 +287,7 @@ async def get_all_goods(
         include_hidden: bool = Query(False)
 ):
     """Получить все товары всех компаний"""
-    return await product_service.get_all_goods(skip, limit, include_hidden)
+    return await product_service.get_all_goods_with_company(skip, limit, include_hidden)
 
 
 @public_router.get("/company/{company_slug}", response_model=ProductListPublicResponse)

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type {CompanyShort} from '~/types/company'
 import {searchServiceProvidersSSR} from "~/api";
+import CustomPagination from "~/components/ui/CustomPagination.vue";
+import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 
 const route = useRoute()
 const title = 'Поставщики услуг'
@@ -10,15 +12,34 @@ const showSuccessMessage = ref(false)
 const successMessage = ref('')
 
 // Pagination state
-const currentPage = ref(1)
+const pageParam = route.query.page
+const initialPage = pageParam && typeof pageParam === 'string' ? parseInt(pageParam) : 1
+const currentPage = ref(initialPage > 0 ? initialPage : 1)
 const perPage = ref(10)
 
+// Parse filters from URL
+const urlFilters = {
+  search: route.query.search as string | undefined,
+  cities: route.query.cities ? (route.query.cities as string).split(',').map(Number) : undefined,
+  minPrice: route.query.minPrice ? parseFloat(route.query.minPrice as string) : undefined,
+  maxPrice: route.query.maxPrice ? parseFloat(route.query.maxPrice as string) : undefined,
+  inStock: route.query.inStock === 'true'
+}
+
 // Fetch service providers with pagination using SSR function
-const response = await searchServiceProvidersSSR(currentPage.value, perPage.value)
+const initialResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, urlFilters)
+
+// Make response reactive
+const response = ref(initialResponse)
+
+// Apply filters from URL if present
+if (urlFilters.search || urlFilters.cities?.length || urlFilters.minPrice || urlFilters.maxPrice || urlFilters.inStock) {
+  currentFilters.value = urlFilters
+}
 
 // Computed properties
-const manufacturers = computed(() => response?.data || [])
-const pagination = computed(() => response?.pagination || {
+const manufacturers = computed(() => response.value?.data || [])
+const pagination = computed(() => response.value?.pagination || {
   total: 0,
   page: 1,
   perPage: 10,
@@ -28,29 +49,50 @@ const pagination = computed(() => response?.pagination || {
 const manufacturersPending = ref(false)
 const manufacturersError = ref<Error | null>(null)
 
+// Store current filters
+const currentFilters = ref<any>({})
+
 // Watch for page changes
 watch(currentPage, async (newPage) => {
-  // Refresh data when page changes
-  const newResponse = await searchServiceProvidersSSR(newPage, perPage.value)
-  // Update the response data
-  Object.assign(response, newResponse)
+  manufacturersPending.value = true
+  try {
+    const newResponse = await searchServiceProvidersSSR(newPage, perPage.value, currentFilters.value)
+    response.value = newResponse
+  } finally {
+    manufacturersPending.value = false
+  }
 })
+
+const router = useRouter()
 
 const handleSearch = async (params: {
   search?: string
-  country?: string
-  federalDistrict?: string
-  region?: string
-  city?: string
-  product?: string
+  cities?: number[]
+  minPrice?: number
+  maxPrice?: number
+  inStock?: boolean
 }) => {
   manufacturersPending.value = true
   manufacturersError.value = null
+  currentFilters.value = params
+  currentPage.value = 1 // Reset to page 1 when searching
+
+  // Update URL with filters
+  await router.push({
+    query: {
+      ...route.query,
+      page: '1',
+      search: params.search || undefined,
+      cities: params.cities?.length ? params.cities.join(',') : undefined,
+      minPrice: params.minPrice || undefined,
+      maxPrice: params.maxPrice || undefined,
+      inStock: params.inStock || undefined
+    }
+  })
 
   try {
     const newResponse = await searchServiceProvidersSSR(currentPage.value, perPage.value, params)
-    // Update the response data
-    Object.assign(response, newResponse)
+    response.value = newResponse
   } catch (error) {
     console.error('Search error:', error)
     manufacturersError.value = error as Error
@@ -69,6 +111,19 @@ if (route.query.created === 'true') {
     showSuccessMessage.value = false
   }, 5000)
 }
+
+const handlePageChange = async (page: number) => {
+  // Update URL with page
+  await router.push({
+    query: {
+      ...route.query,
+      page: page.toString()
+    }
+  })
+  currentPage.value = page
+}
+
+// Filters are now handled by POST requests
 </script>
 
 <template>
@@ -101,7 +156,7 @@ if (route.query.created === 'true') {
     <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
 
     <!-- Search Form -->
-    <CompaniesFilter @search="handleSearch"/>
+    <CatalogFilter type="services" @search="handleSearch"/>
     
     <!-- Loading state -->
     <section v-if="manufacturersPending" class="bg-white rounded-lg p-6 shadow-sm">
@@ -136,10 +191,11 @@ if (route.query.created === 'true') {
 
       <!-- Pagination -->
       <div class="mt-8 flex justify-center">
-        <UPagination
-          v-model="currentPage"
+        <CustomPagination
+          :current-page="currentPage"
           :total="pagination.total"
           :per-page="perPage"
+          @update:page="handlePageChange"
         />
       </div>
     </section>

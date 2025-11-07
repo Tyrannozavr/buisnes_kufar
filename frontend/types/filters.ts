@@ -1,6 +1,7 @@
 export interface FilterItem {
   label: string
   value: string
+  count: number
 }
 
 export interface BaseSearchParams {

@@ -23,6 +23,13 @@ COPY app/ ./app/
 COPY app_logging/ ./app_logging/
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
+COPY entrypoint.sh ./entrypoint.sh
+
+# Создаем директорию static
+RUN mkdir -p ./app/static
+
+# Делаем entrypoint скрипт исполняемым
+RUN chmod +x ./entrypoint.sh
 
 
 # Второй этап - итоговый образ
@@ -42,5 +49,12 @@ COPY --from=builder /app/app /app/app
 COPY --from=builder /app/app_logging /app/app_logging
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/alembic /app/alembic
+COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 
+# Делаем entrypoint скрипт исполняемым в финальном образе
+RUN chmod +x /app/entrypoint.sh
+
+# Устанавливаем entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

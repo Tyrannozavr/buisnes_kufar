@@ -86,13 +86,79 @@ const handleSave = async (data: CompanyUpdate) => {
       description: 'Данные компании сохранены',
       color: 'success'
     })
-  } catch (error) {
+  } catch (error: any) {
+    // Обработка ошибок валидации от бэкенда
+    let errorMessage = 'Не удалось сохранить данные компании'
+    let errorTitle = 'Ошибка'
+    
+    // Проверяем наличие детализированной информации об ошибке
+    if (error.data?.detail) {
+      // Обработка ошибок в формате FastAPI/Pydantic
+      if (Array.isArray(error.data.detail)) {
+        // Форматируем ошибки валидации в человеческий вид
+        const validationErrors = error.data.detail.map((err: any) => {
+          const field = err.loc?.length > 1 ? err.loc[err.loc.length - 1] : 'неизвестное поле'
+          const fieldName = getFieldDisplayName(field)
+          const message = err.msg || 'Ошибка валидации'
+          return `${fieldName}: ${message}`
+        })
+        
+        errorMessage = validationErrors.join('; ')
+        errorTitle = 'Ошибка валидации данных'
+      } else if (typeof error.data.detail === 'string') {
+        errorMessage = error.data.detail
+      }
+    } else if (error.response?.data?.detail) {
+      if (Array.isArray(error.response.data.detail)) {
+        const validationErrors = error.response.data.detail.map((err: any) => {
+          const field = err.loc?.length > 1 ? err.loc[err.loc.length - 1] : 'неизвестное поле'
+          const fieldName = getFieldDisplayName(field)
+          const message = err.msg || 'Ошибка валидации'
+          return `${fieldName}: ${message}`
+        })
+        
+        errorMessage = validationErrors.join('; ')
+        errorTitle = 'Ошибка валидации данных'
+      } else if (typeof error.response.data.detail === 'string') {
+        errorMessage = error.response.data.detail
+      }
+    }
+    
+    error.value = errorMessage
     useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось сохранить данные компании',
-      color: 'error'
+      title: errorTitle,
+      description: errorMessage,
+      color: 'error',
+      timeout: 8000
     })
   }
+}
+
+// Функция для получения человеческого имени поля
+const getFieldDisplayName = (field: string): string => {
+  const fieldNames: Record<string, string> = {
+    'inn': 'ИНН',
+    'ogrn': 'ОГРН',
+    'kpp': 'КПП',
+    'full_name': 'Полное название организации',
+    'name': 'Название организации',
+    'registration_date': 'Дата регистрации',
+    'legal_address': 'Юридический адрес',
+    'production_address': 'Адрес производства',
+    'phone': 'Телефон',
+    'email': 'Email',
+    'country': 'Страна',
+    'region': 'Регион',
+    'city': 'Город',
+    'federal_district': 'Федеральный округ',
+    'trade_activity': 'Торговая деятельность',
+    'business_type': 'Род деятельности',
+    'activity_type': 'Вид деятельности',
+    'description': 'Описание',
+    'website': 'Веб-сайт'
+  }
+  
+  return fieldNames[field] || field
 }
 
 // Handle logo upload
@@ -126,7 +192,6 @@ onMounted(() => {
   loadCompany()
 })
 </script>
-
 <template>
   <div class="container mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold text-gray-900 mb-8">Профиль компании</h1>

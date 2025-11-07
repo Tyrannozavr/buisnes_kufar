@@ -17,9 +17,10 @@ defineProps<{
         />
         <div>
           <h2 class="text-xl font-semibold">
-            <NuxtLink :to="`/companies/${item.companySlug}`" class="hover:text-primary-500">
+            <NuxtLink v-if="item.companySlug" :to="`/companies/${item.companySlug}`" class="hover:text-primary-500">
               {{ item.title }}
             </NuxtLink>
+            <span v-else>{{ item.title }}</span>
           </h2>
           <p class="text-sm text-gray-500">{{ new Date(item.date).toLocaleDateString() }}</p>
           <p class="text-sm text-gray-600">{{ item.activityType }}</p>
@@ -32,7 +33,7 @@ defineProps<{
     </div>
 
     <template #footer>
-      <div class="flex justify-end">
+      <div v-if="item.companySlug" class="flex justify-end">
         <UButton
           color="primary"
           variant="ghost"

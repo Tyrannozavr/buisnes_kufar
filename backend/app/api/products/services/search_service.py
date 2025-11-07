@@ -8,6 +8,17 @@ from app.api.products.models.product import Product, ProductType
 from app.api.products.schemas.product import ProductResponse, ProductListResponse
 
 
+def _safe_model_validate(product):
+    """Безопасно валидирует продукт, исправляя characteristics если необходимо"""
+    if hasattr(product, 'characteristics'):
+        characteristics = product.characteristics
+        if isinstance(characteristics, dict):
+            product.characteristics = []
+        elif not isinstance(characteristics, list):
+            product.characteristics = []
+    return ProductResponse.model_validate(product)
+
+
 class ProductSearchService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -46,7 +57,7 @@ class ProductSearchService:
         products = result.scalars().all()
 
         # Преобразуем в response
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -84,7 +95,7 @@ class ProductSearchService:
         result = await self.session.execute(query)
         services = result.scalars().all()
 
-        service_responses = [ProductResponse.model_validate(service) for service in services]
+        service_responses = [_safe_model_validate(service) for service in services]
 
         return ProductListResponse(
             products=service_responses,
@@ -106,6 +117,10 @@ class ProductSearchService:
                     Product.description.ilike(search_term)
                 )
             )
+
+        # Фильтр по городам (массив ID городов)
+        if filter_request.cities:
+            conditions.append(Company.city_id.in_(filter_request.cities))
 
         # Фильтр по стране
         if filter_request.country:

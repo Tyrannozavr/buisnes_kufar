@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCompaniesApi } from '~/api/companies'
 import type { CompanyShort } from '~/types/company'
+import CustomPagination from "~/components/ui/CustomPagination.vue";
 
 // API
 const { searchManufacturers } = useCompaniesApi()
@@ -28,11 +29,13 @@ const fetchCompanies = async () => {
   error.value = null
   
   try {
-    const response = await searchManufacturers({
+    const params = {
       page: currentPage.value,
       perPage: perPage.value,
       ...searchParams.value
-    })
+    }
+    
+    const response = await searchManufacturers(params)
     
     // Update the response data
     companies.value = response.data || []
@@ -68,10 +71,32 @@ watch([currentPage, searchParams], () => {
 const handleSearch = (params: any) => {
   searchParams.value = params
   currentPage.value = 1 // Reset to first page when searching
+  
+  // Update URL with filters
+  const router = useRouter()
+  router.push({
+    query: {
+      ...route.query,
+      page: '1',
+      search: params.search || undefined,
+      cities: params.cities?.length ? params.cities.join(',') : undefined,
+    }
+  })
+}
+
+// Parse filters from URL
+const route = useRoute()
+const urlFilters = {
+  search: route.query.search as string | undefined,
+  cities: route.query.cities ? (route.query.cities as string).split(',').map(Number) : undefined,
 }
 
 // Initial data fetch
 onMounted(() => {
+  // Apply filters from URL if present
+  if (urlFilters.search || urlFilters.cities?.length) {
+    searchParams.value = urlFilters
+  }
   fetchCompanies()
 })
 
@@ -96,6 +121,18 @@ const getActivityColor = (tradeActivity: string) => {
     default:
       return 'neutral'
   }
+}
+
+const handlePageChange = async (page: number) => {
+  // Update URL with page
+  const router = useRouter()
+  await router.push({
+    query: {
+      ...route.query,
+      page: page.toString()
+    }
+  })
+  currentPage.value = page
 }
 </script>
 
@@ -216,10 +253,11 @@ const getActivityColor = (tradeActivity: string) => {
 
       <!-- Pagination -->
       <div class="mt-8 flex justify-center">
-        <UPagination
-          v-model="currentPage"
+        <CustomPagination
+          :current-page="currentPage"
           :total="pagination.total"
           :per-page="perPage"
+          @update:page="handlePageChange"
         />
       </div>
     </section>

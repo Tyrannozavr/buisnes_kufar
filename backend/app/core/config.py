@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "business_trade"
     SQLALCHEMY_DATABASE_URL: Optional[str] = None
+    
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     # Настройки фронтенда
     FRONTEND_URL: str = "http://localhost:3000"
@@ -53,12 +57,20 @@ class Settings(BaseSettings):
 
     # CORS настройки
     BACKEND_CORS_ORIGINS: list[str] = [
+        # Production домены
+        "https://tradesynergy.ru",
+        "https://www.tradesynergy.ru",
+        "http://tradesynergy.ru",
+        "http://www.tradesynergy.ru",
+        # Development домены
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://0.0.0.0:3000",  # Для Docker dev окружения
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost",  # Для nginx прокси
         "http://127.0.0.1",  # Для nginx прокси
+        "http://frontend:3000",  # Для Docker внутренней сети
     ]
 
     MAIL_USERNAME: str | None = "mock_email@example.com"

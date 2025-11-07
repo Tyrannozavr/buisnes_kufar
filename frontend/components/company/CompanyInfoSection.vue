@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CompanyDataFormState } from '~/types/company'
 import type { LocationItem } from '~/types/location'
-import { useLocationsApi } from '~/api/locations'
+import { useLocationsDbApi } from '~/api/locations-db'
 import UCombobox from '~/components/ui/UCombobox.vue'
 import CompanyTypeSelect from '~/components/company/CompanyTypeSelect.vue'
 
@@ -38,22 +38,25 @@ const {
   citiesError,
   loadFederalDistricts,
   loadRegions,
-  loadCities
-} = useLocationsApi()
+  loadCities,
+  createRegion,
+  createCity
+} = useLocationsDbApi()
 
 // Добавляем состояние для поискового запроса города
 const citySearchQuery = ref('')
 const citySearchTimeout = ref<NodeJS.Timeout | null>(null)
 
-// Watch для страны
+// Watch для страны (опционально загружаем данные из БД)
 watch(() => props.formState.country, async (newCountry) => {
-  // Сбрасываем все зависимые поля
-  emit('update:formState', {
-    ...props.formState,
-    federalDistrict: undefined,
-    region: undefined,
-    city: undefined
-  })
+  // Сбрасываем федеральный округ при смене страны (кроме России)
+  if (newCountry?.value !== 'RU') {
+    emit('update:formState', {
+      ...props.formState,
+      federalDistrict: undefined
+    })
+  }
+  
   citySearchQuery.value = '' // Сбрасываем поисковый запрос
 
   if (!newCountry) {
@@ -62,8 +65,8 @@ watch(() => props.formState.country, async (newCountry) => {
 
   try {
     // Загружаем федеральные округи только для России
-    if (newCountry.value === 'Россия') {
-      await loadFederalDistricts()
+    if (newCountry.value === 'RU' || newCountry.value === 'Россия') {
+      await loadFederalDistricts('RU')
     } else {
       // Для других стран сразу загружаем регионы
       await loadRegions(newCountry.value)
@@ -73,39 +76,42 @@ watch(() => props.formState.country, async (newCountry) => {
   }
 })
 
-// Watch для федерального округа
+// Watch для федерального округа (загружаем регионы для России)
 watch(() => props.formState.federalDistrict, async (newFederalDistrict) => {
-  // Сбрасываем зависимые поля
-  emit('update:formState', {
-    ...props.formState,
-    region: undefined,
-    city: undefined
-  })
+  // Не сбрасываем city - пользователь может вводить произвольные данные
   citySearchQuery.value = '' // Сбрасываем поисковый запрос
 
-  if (!newFederalDistrict || !props.formState.country || props.formState.country.value !== 'Россия') {
+  if (!newFederalDistrict || !props.formState.country || props.formState.country.value !== 'RU') {
     return
   }
 
   try {
-    // Загружаем регионы только после выбора федерального округа для России
+    // Загружаем регионы для выбранного федерального округа
     await loadRegions(props.formState.country.value, newFederalDistrict.value)
   } catch (error) {
     console.error('Error handling federal district change:', error)
   }
 })
 
-// Watch для региона
+// Watch для региона (опционально загружаем города из БД)
 watch(() => props.formState.region, async (newRegion) => {
+  // Не сбрасываем city, чтобы пользователь мог вводить произвольные данные
+  citySearchQuery.value = '' // Сбрасываем поисковый запрос
+  
   if (!newRegion || !props.formState.country) {
-    emit('update:formState', {
-      ...props.formState,
-      city: undefined
-    })
-    citySearchQuery.value = '' // Сбрасываем поисковый запрос
     return
   }
-  // Убираем автоматическую загрузку городов при выборе региона
+  
+  try {
+    // Загружаем города для выбранного региона (необязательно)
+    await loadCities(
+      props.formState.country.value,
+      newRegion.value,
+      props.formState.federalDistrict?.value
+    )
+  } catch (error) {
+    console.error('Error loading cities for region:', error)
+  }
 })
 
 // Watch для поискового запроса города
@@ -115,9 +121,8 @@ watch(citySearchQuery, async (newQuery: string) => {
     clearTimeout(citySearchTimeout.value)
   }
 
-  // Если запрос короче 2 символов, очищаем список городов
+  // Если запрос короче 2 символов, не делаем поиск, но оставляем уже загруженные города
   if (newQuery.length < 2) {
-    cityOptions.value = []
     return
   }
 
@@ -128,7 +133,7 @@ watch(citySearchQuery, async (newQuery: string) => {
         await loadCities(
           props.formState.country.value,
           props.formState.region.value,
-          1,
+          props.formState.federalDistrict?.value,
           newQuery
         )
       }
@@ -137,6 +142,167 @@ watch(citySearchQuery, async (newQuery: string) => {
     }
   }, 300) // Задержка 300мс для предотвращения частых запросов
 })
+
+// Функция для форматирования названий (первая буква заглавная, остальные строчные)
+const formatLocationName = (name: string): string => {
+  if (!name || name.length === 0) return name
+  
+  // Разбиваем по пробелам и форматируем каждое слово
+  return name
+    .split(' ')
+    .map(word => {
+      if (word.length === 0) return word
+      return word[0].toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join(' ')
+}
+
+// Обработчик blur для региона - создание нового региона при необходимости
+const handleRegionBlur = async () => {
+  const currentRegionValue = props.formState.region?.value || props.formState.region?.label
+  
+  console.log('🔍 handleRegionBlur вызван', {
+    currentRegionValue,
+    regionValue: props.formState.region?.value,
+    regionLabel: props.formState.region?.label,
+    countryValue: props.formState.country?.value
+  })
+  
+  // Если регион не выбран и есть текст
+  if (!currentRegionValue || currentRegionValue.trim().length === 0) {
+    console.log('⚠️ Регион пустой, выходим')
+    return
+  }
+
+  // Проверяем, существует ли регион в списке
+  const regionExists = regionOptions.value.some(
+    r => r.value.toLowerCase() === currentRegionValue.toLowerCase() || 
+         r.label.toLowerCase() === currentRegionValue.toLowerCase()
+  )
+  
+  console.log('🔍 Проверка существования региона', { regionExists, currentRegionValue })
+
+  if (!regionExists && props.formState.country?.value) {
+    try {
+      const formattedName = formatLocationName(currentRegionValue)
+      
+      console.log('✨ Создание региона', {
+        countryCode: props.formState.country.value,
+        regionName: formattedName,
+        federalDistrictCode: props.formState.federalDistrict?.value
+      })
+      
+      // Пытаемся создать новый регион
+      const result = await createRegion(
+        props.formState.country.value,
+        formattedName,
+        props.formState.federalDistrict?.value
+      )
+      
+      console.log('✅ Результат создания региона', result)
+      if (result.success) {
+        // Добавляем созданный регион в список опций
+        regionOptions.value.push({
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Устанавливаем созданный регион как выбранный
+        updateField('region', {
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Показываем уведомление
+        useToast().add({
+          title: 'Успешно',
+          description: `Регион "${formattedName}" создан`,
+          color: 'success'
+        })
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating region:', error)
+      // Не показываем ошибку, регион может уже существовать
+    }
+  } else {
+    console.log('ℹ️ Регион уже существует или страна не выбрана')
+  }
+}
+
+// Обработчик blur для города - создание нового города при необходимости
+const handleCityBlur = async () => {
+  const currentCityValue = props.formState.city?.value || props.formState.city?.label
+  
+  console.log('🔍 handleCityBlur вызван', {
+    currentCityValue,
+    cityValue: props.formState.city?.value,
+    cityLabel: props.formState.city?.label,
+    countryValue: props.formState.country?.value,
+    regionValue: props.formState.region?.value
+  })
+  
+  // Если город не выбран и есть текст
+  if (!currentCityValue || currentCityValue.trim().length === 0) {
+    console.log('⚠️ Город пустой, выходим')
+    return
+  }
+
+  // Проверяем, существует ли город в списке
+  const cityExists = cityOptions.value.some(
+    c => c.value.toLowerCase() === currentCityValue.toLowerCase() || 
+         c.label.toLowerCase() === currentCityValue.toLowerCase()
+  )
+  
+  console.log('🔍 Проверка существования города', { cityExists, currentCityValue })
+
+  if (!cityExists && props.formState.country?.value && props.formState.region?.value) {
+    try {
+      const formattedName = formatLocationName(currentCityValue)
+      const regionName = props.formState.region.label || props.formState.region.value
+      
+      console.log('✨ Создание города', {
+        countryCode: props.formState.country.value,
+        regionName: regionName,
+        cityName: formattedName,
+        federalDistrictCode: props.formState.federalDistrict?.value
+      })
+      
+      // Пытаемся создать новый город
+      const result = await createCity(
+        props.formState.country.value,
+        regionName,
+        formattedName,
+        props.formState.federalDistrict?.value
+      )
+      
+      console.log('✅ Результат создания города', result)
+      if (result.success) {
+        // Добавляем созданный город в список опций
+        cityOptions.value.push({
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Устанавливаем созданный город как выбранный
+        updateField('city', {
+          label: formattedName,
+          value: formattedName
+        })
+        
+        // Показываем уведомление
+        useToast().add({
+          title: 'Успешно',
+          description: `Город "${formattedName}" создан`,
+          color: 'success'
+        })
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating city:', error)
+    }
+  } else {
+    console.log('ℹ️ Город уже существует или регион не выбран')
+  }
+}
 
 const updateField = (field: keyof CompanyDataFormState, value: any) => {
   emit('update:formState', {
@@ -220,17 +386,16 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             class="w-48"
             :items="countryOptions || []"
             :loading="countriesLoading"
-            :disabled="countriesLoading || !!countriesError"
-            placeholder="Выберите страну"
-            :search-input="{
-                placeholder: 'Поиск...',
-                icon: 'i-lucide-search'
-              }"
+            :disabled="countriesLoading"
+            placeholder="Выберите страну или введите произвольное название"
             searchable
             @update:model-value="value => updateField('country', value)"
         />
-        <p v-if="countriesError" class="text-red-500 text-sm mt-1">
-          Не удалось загрузить список стран. Пожалуйста, попробуйте позже.
+        <p v-if="countriesError" class="text-gray-500 text-sm mt-1">
+          Вы можете ввести любую страну вручную. Нажмите Enter для сохранения.
+        </p>
+        <p class="text-gray-500 text-sm mt-1">
+          Нажмите Enter для сохранения произвольного названия
         </p>
       </UFormField>
 
@@ -240,19 +405,16 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :items="federalDistrictOptions || []"
             :loading="federalDistrictsLoading"
             class="w-48"
-            :disabled="formState.country?.value !== 'Россия' || federalDistrictsLoading || !!federalDistrictsError"
-            placeholder="Выберите федеральный округ"
-            :search-input="{
-                placeholder: 'Поиск...',
-                icon: 'i-lucide-search'
-              }"
+            :disabled="formState.country?.value !== 'RU' || federalDistrictsLoading"
+            :disabled-message="formState.country?.value !== 'RU' ? 'Федеральный округ доступен только для России' : ''"
+            placeholder="Выберите федеральный округ или введите произвольное название"
             searchable
             @update:model-value="value => updateField('federalDistrict', value)"
         />
-        <p v-if="federalDistrictsError" class="text-red-500 text-sm mt-1">
-          Не удалось загрузить список федеральных округов. Пожалуйста, попробуйте позже.
+        <p v-if="federalDistrictsError" class="text-gray-500 text-sm mt-1">
+          Вы можете ввести любой федеральный округ вручную. Нажмите Enter для сохранения.
         </p>
-        <p v-if="formState.country && formState.country.value !== 'Россия'" class="text-gray-500 text-sm mt-1">
+        <p v-if="formState.country && formState.country.value !== 'RU'" class="text-gray-500 text-sm mt-1">
           Федеральный округ доступен только для России
         </p>
       </UFormField>
@@ -263,24 +425,25 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :items="regionOptions || []"
             :loading="regionsLoading"
             class="w-48"
-            :disabled="!formState.country ||
-                     (formState.country.value === 'Россия' && !formState.federalDistrict) ||
+            :disabled="!formState.country || 
+                     (formState.country.value === 'RU' && !formState.federalDistrict) ||
                      regionsLoading"
-            placeholder="Выберите регион"
-            :search-input="{
-                placeholder: 'Поиск...',
-                icon: 'i-lucide-search'
-              }"
+            :disabled-message="!formState.country 
+              ? 'Сначала выберите страну' 
+              : (formState.country.value === 'RU' && !formState.federalDistrict 
+                ? 'Сначала выберите федеральный округ' 
+                : '')"
+            placeholder="Выберите регион или введите произвольное название"
             searchable
+            allow-custom-input
+            :on-blur="handleRegionBlur"
             @update:model-value="value => updateField('region', value)"
         />
-        <p v-if="regionsError" class="text-red-500 text-sm mt-1">
-          Не удалось загрузить список регионов: {{ regionsError?.message || 'Неизвестная ошибка' }}
+        <p v-if="regionsError" class="text-gray-500 text-sm mt-1">
+          Вы можете ввести любой регион вручную. Нажмите Enter для сохранения.
         </p>
-        <p v-if="formState.country && !regionsLoading && !regionOptions?.length" class="text-gray-500 text-sm mt-1">
-          {{ formState.country.value === 'Россия'
-            ? 'Выберите федеральный округ для загрузки списка регионов'
-            : 'Для выбранной страны регионы не требуются' }}
+        <p v-if="formState.country?.value === 'RU' && !formState.federalDistrict" class="text-gray-500 text-sm mt-1">
+          Выберите федеральный округ для загрузки списка регионов
         </p>
       </UFormField>
 
@@ -289,23 +452,15 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             :model-value="formState.city"
             :items="cityOptions || []"
             :loading="citiesLoading"
-            :disabled="!formState.region"
-            :disabled-message="!formState.region ? 'Сначала выберите регион' : ''"
             class="w-48"
-            placeholder="Введите название города (минимум 2 символа)"
-            :search-input="{
-                modelValue: citySearchQuery,
-                'onUpdate:modelValue': (val: string) => { citySearchQuery = val },
-                placeholder: 'Поиск города...',
-                icon: 'i-lucide-search'
-              }"
+            placeholder="Выберите город или введите произвольное название"
+            searchable
+            allow-custom-input
+            :on-blur="handleCityBlur"
             @update:model-value="(value: LocationItem | undefined) => updateField('city', value)"
         />
-        <p v-if="citiesError" class="text-red-500 text-sm mt-1">
-          Не удалось загрузить список городов: {{ citiesError?.message || 'Неизвестная ошибка' }}
-        </p>
-        <p v-if="citySearchQuery.length > 0 && citySearchQuery.length < 2" class="text-gray-500 text-sm mt-1">
-          Введите минимум 2 символа для поиска города
+        <p class="text-gray-500 text-sm mt-1">
+          Нажмите Enter для сохранения произвольного названия города
         </p>
       </UFormField>
     </div>

@@ -1,17 +1,62 @@
 from typing import Optional
+from datetime import datetime, timedelta
+import asyncio
 
-from fastapi import APIRouter, Query, Path, HTTPException
+from fastapi import APIRouter, Query, Path, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from .routes.locations import location_api
 from ..common.schemas.location import LocationResponse
 from ..common.utils.caching import get_cached_regions, get_cached_cities
 from ..common.utils.location_api import LocationAPIError
 from ..common.utils.location_data import (
-    get_countries,
-    get_federal_districts,
+    get_countries as fetch_countries,
+    get_federal_districts as fetch_federal_districts,
 )
 
 router = APIRouter(tags=["locations"])
+
+# Кэш для API локаций (30 минут)
+class LocationAPICache:
+    def __init__(self):
+        self._cache = {}
+        self._cache_timestamps = {}
+        self._cache_duration = timedelta(minutes=30)
+        self._lock = asyncio.Lock()
+
+    def _is_cache_valid(self, cache_key: str) -> bool:
+        if cache_key not in self._cache_timestamps:
+            return False
+        return datetime.now() - self._cache_timestamps[cache_key] < self._cache_duration
+
+    def _get_cache(self, cache_key: str):
+        if self._is_cache_valid(cache_key):
+            return self._cache.get(cache_key)
+        return None
+
+    def _set_cache(self, cache_key: str, data):
+        self._cache[cache_key] = data
+        self._cache_timestamps[cache_key] = datetime.now()
+
+    async def get_cached_data(self, cache_key: str, fetch_fn):
+        async with self._lock:
+            cached_data = self._get_cache(cache_key)
+            if cached_data:
+                return cached_data
+            
+            data = await fetch_fn()
+            self._set_cache(cache_key, data)
+            return data
+
+# Глобальный экземпляр кэша
+location_cache = LocationAPICache()
+
+# Dependency для получения сессии базы данных
+async def get_db():
+    from app.db.base import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 async def unify_list(items: list) -> list:
@@ -19,97 +64,83 @@ async def unify_list(items: list) -> list:
 
 
 @router.get("/countries", response_model=LocationResponse)
-async def get_countries_list():
-    """Получить список стран"""
-    countries = get_countries()
-    return {
-        "items": countries,
-        "total": len(countries)
-    }
-
-
-@router.get("/federal-districts", response_model=LocationResponse)
-async def get_federal_districts_list():
-    """Получить список федеральных округов"""
-    federal_districts = await unify_list(get_federal_districts())
-    return {
-        "items": federal_districts,
-        "total": len(federal_districts)
-    }
-
-
-@router.get("/regions/{country}", response_model=LocationResponse)
-async def get_regions_list(
-        country: str = Path(..., description="Страна"),
-        federal_district: Optional[str] = Query(None, description="Федеральный округ")
-):
-    """
-    Получить список регионов по стране и федеральному округу.
-    Результаты кэшируются для одинаковых запросов.
-    """
+async def get_countries():
+    """Получить список всех стран"""
     try:
-        country_code = country.upper() if len(country) == 2 else {
-            "Россия": "RU",
-            "Беларусь": "BY",
-            "Казахстан": "KZ",
-            "Украина": "UA",
-            "Армения": "AM",
-            "Азербайджан": "AZ",
-            "Киргизия": "KG",
-            "Молдова": "MD",
-            "Таджикистан": "TJ",
-            "Узбекистан": "UZ"
-        }.get(country, country)
-
-        _, regions = await get_cached_regions(country_code, federal_district)
-
-        if federal_district and country_code == "RU":
-            regions = [region for region in regions if region.get("okrug") == federal_district]
-
-        regions = await unify_list(regions)
+        countries = fetch_countries()
         return LocationResponse(
-            items=regions,
-            total=len(regions)
+            items=countries,
+            total=len(countries)
         )
-    except Exception as e:
+    except LocationAPIError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/cities", response_model=LocationResponse)
-async def get_cities_list(
-        country: str = Query(..., description="Страна"),
-        region: str = Query(..., description="Регион"),
-        name: str = Query(None, description="Название города")
-):
-    """Получить список городов по стране и региону"""
-    country = "Беларусь"
-    region = "Витебская область"
-    if name is None:
-        return {
-            "items": [],
-            "total": 0
-        }
-    _, cities = await get_cached_cities(country_code=country, region=region)
-    cities = [city for city in cities if city.get("label").lower().startswith(name.lower())]
-    cities = await unify_list(cities)
-    return {
-        "items": cities,
-        "total": len(cities)
-    }
-
-
-@router.get("/districts/{region_id}", response_model=LocationResponse)
-async def get_districts_list(
-        region_id: int = Path(..., description="ID региона")
-):
-    """
-    Получить список районов для указанного региона.
-    """
+@router.get("/federal-districts", response_model=LocationResponse)
+async def get_federal_districts(country: str = Query(..., description="Название страны")):
+    """Получить список федеральных округов по стране"""
     try:
-        districts = await location_api.get_districts(region_id)
+        districts = fetch_federal_districts()
         return LocationResponse(
             items=districts,
             total=len(districts)
         )
     except LocationAPIError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/regions", response_model=LocationResponse)
+async def get_regions(
+    country: str = Query(..., description="Название страны"),
+    federal_district: Optional[str] = Query(None, description="Название федерального округа")
+):
+    """Получить список регионов по стране и федеральному округу"""
+    try:
+        cache_key, regions = get_cached_regions(country, federal_district)
+        return LocationResponse(
+            items=regions,
+            total=len(regions)
+        )
+    except LocationAPIError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/regions/{country_code}", response_model=LocationResponse)
+async def get_regions_by_country(
+    country_code: str = Path(..., description="Код страны")
+):
+    """Получить список регионов по коду страны"""
+    try:
+        cache_key, regions = get_cached_regions(country_code, None)
+        return LocationResponse(
+            items=regions,
+            total=len(regions)
+        )
+    except LocationAPIError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cities", response_model=LocationResponse)
+async def get_cities(
+    country: str = Query(..., description="Название страны"),
+    region: Optional[str] = Query(None, description="Название региона"),
+    federal_district: Optional[str] = Query(None, description="Название федерального округа"),
+    search: Optional[str] = Query(None, description="Поиск по названию города"),
+    million_cities_only: bool = Query(False, description="Только города-миллионники"),
+    regional_centers_only: bool = Query(False, description="Только региональные центры")
+):
+    """Получить список городов по стране, региону и федеральному округу"""
+    try:
+        cache_key, cities = await get_cached_cities(
+            country, region, federal_district, search, 
+            million_cities_only, regional_centers_only
+        )
+        return LocationResponse(
+            items=cities,
+            total=len(cities)
+        )
+    except LocationAPIError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Новые endpoints для работы с базой данных (временно отключены)

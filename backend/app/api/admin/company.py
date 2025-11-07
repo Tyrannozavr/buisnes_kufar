@@ -1,5 +1,7 @@
 from sqladmin import ModelView
 from sqladmin.fields import QuerySelectField
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 
 from app.api.company.models.company import Company
 from app.api.company.models.official import CompanyOfficial
@@ -85,8 +87,7 @@ class CompanyAdmin(ModelView, model=Company):
         Company.monthly_views,
         Company.total_purchases,
         Company.created_at,
-        Company.updated_at,
-        Company.user_id
+        Company.updated_at
     ]
 
     # Настройка формы редактирования
@@ -110,8 +111,7 @@ class CompanyAdmin(ModelView, model=Company):
         Company.production_address,
         Company.phone,
         Company.email,
-        Company.website,
-        Company.user_id
+        Company.website
     ]
 
     # Настройка отображения в списке
@@ -143,8 +143,7 @@ class CompanyAdmin(ModelView, model=Company):
         Company.monthly_views: "Просмотров за месяц",
         Company.total_purchases: "Всего покупок",
         Company.created_at: "Дата создания",
-        Company.updated_at: "Дата обновления",
-        Company.user_id: "ID пользователя"
+        Company.updated_at: "Дата обновления"
     }
 
     # Настройка форматирования
@@ -170,6 +169,21 @@ class CompanyAdmin(ModelView, model=Company):
     can_edit = True
     can_delete = True
     can_view_details = True
+
+    # Убираем кастомную логику удаления - используем стандартную SQLAdmin с каскадным удалением
+    # async def delete_model(self, request, pk):
+    #     """Кастомная логика удаления компании с правильным каскадным удалением"""
+    #     from app.db.base import AsyncSessionLocal
+    #     
+    #     async with AsyncSessionLocal() as session:
+    #         # Получаем компанию
+    #         company = await session.get(Company, pk)
+    #         if not company:
+    #             return
+    #         
+    #         # Удаляем компанию - каскадное удаление должно сработать автоматически
+    #         await session.delete(company)
+    #         await session.commit()
 
 
 class CompanyOfficialAdmin(ModelView, model=CompanyOfficial):

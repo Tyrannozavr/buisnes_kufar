@@ -6,6 +6,17 @@ from pydantic import BaseModel
 class FilterItem(BaseModel):
     label: str
     value: str
+    count: int = 0  # Количество компаний для этого фильтра
+
+
+class CompanyCityCount(BaseModel):
+    city_name: str
+    region_name: str
+    company_count: int
+
+
+class CompanyCitiesCountResponse(BaseModel):
+    cities: List[CompanyCityCount]
 
 
 class CompanyFiltersResponse(BaseModel):
@@ -17,6 +28,7 @@ class CompanyFiltersResponse(BaseModel):
 
 class ProductFilterRequest(BaseModel):
     search: Optional[str] = None
+    cities: Optional[List[int]] = None  # Добавляем массив ID городов
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
@@ -30,6 +42,7 @@ class ProductFilterRequest(BaseModel):
 
 class ServiceFilterRequest(BaseModel):
     search: Optional[str] = None
+    cities: Optional[List[int]] = None  # Добавляем массив ID городов
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
@@ -37,5 +50,18 @@ class ServiceFilterRequest(BaseModel):
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     in_stock: Optional[bool] = None
+    skip: int = 0
+    limit: int = 100
+
+
+class CompanyFilterRequest(BaseModel):
+    search: Optional[str] = None
+    cities: Optional[List[int]] = None  # ID городов
+    business_type: Optional[str] = None  # goods, services, both
+    trade_activity: Optional[str] = None  # buyer, seller, both
+    country: Optional[str] = None
+    federal_district: Optional[str] = None
+    region: Optional[str] = None
+    city: Optional[str] = None
     skip: int = 0
     limit: int = 100

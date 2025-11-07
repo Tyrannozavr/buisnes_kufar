@@ -59,18 +59,18 @@ watch(() => props.messages, () => {
 <template>
   <div class="h-full flex flex-col">
     <!-- Chat Header -->
-    <div v-if="otherParticipant" class="border-b p-4">
+    <div v-if="otherParticipant && otherParticipant.company_slug" class="border-b p-4">
       <NuxtLink 
-        :to="`/companies/${otherParticipant.slug}`"
+        :to="`/companies/${otherParticipant.company_slug}`"
         class="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
       >
         <img
-          :src="otherParticipant.logo || '/images/default-company-logo.png'"
-          :alt="otherParticipant.name"
+          :src="otherParticipant.company_logo_url || '/images/default-company-logo.png'"
+          :alt="otherParticipant.company_name"
           class="w-10 h-10 rounded-full object-cover"
         />
         <div>
-          <h3 class="font-medium text-gray-900">{{ otherParticipant.name }}</h3>
+          <h3 class="font-medium text-gray-900">{{ otherParticipant.company_name }}</h3>
           <p class="text-sm text-gray-500">Перейти на страницу компании</p>
         </div>
       </NuxtLink>

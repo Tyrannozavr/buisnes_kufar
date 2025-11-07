@@ -17,7 +17,7 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     chat_id: Mapped[int] = mapped_column(ForeignKey("chats.id"), nullable=False)
-    sender_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
+    sender_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     sender_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     file_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

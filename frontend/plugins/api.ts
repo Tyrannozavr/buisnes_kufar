@@ -12,10 +12,15 @@ export default defineNuxtPlugin((nuxtApp) => {
   let baseURL: string
   if (import.meta.server) {
     // On server side, we need to reach the backend directly
-    baseURL = config.apiBaseUrl || 'http://backend:8000/api'
+    baseURL = config.apiBaseUrl
   } else {
-    // On client side, use the configured base URL (which will be proxied by nginx)
-    baseURL = config.public.apiBaseUrl || '/api'
+    // On client side, use the configured base URL
+    baseURL = config.public.apiBaseUrl
+  }
+
+  // Validate that baseURL is configured
+  if (!baseURL) {
+    throw new Error('API base URL is not configured. Please set API_BASE_URL and VITE_PUBLIC_API_URL environment variables.')
   }
 
   // Create a custom fetch instance with base configuration

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { ProductSearchParams, ServiceSearchParams, LocationItem } from '~/types/filters'
 import { isLocationItem } from '~/types/filters'
-import { useProductFilters, useServiceFilters } from '~/api/filters'
+import { useProductFilters, useServiceFilters, useCompanyFilters } from '~/api/filters'
+import CitiesFilterTree from './CitiesFilterTree.vue'
 
 const props = defineProps<{
-  type: 'products' | 'services'
-  title: string
+  type: 'products' | 'services' | 'companies'
+  title?: string
   locationPrefix?: string
 }>()
 
@@ -13,104 +14,55 @@ const emit = defineEmits<{
   (e: 'search', params: ProductSearchParams | ServiceSearchParams): void
 }>()
 
-// API для фильтров
+// API для фильтров (оставляем только для совместимости, но не используем)
 const { getProductFilters } = useProductFilters()
 const { getServiceFilters } = useServiceFilters()
+const { getCompanyFilters } = useCompanyFilters()
+
+// API instance
+const { $api } = useNuxtApp()
 
 // Состояние загрузки фильтров
 const filtersLoading = ref(false)
 const filtersError = ref<string | null>(null)
 
-// Данные фильтров
-const filterData = ref<{
-  countries: LocationItem[]
-  federal_districts: LocationItem[]
-  regions: LocationItem[]
-  cities: LocationItem[]
-}>({
-  countries: [],
-  federal_districts: [],
-  regions: [],
-  cities: []
-})
 
 // Search state
 const searchQuery = ref('')
-const selectedCountry = ref<LocationItem | undefined>(undefined)
-const selectedFederalDistrict = ref<LocationItem | undefined>(undefined)
-const selectedRegion = ref<LocationItem | undefined>(undefined)
-const selectedCity = ref<LocationItem | undefined>(undefined)
+const selectedCities = ref<number[]>([])
 const minPrice = ref<number | null>(null)
 const maxPrice = ref<number | null>(null)
 const inStock = ref(false)
 
-// Filter mode
-const isAdvancedMode = ref(false)
+// Cities filter data
+const citiesData = ref<any>(null)
+const citiesLoading = ref(false)
+const citiesError = ref<string | null>(null)
+
+
+// Dialog state for cities filter
+const showCitiesDialog = ref(false)
+
+// Cities filter state
+const expandedCountries = ref<number[]>([])
+const expandedFederalDistricts = ref<number[]>([])
+const expandedRegions = ref<number[]>([])
 
 // Computed properties
-const isRussia = computed(() => selectedCountry.value?.value === 'Россия')
-const showFederalDistricts = computed(() => isRussia.value)
 
-// Фильтрация городов по региону
-const filteredCities = computed(() => {
-  if (!selectedRegion.value) return []
-  // Фильтруем города по региону, если value совпадает с value региона в названии города (можно доработать под вашу структуру)
-  // Например, если города имеют value вида "Минск, Минская область", фильтруем по includes
-  return filterData.value.cities.filter(city => city.label.includes(selectedRegion.value!.value) || city.value.includes(selectedRegion.value!.value))
-})
+// Methods - убрали загрузку старых фильтров, используем citiesData
 
-// Methods
-const loadFilters = async () => {
-  filtersLoading.value = true
-  filtersError.value = null
-  
-  try {
-    let response
-    if (props.type === 'products') {
-      response = await getProductFilters()
-    } else {
-      response = await getServiceFilters()
-    }
-    
-    filterData.value = {
-      countries: response.countries,
-      federal_districts: response.federal_districts,
-      regions: response.regions,
-      cities: response.cities
-    }
-  } catch (error) {
-    filtersError.value = `Ошибка загрузки фильтров: ${error}`
-    console.error('Error loading filters:', error)
-  } finally {
-    filtersLoading.value = false
-  }
-}
 
-const handleCountryChange = async (country: LocationItem) => {
-  selectedCountry.value = country
-  selectedFederalDistrict.value = undefined
-  selectedRegion.value = undefined
-  selectedCity.value = undefined
-}
-
-const handleFederalDistrictChange = async (district: LocationItem) => {
-  selectedFederalDistrict.value = district
-  selectedRegion.value = undefined
-  selectedCity.value = undefined
-}
-
-const handleRegionChange = async (region: LocationItem) => {
-  selectedRegion.value = region
-  selectedCity.value = undefined
+// Handle location tree selection
+const handleLocationSelection = (selection: { countries: string[]; regions: string[]; cities: string[] }) => {
+  console.log('Location selection changed:', selection)
+  // Здесь можно добавить дополнительную логику обработки выбора
 }
 
 const handleSearch = () => {
   const params = {
     search: searchQuery.value,
-    country: selectedCountry.value?.value || '',
-    federalDistrict: selectedFederalDistrict.value?.value || '',
-    region: selectedRegion.value?.value || '',
-    city: selectedCity.value?.value || '',
+    cities: selectedCities.value,
     minPrice: minPrice.value || undefined,
     maxPrice: maxPrice.value || undefined,
     inStock: inStock.value || undefined
@@ -119,30 +71,288 @@ const handleSearch = () => {
   emit('search', params)
 }
 
-// Load initial data
-onMounted(() => {
-  loadFilters()
+// Cities filter functions
+const loadCitiesData = async () => {
+  console.log('Loading cities data for type:', props.type)
+  citiesLoading.value = true
+  citiesError.value = null
+  
+  try {
+    // Определяем правильный эндпоинт в зависимости от типа страницы
+    let endpoint = '/v1/cities-filter/'
+    if (props.type === 'products') {
+      endpoint += 'products'
+    } else if (props.type === 'services') {
+      endpoint += 'services'
+    } else if (props.type === 'companies') {
+      endpoint += 'companies'
+    } else {
+      // По умолчанию products
+      endpoint += 'products'
+    }
+    
+    const response = await $api.get(endpoint)
+    console.log('Cities data loaded:', response)
+    citiesData.value = response
+  } catch (e) {
+    citiesError.value = 'Ошибка загрузки данных о городах'
+    console.error('Error fetching cities data:', e)
+  } finally {
+    citiesLoading.value = false
+  }
+}
+
+// Dialog functions
+const openCitiesDialog = () => {
+  showCitiesDialog.value = true
+}
+
+const closeCitiesDialog = () => {
+  showCitiesDialog.value = false
+}
+
+const applyCitiesSelection = () => {
+  // Сохраняем выбор
+  closeCitiesDialog()
+  // Автоматически применяем поиск
+  handleSearch()
+}
+
+const clearCitiesSelection = () => {
+  selectedCities.value = []
+}
+
+// Toggle functions
+const toggleCountry = (countryId: number) => {
+  console.log('Toggling country:', countryId)
+  const index = expandedCountries.value.indexOf(countryId)
+  if (index > -1) {
+    expandedCountries.value.splice(index, 1)
+    console.log('Country collapsed')
+  } else {
+    expandedCountries.value.push(countryId)
+    console.log('Country expanded')
+  }
+}
+
+const toggleFederalDistrict = (fdId: number) => {
+  const index = expandedFederalDistricts.value.indexOf(fdId)
+  if (index > -1) {
+    expandedFederalDistricts.value.splice(index, 1)
+  } else {
+    expandedFederalDistricts.value.push(fdId)
+  }
+}
+
+const toggleRegion = (regionId: number) => {
+  const index = expandedRegions.value.indexOf(regionId)
+  if (index > -1) {
+    expandedRegions.value.splice(index, 1)
+  } else {
+    expandedRegions.value.push(regionId)
+  }
+}
+
+// Selection functions
+const toggleCitySelection = (cityId: number) => {
+  if (selectedCities.value.includes(cityId)) {
+    selectedCities.value = selectedCities.value.filter(id => id !== cityId)
+  } else {
+    selectedCities.value = [...selectedCities.value, cityId]
+  }
+}
+
+const toggleRegionSelection = (regionId: number) => {
+  const region = findRegionById(regionId)
+  if (!region) return
+  
+  const regionCityIds = region.cities.map((city: any) => city.id)
+  const allSelected = regionCityIds.every(id => selectedCities.value.includes(id))
+  
+  if (allSelected) {
+    selectedCities.value = selectedCities.value.filter(id => !regionCityIds.includes(id))
+  } else {
+    const newSelections = regionCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
+  }
+}
+
+const toggleFederalDistrictSelection = (fdId: number) => {
+  const fd = findFederalDistrictById(fdId)
+  if (!fd) return
+  
+  const fdCityIds = fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  const allSelected = fdCityIds.every(id => selectedCities.value.includes(id))
+  
+  if (allSelected) {
+    selectedCities.value = selectedCities.value.filter(id => !fdCityIds.includes(id))
+  } else {
+    const newSelections = fdCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
+  }
+}
+
+const toggleCountrySelection = (countryId: number) => {
+  const country = findCountryById(countryId)
+  if (!country) return
+  
+  const countryCityIds = country.federal_districts.flatMap((fd: any) => 
+    fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  )
+  const allSelected = countryCityIds.every(id => selectedCities.value.includes(id))
+  
+  if (allSelected) {
+    selectedCities.value = selectedCities.value.filter(id => !countryCityIds.includes(id))
+  } else {
+    const newSelections = countryCityIds.filter(id => !selectedCities.value.includes(id))
+    selectedCities.value = [...selectedCities.value, ...newSelections]
+  }
+}
+
+const clearAllSelections = () => {
+  selectedCities.value = []
+}
+
+// Helper functions
+const findCountryById = (id: number): any => {
+  return citiesData.value?.countries.find((c: any) => c.id === id) || null
+}
+
+const findFederalDistrictById = (id: number): any => {
+  for (const country of citiesData.value?.countries || []) {
+    const fd = country.federal_districts.find((fd: any) => fd.id === id)
+    if (fd) return fd
+  }
+  return null
+}
+
+const findRegionById = (id: number): any => {
+  for (const country of citiesData.value?.countries || []) {
+    for (const fd of country.federal_districts) {
+      const region = fd.regions.find((r: any) => r.id === id)
+      if (region) return region
+    }
+  }
+  return null
+}
+
+// Check selection state
+const isCountrySelected = (countryId: number): boolean => {
+  const country = findCountryById(countryId)
+  if (!country) return false
+  
+  const countryCityIds = country.federal_districts.flatMap((fd: any) => 
+    fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  )
+  return countryCityIds.length > 0 && countryCityIds.every(id => selectedCities.value.includes(id))
+}
+
+const isFederalDistrictSelected = (fdId: number): boolean => {
+  const fd = findFederalDistrictById(fdId)
+  if (!fd) return false
+  
+  const fdCityIds = fd.regions.flatMap((region: any) => region.cities.map((city: any) => city.id))
+  return fdCityIds.length > 0 && fdCityIds.every(id => selectedCities.value.includes(id))
+}
+
+const isRegionSelected = (regionId: number): boolean => {
+  const region = findRegionById(regionId)
+  if (!region) return false
+  
+  const regionCityIds = region.cities.map((city: any) => city.id)
+  return regionCityIds.length > 0 && regionCityIds.every(id => selectedCities.value.includes(id))
+}
+
+// Stats functions
+const getCountryStats = (country: any): string => {
+  // Суммируем количество товаров из всех федеральных округов
+  const totalProducts = country.federal_districts.reduce((sum: number, fd: any) => {
+    return sum + getFederalDistrictProductsCount(fd)
+  }, 0)
+  
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
+}
+
+const getFederalDistrictStats = (fd: any): string => {
+  const totalProducts = getFederalDistrictProductsCount(fd)
+  
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
+}
+
+const getRegionStats = (region: any): string => {
+  // Суммируем количество товаров из всех городов в регионе
+  const totalProducts = region.cities.reduce((sum: number, city: any) => {
+    return sum + (city.products_count || 0)
+  }, 0)
+  
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
+}
+
+const getCityStats = (city: any): string => {
+  // Используем products_count из города
+  const totalProducts = city.products_count || 0
+  
+  if (props.type === 'companies') {
+    return `${totalProducts} компаний`
+  } else {
+    return `${totalProducts} товаров`
+  }
+}
+
+// Вспомогательная функция для подсчета товаров в федеральном округе
+const getFederalDistrictProductsCount = (fd: any): number => {
+  return fd.regions.reduce((sum: number, region: any) => {
+    return sum + region.cities.reduce((regionSum: number, city: any) => {
+      return regionSum + (city.products_count || 0)
+    }, 0)
+  }, 0)
+}
+
+// Load initial data and parse URL params
+onMounted(async () => {
+  await loadCitiesData()
+  
+  // Парсим параметры из URL
+  const route = useRoute()
+  const { cities } = route.query
+  
+  // Если есть cities в URL, парсим их
+  if (cities && typeof cities === 'string') {
+    const cityIds = cities.split(',').map(id => parseInt(id)).filter(id => !isNaN(id))
+    selectedCities.value = cityIds
+  }
+  
+  // Также парсим другие параметры
+  if (route.query.search) {
+    searchQuery.value = route.query.search as string
+  }
+  if (route.query.minPrice) {
+    minPrice.value = parseFloat(route.query.minPrice as string)
+  }
+  if (route.query.maxPrice) {
+    maxPrice.value = parseFloat(route.query.maxPrice as string)
+  }
+  if (route.query.inStock === 'true') {
+    inStock.value = true
+  }
 })
+
 </script>
 
 <template>
   <UCard class="mb-6">
-    <!-- Advanced Mode Toggle -->
-    <div class="flex justify-end mb-4">
-      <UButton
-        color="neutral"
-        variant="ghost"
-        class="flex items-center gap-2"
-        @click="isAdvancedMode = !isAdvancedMode"
-      >
-        <span class="text-sm text-gray-500">Расширенный режим</span>
-        <Icon
-          :name="isAdvancedMode ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-          class="w-4 h-4 text-gray-500"
-        />
-      </UButton>
-    </div>
-
     <div v-if="filtersLoading" class="flex justify-center py-8">
       <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin" />
     </div>
@@ -180,80 +390,33 @@ onMounted(() => {
         </div>
       </UFormField>
 
-      <!-- Advanced Filters (Visible only in advanced mode) -->
-      <template v-if="isAdvancedMode">
-        <!-- Country -->
-        <UFormField label="Страна">
-          <USelectMenu
-            v-model="selectedCountry"
-            :items="filterData.countries"
-            :search-input="{
-              placeholder: 'Поиск',
-              icon: 'i-lucide-search'
-            }"
-            placeholder="Выберите страну"
-            searchable
-            @update:model-value="handleCountryChange"
-          />
-        </UFormField>
-
-        <!-- Federal District (only for Russia) -->
-        <UFormField
-          v-if="showFederalDistricts"
-          label="Федеральный округ"
+      <!-- Cities Filter -->
+      <UFormField label="Фильтр по городам">
+        <UButton 
+          color="neutral" 
+          variant="outline" 
+          class="w-full justify-between cursor-pointer"
+          @click="openCitiesDialog"
         >
-          <USelectMenu
-            v-model="selectedFederalDistrict"
-            :items="filterData.federal_districts"
-            :search-input="{
-              placeholder: 'Поиск',
-              icon: 'i-lucide-search'
-            }"
-            placeholder="Выберите федеральный округ"
-            searchable
-            @update:model-value="handleFederalDistrictChange"
-          />
-        </UFormField>
+          <span>{{ selectedCities.length > 0 ? `Выбрано городов: ${selectedCities.length}` : 'Города не выбраны' }}</span>
+          <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
+        </UButton>
+      </UFormField>
 
-        <!-- Region -->
-        <UFormField label="Регион">
-          <USelectMenu
-            v-model="selectedRegion"
-            :items="filterData.regions"
-            :search-input="{
-              placeholder: 'Поиск',
-              icon: 'i-lucide-search'
-            }"
-            placeholder="Выберите регион"
-            searchable
-            @update:model-value="handleRegionChange"
-          />
-        </UFormField>
-
-        <!-- City -->
-        <UFormField label="Город">
-          <USelectMenu
-            v-model="selectedCity"
-            :items="filteredCities"
-            placeholder="Выберите город"
-            :disabled="!selectedRegion"
-          />
-        </UFormField>
-
-        <!-- In Stock -->
-        <UFormField label="Доступность">
-          <UCheckbox
-            v-model="inStock"
-            :label="type === 'products' ? 'В наличии' : 'Доступно'"
-          />
-        </UFormField>
-      </template>
+      <!-- In Stock -->
+      <UFormField label="Доступность">
+        <UCheckbox
+          v-model="inStock"
+          :label="type === 'products' ? 'В наличии' : 'Доступно'"
+        />
+      </UFormField>
     </div>
 
     <template #footer>
       <div class="flex justify-end">
         <UButton
           color="primary"
+          class="cursor-pointer"
           @click="handleSearch"
         >
           Найти
@@ -261,4 +424,178 @@ onMounted(() => {
       </div>
     </template>
   </UCard>
-</template> 
+
+  <!-- Cities Modal Dialog -->
+  <UModal :open="showCitiesDialog" @close="closeCitiesDialog">
+    <template #content>
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Выберите города</h3>
+            <UButton 
+              color="neutral" 
+              variant="ghost" 
+              icon="i-heroicons-x-mark"
+              class="cursor-pointer"
+              @click="closeCitiesDialog"
+            />
+          </div>
+        </template>
+        
+        <div class="py-4">
+          <div class="cities-filter-tree border rounded-lg p-4 max-h-96 overflow-y-auto">
+        <div v-if="citiesLoading" class="flex justify-center py-4">
+          <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin" />
+        </div>
+        
+        <div v-else-if="citiesError" class="text-red-500 text-sm py-2">
+          {{ citiesError }}
+        </div>
+        
+        <div v-else class="space-y-2">
+          <div v-for="country in citiesData?.countries" :key="country.id" class="border rounded-lg">
+            <!-- Country Header -->
+            <div class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-green-50 rounded-lg transition-colors">
+              <UCheckbox 
+                :model-value="isCountrySelected(country.id)"
+                @update:model-value="toggleCountrySelection(country.id)"
+              />
+              <div 
+                class="flex items-center gap-2 cursor-pointer flex-1"
+                @click="toggleCountry(country.id)"
+              >
+                <UIcon 
+                  :name="expandedCountries.includes(country.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                  class="w-4 h-4 text-gray-500"
+                />
+                <span class="font-medium text-sm">{{ country.name }}</span>
+                <span class="text-xs text-gray-500">({{ getCountryStats(country) }})</span>
+              </div>
+            </div>
+            
+            <!-- Federal Districts (only for Russia) -->
+            <div v-if="expandedCountries.includes(country.id)" class="border-t">
+              <div v-for="fd in country.federal_districts.filter(fd => fd.regions.some(region => region.cities.length > 0))" :key="fd.id" class="border-b last:border-b-0">
+                <!-- Federal District Header (only show if not default virtual district) -->
+                <div v-if="fd.id !== -1" class="flex items-center gap-3 p-2 pl-6 bg-gray-25 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                  <UCheckbox 
+                    :model-value="isFederalDistrictSelected(fd.id)"
+                    @update:model-value="toggleFederalDistrictSelection(fd.id)"
+                  />
+                  <div 
+                    class="flex items-center gap-2 cursor-pointer flex-1"
+                    @click="toggleFederalDistrict(fd.id)"
+                  >
+                    <UIcon 
+                      :name="expandedFederalDistricts.includes(fd.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                      class="w-4 h-4 text-gray-500"
+                    />
+                    <span class="text-sm">{{ fd.name }}</span>
+                    <span class="text-xs text-gray-500">({{ getFederalDistrictStats(fd) }})</span>
+                  </div>
+                </div>
+                
+                <!-- Regions -->
+                <div v-if="fd.id === -1 || expandedFederalDistricts.includes(fd.id)" class="border-t">
+                  <div v-for="region in fd.regions.filter(region => region.cities.length > 0)" :key="region.id" class="border-b last:border-b-0">
+                    <!-- Region Header -->
+                    <div class="flex items-center gap-3 p-2 pl-12 bg-white hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors">
+                      <UCheckbox 
+                        :model-value="isRegionSelected(region.id)"
+                        @update:model-value="toggleRegionSelection(region.id)"
+                      />
+                      <div 
+                        class="flex items-center gap-2 cursor-pointer flex-1"
+                        @click="toggleRegion(region.id)"
+                      >
+                        <UIcon 
+                          :name="expandedRegions.includes(region.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'" 
+                          class="w-4 h-4 text-gray-500"
+                        />
+                        <span class="text-sm">{{ region.name }}</span>
+                        <span class="text-xs text-gray-500">({{ getRegionStats(region) }})</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Cities -->
+                    <div v-if="expandedRegions.includes(region.id)" class="border-t">
+                      <div v-for="city in region.cities" :key="city.id" class="border-b last:border-b-0">
+                        <div class="flex items-center gap-3 p-2 pl-16 hover:bg-green-50 rounded-lg mx-2 my-1 transition-colors cursor-pointer" @click="toggleCitySelection(city.id)">
+                          <UCheckbox 
+                            :model-value="selectedCities.includes(city.id)"
+                            @update:model-value="toggleCitySelection(city.id)"
+                          />
+                          <div class="flex items-center gap-2 flex-1">
+                            <span class="text-sm">{{ city.name }}</span>
+                            <span class="text-xs text-gray-500">({{ getCityStats(city) }})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Selected Cities Summary -->
+        <div v-if="selectedCities.length > 0" class="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-green-900">
+              Выбрано городов: {{ selectedCities.length }}
+            </span>
+            <UButton 
+              size="xs" 
+              color="error" 
+              variant="ghost"
+              class="cursor-pointer"
+              @click="clearAllSelections"
+            >
+              Очистить все
+            </UButton>
+          </div>
+          </div>
+        </div>
+      </div>
+        
+        <template #footer>
+          <div class="space-y-3">
+            <!-- Selected Cities Counter -->
+            <div class="text-center">
+              <span class="text-sm font-medium text-gray-700">
+                Выбрано городов: 
+                <span class="text-primary font-semibold">{{ selectedCities.length }}</span>
+              </span>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex justify-between">
+              <UButton 
+                color="neutral" 
+                variant="outline"
+                class="cursor-pointer"
+                @click="clearCitiesSelection"
+              >
+                Сброс
+              </UButton>
+              <UButton 
+                color="primary"
+                class="cursor-pointer"
+                @click="applyCitiesSelection"
+              >
+                Выбрать
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
+</template>
+
+<style scoped>
+.bg-gray-25 {
+  background-color: #fafafa;
+}
+</style> 

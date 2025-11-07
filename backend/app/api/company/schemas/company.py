@@ -63,8 +63,8 @@ class CompanyCreateInactive(BaseModel):
 
     # Legal information - заполняем из данных пользователя
     full_name: str
-    inn: str
-    ogrn: str = None  # Временное значение
+    inn: str = "0000000000"  # Временное значение
+    ogrn: Optional[str] = ""  # Временное значение
     kpp: str = "000000000"  # Временное значение
     registration_date: datetime
     legal_address: str = "Адрес не указан"
@@ -174,9 +174,9 @@ class CompanyResponse(CompanyLogoUrlMixin):
     region: str
     city: str
     full_name: str
-    inn: str
+    inn: str | None
     ogrn: str | int | None
-    kpp: str | int
+    kpp: str | int | None
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None
@@ -207,7 +207,7 @@ class CompanyProfileResponse(BaseModel):
     logo: Optional[str] = None
     slug: Optional[str] = None
     email: str
-    inn: str
+    inn: Optional[str] = None
     position: Optional[str] = None
     is_company_created: bool = False
 
@@ -233,7 +233,7 @@ class CompanyProfileResponse(BaseModel):
             name=None,
             logo=None,
             email=user.email,
-            inn=user.inn,
+            inn=None,  # ИНН не относится к пользователю
             position=user.position,
             is_company_created=False
         )
@@ -246,7 +246,7 @@ class CompanyProfileResponse(BaseModel):
             name=company.name,
             logo=company.logo,
             email=user.email,
-            inn=user.inn,
+            inn=company.inn,  # ИНН берется из компании
             position=user.position,
             is_company_created=True
         )

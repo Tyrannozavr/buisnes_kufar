@@ -1,6 +1,7 @@
 from sqladmin import ModelView
 
 from app.api.authentication.models.user import User, RegistrationToken, PasswordRecoveryCode
+from app.api.authentication.models.roles_positions import RoleManager
 
 
 class UserAdmin(ModelView, model=User):
@@ -16,7 +17,6 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
         User.is_active,
         User.created_at,
@@ -29,12 +29,15 @@ class UserAdmin(ModelView, model=User):
         User.first_name,
         User.last_name,
         User.phone,
-        User.inn
+        User.position
     ]
 
     # Настройка фильтров
     column_filters = [
         User.is_active,
+        User.position,
+        User.role,
+        User.company_id,
         User.created_at,
         User.updated_at
     ]
@@ -43,6 +46,9 @@ class UserAdmin(ModelView, model=User):
     column_sortable_list = [
         User.id,
         User.email,
+        User.position,
+        User.role,
+        User.company_id,
         User.created_at,
         User.updated_at,
         User.is_active
@@ -56,8 +62,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
+        User.role,
+        User.company_id,
         User.is_active,
         User.created_at,
         User.updated_at
@@ -70,8 +77,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.patronymic,
         User.phone,
-        User.inn,
         User.position,
+        User.role,
+        User.company_id,
         User.is_active,
     ]
 
@@ -83,8 +91,9 @@ class UserAdmin(ModelView, model=User):
         User.last_name: "Фамилия",
         User.patronymic: "Отчество",
         User.phone: "Телефон",
-        User.inn: "ИНН",
         User.position: "Должность",
+        User.role: "Роль",
+        User.company_id: "Компания",
         User.is_active: "Активен",
         User.created_at: "Дата создания",
         User.updated_at: "Дата обновления"
@@ -94,6 +103,8 @@ class UserAdmin(ModelView, model=User):
     column_formatters = {
         User.created_at: lambda m, a: m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else None,
         User.updated_at: lambda m, a: m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else None,
+        User.position: lambda m, a: RoleManager.POSITION_LABELS.get(m.position, m.position) if m.position else "Не указана",
+        User.company_id: lambda m, a: f"{m.company.name} (ID: {m.company_id})" if m.company else "Не привязан к компании",
     }
 
     # Настройка валидации формы

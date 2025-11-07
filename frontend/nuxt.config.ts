@@ -16,11 +16,11 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys that are exposed to the server
-    apiBaseUrl: process.env.API_BASE_URL || 'http://backend:8000/api',
+    apiBaseUrl: process.env.API_BASE_URL,
     
     // Keys within public are also exposed to the client
     public: {
-      apiBaseUrl: process.env.VITE_PUBLIC_API_URL || '/api'
+      apiBaseUrl: process.env.VITE_PUBLIC_API_URL
     }
   },
   // Настройки для работы через nginx
@@ -48,6 +48,10 @@ export default defineNuxtConfig({
   icon: {
     size: '24px',
     class: 'icon',
+    provider: 'server',
+    serverBundle: {
+      collections: ['heroicons', 'lucide', 'simple-icons']
+    },
     aliases: {
       'nuxt': 'logos:nuxt-icon',
     }
@@ -80,9 +84,24 @@ export default defineNuxtConfig({
   },
   // Настройки для правильной генерации путей
   vite: {
+    // Proxy для dev режима - проксируем /api запросы на backend
     server: {
-      host: '0.0.0.0',
-      port: 3000
+      proxy: {
+        // Исключаем _nuxt_icon из прокси
+        '^/api/(?!_nuxt_icon)': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        }
+      }
+    }
+  },
+  // Конфигурация PostCSS
+  postcss: {
+    plugins: {
+      '@tailwindcss/postcss': {},
+      autoprefixer: {},
     }
   }
 })

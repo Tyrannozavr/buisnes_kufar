@@ -155,12 +155,14 @@ class LocationAPI:
         response = await self._make_request({"location": ""})
         return [CountryInfo(**country) for country in response.values() if isinstance(country, dict)]
 
-    async def get_regions(self, country_code: str, area_rajon: int | None = None) -> List[Dict[str, str]]:
+    async def get_regions(self, country_code: str, area_rajon: int | None = None, federal_district: Optional[str] = None) -> List[Dict[str, str]]:
         """
         Получает список регионов для указанной страны
         
         Args:
             country_code (str): Код страны (например, 'RU' для России)
+            area_rajon (int | None): ID области/района
+            federal_district (Optional[str]): Название федерального округа (игнорируется в API)
             
         Returns:
             List[Dict[str, str]]: Список регионов в формате {label: str, value: str}
@@ -168,6 +170,7 @@ class LocationAPI:
         request_data = {"country": country_code.lower()}
         if area_rajon is not None:
             request_data["area_rajon"] = str(area_rajon)
+        # Параметр federal_district игнорируется - внешний API его не поддерживает
         response = await self._make_request(request_data)
 
         regions = []

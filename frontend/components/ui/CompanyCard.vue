@@ -34,7 +34,7 @@
         <UButton
           color="primary"
           variant="ghost"
-          :to="`/companies/${company.id}`"
+          :to="`/companies/${company.slug}`"
         >
           Подробнее
         </UButton>

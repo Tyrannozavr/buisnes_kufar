@@ -114,7 +114,7 @@ async def get_chat_by_id(
 
 
 # Утилита: проверка, что пользователь — участник чата
-async def check_user_in_chat(chat_id: int, token_data, db: AsyncSession):
+async def check_user_in_chat(chat_id: int, token_data, db):
     chat_service = ChatService(db)
     chat = await chat_service.repository.get_chat_by_id(chat_id)
     if not chat:

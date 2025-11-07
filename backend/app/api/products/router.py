@@ -3,13 +3,13 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile, Form
 
-from app.api.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
 from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest
 from app.api.products.dependencies import product_service_dep, get_filter_service, get_search_service
 from app.api.products.models.product import ProductType
-from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse
+from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse, CitiesProductCountResponse
 from app.api.products.schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -257,6 +257,17 @@ async def get_service_filters(
     return await filter_service.get_service_filters()
 
 
+@public_router.get("/cities-count", response_model=CitiesProductCountResponse)
+async def get_cities_product_count(
+        filter_service: Annotated[FilterService, Depends(get_filter_service)],
+        type: str = Query("products", description="Тип продуктов: products или services")
+):
+    """Получить количество товаров/услуг для всех городов"""
+    product_type = ProductType.GOOD if type == "products" else ProductType.SERVICE
+    cities_data = await filter_service.get_cities_product_count(product_type)
+    return CitiesProductCountResponse(cities=cities_data)
+
+
 @public_router.get("/", response_model=ProductListResponse)
 async def get_all_products(
         product_service: product_service_dep,
@@ -396,7 +407,7 @@ async def get_latest_products(
 
 
 # Новые endpoints для поиска с фильтрацией
-@public_router.post("/search", response_model=ProductListResponse)
+@public_router.post("/search", response_model=ProductListResponse, tags=["search"])
 async def search_products_with_filters(
         filter_request: ProductFilterRequest,
         search_service: Annotated[ProductSearchService, Depends(get_search_service)]
@@ -405,7 +416,7 @@ async def search_products_with_filters(
     return await search_service.search_products(filter_request)
 
 
-@public_router.post("/services/search", response_model=ProductListResponse)
+@public_router.post("/services/search", response_model=ProductListResponse, tags=["search"])
 async def search_services_with_filters(
         filter_request: ServiceFilterRequest,
         search_service: Annotated[ProductSearchService, Depends(get_search_service)]

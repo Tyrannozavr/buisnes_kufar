@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from app.api.common.repositories.announcement_repository import PublicAnnouncementRepository
 from app.api.common.services.announcement_service import PublicAnnouncementService
-from app.api.dependencies import async_db_dep
+from app.db.dependencies import async_db_dep
 
 
 def get_public_announcement_repository(session: async_db_dep) -> PublicAnnouncementRepository:

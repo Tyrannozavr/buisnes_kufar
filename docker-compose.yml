@@ -1,4 +1,33 @@
 services:
+  migrations:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrations
+    env_file:
+      - ./backend/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrations
+
+  cache-init:
+    image: postgres:15-alpine
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ./scripts:/scripts
+    command: ["/scripts/init_cache.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    profiles:
+      - cache-init
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -7,8 +36,11 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/postgres"
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
       DEV_REDIRECT_URL: "http://frontend:3000"
+      BACKEND_CORS_ORIGINS: '["https://tradesynergy.ru","https://www.tradesynergy.ru","http://tradesynergy.ru","http://www.tradesynergy.ru","http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
     volumes:
       - ./logs/backend:/app/logging
       - ./backend/cache:/app/cache
@@ -18,6 +50,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -25,7 +59,9 @@ services:
       - ./frontend/.env
     environment:
       NUXT_UI_FONTS: "false"
+      # Для production используем относительный путь через nginx proxy
       VITE_PUBLIC_API_URL: "/api"
+      API_BASE_URL: "http://backend:8000/api"
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -47,6 +83,45 @@ services:
     depends_on:
       - backend
       - frontend
+
+  celery-worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./logs/backend:/app/logging
+      - ./backend/cache:/app/cache
+      - ./backend/uploads:/app/uploads
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "worker", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  celery-beat:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+    volumes:
+      - ./logs/backend:/app/logging
+      - ./backend/cache:/app/cache
+    command: ["poetry", "run", "celery", "-A", "app.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   certbot:
     build:
@@ -81,16 +156,37 @@ services:
     environment:
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"
-      POSTGRES_DB: "postgres"
+      POSTGRES_DB: "buisnes_kufar"
     command: >
       -c shared_buffers=512MB
       -c max_connections=200
       -c idle_in_transaction_session_timeout=10s
       -c tcp_keepalives_idle=60
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d buisnes_kufar" ]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - ./postgres-data:/var/lib/postgresql/data:cached
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "admin123"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  rabbitmq_data:

@@ -15,7 +15,7 @@ class UserCreate(UserBase):
 
 
 class UserLogin(BaseModel):
-    inn: constr(min_length=9, max_length=12, pattern=r'^\d+$')
+    login: str  # Может быть email или телефон
     password: constr(min_length=8)
 
 

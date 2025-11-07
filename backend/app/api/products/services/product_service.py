@@ -14,6 +14,22 @@ from app.api.products.schemas.product import ProductCreate, ProductUpdate, Produ
     ProductCreateWithFiles, ProductListPublicResponse, ProductListWithCompanyResponse, ServiceListWithCompanyResponse
 
 
+def _safe_model_validate(product):
+    """Безопасно валидирует продукт, исправляя characteristics если необходимо"""
+    if hasattr(product, 'characteristics'):
+        product.characteristics = _safe_characteristics(product.characteristics)
+    return ProductResponse.model_validate(product)
+
+
+def _safe_characteristics(characteristics):
+    """Безопасно преобразует characteristics в список"""
+    if isinstance(characteristics, dict):
+        return []
+    elif not isinstance(characteristics, list):
+        return []
+    return characteristics
+
+
 class ProductService:
     def __init__(self, my_products_repo: MyProductsRepository, company_products_repo: CompanyProductsRepository,
                  session: AsyncSession):
@@ -29,7 +45,7 @@ class ProductService:
         """Создать новый продукт для компании пользователя"""
         product = await self.my_products_repo.create(product_data, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def create_my_product_with_images(self, product_data: ProductCreateWithFiles, files: List[UploadFile],
@@ -78,22 +94,22 @@ class ProductService:
             # Обновляем продукт с изображениями
             updated_product = await self.my_products_repo.update_images(product.id, uploaded_images, user_id)
             if updated_product:
-                return ProductResponse.model_validate(updated_product)
+                return _safe_model_validate(updated_product)
 
-        return ProductResponse.model_validate(product)
+        return _safe_model_validate(product)
 
     async def get_my_product_by_id(self, product_id: int, user_id: int) -> Optional[ProductResponse]:
         """Получить продукт по ID, только если он принадлежит компании пользователя"""
         product = await self.my_products_repo.get_by_id(product_id, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def get_my_product_by_slug(self, slug: str, user_id: int) -> Optional[ProductResponse]:
         """Получить продукт по slug, только если он принадлежит компании пользователя"""
         product = await self.my_products_repo.get_by_slug(slug, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def get_my_products(
@@ -109,7 +125,7 @@ class ProductService:
             user_id, skip, limit, include_hidden, include_deleted
         )
 
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -130,7 +146,7 @@ class ProductService:
             user_id, product_type, skip, limit
         )
 
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -144,7 +160,7 @@ class ProductService:
         """Обновить продукт, только если он принадлежит компании пользователя"""
         product = await self.my_products_repo.update(product_id, product_data, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def partial_update_my_product(self, product_id: int, product_data: ProductUpdate, user_id: int) -> Optional[
@@ -152,7 +168,7 @@ class ProductService:
         """Частично обновить продукт, только если он принадлежит компании пользователя"""
         product = await self.my_products_repo.partial_update(product_id, product_data, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def delete_my_product(self, product_id: int, user_id: int) -> bool:
@@ -167,7 +183,7 @@ class ProductService:
         """Переключить видимость продукта"""
         product = await self.my_products_repo.toggle_hidden(product_id, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def update_my_product_images(self, product_id: int, images: List[str], user_id: int) -> Optional[
@@ -175,7 +191,7 @@ class ProductService:
         """Обновить изображения продукта"""
         product = await self.my_products_repo.update_images(product_id, images, user_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def upload_product_images(self, product_id: int, files: List[UploadFile], user_id: int) -> Optional[
@@ -225,7 +241,7 @@ class ProductService:
 
         updated_product = await self.my_products_repo.update_images(product_id, updated_images, user_id)
         if updated_product:
-            return ProductResponse.model_validate(updated_product)
+            return _safe_model_validate(updated_product)
         return None
 
     async def delete_product_image(self, product_id: int, image_index: int, user_id: int) -> Optional[ProductResponse]:
@@ -261,7 +277,7 @@ class ProductService:
         # Обновляем продукт
         updated_product = await self.my_products_repo.update_images(product_id, updated_images, user_id)
         if updated_product:
-            return ProductResponse.model_validate(updated_product)
+            return _safe_model_validate(updated_product)
         return None
 
     # Методы для работы с продуктами компаний (CompanyProductsRepository)
@@ -270,14 +286,14 @@ class ProductService:
         """Получить продукт по ID (только активные и не скрытые)"""
         product = await self.company_products_repo.get_by_id(product_id)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def get_product_by_slug(self, slug: str) -> Optional[ProductResponse]:
         """Получить продукт по slug и company_id (только активные и не скрытые)"""
         product = await self.company_products_repo.get_by_slug(slug)
         if product:
-            return ProductResponse.model_validate(product)
+            return _safe_model_validate(product)
         return None
 
     async def get_products_by_company_slug(
@@ -313,7 +329,7 @@ class ProductService:
             skip, limit, include_hidden
         )
 
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -333,7 +349,7 @@ class ProductService:
             skip, limit, include_hidden
         )
 
-        service_responses = [ProductResponse.model_validate(service) for service in services]
+        service_responses = [_safe_model_validate(service) for service in services]
 
         return ProductListResponse(
             products=service_responses,
@@ -355,6 +371,9 @@ class ProductService:
 
         services_responses = []
         for service in services:
+            # Обрабатываем characteristics - если это словарь, преобразуем в список
+            characteristics = _safe_characteristics(service.characteristics)
+            
             # Создаем словарь с данными услуги и добавляем название компании
             service_data = {
                 'id': service.id,
@@ -367,7 +386,7 @@ class ProductService:
                 'is_hidden': service.is_hidden,
                 'slug': service.slug,
                 'raw_images': service.images,
-                'characteristics': service.characteristics,
+                'characteristics': characteristics,
                 'is_deleted': service.is_deleted,
                 'company_id': service.company_id,
                 'company_name': service.company.name if service.company else "Неизвестная компания",
@@ -394,7 +413,7 @@ class ProductService:
             skip, limit, include_hidden
         )
 
-        goods_responses = [ProductResponse.model_validate(good) for good in goods]
+        goods_responses = [_safe_model_validate(good) for good in goods]
 
         return ProductListResponse(
             products=goods_responses,
@@ -416,6 +435,9 @@ class ProductService:
 
         goods_responses = []
         for good in goods:
+            # Обрабатываем characteristics - если это словарь, преобразуем в список
+            characteristics = _safe_characteristics(good.characteristics)
+            
             # Создаем словарь с данными продукта и добавляем название компании
             product_data = {
                 'id': good.id,
@@ -428,7 +450,7 @@ class ProductService:
                 'is_hidden': good.is_hidden,
                 'slug': good.slug,
                 'raw_images': good.images,
-                'characteristics': good.characteristics,
+                'characteristics': characteristics,
                 'is_deleted': good.is_deleted,
                 'company_id': good.company_id,
                 'company_name': good.company.name if good.company else "Неизвестная компания",
@@ -456,7 +478,7 @@ class ProductService:
             company_id, skip, limit, include_hidden
         )
 
-        service_responses = [ProductResponse.model_validate(service) for service in services]
+        service_responses = [_safe_model_validate(service) for service in services]
 
         return ProductListResponse(
             products=service_responses,
@@ -477,7 +499,7 @@ class ProductService:
             company_id, skip, limit, include_hidden
         )
 
-        goods_responses = [ProductResponse.model_validate(good) for good in goods]
+        goods_responses = [_safe_model_validate(good) for good in goods]
 
         return ProductListResponse(
             products=goods_responses,
@@ -498,7 +520,7 @@ class ProductService:
             search_term, skip, limit, include_hidden
         )
 
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -520,7 +542,7 @@ class ProductService:
             min_price, max_price, skip, limit, include_hidden
         )
 
-        product_responses = [ProductResponse.model_validate(product) for product in products]
+        product_responses = [_safe_model_validate(product) for product in products]
 
         return ProductListResponse(
             products=product_responses,
@@ -536,4 +558,4 @@ class ProductService:
     ) -> List[ProductResponse]:
         """Получить последние добавленные продукты"""
         products = await self.company_products_repo.get_latest_products(limit, include_hidden)
-        return [ProductResponse.model_validate(product) for product in products]
+        return [_safe_model_validate(product) for product in products]

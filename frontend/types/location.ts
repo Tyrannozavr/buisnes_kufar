@@ -25,6 +25,7 @@ export interface City {
 export interface LocationItem {
   label: string
   value: string
+  count?: number
 }
 
 export interface LocationResponse {

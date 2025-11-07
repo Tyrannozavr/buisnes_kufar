@@ -35,7 +35,7 @@ const { deletePartnerById } = useCompaniesApi()
           :to="`/companies/${manufacturer.slug}`"
           class="w-24 h-24 flex-shrink-0">
         <NuxtImg
-          :src="manufacturer.logo_url || undefined"
+          :src="manufacturer.logo_url || '/images/default-company-logo.png'"
           :alt="manufacturer.name"
           class="w-full h-full object-cover rounded-lg"
         />

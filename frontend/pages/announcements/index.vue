@@ -6,8 +6,25 @@ const perPage = ref(10)
 
 const { getAllAnnouncements } = usePublicAnnouncementsApi()
 
-const { data: response, error: announcementsError, pending: announcementsPending, refresh: refreshAnnouncements }
-    = await useAsyncData('announcements', () => getAllAnnouncements(currentPage.value, perPage.value))
+// Используем ref вместо useAsyncData для прямого контроля над запросами
+const response = ref(null)
+const announcementsError = ref(null)
+const announcementsPending = ref(true)
+
+const loadAnnouncements = async () => {
+  try {
+    announcementsPending.value = true
+    announcementsError.value = null
+    response.value = await getAllAnnouncements(currentPage.value, perPage.value)
+  } catch (error) {
+    announcementsError.value = error
+  } finally {
+    announcementsPending.value = false
+  }
+}
+
+// Загружаем данные при монтировании
+await loadAnnouncements()
 
 const announcements = computed(() => response.value?.announcements || [])
 const pagination = computed(() => ({
@@ -19,7 +36,7 @@ const pagination = computed(() => ({
 
 // Watch for page changes
 watch(currentPage, async (newPage) => {
-  await refreshAnnouncements()
+  await loadAnnouncements()
 })
 
 // Format date for display
@@ -64,7 +81,7 @@ const formatDate = (dateString: string) => {
               v-for="announcement in announcements"
               :key="announcement.id"
               class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex px-2"
-              @click="navigateTo(`/announcements/${announcement.id}`)"
+              @click="announcement.id && navigateTo(`/announcements/${announcement.id}`)"
           >
             <div class="w-24 h-24 flex-shrink-0">
               <NuxtImg

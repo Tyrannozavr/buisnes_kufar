@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
+import enum
 
 from app.db.base_class import Base
+from app.api.authentication.models.roles_positions import UserRole
 
 
 class User(Base):
@@ -13,16 +15,24 @@ class User(Base):
     last_name = Column(String, nullable=True)
     patronymic = Column(String, nullable=True)
     phone = Column(String, nullable=False)
-    inn = Column(String, nullable=True, unique=True)
     position = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Связь с компанией
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True)
+    
+    # Роль пользователя в компании
+    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    
+    # Права доступа (JSON строка с правами)
+    permissions = Column(Text, nullable=True)  # JSON строка с правами
 
     # Relationships
     registration_token = relationship("RegistrationToken", back_populates="user", uselist=False)
-    company = relationship("Company", back_populates="user", uselist=False)
+    company = relationship("Company", back_populates="users")
 
 
 class RegistrationToken(Base):

@@ -37,11 +37,41 @@ export const useCompaniesApi = () => {
   }
 
   const searchManufacturers = async (params: any = {}) => {
-    return await $api.get('/v1/companies/products', { params })
+    // Формируем body для POST запроса (как в products)
+    const body: any = {
+      search: params.search || undefined,
+      cities: params.cities || undefined, // Массив ID городов
+      skip: ((params.page || 1) - 1) * (params.perPage || 10),
+      limit: params.perPage || 10
+    }
+    
+    // Убираем undefined значения
+    Object.keys(body).forEach(key => {
+      if (body[key] === undefined || body[key] === null) {
+        delete body[key]
+      }
+    })
+    
+    return await $api.post('/v1/companies/products/search', body)
   }
 
   const searchServiceProviders = async (params: any = {}) => {
-    return await $api.get('/v1/companies/services', { params })
+    // Формируем body для POST запроса
+    const body: any = {
+      search: params.search || undefined,
+      cities: params.cities || undefined,
+      skip: ((params.page || 1) - 1) * (params.perPage || 10),
+      limit: params.perPage || 10
+    }
+    
+    // Убираем undefined значения
+    Object.keys(body).forEach(key => {
+      if (body[key] === undefined || body[key] === null) {
+        delete body[key]
+      }
+    })
+    
+    return await $api.post('/v1/companies/services/search', body)
   }
 
   const deletePartnerById = async (id: string) => {
@@ -101,25 +131,55 @@ export const getLatestCompaniesSSR = async (limit: number = 6) => {
 }
 
 export const searchManufacturersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const { $api } = useNuxtApp()
-  const queryParams = {
-    page,
-    perPage,
-    ...params
+  // Формируем body для POST запроса (как в products)
+  const body: any = {
+    search: params.search || undefined,
+    cities: params.cities || undefined,
+    skip: (page - 1) * perPage,
+    limit: perPage
   }
-  return await $api.get('/v1/companies/products', {
-    params: queryParams
+  
+  // Убираем undefined значения
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null) {
+      delete body[key]
+    }
+  })
+  
+  // Используем $fetch для SSR с POST
+  const config = useRuntimeConfig()
+  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const url = `${baseUrl}/v1/companies/products/search`
+  
+  return await $fetch(url, {
+    method: 'POST',
+    body
   }) as PaginationResponse<CompanyShort>
 }
 
 export const searchServiceProvidersSSR = async (page: number = 1, perPage: number = 10, params: any = {}) => {
-  const { $api } = useNuxtApp()
-  const queryParams = {
-    page,
-    perPage,
-    ...params
+  // Формируем body для POST запроса
+  const body: any = {
+    search: params.search || undefined,
+    cities: params.cities || undefined,
+    skip: (page - 1) * perPage,
+    limit: perPage
   }
-  return await $api.get('/v1/companies/services', {
-    params: queryParams
+  
+  // Убираем undefined значения
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null) {
+      delete body[key]
+    }
+  })
+  
+  // Используем $fetch для SSR с POST
+  const config = useRuntimeConfig()
+  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const url = `${baseUrl}/v1/companies/services/search`
+  
+  return await $fetch(url, {
+    method: 'POST',
+    body
   }) as PaginationResponse<CompanyShort>
 } 

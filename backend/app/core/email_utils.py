@@ -42,6 +42,15 @@ async def send_verification_email(email: str, verification_url: str) -> bool:
         return True
     except Exception as e:
         logger.error(f"Failed to send verification email to {email}: {str(e)}")
+        logger.error(f"SMTP Configuration: server={settings.MAIL_SERVER}, port={settings.MAIL_PORT}, username={settings.MAIL_USERNAME}")
+        logger.error(f"Error details: {type(e).__name__}: {str(e)}")
+        logger.error("=" * 80)
+        logger.error("EMAIL SERVICE DEBUGGING INFO:")
+        logger.error(f"- Check MAIL_USERNAME and MAIL_PASSWORD in environment variables")
+        logger.error(f"- Verify Gmail App Password is used (not regular password)")
+        logger.error(f"- Ensure 2FA is enabled on Gmail account")
+        logger.error(f"- Check if 'Less secure app access' is enabled (if not using App Password)")
+        logger.error("=" * 80)
         return False
 
 
@@ -109,6 +118,15 @@ async def send_password_recovery_code(email: str, code: str) -> bool:
         return True
     except Exception as e:
         logger.error(f"Failed to send password recovery code to {email}: {str(e)}")
+        logger.error(f"SMTP Configuration: server={settings.MAIL_SERVER}, port={settings.MAIL_PORT}, username={settings.MAIL_USERNAME}")
+        logger.error(f"Error details: {type(e).__name__}: {str(e)}")
+        logger.error("=" * 80)
+        logger.error("EMAIL SERVICE DEBUGGING INFO:")
+        logger.error(f"- Check MAIL_USERNAME and MAIL_PASSWORD in environment variables")
+        logger.error(f"- Verify Gmail App Password is used (not regular password)")
+        logger.error(f"- Ensure 2FA is enabled on Gmail account")
+        logger.error(f"- Check if 'Less secure app access' is enabled (if not using App Password)")
+        logger.error("=" * 80)
         return False
 
 

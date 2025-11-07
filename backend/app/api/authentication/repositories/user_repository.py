@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, \
-    EmailChangeToken, PasswordRecoveryCode
+    EmailChangeToken, PasswordRecoveryCode, UserRole
 from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2, UserInDB, RegistrationToken
+from app.api.authentication.permissions import PermissionManager
 from app.core.security import get_password_hash, verify_password
 from app_logging.logger import logger
 
@@ -32,15 +33,20 @@ class UserRepository:
         return UserInDB.model_validate(user)
 
     async def update_user_step2(self, user: User, user_data: UserCreateStep2) -> UserInDB:
-        user.inn = user_data.inn
-        user.position = user_data.position
+        # ИНН больше не хранится в пользователе, он хранится в компании
+        # Просто активируем пользователя и устанавливаем пароль
         user.is_active = True
         user.hashed_password = get_password_hash(user_data.password)
         user.updated_at = datetime.utcnow()
         self.session.add(user)
-        await self.session.commit()
-        await self.session.refresh(user)
-        return UserInDB.model_validate(user)
+        
+        try:
+            await self.session.commit()
+            await self.session.refresh(user)
+            return UserInDB.model_validate(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
         result = await self.session.execute(
@@ -54,20 +60,31 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_user_by_inn(self, inn: str) -> Optional[User]:
-        """Get user by INN"""
-        logger.info(f"Searching for user with INN: {inn}")
-
-        result = await self.session.execute(
-            select(User).where(User.inn == inn)
-        )
-        user = result.scalar_one_or_none()
-
-        if user:
-            logger.info(f"User found: ID={user.id}, email={user.email}, INN={user.inn}")
+    async def get_user_by_email_or_phone(self, login: str) -> Optional[User]:
+        """Get user by email or phone"""
+        logger.info(f"Searching for user with login: {login}")
+        
+        # Определяем, это email или телефон
+        is_email = '@' in login
+        
+        if is_email:
+            result = await self.session.execute(
+                select(User).where(User.email == login)
+            )
         else:
-            logger.warning(f"No user found with INN: {inn}")
-
+            # Убираем все нецифровые символы для поиска по телефону
+            phone_digits = ''.join(filter(str.isdigit, login))
+            result = await self.session.execute(
+                select(User).where(User.phone.contains(phone_digits))
+            )
+        
+        user = result.scalar_one_or_none()
+        
+        if user:
+            logger.info(f"User found: ID={user.id}, email={user.email}, phone={user.phone}")
+        else:
+            logger.warning(f"No user found with login: {login}")
+        
         return user
 
     async def create_registration_token(self, email: str, token: str, expires_at: datetime) -> RegistrationToken:
@@ -94,6 +111,41 @@ class UserRepository:
         )
         db_token = result.scalar_one_or_none()
         return RegistrationToken.model_validate(db_token) if db_token else None
+
+    async def get_active_registration_token_by_email(self, email: str) -> Optional[RegistrationToken]:
+        """Проверить, есть ли активный неиспользованный токен регистрации для данного email"""
+        now = datetime.utcnow()
+        result = await self.session.execute(
+            select(DBRegistrationToken).where(
+                DBRegistrationToken.email == email,
+                DBRegistrationToken.is_used == False,
+                DBRegistrationToken.expires_at > now
+            )
+        )
+        db_token = result.scalar_one_or_none()
+        return RegistrationToken.model_validate(db_token) if db_token else None
+
+    async def update_user_profile(self, user_id: int, user_data: dict) -> Optional[UserInDB]:
+        """Обновить профиль пользователя"""
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+        
+        # Обновляем поля (исключаем inn, так как он больше не хранится в пользователе)
+        for field, value in user_data.items():
+            if hasattr(user, field) and field != 'inn':
+                setattr(user, field, value)
+        
+        user.updated_at = datetime.utcnow()
+        self.session.add(user)
+        
+        try:
+            await self.session.commit()
+            await self.session.refresh(user)
+            return UserInDB.model_validate(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise
 
     async def mark_token_as_used(self, token: str) -> bool:
         result = await self.session.execute(
@@ -274,6 +326,69 @@ class UserRepository:
                 PasswordRecoveryCode.code == code
             )
             .values(is_used=True)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def get_users_by_company_id(self, company_id: int, page: int = 1, per_page: int = 50) -> tuple[List[User], int]:
+        """Получить пользователей компании с пагинацией"""
+        # Подсчет общего количества
+        count_result = await self.session.execute(
+            select(User).where(User.company_id == company_id)
+        )
+        total = len(count_result.scalars().all())
+        
+        # Получение пользователей с пагинацией
+        offset = (page - 1) * per_page
+        result = await self.session.execute(
+            select(User)
+            .where(User.company_id == company_id)
+            .offset(offset)
+            .limit(per_page)
+        )
+        users = list(result.scalars().all())
+        
+        return users, total
+
+    async def update_user_role(self, user_id: int, role: UserRole) -> bool:
+        """Обновить роль пользователя"""
+        # Получаем права по умолчанию для новой роли
+        default_permissions = PermissionManager.set_permissions_for_role(role)
+        
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(role=role, permissions=default_permissions, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def update_user_permissions(self, user_id: int, permissions_json: str) -> bool:
+        """Обновить права пользователя"""
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(permissions=permissions_json, updated_at=datetime.utcnow())
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def get_user_by_company_and_role(self, company_id: int, role: UserRole) -> Optional[User]:
+        """Получить пользователя компании по роли"""
+        result = await self.session.execute(
+            select(User).where(
+                User.company_id == company_id,
+                User.role == role
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_user(self, user_id: int) -> bool:
+        """Удалить пользователя (мягкое удаление - деактивация)"""
+        result = await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(is_active=False, updated_at=datetime.utcnow())
         )
         await self.session.commit()
         return result.rowcount > 0

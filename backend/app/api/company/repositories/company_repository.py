@@ -2,6 +2,7 @@ import random
 import time
 from datetime import datetime, timezone
 from typing import Optional
+import logging
 
 from pydantic import HttpUrl
 from slugify import slugify
@@ -11,6 +12,8 @@ from sqlalchemy.orm import selectinload
 
 from app.api.company.models.company import Company
 from app.api.company.schemas.company import CompanyCreate, CompanyUpdate, CompanyCreateInactive
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyRepository:
@@ -48,13 +51,6 @@ class CompanyRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_user_id(self, user_id: int) -> Optional[Company]:
-        query = select(Company).options(
-            selectinload(Company.officials)
-        ).where(Company.user_id == user_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
     async def get_by_slug(self, slug: str) -> Optional[Company]:
         query = select(Company).options(
             selectinload(Company.officials)
@@ -62,16 +58,33 @@ class CompanyRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def create(self, company_data: CompanyCreate, user_id: int) -> Company:
+    async def create(self, company_data: CompanyCreate) -> Company:
+        from app.api.common.repositories.city_repository import CityRepository
+        
         data = company_data.model_dump()
         # Ensure all datetime fields are naive (no tzinfo)
         for field in ["registration_date", "created_at", "updated_at"]:
             if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
                 data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
+        
+        # Найти или создать город и заполнить city_id
+        if 'city' in data and data['city']:
+            try:
+                city_obj = await CityRepository.find_or_create_city(
+                    city_name=data['city'],
+                    region_name=data.get('region', ''),
+                    federal_district_name=data.get('federal_district', ''),
+                    country_name=data.get('country', 'Россия')
+                )
+                # Заполняем city_id вместо city
+                data['city_id'] = city_obj.id
+                print(f"✅ Найден/создан город {data['city']} с ID {city_obj.id}")
+            except Exception as e:
+                print(f"⚠️ Ошибка при поиске/создании города {data['city']}: {e}")
+        
         company = Company(
             **data,
             slug=await self.create_company_slug(company_data.name),
-            user_id=user_id,
             is_active=True  # Активная компания при создании через форму
         )
         self.session.add(company)
@@ -81,23 +94,37 @@ class CompanyRepository:
 
     async def create_inactive(self, company_data: CompanyCreateInactive, user_id: int) -> Company:
         """Создает неактивную компанию при регистрации пользователя"""
+        from app.api.authentication.models.user import User
+        from sqlalchemy import update
+        
         data = company_data.model_dump()
         # Ensure all datetime fields are naive (no tzinfo)
         for field in ["registration_date", "created_at", "updated_at"]:
             if field in data and isinstance(data[field], datetime) and data[field].tzinfo is not None:
                 data[field] = data[field].astimezone(timezone.utc).replace(tzinfo=None)
+        
         company = Company(
             **data,
             slug=await self.create_company_slug(company_data.name),
-            user_id=user_id,
             is_active=False  # Неактивная компания при регистрации
         )
         self.session.add(company)
         await self.session.commit()
         await self.session.refresh(company)
+        
+        # Обновляем пользователя - устанавливаем company_id
+        await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(company_id=company.id)
+        )
+        await self.session.commit()
+        
         return company
 
     async def update(self, company_id: int, company_data: CompanyUpdate) -> Optional[Company]:
+        from app.api.common.repositories.city_repository import CityRepository
+        
         # Update company fields
         update_data = company_data.model_dump(exclude_unset=True)
 
@@ -112,6 +139,22 @@ class CompanyRepository:
         for field in ["ogrn", "kpp"]:
             if field in update_data and update_data[field] is not None:
                 update_data[field] = str(update_data[field])
+
+        # Найти или создать город и заполнить city_id если city обновляется
+        if 'city' in update_data and update_data['city']:
+            try:
+                company = await self.get_by_id(company_id)
+                city_obj = await CityRepository.find_or_create_city(
+                    city_name=update_data['city'],
+                    region_name=update_data.get('region', company.region if company else ''),
+                    federal_district_name=update_data.get('federal_district', company.federal_district if company else ''),
+                    country_name=update_data.get('country', company.country if company else 'Россия')
+                )
+                # Заполняем city_id вместо city
+                update_data['city_id'] = city_obj.id
+                print(f"✅ Найден/создан город {update_data['city']} с ID {city_obj.id}")
+            except Exception as e:
+                print(f"⚠️ Ошибка при поиске/создании города {update_data.get('city', '')}: {e}")
 
         # Check if company should be activated
         company = await self.get_by_id(company_id)
@@ -166,7 +209,7 @@ class CompanyRepository:
         await self.session.commit()
         return await self.get_by_id(company_id)
 
-    async def create_by_default(self, user) -> Company:
+    async def create_by_default(self, user, inn: str) -> Company:
         """
         Создает компанию с данными по умолчанию на основе данных пользователя.
         ИНН берется из данных пользователя, остальные поля заполняются значениями по умолчанию.
@@ -186,6 +229,43 @@ class CompanyRepository:
 
         user_full_name = " ".join(full_name_parts) if full_name_parts else "Не указано"
 
+        # Проверяем, существует ли компания с таким ИНН
+        from sqlalchemy import select
+        import random
+        
+        # Проверяем, существует ли компания с таким ИНН
+        existing_company = await self.session.execute(
+            select(Company).where(Company.inn == inn)
+        )
+        company_check = existing_company.scalar_one_or_none()
+        
+        unique_inn = inn
+        
+        if company_check:
+            # Если ИНН занят, генерируем уникальный временный ИНН
+            logger.warning(f"Компания с ИНН {inn} уже существует, генерируем уникальный временный ИНН")
+            
+            # Генерируем уникальный временный ИНН
+            max_attempts = 10
+            attempt = 0
+            
+            while attempt < max_attempts:
+                # Генерируем новый уникальный ИНН
+                unique_inn = f"{datetime.now().strftime('%d%m%y')}{random.randint(1000, 9999)}"
+                
+                # Проверяем уникальность
+                check_company = await self.session.execute(
+                    select(Company).where(Company.inn == unique_inn)
+                )
+                if not check_company.scalar_one_or_none():
+                    # ИНН свободен, используем его
+                    logger.info(f"Сгенерирован уникальный временный ИНН: {unique_inn}")
+                    break
+                attempt += 1
+            
+            if attempt >= max_attempts:
+                raise ValueError("Не удалось создать уникальный ИНН после 10 попыток")
+        
         # Создаем компанию с данными по умолчанию
         company = Company(
             name="Новая компания",
@@ -204,7 +284,7 @@ class CompanyRepository:
 
             # Legal information
             full_name="Полное наименование не указано",
-            inn=user.inn,  # ИНН из данных пользователя
+            inn=unique_inn,  # Уникальный ИНН
             ogrn=None,  # Временное значение
             kpp="000000000",  # Временное значение
             registration_date=datetime.now(),
@@ -221,8 +301,7 @@ class CompanyRepository:
             monthly_views=0,
             total_purchases=0,
 
-            # Связи и статус
-            user_id=user.id,
+            # Статус
             is_active=False  # Компания неактивна по умолчанию
         )
 
@@ -230,9 +309,31 @@ class CompanyRepository:
         await self.session.commit()
         await self.session.refresh(company)
 
+        # Обновляем пользователя - устанавливаем company_id и роль владельца
+        from app.api.authentication.models.user import UserRole
+        from app.api.authentication.permissions import PermissionManager
+        
+        # Устанавливаем права владельца
+        owner_permissions = PermissionManager.set_permissions_for_role(UserRole.OWNER)
+        
+        # Обновляем пользователя через SQL update
+        from app.api.authentication.models.user import User
+        from app.api.authentication.models.roles_positions import Position
+        await self.session.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values(
+                company_id=company.id,
+                role=UserRole.OWNER,
+                position=Position.OWNER.value,  # Устанавливаем должность "Владелец"
+                permissions=owner_permissions
+            )
+        )
+        await self.session.commit()
+
         # Создаем запись в CompanyOfficial для текущего пользователя
         official = CompanyOfficial(
-            position=user.position or "Руководитель",
+            position=Position.OWNER.value,  # Используем должность "Владелец"
             full_name=user_full_name,
             company_id=company.id
         )

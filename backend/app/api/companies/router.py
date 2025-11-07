@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, HTTPException, Body
 from app.api.companies.dependencies import companies_repository_dep
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
 from app.api.company.schemas.company import CompanyResponse, ShortCompanyResponse, CompanyStatisticsResponse
+from app.api.company.schemas.filters import CompanyFilterRequest
 
 router = APIRouter(tags=["companies"])
 
@@ -48,11 +49,62 @@ async def get_companies(
     )
 
 
+@router.get("/", response_model=CompaniesResponse)
+async def get_all_companies(
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
+        search: Optional[str] = Query(None, description="Поиск по названию компании"),
+        cities: Optional[str] = Query(None, description="Фильтр по городам (через запятую)"),
+        companies_repository: companies_repository_dep = None
+) -> CompaniesResponse:
+    """
+    Получить список всех активных компаний с фильтрацией
+    
+    Args:
+        page: Номер страницы (начиная с 1)
+        per_page: Количество элементов на странице (1-100)
+        search: Поиск по названию компании
+        cities: ID городов через запятую
+        companies_repository: Репозиторий компаний
+        
+    Returns:
+        CompaniesResponse: Список компаний с информацией о пагинации
+    """
+    # Parse cities parameter
+    cities_list = None
+    if cities:
+        try:
+            cities_list = [int(c.strip()) for c in cities.split(',')]
+        except ValueError:
+            pass
+
+    companies, total_count = await companies_repository.get_companies_with_filters(
+        page=page,
+        per_page=per_page,
+        search=search,
+        cities=cities_list
+    )
+
+    # Вычисляем общее количество страниц
+    total_pages = (total_count + per_page - 1) // per_page
+
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total_count,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages
+        )
+    )
+
+
 @router.get("/services", response_model=CompaniesResponse)
 async def get_services_companies(
         page: int = Query(1, ge=1, description="Номер страницы"),
         per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
-        filtration_parameters: List[Dict[str, Any]] = Body(default=[], description="Параметры фильтрации"),
+        search: Optional[str] = Query(None, description="Поиск по названию компании"),
+        cities: Optional[str] = Query(None, description="Фильтр по городам (через запятую)"),
         companies_repository: companies_repository_dep = None
 ) -> CompaniesResponse:
     """
@@ -61,18 +113,26 @@ async def get_services_companies(
     Args:
         page: Номер страницы (начиная с 1)
         per_page: Количество элементов на странице (1-100)
-        filtration_parameters: Список словарей с параметрами фильтрации
+        search: Поиск по названию компании
+        cities: ID городов через запятую
         companies_repository: Репозиторий компаний
         
     Returns:
         CompaniesResponse: Список компаний с информацией о пагинации
     """
-    print(f"Параметры фильтрации для услуг: {filtration_parameters}")
+    # Parse cities parameter
+    cities_list = None
+    if cities:
+        try:
+            cities_list = [int(c.strip()) for c in cities.split(',')]
+        except ValueError:
+            pass
 
-    companies, total_count = await companies_repository.get_services_companies(
+    companies, total_count = await companies_repository.get_companies_with_filters(
         page=page,
         per_page=per_page,
-        # filtration_parameters=filtration_parameters
+        search=search,
+        cities=cities_list
     )
 
     # Вычисляем общее количество страниц
@@ -94,7 +154,7 @@ async def get_product_companies(
         page: int = Query(1, ge=1, description="Номер страницы"),
         per_page: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
         search: Optional[str] = Query(None, description="Поиск по названию компании"),
-        filtration_parameters: List[Dict[str, Any]] = Body(default=[], description="Параметры фильтрации"),
+        cities: Optional[str] = Query(None, description="Фильтр по городам (через запятую)"),
         companies_repository: companies_repository_dep = None
 ) -> CompaniesResponse:
     """
@@ -104,19 +164,32 @@ async def get_product_companies(
         page: Номер страницы (начиная с 1)
         per_page: Количество элементов на странице (1-100)
         search: Поиск по названию компании
-        filtration_parameters: Список словарей с параметрами фильтрации
+        cities: ID городов через запятую
         companies_repository: Репозиторий компаний
         
     Returns:
         CompaniesResponse: Список компаний с информацией о пагинации
     """
-    print(f"Параметры фильтрации для товаров: {filtration_parameters}")
+    # Parse cities parameter
+    cities_list = None
+    if cities:
+        try:
+            cities_list = [int(c.strip()) for c in cities.split(',')]
+        except ValueError:
+            pass
 
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 Router: get_product_companies called with cities_list={cities_list}")
+    
     companies, total_count = await companies_repository.get_product_companies(
         page=page,
         per_page=per_page,
-        search=search
+        search=search,
+        cities=cities_list
     )
+    
+    logger.info(f"✅ Found {total_count} companies")
 
     # Вычисляем общее количество страниц
     total_pages = (total_count + per_page - 1) // per_page
@@ -130,6 +203,125 @@ async def get_product_companies(
             totalPages=total_pages
         )
     )
+
+
+@router.post("/search", tags=["search"])
+async def search_companies_with_filters(
+        filter_request: CompanyFilterRequest,
+        companies_repository: companies_repository_dep = None
+):
+    """
+    POST endpoint для поиска компаний с фильтрацией (аналог /products/search)
+    
+    Args:
+        filter_request: Параметры фильтрации компаний
+        
+    Returns:
+        CompaniesResponse: Список компаний с пагинацией
+    """
+    from sqlalchemy import select, func, and_, or_
+    from app.api.company.models.company import Company, BusinessType
+    from sqlalchemy.orm import selectinload
+    
+    # Базовые условия
+    conditions = [Company.is_active == True]
+    
+    # Фильтр по поиску
+    if filter_request.search:
+        conditions.append(Company.name.ilike(f"%{filter_request.search}%"))
+    
+    # Фильтр по городам
+    if filter_request.cities:
+        from app.api.common.models.city import City
+        cities_query = select(City.name).where(City.id.in_(filter_request.cities))
+        cities_result = await companies_repository.session.execute(cities_query)
+        city_names = [row[0] for row in cities_result]
+        if city_names:
+            conditions.append(Company.city.in_(city_names))
+    
+    # Фильтр по типу бизнеса
+    if filter_request.business_type == "goods":
+        conditions.append(or_(
+            Company.business_type == BusinessType.GOODS,
+            Company.business_type == BusinessType.BOTH
+        ))
+    elif filter_request.business_type == "services":
+        conditions.append(or_(
+            Company.business_type == BusinessType.SERVICES,
+            Company.business_type == BusinessType.BOTH
+        ))
+    
+    # Фильтр по торговой активности
+    # TODO: реализовать при необходимости
+    
+    # Базовый запрос
+    base_query = select(Company).options(
+        selectinload(Company.officials)
+    ).where(and_(*conditions)).order_by(Company.registration_date.desc())
+    
+    # Подсчёт total
+    count_query = select(func.count(Company.id)).where(and_(*conditions))
+    count_result = await companies_repository.session.execute(count_query)
+    total_count = count_result.scalar()
+    
+    # Применяем пагинацию
+    offset = filter_request.skip
+    paginated_query = base_query.offset(offset).limit(filter_request.limit)
+    
+    # Выполняем запрос
+    result = await companies_repository.session.execute(paginated_query)
+    companies = result.scalars().all()
+    
+    # Вычисляем общее количество страниц
+    total_pages = (total_count + filter_request.limit - 1) // filter_request.limit
+    
+    return CompaniesResponse(
+        data=list(companies),
+        pagination=PaginationInfo(
+            total=total_count,
+            page=offset // filter_request.limit + 1,
+            perPage=filter_request.limit,
+            totalPages=total_pages
+        )
+    )
+
+
+@router.post("/products/search", tags=["search"])
+async def search_product_companies_with_filters(
+        filter_request: CompanyFilterRequest,
+        companies_repository: companies_repository_dep = None
+):
+    """
+    POST endpoint для поиска производителей товаров с фильтрацией
+    
+    Args:
+        filter_request: Параметры фильтрации компаний
+        
+    Returns:
+        CompaniesResponse: Список компаний производящих товары с пагинацией
+    """
+    # Устанавливаем business_type = "goods" по умолчанию
+    filter_request.business_type = filter_request.business_type or "goods"
+    return await search_companies_with_filters(filter_request, companies_repository)
+
+
+@router.post("/services/search", tags=["search"])
+async def search_service_companies_with_filters(
+        filter_request: CompanyFilterRequest,
+        companies_repository: companies_repository_dep = None
+):
+    """
+    POST endpoint для поиска поставщиков услуг с фильтрацией
+    
+    Args:
+        filter_request: Параметры фильтрации компаний
+        
+    Returns:
+        CompaniesResponse: Список компаний оказывающих услуги с пагинацией
+    """
+    # Устанавливаем business_type = "services" по умолчанию
+    filter_request.business_type = filter_request.business_type or "services"
+    return await search_companies_with_filters(filter_request, companies_repository)
 
 
 @router.get("/slug/{company_slug}/statistics")

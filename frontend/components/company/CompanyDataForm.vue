@@ -10,7 +10,7 @@ import type {
   TradeActivity
 } from '~/types/company'
 import type {LocationItem} from '~/types/location'
-import {useLocationsApi} from '~/api/locations'
+import {useLocationsDbApi} from '~/api/locations-db'
 import {useUserStore} from '~/stores/user'
 import {uploadCompanyLogo} from '~/api/companyOwner'
 import UCombobox from "~/components/ui/UCombobox.vue";
@@ -36,7 +36,7 @@ const {
   loadRegions,
   loadCities,
   searchCities
-} = useLocationsApi()
+} = useLocationsDbApi()
 
 // Загружаем списки локаций
 const countries = ref<LocationItem[]>([])
@@ -91,8 +91,8 @@ onMounted(async () => {
   countries.value = countryOptions.value
   
   // Если есть данные о стране, загружаем федеральные округа
-  if (props.company?.country) {
-    await loadFederalDistricts()
+  if (props.company?.country === 'Россия') {
+    await loadFederalDistricts('RU')
     federalDistricts.value = federalDistrictOptions.value
   }
   
@@ -116,6 +116,11 @@ onMounted(async () => {
 // Функция для преобразования строки в LocationItem
 const findLocationItem = (items: LocationItem[], value: string): LocationItem | undefined => {
   return items.find(item => item.value === value)
+}
+
+// Функция для поиска локации по label
+const findLocationByLabel = (items: LocationItem[], label: string): LocationItem | undefined => {
+  return items.find(item => item.label === label)
 }
 
 // Transform company data from snake_case to camelCase
@@ -173,6 +178,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     type: typeValue
   } = companyData
 
+  // Для локации создаем объекты LocationItem из строковых значений
+  // Поддерживаем как существующие значения из списков, так и произвольные
   const country = countryValue ? { label: countryValue, value: countryValue } : undefined
   const federalDistrict = federalDistrictValue ? { label: federalDistrictValue, value: federalDistrictValue } : undefined
   const region = regionValue ? { label: regionValue, value: regionValue } : undefined
@@ -234,9 +241,9 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
   return {
     name: nameValue,
     full_name: fullNameValue,
-    inn: innValue,
-    kpp: kppValue,
-    ogrn: ogrnValue,
+    inn: innValue ? String(innValue).trim() : innValue,
+    kpp: kppValue ? String(kppValue).trim() : kppValue,
+    ogrn: ogrnValue ? String(ogrnValue).trim() : ogrnValue,
     registration_date: registrationDateValue,
     type: typeValue,
     trade_activity: tradeActivityValue,
@@ -299,8 +306,8 @@ const handleCountryChange = async (country: LocationItem | undefined) => {
   cities.value = []
   isCityManuallyChanged.value = false // Сбрасываем флаг изменения города
   
-  if (country?.value === 'Россия') {
-    await loadFederalDistricts()
+  if (country?.value === 'RU') {
+    await loadFederalDistricts('RU')
     federalDistricts.value = federalDistrictOptions.value
   } else {
     federalDistricts.value = []
@@ -503,7 +510,7 @@ const handleKeydown = (event: KeyboardEvent) => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo_url || undefined"
+                :src="formState.logo_url || null"
                 size="xl"
                 :alt="formState.name"
             />
@@ -532,7 +539,6 @@ const handleKeydown = (event: KeyboardEvent) => {
         <!-- 2. Информация о компании -->
         <CompanyInfoSection
             v-model:formState="formState"
-
         />
 
         <!-- 3. Реквизиты компании -->

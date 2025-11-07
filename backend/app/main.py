@@ -1,10 +1,11 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -13,6 +14,7 @@ from starlette.responses import FileResponse
 
 from app.admin.views import setup_admin
 from app.api.v1.router import api_router
+from app.api.celery.router import router as celery_router
 from app.core.config import settings
 from app.db.base import Base
 
@@ -20,13 +22,66 @@ from app.db.base import Base
 
 load_dotenv()
 
+# Database setup
+engine = create_async_engine(settings.ASYNC_DATABASE_URL)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🔧 Creating database tables...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created!")
+    yield
+    # Shutdown
+    print("🔄 Disposing database engine...")
+    await engine.dispose()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
     redoc_url=None,
-    swagger_ui_parameters={"persistAuthorization": True}
+    swagger_ui_parameters={"persistAuthorization": True},
+    lifespan=lifespan
 )
+
+# Настройка схемы безопасности для Swagger UI
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version="0.1.0",
+        description="Business Trade API",
+        routes=app.routes,
+    )
+    
+    # Добавляем схему безопасности Bearer
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    
+    # Применяем схему безопасности только к эндпоинтам аутентификации
+    for path in openapi_schema["paths"]:
+        for method in openapi_schema["paths"][path]:
+            if method in ["get", "post", "put", "delete", "patch"]:
+                # Применяем только к эндпоинтам, которые требуют авторизации
+                if "/auth/" in path and not any(public_path in path for public_path in ["/login", "/register", "/token"]):
+                    openapi_schema["paths"][path][method]["security"] = [{"BearerAuth": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 favicon_path = 'app/favicon.ico'
 
 
@@ -53,10 +108,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database setup
-engine = create_async_engine(settings.ASYNC_DATABASE_URL)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
 # Admin panel setup
 admin = setup_admin(app, engine)
 
@@ -64,19 +115,65 @@ admin = setup_admin(app, engine)
 templates = Jinja2Templates(directory="app/templates")
 
 
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await engine.dispose()
-
-
 # Include routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(celery_router, prefix=settings.API_V1_STR)
+
+# Простые endpoints для фильтра городов
+@app.get("/api/v1/cities-filter/cities-stats")
+async def get_cities_stats():
+    """Получить статистику по городам"""
+    try:
+        from app.db.base import AsyncSessionLocal
+        from app.api.common.models.city import City
+        from app.api.common.models.federal_district import FederalDistrict
+        from app.api.common.models.region import Region
+        from sqlalchemy import select, and_
+        
+        async with AsyncSessionLocal() as db:
+            # Общее количество городов
+            total_cities_result = await db.execute(
+                select(City).where(City.is_active == True)
+            )
+            total_cities = len(total_cities_result.scalars().all())
+            
+            # Города-миллионники
+            million_cities_result = await db.execute(
+                select(City).where(and_(City.is_active == True, City.is_million_city == True))
+            )
+            million_cities = len(million_cities_result.scalars().all())
+            
+            # Региональные центры
+            regional_centers_result = await db.execute(
+                select(City).where(and_(City.is_active == True, City.is_regional_center == True))
+            )
+            regional_centers = len(regional_centers_result.scalars().all())
+            
+            # Количество федеральных округов
+            fd_result = await db.execute(
+                select(FederalDistrict).where(FederalDistrict.is_active == True)
+            )
+            total_federal_districts = len(fd_result.scalars().all())
+            
+            # Количество регионов
+            regions_result = await db.execute(
+                select(Region).where(Region.is_active == True)
+            )
+            total_regions = len(regions_result.scalars().all())
+            
+            return {
+                "total_cities": total_cities,
+                "million_cities": million_cities,
+                "regional_centers": regional_centers,
+                "total_federal_districts": total_federal_districts,
+                "total_regions": total_regions
+            }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Эндпоинт перенесен в cities_filter.py router
 
 # Get the absolute path to the uploads directory
 uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")

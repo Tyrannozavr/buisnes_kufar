@@ -3,7 +3,7 @@
 		<div class="flex flex-row justify-between">
 
 			<!-- template -->
-			<div class="w-[70%] mr-1 p-3 h-[100%] overflow-y-hidden">
+			<div class="w-[70%] mr-3 h-[100%] overflow-y-hidden">
 				<Editor @tabIndex="getTabs">
 					<slot />
 				</Editor>

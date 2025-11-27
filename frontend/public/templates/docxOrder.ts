@@ -11,9 +11,9 @@ import {
   BorderStyle,
   UnderlineType,
 } from "docx";
-import type { GoodsDeal, Product } from "~/types/dealState";
+import type { GoodsDeal, ServicesDeal, Product } from "~/types/dealState";
 
-export const generateDocxOrder = async (orderDealData: GoodsDeal ) => {
+export const generateDocxOrder = async (orderDealData: ServicesDeal | GoodsDeal ) => {
   // Создание таблицы с данными поставщика и покупателя
   const headerTable = new Table({
     rows: [
@@ -94,6 +94,35 @@ ${orderDealData.buyer.mobileNumber}
     },
   });
 
+	//Отдельная констаннта для данных таблицы
+	const rowsData = orderDealData.goods
+		? orderDealData.goods.goodsList?.map((good: Product, index: number) => {
+					return new TableRow({
+						children: [
+							`${++index}`,
+							`${good.name}`,
+							`${good.article}`,
+							`${good.quantity}`,
+							`${good.units}`,
+							`${good.price}`,
+							`${good.amount}`,
+						].map((text) => new TableCell({ children: [new Paragraph(text)] })),
+					});
+				}) ?? []
+		: orderDealData.services.servicesList?.map((service: Product, index: number) => {
+					return new TableRow({
+						children: [
+							`${++index}`,
+							`${service.name}`,
+							`${service.article}`,
+							`${service.quantity}`,
+							`${service.units}`,
+							`${service.price}`,
+							`${service.amount}`,
+						].map((text) => new TableCell({ children: [new Paragraph(text)] })),
+					});
+				}) ?? []
+
   // Таблица с товарами
   const productTable = new Table({
     width: {
@@ -112,26 +141,15 @@ ${orderDealData.buyer.mobileNumber}
           "Сумма",
         ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
       }),
-      ...orderDealData.goods.goodsList?.map((good: Product, index: number) => {
-        return new TableRow({
-          children: [
-            `${++index}`,
-            `${good.name}`,
-            `${good.article}`,
-            `${good.quantity}`,
-            `${good.units}`,
-            `${good.price}`,
-            `${good.amount}`,
-          ].map((text) => new TableCell({ children: [new Paragraph(text)] })),
-        });
-      }),
+			...rowsData
+			
     ],
   });
 
   // Итоговая информация
   const summary = [
     new Paragraph({
-      text: `Итого: ${orderDealData.goods.amountPrice}`,
+      text: `Итого: ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice}`,
       spacing: {
         before: 200,
       },
@@ -141,20 +159,20 @@ ${orderDealData.buyer.mobileNumber}
       },
     }),
     new Paragraph({
-      text: `В том числе НДС: ${orderDealData.goods.amountPrice}`,
+      text: `В том числе НДС: ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice}`,
       indent: {
         start: 6000,
         hanging: 1180,
       },
     }),
     new Paragraph({
-      text: `Всего наименований ${orderDealData.goods.goodsList.length}, на сумму ${orderDealData.goods.amountPrice} руб.`,
+      text: `Всего наименований ${orderDealData.goods ? orderDealData.goods.goodsList.length : orderDealData.services.servicesList.length}, на сумму ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice} руб.`,
       spacing: {
         before: 500,
       },
     }),
     new Paragraph({
-      text: `${orderDealData.goods.amountWord}`,
+      text: `${ orderDealData.goods ? orderDealData.goods.amountWord : orderDealData.services.amountWord}`,
       spacing: {
         before: 200,
         after: 0,

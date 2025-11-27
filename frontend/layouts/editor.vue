@@ -59,7 +59,7 @@
 									<div class="mt-4 w-79 absolute">
 										<input type="text" name="search" v-model="inputValue"
 											@input="searchInCurrentDocument(tabIndex, orderElement)"
-											class="border border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
+											class=" border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
 									</div>
 									<div class="h-12"></div>
 								</template>
@@ -116,11 +116,14 @@ import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { usePurchasesStore } from '~/stores/purchases';
+import { useSalesStore } from '~/stores/sales';
 import type { Insert } from '~/types/contracts';
 import { injectionKeys } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
+const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
+const { sales } = storeToRefs(salesStore)
 
 let tabIndex: string
 function getTabs(activeTab: string): void {
@@ -175,15 +178,36 @@ const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
 let orderDocxBlob: Blob
 let billDocxBlob: Blob
 
+//присвоение корректного Blob в зависимости от выбранной сделки
 watch(
-	() => purchases.value,
-	async () => {
-		if (purchases.value.goodsDeals?.[0]) {
-			orderDocxBlob = await generateDocxOrder(purchases.value.goodsDeals[0])
-			billDocxBlob = await generateDocxBill(purchases.value.goodsDeals[0])
+	() => insertState.value,
+	async (insert) => {
+		if (purchases.value.goodsDeals && insert.purchasesStateGood) {
+			const indexPurchasesGood: number = purchases.value.goodsDeals.length - 1
+			if (purchases.value.goodsDeals?.[indexPurchasesGood]) {
+				orderDocxBlob = await generateDocxOrder(purchases.value.goodsDeals[indexPurchasesGood])
+			}
+
+		} else if (purchases.value.servicesDeals && insert.purchasesStateService) {
+			const indexPurchasesService: number = purchases.value.servicesDeals.length - 1
+			if (purchases.value.servicesDeals?.[indexPurchasesService]) {
+				orderDocxBlob = await generateDocxOrder(purchases.value.servicesDeals[indexPurchasesService])
+			}
+
+		} else if (sales.value.goodsDeals && insert.salesStateGood) {
+			const indexSalesGood: number = sales.value.goodsDeals.length - 1 
+			if (sales.value.goodsDeals?.[indexSalesGood]) {
+				orderDocxBlob = await generateDocxOrder(sales.value.goodsDeals[indexSalesGood])
+			}
+
+		} else if (sales.value.servicesDeals && insert.salesStateGood) {
+			const indexSalesService: number = sales.value.servicesDeals.length - 1 
+			if (sales.value.servicesDeals?.[indexSalesService]) {
+				orderDocxBlob = await generateDocxOrder(sales.value.servicesDeals[indexSalesService])
+			}
 		}
 	},
-	{ immediate: true, deep: true }
+	{ immediate: false, deep: true }
 )
 
 const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {

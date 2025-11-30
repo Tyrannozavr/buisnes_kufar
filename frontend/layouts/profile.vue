@@ -114,11 +114,11 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
 
 // Get page title from route meta
 const pageTitle = computed(() => {
-	const title = route.value.meta.title
+	const title = route.meta.title
 	return typeof title === 'function' ? title() : title
 })
 
-const alternativeLayout = () => route.value.name === 'profile-purchases' || route.value.name === 'profile-sales' ? true : false
+const alternativeLayout = () => route.name === 'profile-purchases' || route.name === 'profile-sales' ? true : false
 
 watch(alternativeLayout, () => console.log(alternativeLayout()))
 
@@ -131,6 +131,7 @@ watch(alternativeLayout, () => console.log(alternativeLayout()))
 				<Breadcrumbs :current-page-title="pageTitle" />
 			</div>
 
+			<!-- Альтернативное меню навигации ??? -->
 			<div v-if="alternativeLayout()" class="flex flex-col md:flex-col gap-6 md:gap-8">
 				<!-- Main Content -->
 				<div class="w-full md:max-w-full order-2">
@@ -138,9 +139,7 @@ watch(alternativeLayout, () => console.log(alternativeLayout()))
 				</div>
 				<!-- Navigation Sidebar -->
 				<div class="w-128 md:w-full flex-shrink-0 order-1">
-					<UNavigationMenu arrow orientation="horizontal" content-orientation="vertical" :items="alternativeNavigationItems" />
-					<!-- <UCard class="sticky top-8 w-128 md:w-full max-h-content"> -->
-					<!-- </UCard> -->
+					<!-- <UNavigationMenu arrow orientation="horizontal" content-orientation="vertical" :items="alternativeNavigationItems" /> -->
 				</div>
 			</div>
 

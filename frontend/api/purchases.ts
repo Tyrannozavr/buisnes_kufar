@@ -1,7 +1,7 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
 
-export const useCheckoutApi = () => {
+export const usePurchasesApi = () => {
 
 	const postPurchases = async (products: ProductInCheckout[], buyer: Buyer) => {
 		if (products[0]) {

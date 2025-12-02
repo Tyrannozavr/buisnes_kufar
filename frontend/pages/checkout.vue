@@ -113,7 +113,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
-import { useCheckoutApi } from '~/api/checkout'
+import { usePurchasesApi } from '~/api/purchases'
 
 const { createChat, sendMessage } = useChatsApi()
 
@@ -127,7 +127,7 @@ const buyer: Buyer = {
 const cartStore = useCartStore()
 const products = cartStore.items
 
-const { postPurchases } = useCheckoutApi()
+const { postPurchases } = usePurchasesApi()
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 

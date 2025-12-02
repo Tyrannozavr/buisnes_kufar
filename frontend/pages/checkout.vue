@@ -40,7 +40,7 @@
                 color="primary"
                 to="/checkout"
 								@click="
-								postProducts(cp.products),
+								postPurchases(cp.products, buyer),
 								messageToSaller(cp.companyId,cp.products),
 								showToast(),
 								removeItemsFromCart(cp.products)"
@@ -77,7 +77,7 @@
                 color="primary"
                 to=""
 								@click="
-								postProducts(cp.services),
+								postPurchases(cp.products, buyer),
 								messageToSaller(cp.companyId,cp.services),
 								showToast(),
 								removeItemsFromCart(cp.services)"
@@ -110,14 +110,15 @@
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
 import type { TableColumn } from '@nuxt/ui'
-import type { CompaniesAndProducts, ProductInCheckout } from 'types/product'
+import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
+import { useCheckoutApi } from '~/api/checkout'
 
 const { createChat, sendMessage } = useChatsApi()
 
 const userStore = useUserStore()
-const buyer: {companyId: number, companyName: string, companySlug: string} = {
+const buyer: Buyer = {
 	companyId: userStore.companyId,
 	companyName: userStore.companyName,
 	companySlug: userStore.companySlug,
@@ -126,6 +127,7 @@ const buyer: {companyId: number, companyName: string, companySlug: string} = {
 const cartStore = useCartStore()
 const products = cartStore.items
 
+const { postPurchases } = useCheckoutApi()
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 
@@ -258,17 +260,6 @@ const removeItemsFromCart = (items: ProductInCheckout[]): void => {
 		itemsForRemove.push(product.slug)
 	})
 	itemsForRemove.forEach(slug => cartStore.removeFromCart(slug))
-}
-
-//отправляем продукцию на сервер 
-const postProducts = async (product: ProductInCheckout[]) => {
-	$fetch('/api/orderedProducts', {
-		method: 'POST',
-		body: {
-			product,
-			buyer
-		}
-	})
 }
 
 //отправляем сообщение продавцу о намерении совершить заказ

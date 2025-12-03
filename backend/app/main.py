@@ -91,16 +91,17 @@ def custom_openapi():
     }
     
     # Если есть существующая схема, используем её как основу, но исправляем поля
+    # ВАЖНО: для Bearer токенов тип должен быть "http", а не "oauth2"
     if existing_scheme and isinstance(existing_scheme, dict):
-        correct_scheme["type"] = existing_scheme.get("type", "http")
+        # Принудительно устанавливаем правильный тип для Bearer токенов
+        correct_scheme["type"] = "http"
         correct_scheme["scheme"] = existing_scheme.get("scheme", "bearer")
         correct_scheme["bearerFormat"] = existing_scheme.get("bearerFormat", "JWT")
         if "description" in existing_scheme:
             correct_scheme["description"] = existing_scheme["description"]
     
-    # Убеждаемся, что type не None
-    if correct_scheme.get("type") is None:
-        correct_scheme["type"] = "http"
+    # Убеждаемся, что type всегда "http" для Bearer токенов
+    correct_scheme["type"] = "http"
     
     # Убеждаемся, что все security schemes правильно структурированы
     # Удаляем любые схемы с undefined значениями
@@ -124,15 +125,16 @@ def custom_openapi():
     
     # Убеждаемся, что изменения применены - принудительно перезаписываем
     # Создаем новый словарь, чтобы гарантировать наличие обеих схем
+    # ВАЖНО: тип должен быть "http" для Bearer токенов, а не "oauth2"
     final_schemes = {
         "Bearer": {
-            "type": correct_scheme.get("type", "http"),
+            "type": "http",  # Принудительно устанавливаем правильный тип
             "scheme": correct_scheme.get("scheme", "bearer"),
             "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
             "description": correct_scheme.get("description", "OAuth2 password bearer token")
         },
         "BearerAuth": {
-            "type": correct_scheme.get("type", "http"),
+            "type": "http",  # Принудительно устанавливаем правильный тип
             "scheme": correct_scheme.get("scheme", "bearer"),
             "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
             "description": correct_scheme.get("description", "OAuth2 password bearer token")

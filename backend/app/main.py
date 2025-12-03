@@ -51,8 +51,9 @@ app = FastAPI(
 from fastapi.openapi.utils import get_openapi
 
 def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
+    # Не используем кэш, чтобы всегда генерировать свежую схему
+    # if app.openapi_schema:
+    #     return app.openapi_schema
     
     openapi_schema = get_openapi(
         title=app.title,

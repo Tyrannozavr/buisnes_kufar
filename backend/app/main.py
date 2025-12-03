@@ -111,11 +111,13 @@ def custom_openapi():
     
     # Создаем обе схемы (Bearer и BearerAuth) для совместимости
     # Некоторые эндпоинты используют "Bearer", другие "BearerAuth"
-    security_schemes["Bearer"] = correct_scheme.copy()
-    security_schemes["BearerAuth"] = correct_scheme.copy()
+    # Принудительно устанавливаем обе схемы
+    openapi_schema["components"]["securitySchemes"]["Bearer"] = correct_scheme.copy()
+    openapi_schema["components"]["securitySchemes"]["BearerAuth"] = correct_scheme.copy()
     
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    # Не кэшируем схему, чтобы изменения применялись сразу
+    # app.openapi_schema = openapi_schema
+    return openapi_schema
 
 app.openapi = custom_openapi
 favicon_path = 'app/favicon.ico'

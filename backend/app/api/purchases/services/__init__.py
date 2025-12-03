@@ -21,9 +21,21 @@ class DealService:
         """Создание новой сделки"""
         import traceback
         from app_logging.logger import logger
+        from sqlalchemy.exc import IntegrityError
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
             return await self._order_to_deal_response(order)
+        except IntegrityError as e:
+            await self.session.rollback()
+            error_msg = f"Database integrity error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            # Проверяем, какое ограничение нарушено
+            if "seller_company_id_fkey" in str(e):
+                raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
+            elif "buyer_company_id_fkey" in str(e):
+                raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
+            raise ValueError("Database constraint violation")
         except Exception as e:
             await self.session.rollback()
             error_msg = f"Error creating deal: {str(e)}"
@@ -31,7 +43,7 @@ class DealService:
             logger.error(traceback.format_exc())
             print(f"Error creating deal: {e}")
             print(traceback.format_exc())
-            return None
+            raise
 
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
         """Получение сделки по ID"""

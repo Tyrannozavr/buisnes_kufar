@@ -19,12 +19,18 @@ class DealService:
 
     async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание новой сделки"""
+        import traceback
+        from app_logging.logger import logger
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
             return await self._order_to_deal_response(order)
         except Exception as e:
             await self.session.rollback()
+            error_msg = f"Error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
             print(f"Error creating deal: {e}")
+            print(traceback.format_exc())
             return None
 
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:

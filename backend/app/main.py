@@ -71,39 +71,18 @@ def custom_openapi():
         openapi_schema["components"]["securitySchemes"] = {}
     
     # FastAPI автоматически создает схему безопасности через OAuth2PasswordBearer
-    # Мы убеждаемся, что схема правильно определена и не содержит undefined значений
-    # Проверяем и исправляем существующую схему Bearer, если она есть
-    bearer_scheme = openapi_schema["components"]["securitySchemes"].get("Bearer")
-    
-    # Если схема существует, убеждаемся, что она правильно структурирована
-    if bearer_scheme:
-        # Убеждаемся, что все обязательные поля присутствуют
-        if "type" not in bearer_scheme or bearer_scheme.get("type") is None:
-            bearer_scheme["type"] = "http"
-        if "scheme" not in bearer_scheme or bearer_scheme.get("scheme") is None:
-            bearer_scheme["scheme"] = "bearer"
-        if "bearerFormat" not in bearer_scheme:
-            bearer_scheme["bearerFormat"] = "JWT"
-    else:
-        # Создаем схему, если её нет
-        openapi_schema["components"]["securitySchemes"]["Bearer"] = {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "OAuth2 password bearer token"
-        }
-    
-    # Убеждаемся, что все security schemes правильно структурированы
-    # Удаляем любые схемы с undefined значениями
+    # Обычно она называется "BearerAuth", но некоторые эндпоинты используют "Bearer"
+    # Мы создаем обе схемы для совместимости
     security_schemes = openapi_schema["components"]["securitySchemes"]
-    for scheme_name, scheme_def in list(security_schemes.items()):
-        if not isinstance(scheme_def, dict) or scheme_def.get("type") is None:
-            # Удаляем некорректные схемы
-            del security_schemes[scheme_name]
     
-    # Нормализуем схемы безопасности: создаем обе схемы (Bearer и BearerAuth)
-    # FastAPI может создавать "BearerAuth", но некоторые эндпоинты используют "Bearer"
-    # Создаем единую правильную схему и копируем её под оба имени
+    # Находим существующую схему (BearerAuth или Bearer)
+    existing_scheme = None
+    for name in ["BearerAuth", "Bearer"]:
+        if name in security_schemes:
+            existing_scheme = security_schemes[name]
+            break
+    
+    # Создаем правильную схему
     correct_scheme = {
         "type": "http",
         "scheme": "bearer",
@@ -111,15 +90,27 @@ def custom_openapi():
         "description": "OAuth2 password bearer token"
     }
     
-    # Если есть существующая схема, используем её как основу
-    if "BearerAuth" in security_schemes:
-        bearer_auth = security_schemes.get("BearerAuth")
-        if bearer_auth and isinstance(bearer_auth, dict) and bearer_auth.get("type") is not None:
-            correct_scheme = bearer_auth.copy()
-            if "description" not in correct_scheme:
-                correct_scheme["description"] = "OAuth2 password bearer token"
+    # Если есть существующая схема, используем её как основу, но исправляем поля
+    if existing_scheme and isinstance(existing_scheme, dict):
+        correct_scheme["type"] = existing_scheme.get("type", "http")
+        correct_scheme["scheme"] = existing_scheme.get("scheme", "bearer")
+        correct_scheme["bearerFormat"] = existing_scheme.get("bearerFormat", "JWT")
+        if "description" in existing_scheme:
+            correct_scheme["description"] = existing_scheme["description"]
     
-    # Убеждаемся, что обе схемы существуют и правильно определены
+    # Убеждаемся, что type не None
+    if correct_scheme.get("type") is None:
+        correct_scheme["type"] = "http"
+    
+    # Убеждаемся, что все security schemes правильно структурированы
+    # Удаляем любые схемы с undefined значениями
+    for scheme_name, scheme_def in list(security_schemes.items()):
+        if not isinstance(scheme_def, dict) or scheme_def.get("type") is None:
+            # Удаляем некорректные схемы
+            del security_schemes[scheme_name]
+    
+    # Создаем обе схемы (Bearer и BearerAuth) для совместимости
+    # Некоторые эндпоинты используют "Bearer", другие "BearerAuth"
     security_schemes["Bearer"] = correct_scheme.copy()
     security_schemes["BearerAuth"] = correct_scheme.copy()
     

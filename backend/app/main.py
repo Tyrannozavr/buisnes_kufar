@@ -111,9 +111,18 @@ def custom_openapi():
     
     # Создаем обе схемы (Bearer и BearerAuth) для совместимости
     # Некоторые эндпоинты используют "Bearer", другие "BearerAuth"
-    # Принудительно устанавливаем обе схемы
-    openapi_schema["components"]["securitySchemes"]["Bearer"] = correct_scheme.copy()
-    openapi_schema["components"]["securitySchemes"]["BearerAuth"] = correct_scheme.copy()
+    # Принудительно устанавливаем обе схемы через прямое обращение
+    security_schemes_dict = openapi_schema["components"]["securitySchemes"]
+    # Создаем новую копию схемы для обеих
+    bearer_scheme = dict(correct_scheme)
+    bearer_auth_scheme = dict(correct_scheme)
+    
+    # Устанавливаем обе схемы
+    security_schemes_dict["Bearer"] = bearer_scheme
+    security_schemes_dict["BearerAuth"] = bearer_auth_scheme
+    
+    # Убеждаемся, что изменения применены
+    openapi_schema["components"]["securitySchemes"] = security_schemes_dict
     
     # Не кэшируем схему, чтобы изменения применялись сразу
     # app.openapi_schema = openapi_schema

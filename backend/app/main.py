@@ -110,21 +110,16 @@ def custom_openapi():
             # Удаляем некорректные схемы
             del security_schemes[scheme_name]
     
-    # Создаем обе схемы (Bearer и BearerAuth) для совместимости
-    # Некоторые эндпоинты используют "Bearer", другие "BearerAuth"
-    # Принудительно устанавливаем обе схемы через прямое обращение
+    # Создаем только одну схему Bearer для стандартного вида в Swagger UI
+    # Удаляем BearerAuth, если он есть, чтобы не было дублирования форм авторизации
     security_schemes_dict = openapi_schema["components"]["securitySchemes"]
     
-    # Создаем новую копию схемы для обеих
-    bearer_scheme = dict(correct_scheme)
-    bearer_auth_scheme = dict(correct_scheme)
-    
-    # Устанавливаем обе схемы
-    security_schemes_dict["Bearer"] = bearer_scheme
-    security_schemes_dict["BearerAuth"] = bearer_auth_scheme
+    # Удаляем BearerAuth, если он существует
+    if "BearerAuth" in security_schemes_dict:
+        del security_schemes_dict["BearerAuth"]
     
     # Убеждаемся, что изменения применены - принудительно перезаписываем
-    # Создаем новый словарь, чтобы гарантировать наличие обеих схем
+    # Создаем только схему Bearer для стандартного вида
     # ВАЖНО: тип должен быть "http" для Bearer токенов, а не "oauth2"
     final_schemes = {
         "Bearer": {
@@ -132,16 +127,10 @@ def custom_openapi():
             "scheme": correct_scheme.get("scheme", "bearer"),
             "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
             "description": correct_scheme.get("description", "OAuth2 password bearer token")
-        },
-        "BearerAuth": {
-            "type": "http",  # Принудительно устанавливаем правильный тип
-            "scheme": correct_scheme.get("scheme", "bearer"),
-            "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
-            "description": correct_scheme.get("description", "OAuth2 password bearer token")
         }
     }
     
-    # Принудительно устанавливаем обе схемы
+    # Принудительно устанавливаем только схему Bearer
     openapi_schema["components"]["securitySchemes"] = final_schemes
     
     # Не кэшируем схему, чтобы изменения применялись сразу

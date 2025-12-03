@@ -123,10 +123,24 @@ def custom_openapi():
     security_schemes_dict["BearerAuth"] = bearer_auth_scheme
     
     # Убеждаемся, что изменения применены - принудительно перезаписываем
-    openapi_schema["components"]["securitySchemes"] = {
-        "Bearer": dict(correct_scheme),
-        "BearerAuth": dict(correct_scheme)
+    # Создаем новый словарь, чтобы гарантировать наличие обеих схем
+    final_schemes = {
+        "Bearer": {
+            "type": correct_scheme.get("type", "http"),
+            "scheme": correct_scheme.get("scheme", "bearer"),
+            "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
+            "description": correct_scheme.get("description", "OAuth2 password bearer token")
+        },
+        "BearerAuth": {
+            "type": correct_scheme.get("type", "http"),
+            "scheme": correct_scheme.get("scheme", "bearer"),
+            "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
+            "description": correct_scheme.get("description", "OAuth2 password bearer token")
+        }
     }
+    
+    # Принудительно устанавливаем обе схемы
+    openapi_schema["components"]["securitySchemes"] = final_schemes
     
     # Не кэшируем схему, чтобы изменения применялись сразу
     # app.openapi_schema = openapi_schema

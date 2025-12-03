@@ -61,22 +61,44 @@ def custom_openapi():
         routes=app.routes,
     )
     
-    # Добавляем схему безопасности Bearer
-    openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
+    # Убеждаемся, что components существует
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    
+    # Инициализируем securitySchemes, если его нет
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+    
+    # FastAPI автоматически создает схему безопасности через OAuth2PasswordBearer
+    # Мы убеждаемся, что схема правильно определена и не содержит undefined значений
+    # Проверяем и исправляем существующую схему Bearer, если она есть
+    bearer_scheme = openapi_schema["components"]["securitySchemes"].get("Bearer")
+    
+    # Если схема существует, убеждаемся, что она правильно структурирована
+    if bearer_scheme:
+        # Убеждаемся, что все обязательные поля присутствуют
+        if "type" not in bearer_scheme or bearer_scheme.get("type") is None:
+            bearer_scheme["type"] = "http"
+        if "scheme" not in bearer_scheme or bearer_scheme.get("scheme") is None:
+            bearer_scheme["scheme"] = "bearer"
+        if "bearerFormat" not in bearer_scheme:
+            bearer_scheme["bearerFormat"] = "JWT"
+    else:
+        # Создаем схему, если её нет
+        openapi_schema["components"]["securitySchemes"]["Bearer"] = {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
+            "description": "OAuth2 password bearer token"
         }
-    }
     
-    # Применяем схему безопасности только к эндпоинтам аутентификации
-    for path in openapi_schema["paths"]:
-        for method in openapi_schema["paths"][path]:
-            if method in ["get", "post", "put", "delete", "patch"]:
-                # Применяем только к эндпоинтам, которые требуют авторизации
-                if "/auth/" in path and not any(public_path in path for public_path in ["/login", "/register", "/token"]):
-                    openapi_schema["paths"][path][method]["security"] = [{"BearerAuth": []}]
+    # Убеждаемся, что все security schemes правильно структурированы
+    # Удаляем любые схемы с undefined значениями
+    security_schemes = openapi_schema["components"]["securitySchemes"]
+    for scheme_name, scheme_def in list(security_schemes.items()):
+        if not isinstance(scheme_def, dict) or scheme_def.get("type") is None:
+            # Удаляем некорректные схемы
+            del security_schemes[scheme_name]
     
     app.openapi_schema = openapi_schema
     return app.openapi_schema

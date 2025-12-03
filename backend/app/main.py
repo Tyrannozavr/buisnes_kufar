@@ -100,6 +100,31 @@ def custom_openapi():
             # Удаляем некорректные схемы
             del security_schemes[scheme_name]
     
+    # Нормализуем схемы безопасности: убеждаемся, что "Bearer" существует
+    # FastAPI может создавать "BearerAuth", но эндпоинты используют "Bearer"
+    if "BearerAuth" in security_schemes and "Bearer" not in security_schemes:
+        # Копируем BearerAuth в Bearer, если Bearer не существует
+        bearer_auth = security_schemes.get("BearerAuth")
+        if bearer_auth and isinstance(bearer_auth, dict) and bearer_auth.get("type") is not None:
+            security_schemes["Bearer"] = bearer_auth.copy()
+    elif "BearerAuth" in security_schemes:
+        # Если обе схемы существуют, используем Bearer как основную
+        if "Bearer" not in security_schemes:
+            bearer_auth = security_schemes.get("BearerAuth")
+            if bearer_auth and isinstance(bearer_auth, dict) and bearer_auth.get("type") is not None:
+                security_schemes["Bearer"] = bearer_auth.copy()
+    
+    # Убеждаемся, что Bearer схема правильно определена
+    if "Bearer" in security_schemes:
+        bearer_scheme = security_schemes["Bearer"]
+        if not isinstance(bearer_scheme, dict) or bearer_scheme.get("type") is None:
+            security_schemes["Bearer"] = {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "OAuth2 password bearer token"
+            }
+    
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

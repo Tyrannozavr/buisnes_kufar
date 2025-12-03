@@ -273,9 +273,19 @@ class DealRepository:
 
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""
-        query = select(Company).where(Company.user_id == user_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        from app.api.authentication.models.user import User
+        # Сначала получаем пользователя, затем его компанию
+        user_query = select(User).where(User.id == user_id)
+        user_result = await self.session.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        
+        if not user or not user.company_id:
+            return None
+        
+        # Получаем компанию по company_id из пользователя
+        company_query = select(Company).where(Company.id == user.company_id)
+        company_result = await self.session.execute(company_query)
+        return company_result.scalar_one_or_none()
 
     async def get_company_by_id(self, company_id: int) -> Optional[Company]:
         """Получение компании по ID"""

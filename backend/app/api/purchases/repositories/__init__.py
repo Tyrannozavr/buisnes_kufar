@@ -29,14 +29,21 @@ class DealRepository:
             seller_order_number = await self._generate_order_number(order_data.seller_company_id)
             print(f"DEBUG: Номер продавца: {seller_order_number}")
             
+            # Преобразуем deal_type из ItemType enum в OrderType enum
+            from app.api.purchases.schemas import ItemType
+            if order_data.deal_type == ItemType.GOODS:
+                order_deal_type = OrderType.GOODS
+            else:
+                order_deal_type = OrderType.SERVICES
+            
             # Создаем заказ
-            print(f"DEBUG: Создаем объект Order")
+            print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")
             order = Order(
                 buyer_order_number=buyer_order_number,
                 seller_order_number=seller_order_number,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
-                deal_type=OrderType.GOODS if order_data.deal_type == "Товары" else OrderType.SERVICES,
+                deal_type=order_deal_type,
                 status=OrderStatus.ACTIVE,
                 comments=order_data.comments
             )
@@ -66,6 +73,25 @@ class DealRepository:
                     
                     if not product:
                         raise ValueError(f"Product with ID {product_id} not found")
+                    
+                    # Проверяем соответствие типа продукта типу заказа
+                    from app.api.products.models.product import ProductType
+                    from app.api.purchases.schemas import ItemType
+                    
+                    # Проверяем соответствие: "Товары" (ItemType.GOODS) -> "Товар" (ProductType.GOOD)
+                    # и "Услуги" (ItemType.SERVICES) -> "Услуга" (ProductType.SERVICE)
+                    if order_data.deal_type == ItemType.GOODS and product.type != ProductType.GOOD:
+                        raise ValueError(
+                            f"Product with ID {product_id} is of type '{product.type.value}' (Услуга), "
+                            f"but order type is '{order_data.deal_type.value}' (Товары). "
+                            f"Product type must match order type."
+                        )
+                    elif order_data.deal_type == ItemType.SERVICES and product.type != ProductType.SERVICE:
+                        raise ValueError(
+                            f"Product with ID {product_id} is of type '{product.type.value}' (Товар), "
+                            f"but order type is '{order_data.deal_type.value}' (Услуги). "
+                            f"Product type must match order type."
+                        )
                     
                     # Используем данные из БД
                     product_name = product.name

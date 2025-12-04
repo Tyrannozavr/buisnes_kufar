@@ -55,9 +55,12 @@ class DealRepository:
                 amount = item_data.quantity * item_data.price
                 total_amount += amount
                 
+                # Если product_id равен 0 или None, устанавливаем None (для ручного ввода товара)
+                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                
                 order_item = OrderItem(
                     order_id=order.id,
-                    product_id=item_data.product_id,
+                    product_id=product_id,
                     product_name=item_data.product_name,
                     product_slug=item_data.product_slug,
                     product_description=item_data.product_description,

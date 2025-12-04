@@ -19,13 +19,39 @@ class DealService:
 
     async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание новой сделки"""
+        import traceback
+        from app_logging.logger import logger
+        from sqlalchemy.exc import IntegrityError
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
             return await self._order_to_deal_response(order)
+        except IntegrityError as e:
+            await self.session.rollback()
+            error_msg = f"Database integrity error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            # Проверяем, какое ограничение нарушено
+            error_str = str(e)
+            if "seller_company_id_fkey" in error_str:
+                raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
+            elif "buyer_company_id_fkey" in error_str:
+                raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
+            elif "product_id_fkey" in error_str or "order_items_product_id_fkey" in error_str:
+                # Извлекаем product_id из ошибки, если возможно
+                import re
+                match = re.search(r'Key \(product_id\)=\((\d+)\)', error_str)
+                if match:
+                    product_id = match.group(1)
+                    raise ValueError(f"Product with ID {product_id} does not exist. Use null or omit product_id for manual entry.")
+                raise ValueError("One of the products in the order does not exist. Use null or omit product_id for manual entry.")
+            raise ValueError("Database constraint violation")
         except Exception as e:
             await self.session.rollback()
+            error_msg = f"Error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
             print(f"Error creating deal: {e}")
-            return None
+            raise
 
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
         """Получение сделки по ID"""

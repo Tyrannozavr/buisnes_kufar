@@ -31,9 +31,24 @@ class OrderItemBase(BaseModel):
         from_attributes = True
 
 
-class OrderItemCreate(OrderItemBase):
+class OrderItemCreate(BaseModel):
     """Схема для создания позиции заказа"""
-    product_id: Optional[int] = Field(None, description="ID продукта (если есть)")
+    product_id: Optional[int] = Field(None, description="ID продукта (если указан, остальные данные берутся из БД)")
+    quantity: float = Field(..., gt=0, description="Количество")
+    
+    # Поля для ручного ввода (используются только если product_id не указан)
+    product_name: Optional[str] = Field(None, description="Наименование товара/услуги (только для ручного ввода)")
+    product_slug: Optional[str] = Field(None, description="Slug продукта (только для ручного ввода)")
+    product_description: Optional[str] = Field(None, description="Описание продукта (только для ручного ввода)")
+    product_article: Optional[str] = Field(None, description="Артикул (только для ручного ввода)")
+    product_type: Optional[str] = Field(None, description="Тип продукта (только для ручного ввода)")
+    logo_url: Optional[str] = Field(None, description="URL логотипа (только для ручного ввода)")
+    unit_of_measurement: Optional[str] = Field(None, description="Единица измерения (только для ручного ввода)")
+    price: Optional[float] = Field(None, gt=0, description="Цена за единицу (только для ручного ввода)")
+    position: Optional[int] = Field(None, ge=1, description="Позиция в заказе (автоматически, если не указана)")
+    
+    class Config:
+        from_attributes = True
 
 
 class OrderItemResponse(OrderItemBase):

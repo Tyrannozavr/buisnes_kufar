@@ -220,20 +220,41 @@ class DealService:
                         break
                 
                 # Преобразуем данные корзины в формат DealCreate
+                # Пытаемся найти product_id по slug для каждого товара
+                from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+                products_repo = CompanyProductsRepository(self.session)
+                
                 deal_items = []
                 for i, item in enumerate(seller_data["items"], 1):
-                    deal_items.append({
-                        "product_name": item.get("productName"),
-                        "product_slug": item.get("slug"),
-                        "product_description": item.get("description"),
-                        "product_article": str(item.get("article", "")),
-                        "product_type": item.get("type"),
-                        "logo_url": item.get("logoUrl"),
+                    # Пытаемся найти product_id по slug
+                    product_id = None
+                    if item.get("slug"):
+                        product = await products_repo.get_by_slug(item.get("slug"))
+                        if product:
+                            product_id = product.id
+                    
+                    deal_item = {
                         "quantity": item.get("quantity"),
-                        "unit_of_measurement": item.get("units"),
-                        "price": item.get("price"),
                         "position": i
-                    })
+                    }
+                    
+                    if product_id:
+                        # Если нашли product_id, используем только его и quantity
+                        deal_item["product_id"] = product_id
+                    else:
+                        # Ручной ввод - все поля обязательны
+                        deal_item.update({
+                            "product_name": item.get("productName"),
+                            "product_slug": item.get("slug"),
+                            "product_description": item.get("description"),
+                            "product_article": str(item.get("article", "")),
+                            "product_type": item.get("type"),
+                            "logo_url": item.get("logoUrl"),
+                            "unit_of_measurement": item.get("units"),
+                            "price": item.get("price")
+                        })
+                    
+                    deal_items.append(deal_item)
                 
                 deal_data = DealCreate(
                     seller_company_id=seller_id,

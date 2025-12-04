@@ -50,28 +50,71 @@ class DealRepository:
             # Добавляем позиции заказа
             print(f"DEBUG: Добавляем {len(order_data.items)} позиций заказа")
             total_amount = 0
+            from app.api.products.models.product import Product
+            
             for i, item_data in enumerate(order_data.items, 1):
-                print(f"DEBUG: Обрабатываем позицию {i}: {item_data.product_name}")
-                amount = item_data.quantity * item_data.price
+                position = item_data.position if item_data.position else i
+                
+                # Если product_id указан и > 0, получаем данные из БД
+                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                
+                if product_id:
+                    # Получаем продукт из БД
+                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
+                    product_result = await self.session.execute(product_query)
+                    product = product_result.scalar_one_or_none()
+                    
+                    if not product:
+                        raise ValueError(f"Product with ID {product_id} not found")
+                    
+                    # Используем данные из БД
+                    product_name = product.name
+                    product_slug = product.slug
+                    product_description = product.description
+                    product_article = product.article
+                    product_type = product.type.value  # Enum -> str
+                    logo_url = product.images[0] if product.images else None
+                    unit_of_measurement = product.unit_of_measurement or "шт"
+                    price = product.price
+                    quantity = item_data.quantity
+                else:
+                    # Ручной ввод - используем данные из запроса
+                    if not item_data.product_name:
+                        raise ValueError("product_name is required when product_id is not specified")
+                    if not item_data.price:
+                        raise ValueError("price is required when product_id is not specified")
+                    if not item_data.unit_of_measurement:
+                        raise ValueError("unit_of_measurement is required when product_id is not specified")
+                    
+                    product_name = item_data.product_name
+                    product_slug = item_data.product_slug
+                    product_description = item_data.product_description
+                    product_article = item_data.product_article
+                    product_type = item_data.product_type
+                    logo_url = item_data.logo_url
+                    unit_of_measurement = item_data.unit_of_measurement
+                    price = item_data.price
+                    quantity = item_data.quantity
+                
+                amount = quantity * price
                 total_amount += amount
                 
-                # Если product_id равен 0 или None, устанавливаем None (для ручного ввода товара)
-                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                print(f"DEBUG: Обрабатываем позицию {position}: {product_name} (qty={quantity}, price={price})")
                 
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=product_id,
-                    product_name=item_data.product_name,
-                    product_slug=item_data.product_slug,
-                    product_description=item_data.product_description,
-                    product_article=item_data.product_article,
-                    product_type=item_data.product_type,
-                    logo_url=item_data.logo_url,
-                    quantity=item_data.quantity,
-                    unit_of_measurement=item_data.unit_of_measurement,
-                    price=item_data.price,
+                    product_name=product_name,
+                    product_slug=product_slug,
+                    product_description=product_description,
+                    product_article=product_article,
+                    product_type=product_type,
+                    logo_url=logo_url,
+                    quantity=quantity,
+                    unit_of_measurement=unit_of_measurement,
+                    price=price,
                     amount=amount,
-                    position=i
+                    position=position
                 )
                 print(f"DEBUG: Добавляем позицию в сессию")
                 self.session.add(order_item)

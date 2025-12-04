@@ -86,21 +86,15 @@ class OrderItemCreate(BaseModel):
         json_schema_extra = {
             "examples": [
                 {
-                    "description": "Вариант 1: С product_id (минимальный набор полей)",
-                    "value": {
-                        "product_id": 1,
-                        "quantity": 2
-                    }
+                    "product_id": 1,
+                    "quantity": 2
                 },
                 {
-                    "description": "Вариант 2: Без product_id (ручной ввод)",
-                    "value": {
-                        "product_id": None,
-                        "quantity": 1,
-                        "product_name": "Кастомный товар",
-                        "price": 100.0,
-                        "unit_of_measurement": "шт"
-                    }
+                    "product_id": None,
+                    "quantity": 1,
+                    "product_name": "Кастомный товар",
+                    "price": 100.0,
+                    "unit_of_measurement": "шт"
                 }
             ]
         }

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
 
@@ -32,23 +32,78 @@ class OrderItemBase(BaseModel):
 
 
 class OrderItemCreate(BaseModel):
-    """Схема для создания позиции заказа"""
-    product_id: Optional[int] = Field(None, description="ID продукта (если указан, остальные данные берутся из БД)")
+    """Схема для создания позиции заказа
+    
+    Два варианта использования:
+    1. С product_id: указывайте только product_id и quantity, остальные данные берутся из БД
+    2. Без product_id: указывайте все поля вручную (product_name, price, unit_of_measurement обязательны)
+    """
+    product_id: Optional[int] = Field(
+        None, 
+        description="ID продукта из каталога. Если указан, остальные данные (название, цена, единица измерения) берутся из БД автоматически"
+    )
     quantity: float = Field(..., gt=0, description="Количество")
     
-    # Поля для ручного ввода (используются только если product_id не указан)
-    product_name: Optional[str] = Field(None, description="Наименование товара/услуги (только для ручного ввода)")
-    product_slug: Optional[str] = Field(None, description="Slug продукта (только для ручного ввода)")
-    product_description: Optional[str] = Field(None, description="Описание продукта (только для ручного ввода)")
-    product_article: Optional[str] = Field(None, description="Артикул (только для ручного ввода)")
-    product_type: Optional[str] = Field(None, description="Тип продукта (только для ручного ввода)")
-    logo_url: Optional[str] = Field(None, description="URL логотипа (только для ручного ввода)")
-    unit_of_measurement: Optional[str] = Field(None, description="Единица измерения (только для ручного ввода)")
-    price: Optional[float] = Field(None, gt=0, description="Цена за единицу (только для ручного ввода)")
-    position: Optional[int] = Field(None, ge=1, description="Позиция в заказе (автоматически, если не указана)")
+    # Поля для ручного ввода (используются только если product_id не указан или равен 0)
+    product_name: Optional[str] = Field(
+        None, 
+        description="Наименование товара/услуги. Обязательно, если product_id не указан"
+    )
+    product_slug: Optional[str] = Field(None, description="Slug продукта")
+    product_description: Optional[str] = Field(None, description="Описание продукта")
+    product_article: Optional[str] = Field(None, description="Артикул")
+    product_type: Optional[str] = Field(None, description="Тип продукта")
+    logo_url: Optional[str] = Field(None, description="URL логотипа")
+    unit_of_measurement: Optional[str] = Field(
+        None, 
+        description="Единица измерения. Обязательно, если product_id не указан"
+    )
+    price: Optional[float] = Field(
+        None, 
+        gt=0, 
+        description="Цена за единицу. Обязательно, если product_id не указан"
+    )
+    position: Optional[int] = Field(
+        None, 
+        ge=1, 
+        description="Позиция в заказе (автоматически, если не указана)"
+    )
+    
+    @model_validator(mode='after')
+    def validate_required_fields(self):
+        """Валидация: если product_id не указан, обязательны product_name, price, unit_of_measurement"""
+        if not self.product_id or self.product_id == 0:
+            if not self.product_name:
+                raise ValueError("product_name is required when product_id is not specified")
+            if not self.price:
+                raise ValueError("price is required when product_id is not specified")
+            if not self.unit_of_measurement:
+                raise ValueError("unit_of_measurement is required when product_id is not specified")
+        return self
     
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "description": "Вариант 1: С product_id (минимальный набор полей)",
+                    "value": {
+                        "product_id": 1,
+                        "quantity": 2
+                    }
+                },
+                {
+                    "description": "Вариант 2: Без product_id (ручной ввод)",
+                    "value": {
+                        "product_id": None,
+                        "quantity": 1,
+                        "product_name": "Кастомный товар",
+                        "price": 100.0,
+                        "unit_of_measurement": "шт"
+                    }
+                }
+            ]
+        }
 
 
 class OrderItemResponse(OrderItemBase):

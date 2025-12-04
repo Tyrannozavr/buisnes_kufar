@@ -271,6 +271,41 @@ class DealRepository:
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
+            # Проверяем соответствие типов продуктов типу заказа
+            from app.api.products.models.product import Product, ProductType
+            
+            # Определяем ожидаемый тип продукта на основе типа заказа
+            if order.deal_type == OrderType.GOODS:
+                expected_product_type = ProductType.GOOD
+            else:
+                expected_product_type = ProductType.SERVICE
+            
+            # Проверяем все продукты на соответствие типу заказа
+            product_types_found = set()
+            for item_data in order_data.items:
+                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                if product_id:
+                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
+                    product_result = await self.session.execute(product_query)
+                    product = product_result.scalar_one_or_none()
+                    if product:
+                        product_types_found.add(product.type)
+                        # Проверяем соответствие типа продукта типу заказа
+                        if product.type != expected_product_type:
+                            raise ValueError(
+                                f"Product with ID {product_id} is of type '{product.type.value}', "
+                                f"but order type is '{order.deal_type.value}'. "
+                                f"All products must be of type '{expected_product_type.value}' for this order type."
+                            )
+            
+            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
+            if len(product_types_found) > 1:
+                types_str = ", ".join([pt.value for pt in product_types_found])
+                raise ValueError(
+                    f"Cannot mix different product types in one order. Found types: {types_str}. "
+                    f"All products in an order must be of the same type (either all goods or all services)."
+                )
+            
             # Удаляем старые позиции
             await self.session.execute(
                 select(OrderItem).where(OrderItem.order_id == order_id)
@@ -284,21 +319,61 @@ class DealRepository:
             # Добавляем новые позиции
             total_amount = 0
             for i, item_data in enumerate(order_data.items, 1):
-                amount = item_data.quantity * item_data.price
+                # Если product_id указан, получаем данные из БД
+                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                
+                if product_id:
+                    # Получаем продукт из БД
+                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
+                    product_result = await self.session.execute(product_query)
+                    product = product_result.scalar_one_or_none()
+                    
+                    if product:
+                        # Используем данные из БД
+                        product_name = product.name
+                        product_slug = product.slug
+                        product_description = product.description
+                        product_article = product.article
+                        product_type = product.type.value
+                        logo_url = product.images[0] if product.images else None
+                        unit_of_measurement = product.unit_of_measurement or "шт"
+                        price = product.price
+                    else:
+                        # Если продукт не найден, используем данные из запроса
+                        product_name = item_data.product_name
+                        product_slug = item_data.product_slug
+                        product_description = item_data.product_description
+                        product_article = item_data.product_article
+                        product_type = item_data.product_type
+                        logo_url = item_data.logo_url
+                        unit_of_measurement = item_data.unit_of_measurement
+                        price = item_data.price
+                else:
+                    # Ручной ввод - используем данные из запроса
+                    product_name = item_data.product_name
+                    product_slug = item_data.product_slug
+                    product_description = item_data.product_description
+                    product_article = item_data.product_article
+                    product_type = item_data.product_type
+                    logo_url = item_data.logo_url
+                    unit_of_measurement = item_data.unit_of_measurement
+                    price = item_data.price
+                
+                amount = item_data.quantity * price
                 total_amount += amount
                 
                 order_item = OrderItem(
                     order_id=order.id,
-                    product_id=item_data.product_id,
-                    product_name=item_data.product_name,
-                    product_slug=item_data.product_slug,
-                    product_description=item_data.product_description,
-                    product_article=item_data.product_article,
-                    product_type=item_data.product_type,
-                    logo_url=item_data.logo_url,
+                    product_id=product_id,
+                    product_name=product_name,
+                    product_slug=product_slug,
+                    product_description=product_description,
+                    product_article=product_article,
+                    product_type=product_type,
+                    logo_url=logo_url,
                     quantity=item_data.quantity,
-                    unit_of_measurement=item_data.unit_of_measurement,
-                    price=item_data.price,
+                    unit_of_measurement=unit_of_measurement,
+                    price=price,
                     amount=amount,
                     position=i
                 )

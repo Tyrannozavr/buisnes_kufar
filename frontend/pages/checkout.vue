@@ -40,7 +40,7 @@
                 color="primary"
                 to="/checkout"
 								@click="
-								postPurchases(cp.products, buyer),
+								addDealInStore(postPurchases(cp.products, buyer)),
 								messageToSaller(cp.companyId,cp.products),
 								showToast(),
 								removeItemsFromCart(cp.products)"
@@ -77,7 +77,7 @@
                 color="primary"
                 to=""
 								@click="
-								postPurchases(cp.products, buyer),
+								addDealInStore(postPurchases(cp.products, buyer)),
 								messageToSaller(cp.companyId,cp.services),
 								showToast(),
 								removeItemsFromCart(cp.services)"
@@ -109,11 +109,14 @@
 <script setup lang="ts">
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
+import { usePurchasesStore } from '~/stores/purchases'
 import type { TableColumn } from '@nuxt/ui'
 import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
 import { usePurchasesApi } from '~/api/purchases'
+
+const purchasesStore = usePurchasesStore()
 
 const { createChat, sendMessage } = useChatsApi()
 
@@ -134,9 +137,7 @@ let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 watch(() => products, (newValue) => {
 	
 	companiesAndProducts = ref([])
-	sortProducts(newValue)
-	console.log(companiesAndProducts.value)
-	
+	sortProducts(newValue)	
 }, {deep: true})
 
 
@@ -232,7 +233,6 @@ const sortProducts = (products: any[]): void  => {
 			}
 		}
 	})
-	console.log(companiesAndProducts)
 }
 
 sortProducts(products)
@@ -286,5 +286,18 @@ const showToast = () => {
 		}]
 	}
 	)
+}
+
+const addDealInStore = async (newDeal: Promise<any>): Promise<void> => {
+	console.log(newDeal)
+	const response = await newDeal
+	console.log(response)
+	if (response.goods) {
+		purchasesStore.addNewGoodsDeal(response)
+		console.log('good deal add in store')
+	} else if (response.services) {
+		purchasesStore.addNewServicesDeal(response)
+		console.log('service deal add in store')
+	}
 }
 </script>

@@ -3,7 +3,7 @@ import type { Buyer, ProductInCheckout } from "~/types/product"
 
 export const usePurchasesApi = () => {
 
-	const postPurchases = async (products: ProductInCheckout[], buyer: Buyer) => {
+	const postPurchases = async (products: ProductInCheckout[], buyer: Buyer): Promise<any> => {
 		if (products[0]) {
 			const bodyPost = {
 				seller_company_id: buyer.companyId,
@@ -30,6 +30,7 @@ export const usePurchasesApi = () => {
 					body: bodyPost,
 				})
 				console.log(response)
+				return response
 			} catch (err: any) {
 				console.log('POST ERROR: ', err)
 			}

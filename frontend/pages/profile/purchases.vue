@@ -46,6 +46,7 @@ const items = [
 ] satisfies TabsItem[]
 
 const UButton = resolveComponent('UButton')
+
 //goods table
 const columnsGoodsDeals: TableColumn<any>[] = [
 	{
@@ -184,7 +185,6 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 ]
 
 const goodsDeals: GoodsDeal[] | null = purchases.value?.goodsDeals
-
 let tableGoods: Ref<TableGoods[]> = ref([])
 
 if (goodsDeals) {
@@ -339,7 +339,6 @@ const columnsServicesDeals: TableColumn<any>[] = [
 ]
 
 const servicesDeals: ServicesDeal[] | null = purchases.value?.servicesDeals
-
 let tableServices: Ref<TableServices[]> = ref([])
 
 if (servicesDeals) {

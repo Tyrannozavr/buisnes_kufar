@@ -60,8 +60,17 @@ export const usePurchasesStore = defineStore("purchases", {
   },
 
   actions: {
-    //функция для получения закупок с сервера
-    async getPurchases() {},
+    addNewGoodsDeal(newDeal: GoodsDeal) {
+      if (newDeal) {
+        this.purchases.goodsDeals?.push(newDeal);
+      }
+    },
+
+    addNewServicesDeal(newDeal: ServicesDeal) {
+      if (newDeal) {
+        this.purchases.servicesDeals?.push(newDeal);
+      }
+    },
 
     amountInGoodsList() {
       this.purchases.goodsDeals?.map((deal) => {
@@ -259,22 +268,22 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-		async fullUpdateServicesDeal(
-			orderNumber: number,
-			saller: EditPersonDeal,
-			buyer: EditPersonDeal,
-			newServiceList: Product[],
-			comments?: string
-		) {
-			this.amountInServicesList();
-			this.amountPriceInServices();
-			this.amountWordServices();
-			this.editSallerServicesDeal(orderNumber, saller);
-			this.editBuyerServicesDeal(orderNumber, buyer);
-			this.editService(orderNumber, newServiceList);
-			if (comments) {
-				this.editServicesComments(orderNumber, comments);
-			}
-		},
+    async fullUpdateServicesDeal(
+      orderNumber: number,
+      saller: EditPersonDeal,
+      buyer: EditPersonDeal,
+      newServiceList: Product[],
+      comments?: string
+    ) {
+      this.amountInServicesList();
+      this.amountPriceInServices();
+      this.amountWordServices();
+      this.editSallerServicesDeal(orderNumber, saller);
+      this.editBuyerServicesDeal(orderNumber, buyer);
+      this.editService(orderNumber, newServiceList);
+      if (comments) {
+        this.editServicesComments(orderNumber, comments);
+      }
+    },
   },
 });

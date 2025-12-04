@@ -31,12 +31,6 @@ class DealService:
             logger.error(error_msg)
             logger.error(traceback.format_exc())
             # Проверяем, какое ограничение нарушено
-<<<<<<< HEAD
-            if "seller_company_id_fkey" in str(e):
-                raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
-            elif "buyer_company_id_fkey" in str(e):
-                raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
-=======
             error_str = str(e)
             if "seller_company_id_fkey" in error_str:
                 raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
@@ -50,7 +44,6 @@ class DealService:
                     product_id = match.group(1)
                     raise ValueError(f"Product with ID {product_id} does not exist. Use null or omit product_id for manual entry.")
                 raise ValueError("One of the products in the order does not exist. Use null or omit product_id for manual entry.")
->>>>>>> 39b9966 (Исправлено: product_id=0 преобразуется в NULL, улучшена обработка ошибок IntegrityError с понятными сообщениями)
             raise ValueError("Database constraint violation")
         except Exception as e:
             await self.session.rollback()
@@ -58,10 +51,7 @@ class DealService:
             logger.error(error_msg)
             logger.error(traceback.format_exc())
             print(f"Error creating deal: {e}")
-<<<<<<< HEAD
             print(traceback.format_exc())
-=======
->>>>>>> 39b9966 (Исправлено: product_id=0 преобразуется в NULL, улучшена обработка ошибок IntegrityError с понятными сообщениями)
             raise
 
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:

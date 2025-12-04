@@ -29,14 +29,20 @@ class DealRepository:
             seller_order_number = await self._generate_order_number(order_data.seller_company_id)
             print(f"DEBUG: Номер продавца: {seller_order_number}")
             
-            # Определяем тип заказа на основе продуктов и проверяем соответствие
+            # Проверяем соответствие типа заказа типам продуктов
             from app.api.purchases.schemas import ItemType
             from app.api.products.models.product import Product, ProductType
             
-            # Сначала проверяем все продукты, чтобы определить их типы
-            product_types_found = set()
-            products_with_ids = []  # Сохраняем продукты для дальнейшей проверки
+            # Преобразуем deal_type из ItemType enum в OrderType enum
+            if order_data.deal_type == ItemType.GOODS:
+                order_deal_type = OrderType.GOODS
+                expected_product_type = ProductType.GOOD
+            else:
+                order_deal_type = OrderType.SERVICES
+                expected_product_type = ProductType.SERVICE
             
+            # Проверяем все продукты на соответствие типу заказа
+            product_types_found = set()
             for item_data in order_data.items:
                 product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
                 if product_id:
@@ -45,7 +51,13 @@ class DealRepository:
                     product = product_result.scalar_one_or_none()
                     if product:
                         product_types_found.add(product.type)
-                        products_with_ids.append((product_id, product))
+                        # Проверяем соответствие типа продукта типу заказа
+                        if product.type != expected_product_type:
+                            raise ValueError(
+                                f"Product with ID {product_id} is of type '{product.type.value}', "
+                                f"but order type is '{order_data.deal_type.value}'. "
+                                f"All products must be of type '{expected_product_type.value}' for this order type."
+                            )
             
             # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
             if len(product_types_found) > 1:
@@ -54,33 +66,6 @@ class DealRepository:
                     f"Cannot mix different product types in one order. Found types: {types_str}. "
                     f"All products in an order must be of the same type (either all goods or all services)."
                 )
-            
-            # Определяем тип заказа
-            if order_data.deal_type:
-                # Если тип указан явно, используем его и проверяем соответствие
-                if order_data.deal_type == ItemType.GOODS:
-                    order_deal_type = OrderType.GOODS
-                    # Проверяем, что все продукты - товары
-                    if ProductType.SERVICE in product_types_found:
-                        raise ValueError(
-                            f"Order type is '{order_data.deal_type.value}' (Товары), "
-                            f"but some products are services. All products must be goods."
-                        )
-                else:
-                    order_deal_type = OrderType.SERVICES
-                    # Проверяем, что все продукты - услуги
-                    if ProductType.GOOD in product_types_found:
-                        raise ValueError(
-                            f"Order type is '{order_data.deal_type.value}' (Услуги), "
-                            f"but some products are goods. All products must be services."
-                        )
-            else:
-                # Автоматически определяем тип на основе продуктов
-                if ProductType.SERVICE in product_types_found:
-                    order_deal_type = OrderType.SERVICES
-                else:
-                    # Если нет продуктов с product_id или все товары - тип "Товары"
-                    order_deal_type = OrderType.GOODS
             
             # Создаем заказ
             print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")

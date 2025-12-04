@@ -29,12 +29,58 @@ class DealRepository:
             seller_order_number = await self._generate_order_number(order_data.seller_company_id)
             print(f"DEBUG: Номер продавца: {seller_order_number}")
             
-            # Преобразуем deal_type из ItemType enum в OrderType enum
+            # Определяем тип заказа на основе продуктов и проверяем соответствие
             from app.api.purchases.schemas import ItemType
-            if order_data.deal_type == ItemType.GOODS:
-                order_deal_type = OrderType.GOODS
+            from app.api.products.models.product import Product, ProductType
+            
+            # Сначала проверяем все продукты, чтобы определить их типы
+            product_types_found = set()
+            products_with_ids = []  # Сохраняем продукты для дальнейшей проверки
+            
+            for item_data in order_data.items:
+                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
+                if product_id:
+                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
+                    product_result = await self.session.execute(product_query)
+                    product = product_result.scalar_one_or_none()
+                    if product:
+                        product_types_found.add(product.type)
+                        products_with_ids.append((product_id, product))
+            
+            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
+            if len(product_types_found) > 1:
+                types_str = ", ".join([pt.value for pt in product_types_found])
+                raise ValueError(
+                    f"Cannot mix different product types in one order. Found types: {types_str}. "
+                    f"All products in an order must be of the same type (either all goods or all services)."
+                )
+            
+            # Определяем тип заказа
+            if order_data.deal_type:
+                # Если тип указан явно, используем его и проверяем соответствие
+                if order_data.deal_type == ItemType.GOODS:
+                    order_deal_type = OrderType.GOODS
+                    # Проверяем, что все продукты - товары
+                    if ProductType.SERVICE in product_types_found:
+                        raise ValueError(
+                            f"Order type is '{order_data.deal_type.value}' (Товары), "
+                            f"but some products are services. All products must be goods."
+                        )
+                else:
+                    order_deal_type = OrderType.SERVICES
+                    # Проверяем, что все продукты - услуги
+                    if ProductType.GOOD in product_types_found:
+                        raise ValueError(
+                            f"Order type is '{order_data.deal_type.value}' (Услуги), "
+                            f"but some products are goods. All products must be services."
+                        )
             else:
-                order_deal_type = OrderType.SERVICES
+                # Автоматически определяем тип на основе продуктов
+                if ProductType.SERVICE in product_types_found:
+                    order_deal_type = OrderType.SERVICES
+                else:
+                    # Если нет продуктов с product_id или все товары - тип "Товары"
+                    order_deal_type = OrderType.GOODS
             
             # Создаем заказ
             print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")
@@ -57,7 +103,6 @@ class DealRepository:
             # Добавляем позиции заказа
             print(f"DEBUG: Добавляем {len(order_data.items)} позиций заказа")
             total_amount = 0
-            from app.api.products.models.product import Product
             
             for i, item_data in enumerate(order_data.items, 1):
                 position = item_data.position if item_data.position else i
@@ -74,24 +119,8 @@ class DealRepository:
                     if not product:
                         raise ValueError(f"Product with ID {product_id} not found")
                     
-                    # Проверяем соответствие типа продукта типу заказа
-                    from app.api.products.models.product import ProductType
-                    from app.api.purchases.schemas import ItemType
-                    
-                    # Проверяем соответствие: "Товары" (ItemType.GOODS) -> "Товар" (ProductType.GOOD)
-                    # и "Услуги" (ItemType.SERVICES) -> "Услуга" (ProductType.SERVICE)
-                    if order_data.deal_type == ItemType.GOODS and product.type != ProductType.GOOD:
-                        raise ValueError(
-                            f"Product with ID {product_id} is of type '{product.type.value}' (Услуга), "
-                            f"but order type is '{order_data.deal_type.value}' (Товары). "
-                            f"Product type must match order type."
-                        )
-                    elif order_data.deal_type == ItemType.SERVICES and product.type != ProductType.SERVICE:
-                        raise ValueError(
-                            f"Product with ID {product_id} is of type '{product.type.value}' (Товар), "
-                            f"but order type is '{order_data.deal_type.value}' (Услуги). "
-                            f"Product type must match order type."
-                        )
+                    # Проверка соответствия уже выполнена выше при определении типа заказа
+                    # Здесь просто используем данные продукта
                     
                     # Используем данные из БД
                     product_name = product.name

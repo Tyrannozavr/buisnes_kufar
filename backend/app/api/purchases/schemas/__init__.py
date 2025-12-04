@@ -113,9 +113,14 @@ class OrderItemResponse(OrderItemBase):
 
 
 class DealCreate(BaseModel):
-    """Схема для создания заказа"""
+    """Схема для создания заказа
+    
+    Тип заказа (deal_type) определяется автоматически на основе типов продуктов:
+    - Если указан явно, используется указанный тип (с проверкой соответствия продуктов)
+    - Если не указан, определяется автоматически: если есть хотя бы одна услуга - "Услуги", иначе "Товары"
+    """
     seller_company_id: int = Field(..., description="ID компании-продавца")
-    deal_type: ItemType = Field(..., description="Тип заказа (товары/услуги)")
+    deal_type: Optional[ItemType] = Field(None, description="Тип заказа (товары/услуги). Если не указан, определяется автоматически на основе продуктов")
     items: List[OrderItemCreate] = Field(..., min_items=1, description="Позиции заказа")
     comments: Optional[str] = Field(None, description="Комментарии к заказу")
 

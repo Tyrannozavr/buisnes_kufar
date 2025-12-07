@@ -35,19 +35,19 @@ class OrderItemCreate(BaseModel):
     """Схема для создания позиции заказа
     
     Два варианта использования:
-    1. С product_id: указывайте только product_id и quantity, остальные данные берутся из БД
-    2. Без product_id: указывайте все поля вручную (product_name, price, unit_of_measurement обязательны)
+    1. С article: указывайте только article и quantity, остальные данные берутся из БД
+    2. Без article: указывайте все поля вручную (product_name, price, unit_of_measurement обязательны)
     """
-    product_id: Optional[int] = Field(
+    article: Optional[str] = Field(
         None, 
-        description="ID продукта из каталога. Если указан, остальные данные (название, цена, единица измерения) берутся из БД автоматически"
+        description="Артикул продукта из каталога. Если указан, остальные данные (название, цена, единица измерения) берутся из БД автоматически"
     )
     quantity: float = Field(..., gt=0, description="Количество")
     
-    # Поля для ручного ввода (используются только если product_id не указан или равен 0)
+    # Поля для ручного ввода (используются только если article не указан)
     product_name: Optional[str] = Field(
         None, 
-        description="Наименование товара/услуги. Обязательно, если product_id не указан"
+        description="Наименование товара/услуги. Обязательно, если article не указан"
     )
     product_slug: Optional[str] = Field(None, description="Slug продукта")
     product_description: Optional[str] = Field(None, description="Описание продукта")
@@ -56,12 +56,12 @@ class OrderItemCreate(BaseModel):
     logo_url: Optional[str] = Field(None, description="URL логотипа")
     unit_of_measurement: Optional[str] = Field(
         None, 
-        description="Единица измерения. Обязательно, если product_id не указан"
+        description="Единица измерения. Обязательно, если article не указан"
     )
     price: Optional[float] = Field(
         None, 
         gt=0, 
-        description="Цена за единицу. Обязательно, если product_id не указан"
+        description="Цена за единицу. Обязательно, если article не указан"
     )
     position: Optional[int] = Field(
         None, 
@@ -71,14 +71,14 @@ class OrderItemCreate(BaseModel):
     
     @model_validator(mode='after')
     def validate_required_fields(self):
-        """Валидация: если product_id не указан, обязательны product_name, price, unit_of_measurement"""
-        if not self.product_id or self.product_id == 0:
+        """Валидация: если article не указан, обязательны product_name, price, unit_of_measurement"""
+        if not self.article:
             if not self.product_name:
-                raise ValueError("product_name is required when product_id is not specified")
+                raise ValueError("product_name is required when article is not specified")
             if not self.price:
-                raise ValueError("price is required when product_id is not specified")
+                raise ValueError("price is required when article is not specified")
             if not self.unit_of_measurement:
-                raise ValueError("unit_of_measurement is required when product_id is not specified")
+                raise ValueError("unit_of_measurement is required when article is not specified")
         return self
     
     class Config:
@@ -86,11 +86,11 @@ class OrderItemCreate(BaseModel):
         json_schema_extra = {
             "examples": [
                 {
-                    "product_id": 1,
+                    "article": "ART-123",
                     "quantity": 2
                 },
                 {
-                    "product_id": None,
+                    "article": None,
                     "quantity": 1,
                     "product_name": "Кастомный товар",
                     "price": 100.0,

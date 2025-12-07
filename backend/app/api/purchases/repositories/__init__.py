@@ -42,19 +42,19 @@ class DealRepository:
                 expected_product_type = ProductType.SERVICE
             
             # Проверяем все продукты на соответствие типу заказа
+            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+            products_repo = CompanyProductsRepository(self.session)
+            
             product_types_found = set()
             for item_data in order_data.items:
-                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
-                if product_id:
-                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
-                    product_result = await self.session.execute(product_query)
-                    product = product_result.scalar_one_or_none()
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
                     if product:
                         product_types_found.add(product.type)
                         # Проверяем соответствие типа продукта типу заказа
                         if product.type != expected_product_type:
                             raise ValueError(
-                                f"Product with ID {product_id} is of type '{product.type.value}', "
+                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
                                 f"but order type is '{order_data.deal_type.value}'. "
                                 f"All products must be of type '{expected_product_type.value}' for this order type."
                             )
@@ -92,21 +92,14 @@ class DealRepository:
             for i, item_data in enumerate(order_data.items, 1):
                 position = item_data.position if item_data.position else i
                 
-                # Если product_id указан и > 0, получаем данные из БД
-                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
-                
-                if product_id:
-                    # Получаем продукт из БД
-                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
-                    product_result = await self.session.execute(product_query)
-                    product = product_result.scalar_one_or_none()
-                    
+                # Если article указан, получаем данные из БД
+                product_id = None
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
                     if not product:
-                        raise ValueError(f"Product with ID {product_id} not found")
+                        raise ValueError(f"Product with article '{item_data.article}' not found")
                     
-                    # Проверка соответствия уже выполнена выше при определении типа заказа
-                    # Здесь просто используем данные продукта
-                    
+                    product_id = product.id
                     # Используем данные из БД
                     product_name = product.name
                     product_slug = product.slug
@@ -120,11 +113,11 @@ class DealRepository:
                 else:
                     # Ручной ввод - используем данные из запроса
                     if not item_data.product_name:
-                        raise ValueError("product_name is required when product_id is not specified")
+                        raise ValueError("product_name is required when article is not specified")
                     if not item_data.price:
-                        raise ValueError("price is required when product_id is not specified")
+                        raise ValueError("price is required when article is not specified")
                     if not item_data.unit_of_measurement:
-                        raise ValueError("unit_of_measurement is required when product_id is not specified")
+                        raise ValueError("unit_of_measurement is required when article is not specified")
                     
                     product_name = item_data.product_name
                     product_slug = item_data.product_slug
@@ -273,6 +266,8 @@ class DealRepository:
         if order_data.items is not None:
             # Проверяем соответствие типов продуктов типу заказа
             from app.api.products.models.product import Product, ProductType
+            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+            products_repo = CompanyProductsRepository(self.session)
             
             # Определяем ожидаемый тип продукта на основе типа заказа
             if order.deal_type == OrderType.GOODS:
@@ -283,17 +278,14 @@ class DealRepository:
             # Проверяем все продукты на соответствие типу заказа
             product_types_found = set()
             for item_data in order_data.items:
-                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
-                if product_id:
-                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
-                    product_result = await self.session.execute(product_query)
-                    product = product_result.scalar_one_or_none()
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
                     if product:
                         product_types_found.add(product.type)
                         # Проверяем соответствие типа продукта типу заказа
                         if product.type != expected_product_type:
                             raise ValueError(
-                                f"Product with ID {product_id} is of type '{product.type.value}', "
+                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
                                 f"but order type is '{order.deal_type.value}'. "
                                 f"All products must be of type '{expected_product_type.value}' for this order type."
                             )
@@ -319,37 +311,32 @@ class DealRepository:
             # Добавляем новые позиции
             total_amount = 0
             for i, item_data in enumerate(order_data.items, 1):
-                # Если product_id указан, получаем данные из БД
-                product_id = item_data.product_id if item_data.product_id and item_data.product_id > 0 else None
-                
-                if product_id:
-                    # Получаем продукт из БД
-                    product_query = select(Product).where(Product.id == product_id, Product.is_deleted == False)
-                    product_result = await self.session.execute(product_query)
-                    product = product_result.scalar_one_or_none()
+                # Если article указан, получаем данные из БД
+                product_id = None
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
+                    if not product:
+                        raise ValueError(f"Product with article '{item_data.article}' not found")
                     
-                    if product:
-                        # Используем данные из БД
-                        product_name = product.name
-                        product_slug = product.slug
-                        product_description = product.description
-                        product_article = product.article
-                        product_type = product.type.value
-                        logo_url = product.images[0] if product.images else None
-                        unit_of_measurement = product.unit_of_measurement or "шт"
-                        price = product.price
-                    else:
-                        # Если продукт не найден, используем данные из запроса
-                        product_name = item_data.product_name
-                        product_slug = item_data.product_slug
-                        product_description = item_data.product_description
-                        product_article = item_data.product_article
-                        product_type = item_data.product_type
-                        logo_url = item_data.logo_url
-                        unit_of_measurement = item_data.unit_of_measurement
-                        price = item_data.price
+                    product_id = product.id
+                    # Используем данные из БД
+                    product_name = product.name
+                    product_slug = product.slug
+                    product_description = product.description
+                    product_article = product.article
+                    product_type = product.type.value
+                    logo_url = product.images[0] if product.images else None
+                    unit_of_measurement = product.unit_of_measurement or "шт"
+                    price = product.price
                 else:
                     # Ручной ввод - используем данные из запроса
+                    if not item_data.product_name:
+                        raise ValueError("product_name is required when article is not specified")
+                    if not item_data.price:
+                        raise ValueError("price is required when article is not specified")
+                    if not item_data.unit_of_measurement:
+                        raise ValueError("unit_of_measurement is required when article is not specified")
+                    
                     product_name = item_data.product_name
                     product_slug = item_data.product_slug
                     product_description = item_data.product_description

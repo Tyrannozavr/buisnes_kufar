@@ -220,27 +220,23 @@ class DealService:
                         break
                 
                 # Преобразуем данные корзины в формат DealCreate
-                # Пытаемся найти product_id по slug для каждого товара
+                # Используем article из корзины для поиска продукта
                 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
                 products_repo = CompanyProductsRepository(self.session)
                 
                 deal_items = []
                 for i, item in enumerate(seller_data["items"], 1):
-                    # Пытаемся найти product_id по slug
-                    product_id = None
-                    if item.get("slug"):
-                        product = await products_repo.get_by_slug(item.get("slug"))
-                        if product:
-                            product_id = product.id
+                    # Используем article из корзины
+                    article = str(item.get("article", "")) if item.get("article") else None
                     
                     deal_item = {
                         "quantity": item.get("quantity"),
                         "position": i
                     }
                     
-                    if product_id:
-                        # Если нашли product_id, используем только его и quantity
-                        deal_item["product_id"] = product_id
+                    if article:
+                        # Если есть article, используем его для поиска продукта
+                        deal_item["article"] = article
                     else:
                         # Ручной ввод - все поля обязательны
                         deal_item.update({
@@ -256,9 +252,13 @@ class DealService:
                     
                     deal_items.append(deal_item)
                 
+                # Преобразуем deal_type_str в ItemType enum
+                from app.api.purchases.schemas import ItemType
+                deal_type_enum = ItemType.GOODS if deal_type == "Товары" else ItemType.SERVICES
+                
                 deal_data = DealCreate(
                     seller_company_id=seller_id,
-                    deal_type=deal_type,
+                    deal_type=deal_type_enum,
                     items=deal_items,
                     comments=checkout_data.get("comments")
                 )

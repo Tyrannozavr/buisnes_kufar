@@ -1,9 +1,4 @@
 <template>
-	<div>
-		<UButton @click="downloadBlob(docxBill, 'Bill.docx' )" label="Скачать документ" />
-
-	</div>
-
 	<div class="font-serif text-l text-justify text-pretty w-full">
 		<p>Индивидуальный предприниматель {ФИОИП}</p>
 		<p>{АдресДляДокументов}</p>

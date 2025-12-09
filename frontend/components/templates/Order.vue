@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import type { OrderData } from '~/types/contracts';
+import type { Insert, OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
-import { injectionKeys, RequestedType } from '~/constants/keys';
-import A4Page from '../ui/A4-page.vue';
+import { Editor, RequestedType } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
@@ -24,12 +23,7 @@ const orderData: Ref<OrderData> = ref({
 	products,
 })
 
-const insertState = inject(injectionKeys.insertStateKey, ref({
-	purchasesStateGood: false,
-	purchasesStateService: false,
-	salesStateGood: false,
-	salesStateService: false,
-}))
+const insertState: Ref<Insert> = useState(Editor.INSERT_STATE)
 
 let requestedData = ''
 
@@ -126,7 +120,7 @@ watch(() => insertState.value,
 	{ deep: true }
 )
 
-const changeState = inject(injectionKeys.changeStateOrderKey, ref(false))
+const changeState: Ref<Boolean> = useState(Editor.CHANGE_STATE_ORDER)
 
 watch(() => changeState.value,
 	async () => {
@@ -198,11 +192,11 @@ const addProduct = () => {
 	orderData.value.products.push(product)
 }
 
-const isDisabled = inject(injectionKeys.isDisabledKey, ref(true))
+const isDisabled: Ref<boolean> = useState(Editor.IS_DISABLED)
 
 
 //clear form button
-const clearState = inject(injectionKeys.clearStateKey, ref(false))
+const clearState: Ref<boolean> = useState(Editor.CLEAR_STATE)
 
 const clearForm = () => {
 	products = []
@@ -232,7 +226,7 @@ watch(() => clearState.value,
 )
 
 //delete deal button
-const removeDealState = inject(injectionKeys.removeDealStateKey, ref(false))
+const removeDealState: Ref<Boolean> = useState(Editor.REMOVE_DEAL)
 
 const removeDeal = (requestedData: string) => {
 	if (requestedData === RequestedType.PURCHASES_GOOD) {
@@ -269,9 +263,6 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 </script>
 
 <template>
-	<A4-page>
-
-
 		<div ref="element">
 			<table>
 				<tr>
@@ -380,9 +371,6 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 			<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
 				class="w-full h-15 max-h-40" />
 		</div>
-
-
-	</A4-page>
 </template>
 
 <style lang="css" scoped>

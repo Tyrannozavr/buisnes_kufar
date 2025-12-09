@@ -1,15 +1,5 @@
 <template>
-	<AppLayout>
-		<div class="flex flex-row justify-between">
-
-			<!-- template -->
-			<div class="w-[70%] mr-3 h-[100%] overflow-y-hidden">
-				<Editor @tabIndex="getTabs">
-					<slot />
-				</Editor>
-			</div>
-			<!-- editor -->
-			<div class="w-[30%]">
+	<div class="w-[30%]">
 				<UCard variant="subtle" class="  top-26">
 
 					<div class="flex flex-col justify-between gap-5">
@@ -52,24 +42,24 @@
 
 						<div class="flex flex-row justify-between gap-1 w-full">
 							<UCollapsible class="gap-3">
-								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
+								<UButton @click="clearInput(), searchInCurrentDocument(activeTab.value, orderElement)" label="Поиск"
 									icon="i-lucide-search" class="p-1 h-10 text-sm" />
 
 								<template #content>
 									<div class="mt-4 w-79 absolute">
 										<input type="text" name="search" v-model="inputValue"
-											@input="searchInCurrentDocument(tabIndex, orderElement)"
+											@input="searchInCurrentDocument(activeTab.value, orderElement)"
 											class=" border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
 									</div>
 									<div class="h-12"></div>
 								</template>
 							</UCollapsible>
 
-							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
+							<UButton label="Печать" @click="printCurrentDocument(activeTab.value, orderElement)" icon="i-lucide-printer"
 								class="p-1 w-[97px] h-10 text-sm" :disabled="activeButtons" />
-							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
+							<UButton label="DOC" @click="downloadCurrentDocxBlob(activeTab.value, orderDocxBlob, billDocxBlob)"
 								icon="i-lucide-dock" class="p-1 w-[81px] h-10 text-sm" :disabled="activeButtons" />
-							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
+							<UButton label="PDF" @click="downloadCurrentPdf(activeTab.value, orderElement)" icon="i-lucide-dock"
 								class="p-1 w-[77px] h-10 text-sm" :disabled="activeButtons" />
 						</div>
 
@@ -78,15 +68,15 @@
 								variant="subtle" class="active:bg-green-500" />
 								<div class="flex gap-2">
 									<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
-										 class="w-1/2" @click="clearCurrentForm(tabIndex)"/>
+										 class="w-1/2" @click="clearCurrentForm(activeTab.value)"/>
 									<UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
-										:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(tabIndex)"/>
+										:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(activeTab.value)"/>
 								</div>
 						</div>
 
 						<div>
 							<UButton label="Сохранить изменения" icon="i-lucide-save" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" @click="saveChanges(tabIndex)"/>
+								:disabled="activeButtons" @click="saveChanges(activeTab.value)"/>
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
@@ -104,31 +94,23 @@
 
 				</UCard>
 			</div>
-
-		</div>
-	</AppLayout>
 </template>
 
 <script setup lang="ts">
-import AppLayout from '~/components/layout/AppLayout.vue';
-import Editor from '~/pages/profile/contracts/editor.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Insert } from '~/types/contracts';
-import { injectionKeys } from '~/constants/keys';
+import { Editor } from '~/constants/keys';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 
-let tabIndex: string
-function getTabs(activeTab: string): void {
-	tabIndex = activeTab
-}
+const activeTab = useState<Ref<string>>('activeTab')
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -146,7 +128,7 @@ const insertState: Ref<Insert> = ref({
 	salesStateService: false,
 })
 
-provide(injectionKeys.insertStateKey, insertState)
+useState(Editor.INSERT_STATE, () => insertState)
 
 const insertLastPurchasesGood = (): void => {
 	insertState.value.purchasesStateGood = !insertState.value.purchasesStateGood
@@ -210,10 +192,10 @@ watch(
 	{ immediate: false, deep: true }
 )
 
-const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
-	if (tabIndex === '0') {
+const downloadCurrentDocxBlob = (activeTab: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
+	if (activeTab === '0') {
 		downloadBlob(orderDocxBlob, 'Order.docx')
-	} else if (tabIndex === '1') {
+	} else if (activeTab === '1') {
 		downloadBlob(billDocxBlob, 'Bill.docx')
 	}
 }
@@ -256,7 +238,7 @@ const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | n
 const isDisabled: Ref<boolean> = ref(true)
 const activeButtons: Ref<boolean> = ref(false)
 
-provide(injectionKeys.isDisabledKey, isDisabled)
+useState(Editor.IS_DISABLED, () => isDisabled)
 
 const editButton = () => {
 	isDisabled.value = !isDisabled.value
@@ -266,7 +248,7 @@ const editButton = () => {
 //Button clearForm
 const clearState: Ref<boolean> = ref(false)
 
-provide(injectionKeys.clearStateKey, clearState)
+useState(Editor.CLEAR_STATE, () => clearState)
 
 const clearCurrentForm = (tabIndex: string) => {
 	if (tabIndex === '0') {
@@ -282,7 +264,7 @@ const clearCurrentForm = (tabIndex: string) => {
 //Button removeCurrentDeal
 const removeDealState: Ref<Boolean> = ref(false)
 
-provide(injectionKeys.removeDealStateKey, removeDealState)
+useState(Editor.REMOVE_DEAL, () => removeDealState)
 
 const removeCurrentDeal = (tabIndex: string) => {
 	if (tabIndex === '0') {
@@ -294,7 +276,7 @@ const removeCurrentDeal = (tabIndex: string) => {
 // save button 
 const changeState: Ref<Boolean> = ref(false)
 
-provide(injectionKeys.changeStateOrderKey, changeState)
+useState(Editor.CHANGE_STATE_ORDER, () => changeState)
 
 const saveChanges = (tabIndex: string) => {
 		if (tabIndex === '0') {
@@ -303,12 +285,3 @@ const saveChanges = (tabIndex: string) => {
 	}
 }
 </script>
-
-<style scoped>
-/* div UButton {
-	margin: 3px;
-}
-div {
-	margin: 5px;
-} */
-</style>

@@ -1,6 +1,6 @@
 <template>
-	<div class="w-[30%]">
-				<UCard variant="subtle" class="  top-26">
+	<div>
+				<UCard variant="subtle" class="top-26">
 
 					<div class="flex flex-col justify-between gap-5">
 

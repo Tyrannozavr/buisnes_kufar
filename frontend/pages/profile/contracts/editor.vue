@@ -1,44 +1,56 @@
 <template>
 	<div>
-		<UTabs v-model="activeTab" color="neutral" :items="items" size="md" variant="pill"
-			class="max-h-[100%] overflow-y-hidden">
-			<template #order="{ item }">
-				<div class="flex gap-3">
+		<UTabs v-model="activeTab" color="neutral" :items="items" size="xl" variant="pill" class="max-h-[100%] overflow-y-hidden w-full" />
+
+		<div class="flex gap-3">
+			<div>
+				<template v-if="activeTab === '0'">
+					<div>
+						<A4Page>
+							<Order />
+						</A4Page>
+					</div>
+				</template>
+
+				<template v-if="activeTab === '1'">
+					<div>
+						<A4Page>
+							<Bill />
+						</A4Page>
+					</div>
+				</template>
+
+				<template v-if="activeTab === '2'">
 					<A4Page>
-						<Order />
+						<SupplyContract />
 					</A4Page>
-					<EditorMenu />
-				</div>
-			</template>
-			<template #bill="{ item }">
-				<div class="flex gap-3">
-					<A4Page>
-						<Bill />
-					</A4Page>
-					<EditorMenu />
-				</div>
-			</template>
-			<template #supplyContract="{ item }">
-				<SupplyContract />
-			</template>
-			<template #accompanyingDocuments="{ item }">
+				</template>
 
-			</template>
-			<template #invoice="{ item }">
+				<template v-if="activeTab === '3'">
+				</template>
 
-			</template>
-			<template #act>
+				<template v-if="activeTab === '4'">
+				</template>
 
-			</template>
-			<template #contract>
+				<template v-if="activeTab === '5'">
+				</template>
 
-			</template>
-			<template #othersDocument="{ item }">
-				<DogovorUslug />
-			</template>
+				<template v-if="activeTab === '6'">
+				</template>
 
-		</UTabs>
+				<template v-if="activeTab === '7'">
+					<div>
+						<A4Page>
+							<DogovorUslug />
+						</A4Page>
+					</div>
+				</template>
+			</div>
 
+			<div class="w-[23rem]">
+				<EditorMenu/>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -64,7 +76,7 @@ const items = [
 		slot: 'supplyContract' as const,
 	},
 	{
-		label: 'Сопровод-е док-ты',
+		label: 'Сопроводительные документы',
 		slot: 'accompanyingDocuments' as const,
 	},
 	{
@@ -80,7 +92,7 @@ const items = [
 		slot: 'act' as const
 	},
 	{
-		label: 'Др. док-ты',
+		label: 'Другие документы',
 		slot: 'othersDocument' as const,
 	},
 ]
@@ -108,6 +120,6 @@ watch(
 			activeTab.value = '7'
 		}
 	},
-	{immediate: true}
+	{ immediate: true }
 )
 </script>

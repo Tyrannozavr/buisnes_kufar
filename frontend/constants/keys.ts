@@ -12,3 +12,8 @@ export const enum Editor {
 	CLEAR_STATE = 'clearState',
 	REMOVE_DEAL = 'removeDealState'
 }
+
+export const enum HtmlElement {
+	ORDER = 'htmlOrder',
+	BILL = 'htmlBill',
+}

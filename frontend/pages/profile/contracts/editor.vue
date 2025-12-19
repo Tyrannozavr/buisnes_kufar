@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<UTabs v-model="activeTab" color="neutral" :items="items" size="xl" variant="pill" class="max-h-[100%] overflow-y-hidden w-full" />
+		<UTabs v-model="activeTab" color="neutral" :items="items" size="lg" variant="pill" class="max-h-[100%] overflow-y-hidden w-full" />
 
 		<div class="flex gap-3">
 			<div>
@@ -27,15 +27,27 @@
 				</template>
 
 				<template v-if="activeTab === '3'">
+					<A4Page>
+
+					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '4'">
+					<A4Page>
+
+					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '5'">
+					<A4Page>
+
+					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '6'">
+					<A4Page>
+						
+					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '7'">
@@ -47,7 +59,7 @@
 				</template>
 			</div>
 
-			<div class="w-[23rem]">
+			<div class="w-[23rem] justify-end">
 				<EditorMenu/>
 			</div>
 		</div>

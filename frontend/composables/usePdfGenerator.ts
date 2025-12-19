@@ -38,7 +38,7 @@ export const usePdfGenerator = () => {
     return newElement;
   };
 
-  const downloadPdf = async (element: HTMLElement | null, fileName: string) => {		
+  const downloadPdf = async (element: HTMLElement | null, fileName: string) => {
 		const newElement = replaceTextareasAndInputs(element)
 
     const canvas = await html2canvas(newElement, { scale: 1, useCORS: true });

@@ -6,12 +6,6 @@ export const useDocxGenerator = () => {
 
 	generateDocxBill
 	
-	// const generateDocxSupplyContract = async(data: any) => {
-
-
-
-	// 	// return await Packer.toBlob(doc)
-	// }
 
   const downloadBlob = (blob: Blob, fileName: string): void => {
     const url = URL.createObjectURL(blob);

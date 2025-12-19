@@ -83,7 +83,7 @@ watch(elementHeight, (height) => {
 }
 
 .a4-background .a4-page_container {
-	height: 297mm;
+
 	width: 210mm;
 	background: white;
 	margin: 0 auto;

@@ -7,13 +7,14 @@ export const enum RequestedType {
 
 export const enum Editor {
 	INSERT_STATE = 'insertState',
-	CHANGE_STATE_ORDER = 'changeStateOrder',
+	SAVE_STATE_ORDER = 'saveStateOrder',
 	IS_DISABLED = 'isDisabled',
 	CLEAR_STATE = 'clearState',
-	REMOVE_DEAL = 'removeDealState'
+	REMOVE_DEAL = 'removeDealState',
+	ACTIVE_TAB = 'activeTab',
 }
 
-export const enum HtmlElement {
+export const enum TemplateElement {
 	ORDER = 'htmlOrder',
 	BILL = 'htmlBill',
 }

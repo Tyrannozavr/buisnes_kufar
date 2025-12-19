@@ -3,10 +3,12 @@ import type { Insert, OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
-import { Editor, RequestedType, HtmlElement } from '~/constants/keys';
+import { Editor, RequestedType, TemplateElement } from '~/constants/keys';
+import { useInsertState } from '~/composables/useStates';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
+const { statePurchasesGood, statePurchasesService,stateSalesGood, stateSalesService } = useInsertState()
 
 let products: Product[] = []
 let saller = {} as Person
@@ -27,6 +29,7 @@ const insertState: Ref<Insert> = useState(Editor.INSERT_STATE)
 
 let requestedData = ''
 
+//присвоение конкретного состояния и значений,в зависимости от состояния
 watch(() => insertState.value,
 	() => {
 		let lastGoodsDeal: GoodsDeal | undefined = undefined
@@ -37,28 +40,28 @@ watch(() => insertState.value,
 			if (purchasesStore.lastGoodsDeal) {
 				lastGoodsDeal = purchasesStore.lastGoodsDeal
 			}
-			insertState.value.purchasesStateGood = false
+			statePurchasesGood(false)
 
 		} else if (insertState.value.purchasesStateService) {
 			requestedData = RequestedType.PURCHASES_SERVICE
 			if (purchasesStore.lastServicesDeal) {
 				lastServicesDeal = purchasesStore.lastServicesDeal
 			}
-			insertState.value.purchasesStateService = false
+			statePurchasesService(false)
 
 		} else if (insertState.value.salesStateGood) {
 			requestedData = RequestedType.SALES_GOOD
 			if (salesStore.lastGoodsDeal) {
 				lastGoodsDeal = salesStore.lastGoodsDeal
 			}
-			insertState.value.salesStateGood = false
+			stateSalesGood(false)
 
 		} else if (insertState.value.salesStateService) {
 			requestedData = RequestedType.SALES_SERVICE
 			if (salesStore.lastServicesDeal) {
 				lastServicesDeal = salesStore.lastServicesDeal
 			}
-			insertState.value.salesStateService = false
+			stateSalesService(false)
 		}
 
 		if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
@@ -120,9 +123,9 @@ watch(() => insertState.value,
 	{ deep: true }
 )
 
-const changeState: Ref<Boolean> = useState(Editor.CHANGE_STATE_ORDER)
+const saveState: Ref<Boolean> = useState(Editor.SAVE_STATE_ORDER)
 
-watch(() => changeState.value,
+watch(() => saveState.value,
 	async () => {
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			await purchasesStore.fullUpdateGoodsDeal(
@@ -172,7 +175,6 @@ watch(() => changeState.value,
 	{ deep: true }
 )
 
-
 const addProduct = () => {
 	const productType: string =
 		(requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
@@ -193,7 +195,6 @@ const addProduct = () => {
 }
 
 const isDisabled: Ref<boolean> = useState(Editor.IS_DISABLED)
-
 
 //clear form button
 const clearState: Ref<boolean> = useState(Editor.CLEAR_STATE)
@@ -225,7 +226,7 @@ watch(() => clearState.value,
 	{ deep: true }
 )
 
-//delete deal button
+//delete deal
 const removeDealState: Ref<Boolean> = useState(Editor.REMOVE_DEAL)
 
 const removeDeal = (requestedData: string) => {
@@ -247,7 +248,9 @@ const removeDeal = (requestedData: string) => {
 
 watch(() => removeDealState.value,
 	() => {
-		removeDeal(requestedData)
+		if (removeDealState.value) {
+			removeDeal(requestedData)
+		}
 	},
 	{ deep: true }
 )
@@ -261,7 +264,7 @@ const removeProduct = (product: any): void => {
 const htmlOrder: Ref<HTMLElement | null> = ref(null)
 
 watch(orderData, () => {
-	useState(HtmlElement.ORDER, () => htmlOrder)
+	useState(TemplateElement.ORDER, () => htmlOrder)
 }, { deep: true })
 
 </script>

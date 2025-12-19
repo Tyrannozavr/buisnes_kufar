@@ -9,11 +9,10 @@ import {
   AlignmentType,
   WidthType,
   BorderStyle,
-  UnderlineType,
 } from "docx";
 import type { GoodsDeal, ServicesDeal, Product } from "~/types/dealState";
 
-export const generateDocxOrder = async (orderDealData: ServicesDeal | GoodsDeal ) => {
+export const generateDocxOrder = async (orderDealData: GoodsDeal | ServicesDeal ): Promise<Blob> => {
   // Создание таблицы с данными поставщика и покупателя
   const headerTable = new Table({
     rows: [

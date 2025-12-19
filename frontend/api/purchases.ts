@@ -9,17 +9,17 @@ export const usePurchasesApi = () => {
 				seller_company_id: buyer.companyId,
 				deal_type: products?.[0].type,
 				items: products.map(el => ({
-					product_name: el.productName,
-					product_slug: el.slug,
-					product_description: el.description,
+					// product_name: el.productName,
+					// product_slug: el.slug,
+					// product_description: el.description,
 					product_article: el.article,
-					product_type: el.type,
-					logo_url: el.logoUrl,
+					// product_type: el.type,
+					// logo_url: el.logoUrl,
 					quantity: el.quantity,
-					unit_of_measurement: el.units,
-					price: el.price,
-					position: el.position,// это свойстов чисто для компонента checkout
-					product_id: `${el.price}${el.article}`//?????? нет такого свойства у продукта 
+					// unit_of_measurement: el.units,
+					// price: el.price,
+					// position: el.position,// это свойстов чисто для компонента checkout
+					// product_id: `${el.price}${el.article}`//?????? нет такого свойства у продукта 
 				})), 
 				comments: '',
 			}

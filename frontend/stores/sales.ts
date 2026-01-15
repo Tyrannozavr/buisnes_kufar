@@ -6,7 +6,7 @@ import type {
 	Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
-import { salesGoodsData, salesServiceData } from "~/examples/exampleStoreData";
+import { salesGoodsData, salesServiceData } from "~/mock/exampleStoreData";
 
 interface Sales {
 	sales: {

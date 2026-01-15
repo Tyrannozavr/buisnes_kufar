@@ -9,7 +9,8 @@ import { convert as numberToWordsRu } from "number-to-words-ru";
 import {
   purchasesGoodsData,
   purchasesServiceData,
-} from "~/examples/exampleStoreData";
+} from "~/mock/exampleStoreData";
+import { usePurchasesApi } from "~/api/purchases";
 
 interface Purchases {
   purchases: {
@@ -17,6 +18,8 @@ interface Purchases {
     servicesDeals: ServicesDeal[] | null;
   };
 }
+
+const { getBuyerDeals, getDealById, uploadDocumentById } = usePurchasesApi();
 
 export const usePurchasesStore = defineStore("purchases", {
   state: (): Purchases => ({
@@ -60,6 +63,19 @@ export const usePurchasesStore = defineStore("purchases", {
   },
 
   actions: {
+    async getDeals() {
+      const response = await getBuyerDeals();
+      if (Array.isArray(response)) {
+        response.forEach((deal: GoodsDeal | ServicesDeal) => {
+          if ("goods" in deal) {
+            this.addNewGoodsDeal(deal);
+          } else if ("services" in deal) {
+            this.addNewServicesDeal(deal);
+          }
+        });
+      }
+    },
+
     addNewGoodsDeal(newDeal: GoodsDeal) {
       if (newDeal) {
         this.purchases.goodsDeals?.push(newDeal);

@@ -288,6 +288,7 @@ const showToast = () => {
 	)
 }
 
+//данный код заменить на отдельную функцию из api/purchases
 const addDealInStore = async (newDeal: Promise<any>): Promise<void> => {
 	console.log(newDeal)
 	const response = await newDeal

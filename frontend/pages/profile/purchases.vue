@@ -184,6 +184,9 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 	},
 ]
 
+// setInterval(() => {
+// 	purchasesStore.getDeals()
+// },3000)
 const goodsDeals: GoodsDeal[] | null = purchases.value?.goodsDeals
 let tableGoods: Ref<TableGoods[]> = ref([])
 

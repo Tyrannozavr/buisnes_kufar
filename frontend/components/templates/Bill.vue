@@ -47,7 +47,7 @@
 		</table>
 
 		<h2 class="font-bold text-2xl">Счёт на оплату № ... от ... г.</h2>
-		<hr>
+		<hr class="border-2">
 		<br>
 		<table>
 			<tr>

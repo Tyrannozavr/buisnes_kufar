@@ -33,7 +33,7 @@
 					</UCollapsible>
 				</div>
 
-				<div class="flex flex-col gap-2">
+				<div v-if="activeTab === '0'" class="flex flex-col gap-2">
 					<UButton label="СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
 						:disabled="activeButtons" @click="inDevelopment()" />
 					<UButton label="ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
@@ -42,6 +42,39 @@
 						icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()" />
 					<UButton label="СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
 						:disabled="activeButtons" @click="inDevelopment()" />
+				</div>
+
+				<div v-if="activeTab === '1'">
+					<div class="mb-2">
+						<select name="documentType" class="w-full p-1.5 border rounded-lg">
+							<option selected disabled>тип документа</option>
+							<option>Счет на оплату</option>
+							<option>Счет-договор</option>
+							<option>Счет-оферта</option>
+						</select>
+						<input type="checkbox" name="reason" id="reason" value="off" class="mt-2 size-4">
+						<label for="reason"> Основание</label>
+					</div>
+
+					<div class="mb-2">
+						<select name="documentType" class="w-full p-1.5 border rounded-lg">
+							<option selected disabled>Ставка НДС</option>
+							<option>5</option>
+							<option>7</option>
+							<option>10</option>
+							<option>18</option>
+							<option>25</option>
+						</select>
+						<input type="checkbox" name="nds" id="nds" value="off" class="mt-2 size-4">
+						<label for="nds"> Ставка НДС</label>
+					</div>
+
+					<div>
+						<input placeholder="Срок оплаты" class="w-full p-1.5 border rounded-lg" value="">
+						<br>
+						<input type="checkbox" name="date" id="date" value="off" class="mt-2 size-4">
+						<label for="date"> Срок оплаты</label>
+					</div>
 				</div>
 
 				<div class="flex flex-row justify-between gap-1 w-full">
@@ -114,7 +147,6 @@ const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
-
 const activeTab: Ref<string> = useState(Editor.ACTIVE_TAB)
 const orderElement: Ref<HTMLElement | null> = useState(TemplateElement.ORDER)
 

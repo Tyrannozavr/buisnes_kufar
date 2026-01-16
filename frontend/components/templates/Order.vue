@@ -8,7 +8,7 @@ import { useInsertState } from '~/composables/useStates';
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
-const { statePurchasesGood, statePurchasesService,stateSalesGood, stateSalesService } = useInsertState()
+const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
 
 let products: Product[] = []
 let saller = {} as Person

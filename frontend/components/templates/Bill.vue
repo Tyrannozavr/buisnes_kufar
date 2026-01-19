@@ -66,6 +66,12 @@
 				</td>
 				<td><input /></td>
 			</tr>
+			<tr v-if="reason">
+				<td>
+					<p>Основание: </p>
+				</td>
+				<td><input /></td>
+			</tr>
 		</table>
 
 		<br>
@@ -81,8 +87,8 @@
 				<th class="w-20 border"><span>Сумма</span></th>
 				<th class="w-1"><span></span></th>
 			</thead>
-			<!-- <tbody>
-				<tr v-for="product in orderData.products">
+			<tbody>
+				<!-- <tr v-for="product in orderData.products">
 					<td class="border">
 						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 					</td>
@@ -119,36 +125,63 @@
 							</svg>
 						</span>
 					</td>
+				</tr> -->
 
-				</tr>
-				<tr :hidden="isDisabled">
+				<!-- <tr :hidden="isDisabled">
 					<td @click="addProduct()" colspan="7"
 						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
+				</tr> -->
+
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2" >Итого:</td>
+					<td>
+						<!-- товары * кол-во -->
+					</td>
 				</tr>
-			</tbody> -->
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2">В том числе НДС:</td>
+					<td>
+						<!-- итого * %НДС -->
+					</td>
+				</tr>
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2">Всего к оплате:</td>
+					<td>
+						<!-- итого + НДС -->
+					</td>
+				</tr>
+				
+			</tbody> 
 		</table>
 
 		<p>
-			<!-- <span>
-				Всего наименований:{{ orderData.products.length }}, на сумму:
-				<span v-if="orderData.amount"> 
-					{{ orderData.amount }} 
+			<span>
+				Всего наименований: , на сумму:
+				<span > 
+					<!-- price -->
+					{{  }} 
 				</span>
 				p.
-			</span> -->
-		</p>
-		<p>
-			<span class="underline underline-offset-4">
-				<!-- {{ orderData.amountWord }} -->
 			</span>
 		</p>
+		<div>
+			<span class="underline underline-offset-4">
+				<!-- {{ amountWord }} -->
+			</span>
+			<p v-if="dueDateCheck">
+				<span>Срок оплаты: {{ dueDate }}</span>
+			</p>
+		</div>
 
 		<br>
 
 		<p>
-		<pre>
+		<pre v-if="additionalInfo">
 
 Внимание!
 Оплата данного счета означает согласие с условиями поставки товара.
@@ -160,7 +193,7 @@
 		</p>
 
 		<br>
-		<hr>
+		<hr class="border-2">
 		<br>
 
 		<table class="w-full">
@@ -177,8 +210,15 @@
 
 <script setup lang="ts">
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
+import { Editor } from '~/constants/keys';
 
 const { generateDocxBill, downloadBlob } = useDocxGenerator()
+const reason = useState(Editor.REASON)
+const dueDateCheck = useState(Editor.DUE_DATE_CHECK)
+const dueDate = useState(Editor.DUE_DATE)
+const additionalInfo = useState(Editor.ADDITIOANAL_INFO)
+const vatRateCheck = useState(Editor.VAT_RATE_CHECK)
+const vatRate = useState(Editor.VAT_RATE)
 
 const data = {}
 

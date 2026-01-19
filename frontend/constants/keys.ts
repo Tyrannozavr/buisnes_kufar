@@ -12,6 +12,12 @@ export const enum Editor {
 	CLEAR_STATE = 'clearState',
 	REMOVE_DEAL = 'removeDealState',
 	ACTIVE_TAB = 'activeTab',
+	REASON = 'reason',
+	DUE_DATE_CHECK = 'dueDateCheck',
+	DUE_DATE = 'dueDate',
+	ADDITIOANAL_INFO = 'additionalInfo',
+	VAT_RATE_CHECK = 'vatRateCheck',
+	VAT_RATE = 'vatRate',
 }
 
 export const enum TemplateElement {

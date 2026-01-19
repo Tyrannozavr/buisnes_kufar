@@ -46,34 +46,27 @@
 
 				<div v-if="activeTab === '1'">
 					<div class="mb-2">
-						<select name="documentType" class="w-full p-1.5 border rounded-lg">
-							<option selected disabled>тип документа</option>
-							<option>Счет на оплату</option>
-							<option>Счет-договор</option>
-							<option>Счет-оферта</option>
-						</select>
-						<input type="checkbox" name="reason" id="reason" value="off" class="mt-2 size-4">
-						<label for="reason"> Основание</label>
+						<USelectMenu placeholder="Тип документа" :items="typeOfDocumentOptions" v-model="typeOfDocument" class="w-full"/>
+						<UCheckbox label="Основание" v-model="reason" size="xl" class="mt-2"/>
 					</div>
 
 					<div class="mb-2">
-						<select name="documentType" class="w-full p-1.5 border rounded-lg">
-							<option selected disabled>Ставка НДС</option>
-							<option>5</option>
-							<option>7</option>
-							<option>10</option>
-							<option>18</option>
-							<option>25</option>
-						</select>
-						<input type="checkbox" name="nds" id="nds" value="off" class="mt-2 size-4">
-						<label for="nds"> Ставка НДС</label>
+						<USelectMenu placeholder="Ставка НДС" :items="vatRateOptions" v-model="vatRate" class="w-full"/>
+						<UCheckbox label="Ставка НДС" v-model="vatRateCheck" size="xl" class="mt-2"/>
 					</div>
 
 					<div>
-						<input placeholder="Срок оплаты" class="w-full p-1.5 border rounded-lg" value="">
-						<br>
-						<input type="checkbox" name="date" id="date" value="off" class="mt-2 size-4">
-						<label for="date"> Срок оплаты</label>
+						<UCheckbox label="Срок оплаты" v-model="dueDateCheck" size="xl" class="mt-2" @change="console.log(dueDate)"/>
+						<div class="flex gap-1" v-if="dueDateCheck">
+							<label class="w-full self-center">Рабочих дней - </label>
+							<input placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="dueDate">
+						</div>
+						<!-- <br> -->
+						<!-- <UCalendar v-if="dueDateCheck" v-model="dueDate" variant="subtle"/> -->
+					</div>
+
+					<div>
+						<UCheckbox label="Дополнительная инфорамация" v-model="additionalInfo" size="xl" class="mt-2"/>
 					</div>
 				</div>
 
@@ -142,6 +135,9 @@ import { useSalesStore } from '~/stores/sales';
 import type { Insert } from '~/types/contracts';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { useInsertState, useIsDisableState, useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
+import { CalendarDate } from '@internationalized/date'
+import type { SelectMenuItem } from '@nuxt/ui';
+
 
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
@@ -149,6 +145,27 @@ const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 const activeTab: Ref<string> = useState(Editor.ACTIVE_TAB)
 const orderElement: Ref<HTMLElement | null> = useState(TemplateElement.ORDER)
+const dueDate = useState(Editor.DUE_DATE, () => ref())
+const typeOfDocumentOptions = ref<SelectMenuItem[]>([
+	{label: 'Счет на оплату', id: 'bill'},
+	{label: 'Счет-договор', id: 'bill-contract'}, 
+	{label: 'Счет-оферта', id: 'bill-offert'}
+])
+const typeOfDocument = ref()
+const vatRateOptions = ref<SelectMenuItem[]>([
+	{label: '5%', id: '5'},
+	{label: '7%', id: '7'}, 
+	{label: '10%', id: '10'},
+	{label: '18%', id: '18'},
+	{label: '25%', id: '25'},
+])
+const vatRate = useState(Editor.VAT_RATE, () => ref())
+//checkBoxes
+const reason = useState<boolean>(Editor.REASON, () => ref(false))
+const dueDateCheck = useState<boolean>(Editor.DUE_DATE_CHECK, () => ref(false))
+const additionalInfo = useState(Editor.ADDITIOANAL_INFO, () => ref(false))
+const vatRateCheck = useState(Editor.VAT_RATE_CHECK, () => ref(false))
+
 
 const inDevelopment = () => {
 	const toast = useToast()

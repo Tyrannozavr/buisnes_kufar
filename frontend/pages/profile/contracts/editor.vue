@@ -71,7 +71,7 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
-import EditorMenu from '~/components/EditorMenu.vue'
+import EditorMenu from '~/components/EditorMenu/index.vue'
 import A4Page from '~/components/ui/A4-page.vue'
 
 const items = [

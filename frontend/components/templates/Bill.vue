@@ -4,34 +4,47 @@
 		<table class="p-3 w-full border-2 border-black">
 			
 			<tr>
-				<td colspan="4" rowspan="1">OФП, Название компании, город
+				<td colspan="4" rowspan="1">
+					<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full"/>
 					<br />
 					<br />
 					<br />
 					<br />
 				</td>
 				<td class="border">БИК</td>
-				<td> номер БИК</td>
+				<td>
+					<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 
 			<tr class="border-b-2 black">
-				<td colspan="4" class="border">Банк получателя</td>
+				<td colspan="4" class="border">
+					<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full"/>
+				</td>
 				<td class="border">Сч. №</td>
-				<td>номер счета </td>
+				<td>
+					<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 
 			<tr>
 				<td class="border">ИНН</td>
-				<td class="border">{ИНН}</td>
+				<td class="border">
+					<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full"/>
+				</td>
 				<td class="border">КПП</td>
-				<td class="border">{КПП}</td>
+				<td class="border">
+					<textarea placeholder="КПП" :disabled="isDisabled" class="w-full"/>
+				</td>
 				<td rowspan="3" class="border">Сч. №</td>
-				<td rowspan="3">{РасчетныйСчет}</td>
+				<td rowspan="3">
+					<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 
 			<tr>
 				<td colspan="4">
-					ОФП, Название компании
+					<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full"/>
 					<br>
 					<br>
 					<br>
@@ -40,7 +53,7 @@
 
 			<tr>
 				<td colspan="4" class="border">
-					Получатель
+					<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full"/>
 				</td>
 			</tr>
 
@@ -56,7 +69,9 @@
 						<br>
 						(исполнитель):</p>
 				</td>
-				<td><input /></td>
+				<td>
+					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 			<tr>
 				<td>
@@ -64,13 +79,17 @@
 						<br>
 						(заказчик):</p>
 				</td>
-				<td><input /></td>
+				<td>
+					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 			<tr v-if="reason">
 				<td>
 					<p>Основание: </p>
 				</td>
-				<td><input /></td>
+				<td>
+					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 		</table>
 
@@ -196,9 +215,13 @@
 		<table class="w-full">
 			<tr>
 				<td>Руководитель</td>
-				<td class="w-2/5 border-b-1"></td>
+				<td class="w-2/5 max-w-3/4 border-b-1">
+					<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full"/>
+				</td>
 				<td>Бухгалтер</td>
-				<td class="w-2/5 border-b-1"></td>
+				<td class="w-2/5 max-w-3/4 border-b-1">
+					<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full"/>
+				</td>
 			</tr>
 		</table>
 
@@ -216,7 +239,7 @@ const dueDate = useState(Editor.DUE_DATE)
 const additionalInfo = useState(Editor.ADDITIOANAL_INFO)
 const vatRateCheck = useState(Editor.VAT_RATE_CHECK)
 const vatRate = useState(Editor.VAT_RATE)
-
+const isDisabled: Ref<boolean> = useState(Editor.IS_DISABLED)
 const data = {}
 
 const docxBill = await generateDocxBill(data)
@@ -247,4 +270,13 @@ td {
 	border: solid gray 1px;
 	padding: 5px;
 } */
+
+input,
+textarea {
+	/* margin: 3px 0 3px 3px; */
+	line-height: 1.75;
+	padding: 1px 5px;
+	vertical-align: middle;
+	field-sizing: content;
+}
 </style>

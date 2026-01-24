@@ -1,30 +1,29 @@
-import type { Insert } from "~/types/contracts";
 import { Editor } from "~/constants/keys";
 
-const insertState: Ref<Insert> = useState(Editor.INSERT_STATE, () =>
+const insertState = useState(Editor.INSERT_STATE, () =>
   ref({
-    purchasesStateGood: false,
-    purchasesStateService: false,
-    salesStateGood: false,
-    salesStateService: false,
+    purchasesGood: false,
+    purchasesService: false,
+    salesGood: false,
+    salesService: false,
   })
 );
 
 export const useInsertState = () => {
   const statePurchasesGood = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.purchasesStateGood = newVal));
+    nextTick(() => (insertState.value.purchasesGood = newVal));
   };
 
   const statePurchasesService = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.purchasesStateService = newVal));
+    nextTick(() => (insertState.value.purchasesService = newVal));
   };
 
   const stateSalesGood = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.salesStateGood = newVal));
+    nextTick(() => (insertState.value.salesGood = newVal));
   };
 
   const stateSalesService = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.salesStateService = newVal));
+    nextTick(() => (insertState.value.salesService = newVal));
   };
 
   return {
@@ -35,7 +34,7 @@ export const useInsertState = () => {
   };
 };
 
-const disabldeState: Ref<Boolean> = useState(Editor.IS_DISABLED, () =>
+const disabldeState = useTypedState(Editor.IS_DISABLED, () =>
   ref(true)
 );
 
@@ -55,7 +54,7 @@ export const useIsDisableState = () => {
   };
 };
 
-const clearState: Ref<Boolean> = useState(Editor.CLEAR_STATE, () => ref(false));
+const clearState = useTypedState(Editor.CLEAR_STATE, () => ref(false));
 
 export const useClearState = () => {
   const applyClearState = (): void => {
@@ -67,7 +66,7 @@ export const useClearState = () => {
   };
 };
 
-const saveStateOrder: Ref<Boolean> = useState(Editor.SAVE_STATE_ORDER, () =>
+const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () =>
   ref(false)
 );
 
@@ -82,7 +81,7 @@ export const useSaveState = () => {
 	};
 };
 
-const removeDealState: Ref<Boolean> = useState(Editor.REMOVE_DEAL, () => ref(false))
+const removeDealState = useTypedState(Editor.REMOVE_DEAL, () => ref(false))
 
 export const useRemoveDealState = () => {
 	const removeDeal = () => {

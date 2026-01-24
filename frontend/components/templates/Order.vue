@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Insert, OrderData } from '~/types/contracts';
+import type {  OrderData } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
@@ -25,7 +25,7 @@ const orderData: Ref<OrderData> = ref({
 	products,
 })
 
-const insertState: Ref<Insert> = useState(Editor.INSERT_STATE)
+const insertState = useTypedState(Editor.INSERT_STATE)
 
 let requestedData = ''
 
@@ -35,28 +35,28 @@ watch(() => insertState.value,
 		let lastGoodsDeal: GoodsDeal | undefined = undefined
 		let lastServicesDeal: ServicesDeal | undefined = undefined
 
-		if (insertState.value.purchasesStateGood) {
+		if (insertState.value.purchasesGood) {
 			requestedData = RequestedType.PURCHASES_GOOD
 			if (purchasesStore.lastGoodsDeal) {
 				lastGoodsDeal = purchasesStore.lastGoodsDeal
 			}
 			statePurchasesGood(false)
 
-		} else if (insertState.value.purchasesStateService) {
+		} else if (insertState.value.purchasesService) {
 			requestedData = RequestedType.PURCHASES_SERVICE
 			if (purchasesStore.lastServicesDeal) {
 				lastServicesDeal = purchasesStore.lastServicesDeal
 			}
 			statePurchasesService(false)
 
-		} else if (insertState.value.salesStateGood) {
+		} else if (insertState.value.salesGood) {
 			requestedData = RequestedType.SALES_GOOD
 			if (salesStore.lastGoodsDeal) {
 				lastGoodsDeal = salesStore.lastGoodsDeal
 			}
 			stateSalesGood(false)
 
-		} else if (insertState.value.salesStateService) {
+		} else if (insertState.value.salesService) {
 			requestedData = RequestedType.SALES_SERVICE
 			if (salesStore.lastServicesDeal) {
 				lastServicesDeal = salesStore.lastServicesDeal
@@ -123,7 +123,7 @@ watch(() => insertState.value,
 	{ deep: true }
 )
 
-const saveState: Ref<Boolean> = useState(Editor.SAVE_STATE_ORDER)
+const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
 
 watch(() => saveState.value,
 	async () => {
@@ -194,10 +194,10 @@ const addProduct = () => {
 	orderData.value.products.push(product)
 }
 
-const isDisabled: Ref<boolean> = useState(Editor.IS_DISABLED)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 //clear form button
-const clearState: Ref<boolean> = useState(Editor.CLEAR_STATE)
+const clearState = useTypedState(Editor.CLEAR_STATE)
 
 const clearForm = () => {
 	products = []
@@ -227,7 +227,7 @@ watch(() => clearState.value,
 )
 
 //delete deal
-const removeDealState: Ref<Boolean> = useState(Editor.REMOVE_DEAL)
+const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 
 const removeDeal = (requestedData: string) => {
 	if (requestedData === RequestedType.PURCHASES_GOOD) {
@@ -261,10 +261,10 @@ const removeProduct = (product: any): void => {
 	orderData.value.products.splice(index, 1)
 }
 
-const htmlOrder: Ref<HTMLElement | null> = ref(null)
+const htmlOrder: Ref<HTMLElement | null> = useTemplateRef('htmlOrder')
 
 watch(orderData, () => {
-	useState(TemplateElement.ORDER, () => htmlOrder)
+		useTypedState(TemplateElement.ORDER, () => htmlOrder)
 }, { deep: true })
 
 </script>

@@ -27,10 +27,3 @@ export interface OrderData {
 
   products: ProductsInOrder[];
 }
-
-export interface Insert {
-	purchasesStateGood: boolean
-	purchasesStateService: boolean
-	salesStateGood: boolean
-	salesStateService: boolean
-}

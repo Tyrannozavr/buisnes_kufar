@@ -233,13 +233,13 @@ import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { Editor } from '~/constants/keys';
 
 const { generateDocxBill, downloadBlob } = useDocxGenerator()
-const reason = useState(Editor.REASON)
-const dueDateCheck = useState(Editor.DUE_DATE_CHECK)
-const dueDate = useState(Editor.DUE_DATE)
-const additionalInfo = useState(Editor.ADDITIOANAL_INFO)
-const vatRateCheck = useState(Editor.VAT_RATE_CHECK)
-const vatRate = useState(Editor.VAT_RATE)
-const isDisabled: Ref<boolean> = useState(Editor.IS_DISABLED)
+const reason = useTypedState(Editor.REASON)
+const dueDateCheck = useTypedState(Editor.DUE_DATE_CHECK)
+const dueDate = useTypedState(Editor.DUE_DATE)
+const additionalInfo = useTypedState(Editor.ADDITIOANAL_INFO)
+const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
+const vatRate = useTypedState(Editor.VAT_RATE)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 const data = {}
 
 const docxBill = await generateDocxBill(data)

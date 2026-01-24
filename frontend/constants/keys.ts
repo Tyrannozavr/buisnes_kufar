@@ -1,8 +1,8 @@
 export const enum RequestedType {
-	PURCHASES_GOOD = 'purchases-good',
-	PURCHASES_SERVICE = 'purchases-service',
-	SALES_GOOD = 'sales-good',
-	SALES_SERVICE = 'sales-service'
+	PURCHASES_GOOD = 'purchasesGood',
+	PURCHASES_SERVICE = 'purchasesService',
+	SALES_GOOD = 'salesGood',
+	SALES_SERVICE = 'salesService'
 }
 
 export const enum Editor {

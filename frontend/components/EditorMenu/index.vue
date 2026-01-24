@@ -103,7 +103,6 @@ import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
-import type { Insert } from '~/types/contracts';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { useInsertState, useIsDisableState, useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
 import { CalendarDate } from '@internationalized/date'
@@ -115,8 +114,8 @@ const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
-const activeTab: Ref<string> = useState(Editor.ACTIVE_TAB)
-const orderElement: Ref<HTMLElement | null> = useState(TemplateElement.ORDER)
+const activeTab = useTypedState(Editor.ACTIVE_TAB)
+const orderElement = useTypedState(TemplateElement.ORDER)
 
 
 const inDevelopment = () => {
@@ -129,7 +128,7 @@ const inDevelopment = () => {
 
 //Insert Button
 const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
-const insertState: Ref<Insert> = useState(Editor.INSERT_STATE)
+const insertState = useTypedState(Editor.INSERT_STATE)
 
 const insertLastPurchasesGood = (): void => {
 	statePurchasesGood(true)
@@ -161,25 +160,25 @@ let billDocxBlob: Blob
 watch(
 	insertState,
 	async (insert) => {
-		if (purchases.value.goodsDeals && insert.purchasesStateGood) {
+		if (purchases.value.goodsDeals && insert.purchasesGood) {
 			const indexPurchasesGood: number = purchases.value.goodsDeals.length - 1
 			if (purchases.value.goodsDeals?.[indexPurchasesGood]) {
 				orderDocxBlob = await generateDocxOrder(purchases.value.goodsDeals[indexPurchasesGood])
 			}
 
-		} else if (purchases.value.servicesDeals && insert.purchasesStateService) {
+		} else if (purchases.value.servicesDeals && insert.purchasesService) {
 			const indexPurchasesService: number = purchases.value.servicesDeals.length - 1
 			if (purchases.value.servicesDeals?.[indexPurchasesService]) {
 				orderDocxBlob = await generateDocxOrder(purchases.value.servicesDeals[indexPurchasesService])
 			}
 
-		} else if (sales.value.goodsDeals && insert.salesStateGood) {
+		} else if (sales.value.goodsDeals && insert.salesGood) {
 			const indexSalesGood: number = sales.value.goodsDeals.length - 1
 			if (sales.value.goodsDeals?.[indexSalesGood]) {
 				orderDocxBlob = await generateDocxOrder(sales.value.goodsDeals[indexSalesGood])
 			}
 
-		} else if (sales.value.servicesDeals && insert.salesStateGood) {
+		} else if (sales.value.servicesDeals && insert.salesGood) {
 			const indexSalesService: number = sales.value.servicesDeals.length - 1
 			if (sales.value.servicesDeals?.[indexSalesService]) {
 				orderDocxBlob = await generateDocxOrder(sales.value.servicesDeals[indexSalesService])

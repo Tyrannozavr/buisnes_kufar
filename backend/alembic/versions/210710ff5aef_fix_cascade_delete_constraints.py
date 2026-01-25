@@ -20,10 +20,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    def _drop_fk_if_exists(table: str, constraint_name: str) -> None:
+        # На разных окружениях constraint может отсутствовать (или иметь иное имя),
+        # поэтому делаем миграцию идемпотентной по имени constraint.
+        op.execute(f'ALTER TABLE "{table}" DROP CONSTRAINT IF EXISTS "{constraint_name}"')
+
     # Удаляем существующие foreign key constraints
-    op.drop_constraint('employees_created_by_fkey', 'employees', type_='foreignkey')
-    op.drop_constraint('employees_user_id_fkey', 'employees', type_='foreignkey')
-    op.drop_constraint('employees_company_id_fkey', 'employees', type_='foreignkey')
+    _drop_fk_if_exists('employees', 'employees_created_by_fkey')
+    _drop_fk_if_exists('employees', 'employees_user_id_fkey')
+    _drop_fk_if_exists('employees', 'employees_company_id_fkey')
     
     # Создаем новые constraints с CASCADE DELETE
     op.create_foreign_key(
@@ -46,7 +51,7 @@ def upgrade() -> None:
     )
     
     # Также настроим CASCADE для других таблиц
-    op.drop_constraint('users_company_id_fkey', 'users', type_='foreignkey')
+    _drop_fk_if_exists('users', 'users_company_id_fkey')
     op.create_foreign_key(
         'users_company_id_fkey',
         'users', 'companies',
@@ -54,7 +59,7 @@ def upgrade() -> None:
         ondelete='SET NULL'
     )
     
-    op.drop_constraint('company_officials_company_id_fkey', 'company_officials', type_='foreignkey')
+    _drop_fk_if_exists('company_officials', 'company_officials_company_id_fkey')
     op.create_foreign_key(
         'company_officials_company_id_fkey',
         'company_officials', 'companies',
@@ -65,10 +70,13 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    def _drop_fk_if_exists(table: str, constraint_name: str) -> None:
+        op.execute(f'ALTER TABLE "{table}" DROP CONSTRAINT IF EXISTS "{constraint_name}"')
+
     # Возвращаем старые constraints без CASCADE
-    op.drop_constraint('employees_created_by_fkey', 'employees', type_='foreignkey')
-    op.drop_constraint('employees_user_id_fkey', 'employees', type_='foreignkey')
-    op.drop_constraint('employees_company_id_fkey', 'employees', type_='foreignkey')
+    _drop_fk_if_exists('employees', 'employees_created_by_fkey')
+    _drop_fk_if_exists('employees', 'employees_user_id_fkey')
+    _drop_fk_if_exists('employees', 'employees_company_id_fkey')
     
     op.create_foreign_key(
         'employees_created_by_fkey',
@@ -86,14 +94,14 @@ def downgrade() -> None:
         ['company_id'], ['id']
     )
     
-    op.drop_constraint('users_company_id_fkey', 'users', type_='foreignkey')
+    _drop_fk_if_exists('users', 'users_company_id_fkey')
     op.create_foreign_key(
         'users_company_id_fkey',
         'users', 'companies',
         ['company_id'], ['id']
     )
     
-    op.drop_constraint('company_officials_company_id_fkey', 'company_officials', type_='foreignkey')
+    _drop_fk_if_exists('company_officials', 'company_officials_company_id_fkey')
     op.create_foreign_key(
         'company_officials_company_id_fkey',
         'company_officials', 'companies',

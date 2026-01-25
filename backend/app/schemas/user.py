@@ -16,7 +16,9 @@ class UserCreate(UserBase):
 
 class UserLogin(BaseModel):
     login: str  # Может быть email или телефон
-    password: constr(min_length=8)
+    # Для dev-тестов допускаем короткий пароль (см. ТЗ с 123456).
+    # Регистрация/смена пароля всё ещё требуют min_length=8 в authentication схемах.
+    password: constr(min_length=6)
 
 
 # class UserDocsLogin(BaseModel):

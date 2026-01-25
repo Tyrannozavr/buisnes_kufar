@@ -37,7 +37,7 @@ const urlFilters = {
 
 onMounted(async () => {
   console.log('🔄 Инициализация страницы из URL:', currentPage.value)
-  
+
   // If there are URL filters, apply them
   if (urlFilters.search || urlFilters.cities?.length || urlFilters.minPrice || urlFilters.maxPrice || urlFilters.inStock) {
     console.log('🔄 Инициализация фильтров из URL:', urlFilters)
@@ -62,7 +62,9 @@ const convertToProductItemPublic = (product: any): ProductItemPublic => {
     article: product.article,
     type: product.type,
     price: product.price,
-    unit_of_measurement: product.unit_of_measurement || 'шт'
+    unit_of_measurement: product.unit_of_measurement || 'шт',
+		company_id: product.company_id,
+		company_name: product.company_name,
   }
 }
 
@@ -101,7 +103,7 @@ const handleSearch = async (searchParams: any) => {
   
   // Reset to page 1 when searching
   currentPage.value = 1
-  
+
   try {
     // Convert frontend params to API format
     const apiParams = {
@@ -117,7 +119,7 @@ const handleSearch = async (searchParams: any) => {
     // Сохраняем текущие фильтры для пагинации
     currentFilters.value = apiParams
     console.log('🔍 Сохранены фильтры для пагинации:', currentFilters.value)
-    
+
     // Update URL with search params and reset page
     await router.push({
       query: {
@@ -130,7 +132,7 @@ const handleSearch = async (searchParams: any) => {
         inStock: searchParams.inStock || undefined
       }
     })
-    
+
     let result
     if (props.type === 'products') {
       result = await searchProducts(apiParams)
@@ -158,7 +160,7 @@ const handleSearch = async (searchParams: any) => {
 const handlePageChange = async (page: number) => {
   console.log('📄 Переключение на страницу:', page)
   console.log('🔍 Текущие фильтры:', currentFilters.value)
-  
+
   // Update URL
   await router.push({
     query: {
@@ -166,7 +168,7 @@ const handlePageChange = async (page: number) => {
       page: page.toString()
     }
   })
-  
+
   currentPage.value = page
   const skip = (page - 1) * 20
   
@@ -179,14 +181,14 @@ const handlePageChange = async (page: number) => {
         limit: 20
       }
       console.log('🚀 Отправляем запрос с фильтрами:', apiParams)
-      
+
       let result
       if (props.type === 'products') {
         result = await searchProducts(apiParams)
       } else {
         result = await searchServices(apiParams)
       }
-      
+
       console.log('✅ Получен результат:', result.products.length, 'товаров')
       console.log('📊 Детали результата:', {
         total: result.total,
@@ -196,7 +198,7 @@ const handlePageChange = async (page: number) => {
         limit: 20,
         calculatedPages: Math.ceil(result.total / 20)
       })
-      
+
       items.value = {
         products: result.products.map(convertToProductItemPublic),
         total: result.total,
@@ -206,7 +208,7 @@ const handlePageChange = async (page: number) => {
     } else {
       console.log('⚠️ Нет активных фильтров, используем обычную загрузку')
       console.log('📊 Параметры обычной загрузки:', { skip, limit: 20 })
-      
+
       // Если нет фильтров, используем обычную загрузку
       if (props.type === 'products') {
         const result = await getAllGoods({ skip, limit: 20 })
@@ -217,7 +219,7 @@ const handlePageChange = async (page: number) => {
           per_page: result.per_page,
           skip: skip
         })
-        
+
         items.value = {
           products: result.products.map(convertToProductItemPublic),
           total: result.total,
@@ -233,7 +235,7 @@ const handlePageChange = async (page: number) => {
           per_page: result.per_page,
           skip: skip
         })
-        
+
         items.value = {
           products: result.products.map(convertToProductItemPublic),
           total: result.total,
@@ -285,9 +287,9 @@ const handlePageChange = async (page: number) => {
         </div>
 
         <div v-if="items?.total && items.total > 20" class="mt-6 flex justify-center">
-          <CustomPagination 
-            :current-page="currentPage" 
-            :total="items.total" 
+          <CustomPagination
+            :current-page="currentPage"
+            :total="items.total"
             :per-page="20"
             @update:page="handlePageChange"
           />

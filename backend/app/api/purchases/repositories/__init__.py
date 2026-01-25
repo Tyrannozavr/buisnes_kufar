@@ -131,7 +131,7 @@ class DealRepository:
                 
                 amount = quantity * price
                 total_amount += amount
-                
+
                 print(f"DEBUG: Обрабатываем позицию {position}: {product_name} (qty={quantity}, price={price})")
                 
                 order_item = OrderItem(

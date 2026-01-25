@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type {NavigationMenuItem} from '~/types/navigation'
+import type { NavigationMenuItem } from '~/types/navigation'
 import Breadcrumbs from "~/components/ui/Breadcrumbs.vue"
 import AppLayout from "~/components/layout/AppLayout.vue";
 
@@ -114,48 +114,66 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
 
 // Get page title from route meta
 const pageTitle = computed(() => {
-  const title = route.meta.title
-  return typeof title === 'function' ? title() : title
+	const title = route.value.meta.title
+	return typeof title === 'function' ? title() : title
 })
+
+const alternativeLayout = () => route.value.name === 'profile-purchases' || route.value.name === 'profile-sales' ? true : false
+
+watch(alternativeLayout, () => console.log(alternativeLayout()))
 
 </script>
 
 <template>
-  <AppLayout>
-    <div class="container mx-auto px-2 py-6 md:px-0">
-      <div class="mb-6">
-        <Breadcrumbs :current-page-title="pageTitle" />
-      </div>
-      <div class="flex flex-col md:flex-row gap-6 md:gap-8">
-        <!-- Main Content -->
-        <div class="w-full md:max-w-3xl md:pr-6">
-          <slot/>
-        </div>
-        <!-- Navigation Sidebar -->
-        <div class="w-full md:w-64 flex-shrink-0 md:pl-0 md:pr-4">
-          <UCard class="sticky top-8 md:w-64 w-full">
-            <UNavigationMenu
-                orientation="vertical"
-                :items="navigationItems"
-                class="data-[orientation=vertical]:w-full"
-            />
-          </UCard>
-        </div>
-      </div>
-    </div>
-  </AppLayout>
+	<AppLayout>
+		<div class="container mx-auto px-2 py-6 md:px-0">
+			<div class="mb-6">
+				<Breadcrumbs :current-page-title="pageTitle" />
+			</div>
+
+			<div v-if="alternativeLayout()" class="flex flex-col md:flex-col gap-6 md:gap-8">
+				<!-- Main Content -->
+				<div class="w-full md:max-w-full order-2">
+					<slot />
+				</div>
+				<!-- Navigation Sidebar -->
+				<div class="w-128 md:w-full flex-shrink-0 order-1">
+					<UNavigationMenu arrow orientation="horizontal" content-orientation="vertical" :items="alternativeNavigationItems" />
+					<!-- <UCard class="sticky top-8 w-128 md:w-full max-h-content"> -->
+					<!-- </UCard> -->
+				</div>
+			</div>
+
+			<div v-else class="flex flex-col md:flex-row gap-6 md:gap-8">
+				<!-- Main Content -->
+				<div class="w-full md:max-w-3xl md:pr-6">
+					<slot />
+				</div>
+				<!-- Navigation Sidebar -->
+				<div class="w-full md:w-64 flex-shrink-0 md:pl-0 md:pr-4">
+					<UCard class="sticky top-8 md:w-64 w-full">
+						<UNavigationMenu orientation="vertical" :items="navigationItems"
+							class="data-[orientation=vertical]:w-full" />
+					</UCard>
+				</div>
+			</div>
+
+		</div>
+	</AppLayout>
 </template>
 
 <style scoped>
 @media (min-width: 768px) and (max-width: 1024px) {
-  .md\\:max-w-3xl {
-    max-width: 768px;
-  }
-  .md\\:pr-6 {
-    padding-right: 1.5rem;
-  }
-  .md\\:pr-4 {
-    padding-right: 1rem;
-  }
+	.md\\:max-w-3xl {
+		max-width: 768px;
+	}
+
+	.md\\:pr-6 {
+		padding-right: 1.5rem;
+	}
+
+	.md\\:pr-4 {
+		padding-right: 1rem;
+	}
 }
 </style>

@@ -21,7 +21,7 @@ export const useCart = () => {
     }
 
     try {
-      await cartStore.addToCart(product)
+      cartStore.addToCart(product)
       toast.add({
         title: 'Успешно',
         description: 'Товар добавлен в корзину',

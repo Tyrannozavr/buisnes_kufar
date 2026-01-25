@@ -66,11 +66,11 @@ export default defineNuxtConfig({
   app: {
     baseURL: '/',
     head: {
-      title: 'БизнесТорг',
+      title: 'TradeSynergy',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'БизнесТорг - платформа для бизнеса' }
+        { name: 'description', content: 'TradeSynergy - платформа для бизнеса' }
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
@@ -89,7 +89,10 @@ export default defineNuxtConfig({
       proxy: {
         // Исключаем _nuxt_icon из прокси
         '^/api/(?!_nuxt_icon)': {
-          target: 'http://localhost:8000',
+          // Dev proxy target берём из .env, чтобы менять в одном месте.
+          // В docker обычно: http://backend:8000
+          // При запуске фронта на хосте: http://localhost:8002
+          target: process.env.NUXT_DEV_API_PROXY_TARGET || 'http://backend:8000',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path

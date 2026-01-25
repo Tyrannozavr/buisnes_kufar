@@ -51,11 +51,13 @@ export interface ProductItemPublic {
   name: string
   logo_url: string | null
   slug: string
-  description: string,
-  article: string,
-  type: string,
-  price: number,
+  description: string
+  article: string
+  type: string
+  price: number
   unit_of_measurement: string
+	company_id: number
+	company_name: string
 }
 
 export interface ProductPaginatedPublicResponse {
@@ -71,4 +73,26 @@ export interface ProductListPublicResponse {
   total: number
   page: number
   per_page: number
+}
+
+//интерфесы для страницы подтверждения
+export interface ProductInCheckout  {
+	slug: string
+	type: string
+	position: number
+	productName: string
+	article: number
+	quantity: number
+	units: string
+	price: number
+	amount:number
+	description: string
+	logoUrl: string
+}
+
+export interface CompaniesAndProducts  {
+	companyId: number
+	companyName: string
+	products: ProductInCheckout[]
+	services: ProductInCheckout[]
 }

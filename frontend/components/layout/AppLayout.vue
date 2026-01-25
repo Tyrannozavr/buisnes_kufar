@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-white dark:text-white pt-22">
+  <!-- Приложение работает только в светлой теме (см. nuxt.config.ts). -->
+  <div class="min-h-screen bg-white text-gray-900 pt-22">
     <AppHeader 
       :isSidebarOpen="isSidebarOpen"
       @update:isSidebarOpen="isSidebarOpen = $event"

@@ -180,10 +180,11 @@ watch(() => changeState.value,
 
 
 const addProduct = () => {
+	// По умолчанию считаем "товар", а "услуга" — только если явно выбран тип сделки услуг.
 	const productType: string =
-		(requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
-			? 'товар'
-			: 'услуга'
+		(requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
+			? 'услуга'
+			: 'товар'
 
 	const product: Product = {
 		name: '',
@@ -264,16 +265,19 @@ const removeProduct = (product: any): void => {
 	orderData.value.products.splice(index, 1)
 }
 
-const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
+const htmlOrder = useState<HTMLElement | null>('htmlOrder', () => null)
+const a4Ref = ref<{ getDocumentEl: () => HTMLElement | null } | null>(null)
+
+onMounted(() => {
+	htmlOrder.value = a4Ref.value?.getDocumentEl?.() ?? null
+})
 	
 </script>
 
 <template>
-	<A4-page>
-
-
-		<div ref="element">
-			<table>
+	<A4-page ref="a4Ref">
+		<table>
+			<tbody>
 				<tr>
 					<td><span>Поставщик:</span> </td>
 					<td style="padding-inline: 10px;">
@@ -297,7 +301,8 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 							v-model.lazy="orderData.buyer.mobileNumber" /><br />
 					</td>
 				</tr>
-			</table>
+			</tbody>
+		</table>
 
 			<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку
 				<span v-if="orderData.orderNumber">{{ orderData.orderNumber }}</span>
@@ -306,14 +311,16 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
 			<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 				<thead>
-					<th class="w-5 border"><span>№</span></th>
-					<th class="w-50 border"><span>Название продукта</span></th>
-					<th class="w-15 border"><span>Артикул</span></th>
-					<th class="w-10 border"><span>Кол-во</span></th>
-					<th class="w-13 border"><span>Ед. изм.</span></th>
-					<th class="w-15 border"><span>Цена</span></th>
-					<th class="w-20 border"><span>Сумма</span></th>
-					<th class="w-1"><span></span></th>
+					<tr>
+						<th class="w-5 border"><span>№</span></th>
+						<th class="w-50 border"><span>Название продукта</span></th>
+						<th class="w-15 border"><span>Артикул</span></th>
+						<th class="w-10 border"><span>Кол-во</span></th>
+						<th class="w-13 border"><span>Ед. изм.</span></th>
+						<th class="w-15 border"><span>Цена</span></th>
+						<th class="w-20 border"><span>Сумма</span></th>
+						<th class="w-1"><span></span></th>
+					</tr>
 				</thead>
 				<tbody>
 					<tr v-for="product in orderData.products">
@@ -321,22 +328,22 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 							<span>{{ orderData.products.indexOf(product) + 1 }}</span>
 						</td>
 						<td class="border">
-							<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
+							<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.trim="product.name" />
 						</td>
 						<td class="border">
 							<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
-								v-model.lazy="product.article" />
+								v-model.number="product.article" />
 						</td>
 						<td class="border">
 							<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
-								v-model.lazy="product.quantity" />
+								v-model.number="product.quantity" />
 						</td>
 						<td class="border">
 							<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
-								v-model.lazy="product.units" />
+								v-model.trim="product.units" />
 						</td>
 						<td class="border">
-							<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
+							<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.number="product.price" />
 						</td>
 						<td class="border">
 							<span class="">{{ product.amount }}</span>
@@ -356,9 +363,14 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
 					</tr>
 					<tr :hidden="isDisabled">
-						<td @click="addProduct()" colspan="7"
-							class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
-							Добавить товар
+						<td colspan="7" class="border text-left">
+							<button
+								type="button"
+								class="w-full text-left text-gray-400 hover:text-gray-700 cursor-pointer"
+								@click="addProduct()"
+							>
+								Добавить товар
+							</button>
 						</td>
 					</tr>
 				</tbody>
@@ -379,9 +391,6 @@ const element: Ref<HTMLElement | null> = useState('htmlOrder', () => ref(null))
 
 			<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
 				class="w-full h-15 max-h-40" />
-		</div>
-
-
 	</A4-page>
 </template>
 

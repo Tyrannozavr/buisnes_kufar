@@ -41,7 +41,13 @@ import Order from '~/components/templates/Order.vue'
 
 definePageMeta({
 	layout: 'editor',
+	// Генерация PDF/DOCX и работа с DOM (jsPDF/html2canvas/docx) — строго client-only.
+	// Иначе SSR падает на импортах (vite-node/Node.js).
+	ssr: false,
 })
+
+// Layout читает это состояние, чтобы знать активную вкладку (для PDF/DOCX/поиска и т.п.)
+const activeTab = useState<string>('editorTabIndex', () => '0')
 
 const items = [
 	{
@@ -77,19 +83,6 @@ const items = [
 		slot: 'othersDocument' as const,
 	},
 ]
-
-const emit = defineEmits<{
-	(e: 'tabIndex', activeTab: string):void,
-}>()
-
-const activeTab = ref('0')
-watch(
-	() => activeTab.value,
-	() => {
-		emit('tabIndex', activeTab.value)
-	},
-	{ immediate: true }
-)
 
 const route = useRoute()
 

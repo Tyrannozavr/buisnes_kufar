@@ -148,7 +148,9 @@ export const searchManufacturersSSR = async (page: number = 1, perPage: number =
   
   // Используем $fetch для SSR с POST
   const config = useRuntimeConfig()
-  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const baseUrl = import.meta.server
+    ? (config.apiBaseUrl || config.public.apiBaseUrl || 'http://localhost:8002/api')
+    : '/api'
   const url = `${baseUrl}/v1/companies/products/search`
   
   return await $fetch(url, {
@@ -175,7 +177,9 @@ export const searchServiceProvidersSSR = async (page: number = 1, perPage: numbe
   
   // Используем $fetch для SSR с POST
   const config = useRuntimeConfig()
-  const baseUrl = process.server ? (config.public.apiBase || 'http://localhost:8000/api') : '/api'
+  const baseUrl = import.meta.server
+    ? (config.apiBaseUrl || config.public.apiBaseUrl || 'http://localhost:8002/api')
+    : '/api'
   const url = `${baseUrl}/v1/companies/services/search`
   
   return await $fetch(url, {

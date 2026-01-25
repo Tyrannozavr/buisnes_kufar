@@ -4,9 +4,7 @@
 
 			<!-- template -->
 			<div class="w-[70%] mr-3 h-[100%] overflow-y-hidden">
-				<Editor @tabIndex="getTabs">
-					<slot />
-				</Editor>
+				<slot />
 			</div>
 			<!-- editor -->
 			<div class="w-[30%]">
@@ -41,36 +39,36 @@
 
 						<div class="flex flex-col gap-2">
 							<UButton label="СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-								:disabled="activeButtons" @click="inDevelopment()"/>
+								:disabled="isEditing" @click="inDevelopment()"/>
 							<UButton label="ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
+								icon="i-lucide-file-plus" :disabled="isEditing" @click="inDevelopment()"/>
 							<UButton label="Сопроводительные документы на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
+								icon="i-lucide-file-plus" :disabled="isEditing" @click="inDevelopment()"/>
 							<UButton label="СЧЕТ-ФАКТУРУ на основании" color="neutral" variant="subtle"
-								icon="i-lucide-file-plus" :disabled="activeButtons" @click="inDevelopment()"/>
+								icon="i-lucide-file-plus" :disabled="isEditing" @click="inDevelopment()"/>
 						</div>
 
 						<div class="flex flex-row justify-between gap-1 w-full">
 							<UCollapsible class="gap-3">
-								<UButton @click="clearInput(), searchInCurrentDocument(tabIndex, orderElement)" label="Поиск"
+								<UButton @click="clearInput(), searchInCurrentDocument()" label="Поиск"
 									icon="i-lucide-search" class="p-1 h-10 text-sm" />
 
 								<template #content>
 									<div class="mt-4 w-79 absolute">
 										<input type="text" name="search" v-model="inputValue"
-											@input="searchInCurrentDocument(tabIndex, orderElement)"
+											@input="searchInCurrentDocument()"
 											class=" border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg " />
 									</div>
 									<div class="h-12"></div>
 								</template>
 							</UCollapsible>
 
-							<UButton label="Печать" @click="printCurrentDocument(tabIndex, orderElement)" icon="i-lucide-printer"
-								class="p-1 w-[97px] h-10 text-sm" :disabled="activeButtons" />
-							<UButton label="DOC" @click="downloadCurrentDocxBlob(tabIndex, orderDocxBlob, billDocxBlob)"
-								icon="i-lucide-dock" class="p-1 w-[81px] h-10 text-sm" :disabled="activeButtons" />
-							<UButton label="PDF" @click="downloadCurrentPdf(tabIndex, orderElement)" icon="i-lucide-dock"
-								class="p-1 w-[77px] h-10 text-sm" :disabled="activeButtons" />
+							<UButton label="Печать" @click="printCurrentDocument()" icon="i-lucide-printer"
+								class="p-1 w-[97px] h-10 text-sm" :disabled="isEditing" />
+							<UButton label="DOC" @click="downloadCurrentDocxBlob()"
+								icon="i-lucide-dock" class="p-1 w-[81px] h-10 text-sm" :disabled="isEditing" />
+							<UButton label="PDF" @click="downloadCurrentPdf()" icon="i-lucide-dock"
+								class="p-1 w-[77px] h-10 text-sm" :disabled="isEditing" />
 						</div>
 
 						<div class="flex flex-col gap-2">
@@ -80,24 +78,24 @@
 									<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
 										 class="w-1/2" @click="clearCurrentForm(tabIndex)"/>
 									<UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
-										:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(tabIndex)"/>
+										:disabled="!isEditing" class="w-1/2" @click="removeCurrentDeal(tabIndex)"/>
 								</div>
 						</div>
 
 						<div>
 							<UButton label="Сохранить изменения" icon="i-lucide-save" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" @click="saveChanges(tabIndex)"/>
+								:disabled="!isEditing" @click="saveChanges(tabIndex)"/>
 						</div>
 
 						<div class="flex flex-col gap-2 text-center ">
 							<p>Фото/Сканы документа</p>
 							<UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
-								class="justify-center" :disabled="activeButtons" @click="inDevelopment()"/>
+								class="justify-center" :disabled="isEditing" @click="inDevelopment()"/>
 						</div>
 
 						<div class="flex flex-row justify-between">
 							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-								:disabled="activeButtons" @click="inDevelopment()"/>
+								:disabled="isEditing" @click="inDevelopment()"/>
 							<!-- <UButton label="Сохранить"/> -->
 						</div>
 					</div>
@@ -111,7 +109,6 @@
 
 <script setup lang="ts">
 import AppLayout from '~/components/layout/AppLayout.vue';
-import Editor from '~/pages/profile/contracts/editor.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
@@ -125,10 +122,8 @@ const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 
-let tabIndex: string
-function getTabs(activeTab: string): void {
-	tabIndex = activeTab
-}
+// Активная вкладка редактора документа (устанавливается страницей через useState)
+const tabIndex = useState<string>('editorTabIndex', () => '0')
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -150,26 +145,18 @@ provide(injectionKeys.insertStateKey, insertState)
 
 const insertLastPurchasesGood = (): void => {
 	insertState.value.purchasesStateGood = !insertState.value.purchasesStateGood
-	isDisabled.value = !isDisabled.value
-	isDisabled.value = !isDisabled.value
 }
 
 const insertLastPurchasesService = (): void => {
 	insertState.value.purchasesStateService = !insertState.value.purchasesStateService
-	isDisabled.value = !isDisabled.value
-	isDisabled.value = !isDisabled.value
 }
 
 const insertLastSalesGood = (): void => {
 	insertState.value.salesStateGood = !insertState.value.salesStateGood
-	isDisabled.value = !isDisabled.value
-	isDisabled.value = !isDisabled.value
 }
 
 const insertLastSalesService = (): void => {
 	insertState.value.salesStateService = !insertState.value.salesStateService
-	isDisabled.value = !isDisabled.value
-	isDisabled.value = !isDisabled.value
 }
 
 //DOCX
@@ -200,7 +187,7 @@ watch(
 				orderDocxBlob = await generateDocxOrder(sales.value.goodsDeals[indexSalesGood])
 			}
 
-		} else if (sales.value.servicesDeals && insert.salesStateGood) {
+		} else if (sales.value.servicesDeals && insert.salesStateService) {
 			const indexSalesService: number = sales.value.servicesDeals.length - 1 
 			if (sales.value.servicesDeals?.[indexSalesService]) {
 				orderDocxBlob = await generateDocxOrder(sales.value.servicesDeals[indexSalesService])
@@ -210,10 +197,10 @@ watch(
 	{ immediate: false, deep: true }
 )
 
-const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
-	if (tabIndex === '0') {
+const downloadCurrentDocxBlob = (): void => {
+	if (tabIndex.value === '0') {
 		downloadBlob(orderDocxBlob, 'Order.docx')
-	} else if (tabIndex === '1') {
+	} else if (tabIndex.value === '1') {
 		downloadBlob(billDocxBlob, 'Bill.docx')
 	}
 }
@@ -222,19 +209,19 @@ const downloadCurrentDocxBlob = (tabIndex: string, orderDocxBlob: Blob, billDocx
 const { downloadPdf } = usePdfGenerator()
 const orderElement: Ref<HTMLElement | null> = useState('htmlOrder')
 
-const downloadCurrentPdf = (tabIndex: string, orderElement: HTMLElement | null): void => {
-	if (tabIndex === '0') {
+const downloadCurrentPdf = (): void => {
+	if (tabIndex.value === '0') {
 		const fileName = 'Order'
-		downloadPdf(orderElement, fileName)
+		downloadPdf(orderElement.value, fileName)
 	}
 }
 
 //Print 
 const { printDocument } = usePdfGenerator()
 
-const printCurrentDocument = (tabIndex: string, orderElement: HTMLElement | null) => {
-	if (tabIndex === '0') {
-		printDocument(orderElement)
+const printCurrentDocument = () => {
+	if (tabIndex.value === '0') {
+		printDocument(orderElement.value)
 	}
 }
 
@@ -246,21 +233,20 @@ const clearInput = () => {
 	inputValue.value = ''
 }
 
-const searchInCurrentDocument = (tabIndex: string, orderElement: HTMLElement | null) => {
-	if (tabIndex === '0') {
-		searchInDocument(orderElement, inputValue.value)
+const searchInCurrentDocument = () => {
+	if (tabIndex.value === '0') {
+		searchInDocument(orderElement.value, inputValue.value)
 	}
 }
 
 //Button edit
 const isDisabled: Ref<boolean> = ref(true)
-const activeButtons: Ref<boolean> = ref(false)
+const isEditing = computed(() => !isDisabled.value)
 
 provide(injectionKeys.isDisabledKey, isDisabled)
 
 const editButton = () => {
 	isDisabled.value = !isDisabled.value
-	activeButtons.value = !activeButtons.value
 }
 
 //Button clearForm
@@ -286,7 +272,8 @@ provide(injectionKeys.removeDealStateKey, removeDealState)
 
 const removeCurrentDeal = (tabIndex: string) => {
 	if (tabIndex === '0') {
-		removeDealState.value = !removeDealState.value
+		// ВАЖНО: не переключаем дважды подряд — иначе значение не меняется
+		// и watcher в шаблоне не срабатывает.
 		removeDealState.value = !removeDealState.value
 	}
 }
@@ -298,7 +285,7 @@ provide(injectionKeys.changeStateOrderKey, changeState)
 
 const saveChanges = (tabIndex: string) => {
 		if (tabIndex === '0') {
-			changeState.value = !changeState.value
+			// ВАЖНО: не переключаем дважды подряд — иначе watcher не срабатывает.
 			changeState.value = !changeState.value
 	}
 }

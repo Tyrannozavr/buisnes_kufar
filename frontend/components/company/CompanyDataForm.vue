@@ -149,7 +149,11 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       city: undefined,
       officials: [],
       logo: null,
-      logo_url: null
+      logo_url: null,
+			currentAccountNumber: Number(null),
+			bic: Number(null),
+			correspondentBankAccount: Number(null),
+			bankName: '',
     }
   }
 
@@ -175,7 +179,12 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     kpp: kppValue,
     ogrn: ogrnValue,
     registration_date: registrationDateValue,
-    type: typeValue
+    type: typeValue,
+		current_account_number: currentAccountNumberValue,
+		bic: bicValue,
+		correspondent_bank_account: correspondentBankAccountValue,
+		bank_name: bankNameValue
+
   } = companyData
 
   // Для локации создаем объекты LocationItem из строковых значений
@@ -208,7 +217,11 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     city,
     officials: officialsValue,
     logo: logoValue,
-    logo_url: logoUrlValue
+    logo_url: logoUrlValue,
+		currentAccountNumber: currentAccountNumberValue,
+		bic: bicValue,
+		correspondentBankAccount: correspondentBankAccountValue,
+		bankName: bankNameValue
   }
 }
 
@@ -545,6 +558,11 @@ const handleKeydown = (event: KeyboardEvent) => {
         <CompanyDetailsSection
             v-model:formState="formState"
         />
+
+				<!-- Платежные реквизиты компании -->
+				<CompanyPaymentsSection 
+						v-model:formState="formState"
+				/>
 
 <!--         4. Должностные лица -->
         <CompanyOfficialsSection

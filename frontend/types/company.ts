@@ -173,6 +173,10 @@ export interface CompanyResponse {
   total_purchases: number
   created_at: string
   updated_at: string
+	current_account_number: number
+	bic: number
+	correspondent_bank_account: number
+	bank_name: string
 }
 
 export interface CompanyDataFormState {
@@ -199,6 +203,10 @@ export interface CompanyDataFormState {
   officials: CompanyOfficial[]
   logo: string | null
   logo_url: string | null
+	currentAccountNumber: number
+	bic: number
+	correspondentBankAccount: number
+	bankName: string
 }
 
 export interface CompanyDataFormProps {
@@ -229,6 +237,10 @@ export interface CompanyUpdate {
   region?: string
   city?: string
   officials?: CompanyOfficial[]
+	currentAccountNumber?: number
+	bic?: number
+	correspondentBankAccount?: number
+	bankName?: string
 }
 
 export interface CompanyProfile {

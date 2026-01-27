@@ -71,8 +71,16 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
-import EditorMenu from '~/components/EditorMenu/index.vue'
-import A4Page from '~/components/ui/A4-page.vue'
+
+definePageMeta({
+	layout: 'editor',
+	// Генерация PDF/DOCX и работа с DOM (jsPDF/html2canvas/docx) — строго client-only.
+	// Иначе SSR падает на импортах (vite-node/Node.js).
+	ssr: false,
+})
+
+// Layout читает это состояние, чтобы знать активную вкладку (для PDF/DOCX/поиска и т.п.)
+const activeTab = useState<string>('editorTabIndex', () => '0')
 
 const items = [
 	{
@@ -108,8 +116,6 @@ const items = [
 		slot: 'othersDocument' as const,
 	},
 ]
-
-const activeTab = useState('activeTab', () => ref('0'))
 
 const route = useRoute()
 

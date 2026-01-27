@@ -29,14 +29,52 @@ class DealRepository:
             seller_order_number = await self._generate_order_number(order_data.seller_company_id)
             print(f"DEBUG: Номер продавца: {seller_order_number}")
             
+            # Проверяем соответствие типа заказа типам продуктов
+            from app.api.purchases.schemas import ItemType
+            from app.api.products.models.product import Product, ProductType
+            
+            # Преобразуем deal_type из ItemType enum в OrderType enum
+            if order_data.deal_type == ItemType.GOODS:
+                order_deal_type = OrderType.GOODS
+                expected_product_type = ProductType.GOOD
+            else:
+                order_deal_type = OrderType.SERVICES
+                expected_product_type = ProductType.SERVICE
+            
+            # Проверяем все продукты на соответствие типу заказа
+            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+            products_repo = CompanyProductsRepository(self.session)
+            
+            product_types_found = set()
+            for item_data in order_data.items:
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
+                    if product:
+                        product_types_found.add(product.type)
+                        # Проверяем соответствие типа продукта типу заказа
+                        if product.type != expected_product_type:
+                            raise ValueError(
+                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
+                                f"but order type is '{order_data.deal_type.value}'. "
+                                f"All products must be of type '{expected_product_type.value}' for this order type."
+                            )
+            
+            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
+            if len(product_types_found) > 1:
+                types_str = ", ".join([pt.value for pt in product_types_found])
+                raise ValueError(
+                    f"Cannot mix different product types in one order. Found types: {types_str}. "
+                    f"All products in an order must be of the same type (either all goods or all services)."
+                )
+            
             # Создаем заказ
-            print(f"DEBUG: Создаем объект Order")
+            print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")
             order = Order(
                 buyer_order_number=buyer_order_number,
                 seller_order_number=seller_order_number,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
-                deal_type=OrderType.GOODS if order_data.deal_type == "Товары" else OrderType.SERVICES,
+                deal_type=order_deal_type,
                 status=OrderStatus.ACTIVE,
                 comments=order_data.comments
             )
@@ -50,25 +88,66 @@ class DealRepository:
             # Добавляем позиции заказа
             print(f"DEBUG: Добавляем {len(order_data.items)} позиций заказа")
             total_amount = 0
+            
             for i, item_data in enumerate(order_data.items, 1):
-                print(f"DEBUG: Обрабатываем позицию {i}: {item_data.product_name}")
-                amount = item_data.quantity * item_data.price
+                position = item_data.position if item_data.position else i
+                
+                # Если article указан, получаем данные из БД
+                product_id = None
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
+                    if not product:
+                        raise ValueError(f"Product with article '{item_data.article}' not found")
+                    
+                    product_id = product.id
+                    # Используем данные из БД
+                    product_name = product.name
+                    product_slug = product.slug
+                    product_description = product.description
+                    product_article = product.article
+                    product_type = product.type.value  # Enum -> str
+                    logo_url = product.images[0] if product.images else None
+                    unit_of_measurement = product.unit_of_measurement or "шт"
+                    price = product.price
+                    quantity = item_data.quantity
+                else:
+                    # Ручной ввод - используем данные из запроса
+                    if not item_data.product_name:
+                        raise ValueError("product_name is required when article is not specified")
+                    if not item_data.price:
+                        raise ValueError("price is required when article is not specified")
+                    if not item_data.unit_of_measurement:
+                        raise ValueError("unit_of_measurement is required when article is not specified")
+                    
+                    product_name = item_data.product_name
+                    product_slug = item_data.product_slug
+                    product_description = item_data.product_description
+                    product_article = item_data.product_article
+                    product_type = item_data.product_type
+                    logo_url = item_data.logo_url
+                    unit_of_measurement = item_data.unit_of_measurement
+                    price = item_data.price
+                    quantity = item_data.quantity
+                
+                amount = quantity * price
                 total_amount += amount
+
+                print(f"DEBUG: Обрабатываем позицию {position}: {product_name} (qty={quantity}, price={price})")
                 
                 order_item = OrderItem(
                     order_id=order.id,
-                    product_id=item_data.product_id,
-                    product_name=item_data.product_name,
-                    product_slug=item_data.product_slug,
-                    product_description=item_data.product_description,
-                    product_article=item_data.product_article,
-                    product_type=item_data.product_type,
-                    logo_url=item_data.logo_url,
-                    quantity=item_data.quantity,
-                    unit_of_measurement=item_data.unit_of_measurement,
-                    price=item_data.price,
+                    product_id=product_id,
+                    product_name=product_name,
+                    product_slug=product_slug,
+                    product_description=product_description,
+                    product_article=product_article,
+                    product_type=product_type,
+                    logo_url=logo_url,
+                    quantity=quantity,
+                    unit_of_measurement=unit_of_measurement,
+                    price=price,
                     amount=amount,
-                    position=i
+                    position=position
                 )
                 print(f"DEBUG: Добавляем позицию в сессию")
                 self.session.add(order_item)
@@ -185,6 +264,40 @@ class DealRepository:
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
+            # Проверяем соответствие типов продуктов типу заказа
+            from app.api.products.models.product import Product, ProductType
+            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+            products_repo = CompanyProductsRepository(self.session)
+            
+            # Определяем ожидаемый тип продукта на основе типа заказа
+            if order.deal_type == OrderType.GOODS:
+                expected_product_type = ProductType.GOOD
+            else:
+                expected_product_type = ProductType.SERVICE
+            
+            # Проверяем все продукты на соответствие типу заказа
+            product_types_found = set()
+            for item_data in order_data.items:
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
+                    if product:
+                        product_types_found.add(product.type)
+                        # Проверяем соответствие типа продукта типу заказа
+                        if product.type != expected_product_type:
+                            raise ValueError(
+                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
+                                f"but order type is '{order.deal_type.value}'. "
+                                f"All products must be of type '{expected_product_type.value}' for this order type."
+                            )
+            
+            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
+            if len(product_types_found) > 1:
+                types_str = ", ".join([pt.value for pt in product_types_found])
+                raise ValueError(
+                    f"Cannot mix different product types in one order. Found types: {types_str}. "
+                    f"All products in an order must be of the same type (either all goods or all services)."
+                )
+            
             # Удаляем старые позиции
             await self.session.execute(
                 select(OrderItem).where(OrderItem.order_id == order_id)
@@ -198,21 +311,56 @@ class DealRepository:
             # Добавляем новые позиции
             total_amount = 0
             for i, item_data in enumerate(order_data.items, 1):
-                amount = item_data.quantity * item_data.price
+                # Если article указан, получаем данные из БД
+                product_id = None
+                if item_data.article:
+                    product = await products_repo.get_by_article(item_data.article)
+                    if not product:
+                        raise ValueError(f"Product with article '{item_data.article}' not found")
+                    
+                    product_id = product.id
+                    # Используем данные из БД
+                    product_name = product.name
+                    product_slug = product.slug
+                    product_description = product.description
+                    product_article = product.article
+                    product_type = product.type.value
+                    logo_url = product.images[0] if product.images else None
+                    unit_of_measurement = product.unit_of_measurement or "шт"
+                    price = product.price
+                else:
+                    # Ручной ввод - используем данные из запроса
+                    if not item_data.product_name:
+                        raise ValueError("product_name is required when article is not specified")
+                    if not item_data.price:
+                        raise ValueError("price is required when article is not specified")
+                    if not item_data.unit_of_measurement:
+                        raise ValueError("unit_of_measurement is required when article is not specified")
+                    
+                    product_name = item_data.product_name
+                    product_slug = item_data.product_slug
+                    product_description = item_data.product_description
+                    product_article = item_data.product_article
+                    product_type = item_data.product_type
+                    logo_url = item_data.logo_url
+                    unit_of_measurement = item_data.unit_of_measurement
+                    price = item_data.price
+                
+                amount = item_data.quantity * price
                 total_amount += amount
                 
                 order_item = OrderItem(
                     order_id=order.id,
-                    product_id=item_data.product_id,
-                    product_name=item_data.product_name,
-                    product_slug=item_data.product_slug,
-                    product_description=item_data.product_description,
-                    product_article=item_data.product_article,
-                    product_type=item_data.product_type,
-                    logo_url=item_data.logo_url,
+                    product_id=product_id,
+                    product_name=product_name,
+                    product_slug=product_slug,
+                    product_description=product_description,
+                    product_article=product_article,
+                    product_type=product_type,
+                    logo_url=logo_url,
                     quantity=item_data.quantity,
-                    unit_of_measurement=item_data.unit_of_measurement,
-                    price=item_data.price,
+                    unit_of_measurement=unit_of_measurement,
+                    price=price,
                     amount=amount,
                     position=i
                 )
@@ -273,9 +421,19 @@ class DealRepository:
 
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""
-        query = select(Company).where(Company.user_id == user_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        from app.api.authentication.models.user import User
+        # Сначала получаем пользователя, затем его компанию
+        user_query = select(User).where(User.id == user_id)
+        user_result = await self.session.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        
+        if not user or not user.company_id:
+            return None
+        
+        # Получаем компанию по company_id из пользователя
+        company_query = select(Company).where(Company.id == user.company_id)
+        company_result = await self.session.execute(company_query)
+        return company_result.scalar_one_or_none()
 
     async def get_company_by_id(self, company_id: int) -> Optional[Company]:
         """Получение компании по ID"""

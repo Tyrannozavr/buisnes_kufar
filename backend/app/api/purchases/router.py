@@ -35,11 +35,15 @@ async def create_deal(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
     
-    deal = await deal_service.create_deal(deal_data, company.id)
-    if not deal:
-        raise HTTPException(status_code=400, detail="Failed to create deal")
-    
-    return deal
+    try:
+        deal = await deal_service.create_deal(deal_data, company.id)
+        if not deal:
+            raise HTTPException(status_code=400, detail="Failed to create deal")
+        return deal
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/buyer/deals", response_model=List[BuyerDealResponse], tags=["buyer", "orders", "list"])

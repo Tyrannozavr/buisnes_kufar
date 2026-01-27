@@ -41,6 +41,20 @@ class CompanyProductsRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_by_article(self, article: str) -> Optional[Product]:
+        """Получить продукт по article (только активные и не скрытые)"""
+        query = select(Product).options(
+            selectinload(Product.company)
+        ).where(
+            and_(
+                Product.article == article,
+                Product.is_deleted == False,
+                Product.is_hidden == False
+            )
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_by_company_id(
             self,
             company_id: int,

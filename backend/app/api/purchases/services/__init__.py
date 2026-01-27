@@ -19,13 +19,40 @@ class DealService:
 
     async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание новой сделки"""
+        import traceback
+        from app_logging.logger import logger
+        from sqlalchemy.exc import IntegrityError
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
             return await self._order_to_deal_response(order)
+        except IntegrityError as e:
+            await self.session.rollback()
+            error_msg = f"Database integrity error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            # Проверяем, какое ограничение нарушено
+            error_str = str(e)
+            if "seller_company_id_fkey" in error_str:
+                raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
+            elif "buyer_company_id_fkey" in error_str:
+                raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
+            elif "product_id_fkey" in error_str or "order_items_product_id_fkey" in error_str:
+                # Извлекаем product_id из ошибки, если возможно
+                import re
+                match = re.search(r'Key \(product_id\)=\((\d+)\)', error_str)
+                if match:
+                    product_id = match.group(1)
+                    raise ValueError(f"Product with ID {product_id} does not exist. Use null or omit product_id for manual entry.")
+                raise ValueError("One of the products in the order does not exist. Use null or omit product_id for manual entry.")
+            raise ValueError("Database constraint violation")
         except Exception as e:
             await self.session.rollback()
+            error_msg = f"Error creating deal: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
             print(f"Error creating deal: {e}")
-            return None
+            print(traceback.format_exc())
+            raise
 
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
         """Получение сделки по ID"""
@@ -193,24 +220,45 @@ class DealService:
                         break
                 
                 # Преобразуем данные корзины в формат DealCreate
+                # Используем article из корзины для поиска продукта
+                from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+                products_repo = CompanyProductsRepository(self.session)
+                
                 deal_items = []
                 for i, item in enumerate(seller_data["items"], 1):
-                    deal_items.append({
-                        "product_name": item.get("productName"),
-                        "product_slug": item.get("slug"),
-                        "product_description": item.get("description"),
-                        "product_article": str(item.get("article", "")),
-                        "product_type": item.get("type"),
-                        "logo_url": item.get("logoUrl"),
+                    # Используем article из корзины
+                    article = str(item.get("article", "")) if item.get("article") else None
+                    
+                    deal_item = {
                         "quantity": item.get("quantity"),
-                        "unit_of_measurement": item.get("units"),
-                        "price": item.get("price"),
                         "position": i
-                    })
+                    }
+                    
+                    if article:
+                        # Если есть article, используем его для поиска продукта
+                        deal_item["article"] = article
+                    else:
+                        # Ручной ввод - все поля обязательны
+                        deal_item.update({
+                            "product_name": item.get("productName"),
+                            "product_slug": item.get("slug"),
+                            "product_description": item.get("description"),
+                            "product_article": str(item.get("article", "")),
+                            "product_type": item.get("type"),
+                            "logo_url": item.get("logoUrl"),
+                            "unit_of_measurement": item.get("units"),
+                            "price": item.get("price")
+                        })
+                    
+                    deal_items.append(deal_item)
+                
+                # Преобразуем deal_type_str в ItemType enum
+                from app.api.purchases.schemas import ItemType
+                deal_type_enum = ItemType.GOODS if deal_type == "Товары" else ItemType.SERVICES
                 
                 deal_data = DealCreate(
                     seller_company_id=seller_id,
-                    deal_type=deal_type,
+                    deal_type=deal_type_enum,
                     items=deal_items,
                     comments=checkout_data.get("comments")
                 )

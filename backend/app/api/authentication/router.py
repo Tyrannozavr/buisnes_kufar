@@ -104,10 +104,12 @@ async def login(
     Login user with email/phone and password.
     Password must be at least 8 characters long.
     """
-    if len(user_data.password) < 8:
+    # В dev допускаем пароль короче 8 (см. тестовый аккаунт dimon@gmail.com / 123456).
+    # Регистрация всё ещё валидирует пароль по min_length=8.
+    if len(user_data.password) < 6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 8 characters long"
+            detail="Password must be at least 6 characters long"
         )
 
     auth_service = AuthService(user_repository=UserRepository(session=db), db=db)

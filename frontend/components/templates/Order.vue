@@ -176,10 +176,11 @@ watch(() => saveState.value,
 )
 
 const addProduct = () => {
+	// По умолчанию считаем "товар", а "услуга" — только если явно выбран тип сделки услуг.
 	const productType: string =
-		(requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
-			? 'товар'
-			: 'услуга'
+		(requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
+			? 'услуга'
+			: 'товар'
 
 	const product: Product = {
 		name: '',
@@ -261,40 +262,43 @@ const removeProduct = (product: any): void => {
 	orderData.value.products.splice(index, 1)
 }
 
-const htmlOrder: Ref<HTMLElement | null> = useTemplateRef('htmlOrder')
+const htmlOrder = useState<HTMLElement | null>('htmlOrder', () => null)
+const a4Ref = ref<{ getDocumentEl: () => HTMLElement | null } | null>(null)
 
-watch(orderData, () => {
-		useTypedState(TemplateElement.ORDER, () => htmlOrder)
-}, { deep: true })
-
+onMounted(() => {
+	htmlOrder.value = a4Ref.value?.getDocumentEl?.() ?? null
+})
+	
 </script>
 
 <template>
-	<div ref="htmlOrder">
+	<A4-page ref="a4Ref">
 		<table>
-			<tr>
-				<td><span>Поставщик:</span> </td>
-				<td style="padding-inline: 10px;">
-					<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
-					<input :disabled="isDisabled" placeholder="Название компании"
-						v-model.lazy="orderData.saller.companyName" /><br />
-					<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
-					<input :disabled="isDisabled" placeholder="Контактный телефон"
-						v-model.trim.lazy="orderData.saller.mobileNumber" />
-				</td>
-			</tr>
-			<tr>
-				<td>
-					<span>Покупатель:</span>
-				</td>
-				<td style="padding-inline: 10px;">
-					<input :disabled="isDisabled" placeholder="Название компании"
-						v-model.lazy="orderData.buyer.companyName" /><br />
-					<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
-					<input :disabled="isDisabled" placeholder="Контактный телефон"
-						v-model.lazy="orderData.buyer.mobileNumber" /><br />
-				</td>
-			</tr>
+			<tbody>
+				<tr>
+					<td><span>Поставщик:</span> </td>
+					<td style="padding-inline: 10px;">
+						<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
+						<input :disabled="isDisabled" placeholder="Название компании"
+							v-model.lazy="orderData.saller.companyName" /><br />
+						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
+						<input :disabled="isDisabled" placeholder="Контактный телефон"
+							v-model.trim.lazy="orderData.saller.mobileNumber" />
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<span>Покупатель:</span>
+					</td>
+					<td style="padding-inline: 10px;">
+						<input :disabled="isDisabled" placeholder="Название компании"
+							v-model.lazy="orderData.buyer.companyName" /><br />
+						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
+						<input :disabled="isDisabled" placeholder="Контактный телефон"
+							v-model.lazy="orderData.buyer.mobileNumber" /><br />
+					</td>
+				</tr>
+			</tbody>
 		</table>
 
 		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку
@@ -302,65 +306,72 @@ watch(orderData, () => {
 			от {{ orderData.orderDate }}
 		</h1>
 
-		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
-			<thead>
-				<th class="w-5 border"><span>№</span></th>
-				<th class="w-50 border"><span>Название продукта</span></th>
-				<th class="w-15 border"><span>Артикул</span></th>
-				<th class="w-10 border"><span>Кол-во</span></th>
-				<th class="w-13 border"><span>Ед. изм.</span></th>
-				<th class="w-15 border"><span>Цена</span></th>
-				<th class="w-20 border"><span>Сумма</span></th>
-				<th class="w-1"><span></span></th>
-			</thead>
-			<tbody>
-				<tr v-for="product in orderData.products">
-					<td class="border">
-						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
-							v-model.lazy="product.article" />
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
-							v-model.lazy="product.quantity" />
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
-							v-model.lazy="product.units" />
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
-					</td>
-					<td class="border">
-						<span class="">{{ product.amount }}</span>
-					</td>
-					<td>
-						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
-							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
-								width="32" height="32" viewBox="0 0 24 24">
-								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
-									stroke-linejoin="round" stroke-width="3">
-									<circle cx="12" cy="12" r="10" />
-									<path d="m15 9l-6 6m0-6l6 6" />
-								</g>
-							</svg>
-						</span>
-					</td>
+			<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
+				<thead>
+					<tr>
+						<th class="w-5 border"><span>№</span></th>
+						<th class="w-50 border"><span>Название продукта</span></th>
+						<th class="w-15 border"><span>Артикул</span></th>
+						<th class="w-10 border"><span>Кол-во</span></th>
+						<th class="w-13 border"><span>Ед. изм.</span></th>
+						<th class="w-15 border"><span>Цена</span></th>
+						<th class="w-20 border"><span>Сумма</span></th>
+						<th class="w-1"><span></span></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="product in orderData.products">
+						<td class="border">
+							<span>{{ orderData.products.indexOf(product) + 1 }}</span>
+						</td>
+						<td class="border">
+							<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.trim="product.name" />
+						</td>
+						<td class="border">
+							<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
+								v-model.number="product.article" />
+						</td>
+						<td class="border">
+							<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
+								v-model.number="product.quantity" />
+						</td>
+						<td class="border">
+							<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
+								v-model.trim="product.units" />
+						</td>
+						<td class="border">
+							<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.number="product.price" />
+						</td>
+						<td class="border">
+							<span class="">{{ product.amount }}</span>
+						</td>
+						<td>
+							<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
+								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400"
+									xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
+										stroke-linejoin="round" stroke-width="3">
+										<circle cx="12" cy="12" r="10" />
+										<path d="m15 9l-6 6m0-6l6 6" />
+									</g>
+								</svg>
+							</span>
+						</td>
 
-				</tr>
-				<tr :hidden="isDisabled">
-					<td @click="addProduct()" colspan="7"
-						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
-						Добавить товар
-					</td>
-				</tr>
-			</tbody>
-		</table>
+					</tr>
+					<tr :hidden="isDisabled">
+						<td colspan="7" class="border text-left">
+							<button
+								type="button"
+								class="w-full text-left text-gray-400 hover:text-gray-700 cursor-pointer"
+								@click="addProduct()"
+							>
+								Добавить товар
+							</button>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 
 		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму:
 				<span v-if="orderData.amount">{{ orderData.amount }} </span>
@@ -375,9 +386,9 @@ watch(orderData, () => {
 		</p>
 		<br />
 
-		<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
-			class="w-full h-15 max-h-40" />
-	</div>
+			<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
+				class="w-full h-15 max-h-40" />
+	</A4-page>
 </template>
 
 <style lang="css" scoped>

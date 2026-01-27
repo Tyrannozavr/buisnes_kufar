@@ -1,7 +1,11 @@
-import html2canvas from "html2canvas-pro";
-import { jsPDF } from "jspdf";
-
 export const usePdfGenerator = () => {
+  const ensureClient = () => {
+    // Важно: jspdf/html2canvas падают при SSR (vite-node/Node).
+    if (import.meta.server) {
+      throw new Error("usePdfGenerator is client-only (SSR disabled for this feature)");
+    }
+  };
+
   const replaceTextareasAndInputs = (element: any) => {
     const newElement: HTMLElement = element.cloneNode(true);
 		document.body.appendChild(newElement)
@@ -38,11 +42,17 @@ export const usePdfGenerator = () => {
     return newElement;
   };
 
-  const downloadPdf = async (element: HTMLElement | null, fileName: string) => {
+  const downloadPdf = async (element: HTMLElement | null, fileName: string) => {		
+    ensureClient();
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas-pro"),
+      import("jspdf"),
+    ]);
+
 		const newElement = replaceTextareasAndInputs(element)
 
     const canvas = await html2canvas(newElement, { scale: 1, useCORS: true });
-    const imgData = canvas.toDataURL("img/pdf");
+    const imgData = canvas.toDataURL("image/png");
 
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.width;
@@ -64,9 +74,12 @@ export const usePdfGenerator = () => {
     }
 
     pdf.save(`${fileName}.pdf`);
+    // cleanup clone
+    newElement.remove();
   };
 
 const printDocument = (element: HTMLElement | any): void => {
+  ensureClient();
 	const newElement = replaceTextareasAndInputs(element)
 	const printWindow = window.open('','', 'height=600, width=900')
 	printWindow?.document.writeln(`
@@ -97,6 +110,8 @@ const printDocument = (element: HTMLElement | any): void => {
 	printWindow?.focus()
 	printWindow?.print()
 	printWindow?.close()
+  // cleanup clone
+  newElement.remove();
 }  
 
 return {

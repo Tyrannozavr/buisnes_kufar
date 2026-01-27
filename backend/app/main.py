@@ -51,8 +51,9 @@ app = FastAPI(
 from fastapi.openapi.utils import get_openapi
 
 def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
+    # Не используем кэш, чтобы всегда генерировать свежую схему
+    # if app.openapi_schema:
+    #     return app.openapi_schema
     
     openapi_schema = get_openapi(
         title=app.title,
@@ -61,25 +62,80 @@ def custom_openapi():
         routes=app.routes,
     )
     
-    # Добавляем схему безопасности Bearer
-    openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
+    # Убеждаемся, что components существует
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    
+    # Инициализируем securitySchemes, если его нет
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+    
+    # FastAPI автоматически создает схему безопасности через OAuth2PasswordBearer
+    # Обычно она называется "BearerAuth", но некоторые эндпоинты используют "Bearer"
+    # Мы создаем обе схемы для совместимости
+    security_schemes = openapi_schema["components"]["securitySchemes"]
+    
+    # Находим существующую схему (BearerAuth или Bearer)
+    existing_scheme = None
+    for name in ["BearerAuth", "Bearer"]:
+        if name in security_schemes:
+            existing_scheme = security_schemes[name]
+            break
+    
+    # Создаем правильную схему
+    correct_scheme = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "OAuth2 password bearer token"
+    }
+    
+    # Если есть существующая схема, используем её как основу, но исправляем поля
+    # ВАЖНО: для Bearer токенов тип должен быть "http", а не "oauth2"
+    if existing_scheme and isinstance(existing_scheme, dict):
+        # Принудительно устанавливаем правильный тип для Bearer токенов
+        correct_scheme["type"] = "http"
+        correct_scheme["scheme"] = existing_scheme.get("scheme", "bearer")
+        correct_scheme["bearerFormat"] = existing_scheme.get("bearerFormat", "JWT")
+        if "description" in existing_scheme:
+            correct_scheme["description"] = existing_scheme["description"]
+    
+    # Убеждаемся, что type всегда "http" для Bearer токенов
+    correct_scheme["type"] = "http"
+    
+    # Убеждаемся, что все security schemes правильно структурированы
+    # Удаляем любые схемы с undefined значениями
+    for scheme_name, scheme_def in list(security_schemes.items()):
+        if not isinstance(scheme_def, dict) or scheme_def.get("type") is None:
+            # Удаляем некорректные схемы
+            del security_schemes[scheme_name]
+    
+    # Создаем только одну схему Bearer для стандартного вида в Swagger UI
+    # Удаляем BearerAuth, если он есть, чтобы не было дублирования форм авторизации
+    security_schemes_dict = openapi_schema["components"]["securitySchemes"]
+    
+    # Удаляем BearerAuth, если он существует
+    if "BearerAuth" in security_schemes_dict:
+        del security_schemes_dict["BearerAuth"]
+    
+    # Убеждаемся, что изменения применены - принудительно перезаписываем
+    # Создаем только схему Bearer для стандартного вида
+    # ВАЖНО: тип должен быть "http" для Bearer токенов, а не "oauth2"
+    final_schemes = {
+        "Bearer": {
+            "type": "http",  # Принудительно устанавливаем правильный тип
+            "scheme": correct_scheme.get("scheme", "bearer"),
+            "bearerFormat": correct_scheme.get("bearerFormat", "JWT"),
+            "description": correct_scheme.get("description", "OAuth2 password bearer token")
         }
     }
     
-    # Применяем схему безопасности только к эндпоинтам аутентификации
-    for path in openapi_schema["paths"]:
-        for method in openapi_schema["paths"][path]:
-            if method in ["get", "post", "put", "delete", "patch"]:
-                # Применяем только к эндпоинтам, которые требуют авторизации
-                if "/auth/" in path and not any(public_path in path for public_path in ["/login", "/register", "/token"]):
-                    openapi_schema["paths"][path][method]["security"] = [{"BearerAuth": []}]
+    # Принудительно устанавливаем только схему Bearer
+    openapi_schema["components"]["securitySchemes"] = final_schemes
     
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    # Не кэшируем схему, чтобы изменения применялись сразу
+    # app.openapi_schema = openapi_schema
+    return openapi_schema
 
 app.openapi = custom_openapi
 favicon_path = 'app/favicon.ico'

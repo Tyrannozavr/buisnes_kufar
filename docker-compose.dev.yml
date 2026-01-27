@@ -4,9 +4,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile.migrations
     env_file:
-      - ./backend/.env
-    environment:
-      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
+      - ./.env
+    volumes:
+      # Миграции должны жить на хосте и попадать в git.
+      # Если создавать revision из контейнера (alembic revision ...),
+      # файлы появятся в ./backend/alembic/versions на хосте.
+      - ./backend/alembic:/app/alembic:cached
+      - ./backend/alembic.ini:/app/alembic.ini:cached
+      - ./backend/app:/app/app:cached
     depends_on:
       db:
         condition: service_healthy
@@ -30,8 +35,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - ./postgres-data-dev:/var/lib/postgresql/data:cached
 
@@ -58,18 +63,15 @@ services:
       context: .
       dockerfile: backend/Dockerfile.dev
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db/buisnes_kufar"
-      BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
-      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
-      CELERY_RESULT_BACKEND: "rpc://"
+      # Все конфиги (DB/CORS/Celery/Keys) берём из корневого .env через env_file
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${DEV_BACKEND_PORT:-8002}:8000"
     volumes:
       # Пробрасываем весь код backend для hot reload
       - ./backend:/app:cached
@@ -92,16 +94,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     env_file:
-      - ./frontend/.env
+      - ./.env
     environment:
-      NUXT_UI_FONTS: "false"
-      # Для dev используем полный URL для прямого обращения к backend
-      VITE_PUBLIC_API_URL: "http://localhost:8000/api"
-      API_BASE_URL: "http://backend:8000/api"
-      NODE_ENV: "development"
+      # Все конфиги берём из корневого .env через env_file
+      NODE_ENV: "${NODE_ENV:-development}"
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${DEV_FRONTEND_PORT:-3001}:3000"
     volumes:
       # Пробрасываем весь код frontend для hot reload
       - ./frontend:/app:cached
@@ -118,7 +117,8 @@ services:
       dockerfile: Dockerfile.local
     restart: unless-stopped
     ports:
-      - "80:80"
+      # 80 часто занят. По умолчанию поднимаем на 8080 (меняется в .env).
+      - "${DEV_NGINX_PORT:-8080}:80"
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/app/static:/usr/share/nginx/html/static
@@ -131,13 +131,12 @@ services:
       context: .
       dockerfile: backend/Dockerfile.dev
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
-      CELERY_RESULT_BACKEND: "rpc://"
+      # CELERY_BROKER_URL / CELERY_RESULT_BACKEND берём из корневого .env
     volumes:
       - ./backend:/app:cached
       - backend_poetry_cache:/root/.cache/pypoetry
@@ -156,13 +155,12 @@ services:
       context: .
       dockerfile: backend/Dockerfile.dev
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
-      CELERY_RESULT_BACKEND: "rpc://"
+      # CELERY_BROKER_URL / CELERY_RESULT_BACKEND берём из корневого .env
     volumes:
       - ./backend:/app:cached
       - backend_poetry_cache:/root/.cache/pypoetry

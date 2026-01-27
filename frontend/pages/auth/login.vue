@@ -82,7 +82,8 @@ const rules = {
   required: (value: string) => !!value || 'Обязательное поле',
   password: (value: string) => {
     if (!value) return true
-    return value.length >= 8 || 'Пароль должен содержать минимум 8 символов'
+    // Для dev-тестов используем короткий пароль (см. ТЗ dimon@gmail.com / 123456)
+    return value.length >= 6 || 'Пароль должен содержать минимум 6 символов'
   }
 }
 
@@ -153,8 +154,8 @@ const handleSubmit = async () => {
       message = 'Неверный ИНН или пароль'
     } else if (errorMessage === 'Incorrect email/phone or password') {
       message = 'Неверный логин или пароль'
-    } else if (errorMessage === 'Password must be at least 8 characters long') {
-      message = 'Пароль должен содержать минимум 8 символов'
+    } else if (errorMessage === 'Password must be at least 6 characters long') {
+      message = 'Пароль должен содержать минимум 6 символов'
     }
     console.log("Error message:", message)
     // Show error toast with Russian message

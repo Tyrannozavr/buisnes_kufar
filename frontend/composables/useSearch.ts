@@ -1,5 +1,6 @@
 export const useSearch = () => {
-	const searchInDocument = (element: any, inputValue: string) => {
+	const searchInDocument = (element: HTMLElement | null, inputValue: string) => {
+	if (!element) return
 	const allElements = element.querySelectorAll('input, span, h1, h2, div, textarea, a, pre')
 
 	allElements.forEach((el: HTMLElement | any )=> {

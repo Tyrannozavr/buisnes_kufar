@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
 
@@ -31,9 +31,73 @@ class OrderItemBase(BaseModel):
         from_attributes = True
 
 
-class OrderItemCreate(OrderItemBase):
-    """Схема для создания позиции заказа"""
-    product_id: Optional[int] = Field(None, description="ID продукта (если есть)")
+class OrderItemCreate(BaseModel):
+    """Схема для создания позиции заказа
+    
+    Два варианта использования:
+    1. С article: указывайте только article и quantity, остальные данные берутся из БД
+    2. Без article: указывайте все поля вручную (product_name, price, unit_of_measurement обязательны)
+    """
+    article: Optional[str] = Field(
+        None, 
+        description="Артикул продукта из каталога. Если указан, остальные данные (название, цена, единица измерения) берутся из БД автоматически"
+    )
+    quantity: float = Field(..., gt=0, description="Количество")
+    
+    # Поля для ручного ввода (используются только если article не указан)
+    product_name: Optional[str] = Field(
+        None, 
+        description="Наименование товара/услуги. Обязательно, если article не указан"
+    )
+    product_slug: Optional[str] = Field(None, description="Slug продукта")
+    product_description: Optional[str] = Field(None, description="Описание продукта")
+    product_article: Optional[str] = Field(None, description="Артикул")
+    product_type: Optional[str] = Field(None, description="Тип продукта")
+    logo_url: Optional[str] = Field(None, description="URL логотипа")
+    unit_of_measurement: Optional[str] = Field(
+        None, 
+        description="Единица измерения. Обязательно, если article не указан"
+    )
+    price: Optional[float] = Field(
+        None, 
+        gt=0, 
+        description="Цена за единицу. Обязательно, если article не указан"
+    )
+    position: Optional[int] = Field(
+        None, 
+        ge=1, 
+        description="Позиция в заказе (автоматически, если не указана)"
+    )
+    
+    @model_validator(mode='after')
+    def validate_required_fields(self):
+        """Валидация: если article не указан, обязательны product_name, price, unit_of_measurement"""
+        if not self.article:
+            if not self.product_name:
+                raise ValueError("product_name is required when article is not specified")
+            if not self.price:
+                raise ValueError("price is required when article is not specified")
+            if not self.unit_of_measurement:
+                raise ValueError("unit_of_measurement is required when article is not specified")
+        return self
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "article": "ART-123",
+                    "quantity": 2
+                },
+                {
+                    "article": None,
+                    "quantity": 1,
+                    "product_name": "Кастомный товар",
+                    "price": 100.0,
+                    "unit_of_measurement": "шт"
+                }
+            ]
+        }
 
 
 class OrderItemResponse(OrderItemBase):
@@ -49,9 +113,13 @@ class OrderItemResponse(OrderItemBase):
 
 
 class DealCreate(BaseModel):
-    """Схема для создания заказа"""
+    """Схема для создания заказа
+    
+    Тип заказа (deal_type) обязателен. Проверяется соответствие всех продуктов указанному типу.
+    Запрещено смешивать товары и услуги в одном заказе.
+    """
     seller_company_id: int = Field(..., description="ID компании-продавца")
-    deal_type: ItemType = Field(..., description="Тип заказа (товары/услуги)")
+    deal_type: ItemType = Field(..., description="Тип заказа (товары/услуги). Все продукты должны соответствовать этому типу")
     items: List[OrderItemCreate] = Field(..., min_items=1, description="Позиции заказа")
     comments: Optional[str] = Field(None, description="Комментарии к заказу")
 

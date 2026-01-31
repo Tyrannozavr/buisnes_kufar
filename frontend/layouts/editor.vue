@@ -108,6 +108,8 @@
 </template>
 
 <script setup lang="ts">
+// Формы документов по сделке: загрузка/сохранение — GET/PUT /api/v1/purchases/{deal_id}/documents/{document_type}.
+// Подробно: docs/DOCUMENTS_API_FRONTEND.md (при открытии вкладки — GET, кнопка «Сохранить» — PUT с payload).
 import AppLayout from '~/components/layout/AppLayout.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
@@ -122,8 +124,8 @@ const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 
-// Активная вкладка редактора документа (устанавливается страницей через useState)
-const tabIndex = useState<string>('editorTabIndex', () => '0')
+// Активная вкладка редактора документа (индекс number — синхронно с UTabs на странице editor)
+const tabIndex = useState<number>('editorTabIndex', () => 0)
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -133,14 +135,13 @@ const inDevelopment = () => {
 	})
 }
 
-//Insert Button
-const insertState: Ref<Insert> = ref({
+// Insert: общий стейт через useState, чтобы и layout (кнопки), и Order (watch) видели одни данные
+const insertState = useState<Insert>('editorInsertState', () => ({
 	purchasesStateGood: false,
 	purchasesStateService: false,
 	salesStateGood: false,
 	salesStateService: false,
-})
-
+}))
 provide(injectionKeys.insertStateKey, insertState)
 
 const insertLastPurchasesGood = (): void => {
@@ -198,9 +199,9 @@ watch(
 )
 
 const downloadCurrentDocxBlob = (): void => {
-	if (tabIndex.value === '0') {
+	if (tabIndex.value === 0) {
 		downloadBlob(orderDocxBlob, 'Order.docx')
-	} else if (tabIndex.value === '1') {
+	} else if (tabIndex.value === 1) {
 		downloadBlob(billDocxBlob, 'Bill.docx')
 	}
 }
@@ -210,7 +211,7 @@ const { downloadPdf } = usePdfGenerator()
 const orderElement: Ref<HTMLElement | null> = useState('htmlOrder')
 
 const downloadCurrentPdf = (): void => {
-	if (tabIndex.value === '0') {
+	if (tabIndex.value === 0) {
 		const fileName = 'Order'
 		downloadPdf(orderElement.value, fileName)
 	}
@@ -220,7 +221,7 @@ const downloadCurrentPdf = (): void => {
 const { printDocument } = usePdfGenerator()
 
 const printCurrentDocument = () => {
-	if (tabIndex.value === '0') {
+	if (tabIndex.value === 0) {
 		printDocument(orderElement.value)
 	}
 }
@@ -234,7 +235,7 @@ const clearInput = () => {
 }
 
 const searchInCurrentDocument = () => {
-	if (tabIndex.value === '0') {
+	if (tabIndex.value === 0) {
 		searchInDocument(orderElement.value, inputValue.value)
 	}
 }
@@ -254,8 +255,8 @@ const clearState: Ref<boolean> = ref(false)
 
 provide(injectionKeys.clearStateKey, clearState)
 
-const clearCurrentForm = (tabIndex: string) => {
-	if (tabIndex === '0') {
+const clearCurrentForm = (tabRef: Ref<number>) => {
+	if (tabRef.value === 0) {
 		clearState.value = !clearState.value
 		setTimeout(
 			() => {
@@ -270,8 +271,8 @@ const removeDealState: Ref<Boolean> = ref(false)
 
 provide(injectionKeys.removeDealStateKey, removeDealState)
 
-const removeCurrentDeal = (tabIndex: string) => {
-	if (tabIndex === '0') {
+const removeCurrentDeal = (tabRef: Ref<number>) => {
+	if (tabRef.value === 0) {
 		// ВАЖНО: не переключаем дважды подряд — иначе значение не меняется
 		// и watcher в шаблоне не срабатывает.
 		removeDealState.value = !removeDealState.value
@@ -283,10 +284,10 @@ const changeState: Ref<Boolean> = ref(false)
 
 provide(injectionKeys.changeStateOrderKey, changeState)
 
-const saveChanges = (tabIndex: string) => {
-		if (tabIndex === '0') {
-			// ВАЖНО: не переключаем дважды подряд — иначе watcher не срабатывает.
-			changeState.value = !changeState.value
+const saveChanges = (tabRef: Ref<number>) => {
+	if (tabRef.value === 0) {
+		// ВАЖНО: не переключаем дважды подряд — иначе watcher не срабатывает.
+		changeState.value = !changeState.value
 	}
 }
 </script>

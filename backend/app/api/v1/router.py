@@ -11,6 +11,7 @@ from app.api.common.announcements_router import router as public_announcements_r
 from app.api.companies.router import router as companies_router
 from app.api.chats.router import router as chats_router
 from app.api.purchases.router import router as purchases_router
+from app.api.documents.router import router as documents_router
 from app.api.products.router import owner_router as products_owner_router, public_router as public_products_router
 from app.api.common.routes.cities_filter import router as cities_filter_router
 
@@ -28,6 +29,7 @@ api_router.include_router(company_router, prefix="/company", tags=["company"])
 api_router.include_router(chats_router, prefix="/chats", tags=["chats"])
 api_router.include_router(products_owner_router, prefix="/me/products", tags=["products", "owner"])
 api_router.include_router(purchases_router, prefix="/purchases", tags=["purchases", "orders"])
+api_router.include_router(documents_router, prefix="/purchases", tags=["documents", "editor"])
 
 api_router.include_router(public_products_router, prefix="/products", tags=["public-products"])
 api_router.include_router(public_announcements_router, prefix="/announcements", tags=["public-announcements"])

@@ -14,6 +14,7 @@ from starlette.responses import FileResponse
 
 from app.admin.views import setup_admin
 from app.api.v1.router import api_router
+from app.api.documents.models import DealDocumentForm  # noqa: F401 — регистрация таблицы в metadata
 from app.api.celery.router import router as celery_router
 from app.core.config import settings
 from app.db.base import Base

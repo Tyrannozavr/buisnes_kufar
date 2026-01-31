@@ -112,15 +112,18 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
     ]
 )
 
-// Get page title from route meta
+// Get page title from route meta (route может быть ещё не готов при SSR)
 const pageTitle = computed(() => {
-	const title = route.value.meta.title
-	return typeof title === 'function' ? title() : title
+	const meta = route.value?.meta
+	if (!meta) return ''
+	const title = meta.title
+	return typeof title === 'function' ? title() : title ?? ''
 })
 
-const alternativeLayout = () => route.value.name === 'profile-purchases' || route.value.name === 'profile-sales' ? true : false
-
-watch(alternativeLayout, () => console.log(alternativeLayout()))
+const alternativeLayout = () => {
+	const name = route.value?.name
+	return name === 'profile-purchases' || name === 'profile-sales'
+}
 
 </script>
 

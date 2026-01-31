@@ -40,9 +40,11 @@ const rules = {
 
 const authApi = useAuthApi()
 
-// Load reCAPTCHA script
+// Load reCAPTCHA script только не на localhost (на localhost капча отключена)
 onMounted(() => {
   if (typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    if (isLocalhost) return
     const script = document.createElement('script')
     script.src = `https://www.google.com/recaptcha/api.js?render=${($recaptcha as any).siteKey}`
     script.async = true
@@ -122,11 +124,10 @@ const handleSubmit = async () => {
 
   isLoading.value = true
   try {
-    // Execute reCAPTCHA только если не localhost:3000
-    const isLocalhost = process.client && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '3000'
+    // На localhost капчу не вызываем (любой порт: 3000, 3012 и т.д.)
+    const isLocalhost = process.client && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     
     if (isLocalhost) {
-      // Для localhost:3000 используем фиктивный токен
       form.value.recaptcha_token = 'localhost-development-token'
     } else {
       // Execute reCAPTCHA для продакшена

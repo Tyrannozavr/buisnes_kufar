@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OrderData } from '~/types/contracts';
+import type { OrderData, Insert } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
@@ -24,7 +24,8 @@ const orderData: Ref<OrderData> = ref({
 	products,
 })
 
-const insertState = inject(injectionKeys.insertStateKey, ref({
+// Тот же ключ, что и в layout editor — общий стейт для кнопок «Заполнить данными» (useState гарантирует один стейт)
+const insertState = useState<Insert>('editorInsertState', () => ({
 	purchasesStateGood: false,
 	purchasesStateService: false,
 	salesStateGood: false,

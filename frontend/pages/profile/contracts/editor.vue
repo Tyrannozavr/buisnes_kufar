@@ -47,7 +47,8 @@ definePageMeta({
 })
 
 // Layout читает это состояние, чтобы знать активную вкладку (для PDF/DOCX/поиска и т.п.)
-const activeTab = useState<string>('editorTabIndex', () => '0')
+// UTabs использует индекс вкладки (number) для v-model — строка '0' не совпадала, контент не показывался
+const activeTab = useState<number>('editorTabIndex', () => 0)
 
 const items = [
 	{
@@ -90,19 +91,19 @@ watch(
 	() => route.fullPath,
 	() => {
 		if (route.hash === '#bill') {
-			activeTab.value = '1'
+			activeTab.value = 1
 		} else if (route.hash === '#supplyContract') {
-			activeTab.value = '2'
+			activeTab.value = 2
 		} else if (route.hash === '#accompanyingDocuments') {
-			activeTab.value = '3'
+			activeTab.value = 3
 		} else if (route.hash === '#invoice') {
-			activeTab.value = '4'
+			activeTab.value = 4
 		} else if (route.hash === '#contract') {
-			activeTab.value = '5'
+			activeTab.value = 5
 		} else if (route.hash === '#act') {
-			activeTab.value = '6'
+			activeTab.value = 6
 		} else if (route.hash === '#othersDocument') {
-			activeTab.value = '7'
+			activeTab.value = 7
 		}
 	},
 	{immediate: true}

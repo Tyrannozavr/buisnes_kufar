@@ -24,15 +24,15 @@ class RecaptchaService:
         Returns:
             bool: True если проверка прошла успешно
         """
-        # Пропускаем проверку reCAPTCHA для localhost:3000 (разработка)
-        if origin and ('localhost:3000' in origin or '127.0.0.1:3000' in origin):
+        # Пропускаем проверку reCAPTCHA для localhost (любой порт — разработка)
+        if origin and ('localhost' in origin or '127.0.0.1' in origin):
             return True
-            
+        # Фиктивный токен с фронта при работе на localhost
+        if token and token.strip() in ("localhost-development-token",):
+            return True
+
         # Пропускаем проверку если токен не передан (для localhost)
         if not token:
-            # Если это localhost, разрешаем без токена
-            if origin and ('localhost' in origin or '127.0.0.1' in origin):
-                return True
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="reCAPTCHA token is required"

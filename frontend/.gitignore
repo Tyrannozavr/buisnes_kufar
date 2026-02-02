@@ -5,6 +5,7 @@
 .nitro
 .cache
 dist
+.dockerignore
 
 # Node dependencies
 node_modules

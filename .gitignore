@@ -5,6 +5,7 @@ backend/cache/cache.db*
 backend/cache/cache.db-shm
 backend/cache/cache.db-wal
 postgres-data/
+postgres-data-dev
 
 # SSL сертификаты для разработки (не должны попадать в git)
 nginx/letsencrypt/live/tradesynergy.ru/

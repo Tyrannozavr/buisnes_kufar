@@ -98,16 +98,23 @@ services:
     environment:
       # Все конфиги берём из корневого .env через env_file
       NODE_ENV: "${NODE_ENV:-development}"
+      # Включаем polling для file watcher на Windows
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      # Отключаем watchpack polling для улучшения производительности
+      WATCHPACK_POLLING: "true"
     restart: unless-stopped
     ports:
       - "${DEV_FRONTEND_PORT:-3001}:3000"
     volumes:
       # Пробрасываем весь код frontend для hot reload
-      - ./frontend:/app:cached
+      - ./frontend:/app:delegated
       # Кэшируем node_modules для быстрой установки зависимостей
       - frontend_node_modules:/app/node_modules
       # Кэшируем npm кэш для jiti и других инструментов
       - frontend_npm_cache:/app/node_modules/.cache
+      # Кэшируем .nuxt build для быстрой перезагрузки
+      - frontend_nuxt_build:/app/.nuxt
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     depends_on:
       - backend
@@ -178,6 +185,7 @@ volumes:
   frontend_node_modules:
   frontend_npm_cache:
   frontend_nuxt_cache:
+  frontend_nuxt_build:
   backend_poetry_cache:
   backend_venv:
   rabbitmq_data_dev:

@@ -92,7 +92,7 @@ export default defineNuxtConfig({
           // Dev proxy target берём из .env, чтобы менять в одном месте.
           // В docker обычно: http://backend:8000
           // При запуске фронта на хосте: http://localhost:8002
-          target: process.env.NUXT_DEV_API_PROXY_TARGET || 'http://backend:8000',
+          target: process.env.NUXT_DEV_API_PROXY_TARGET || 'http://localhost:8002',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path

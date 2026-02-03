@@ -309,14 +309,14 @@ onMounted(() => {
 			<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 				<thead>
 					<tr>
-						<th class="w-5 border"><span>№</span></th>
-						<th class="w-50 border"><span>Название продукта</span></th>
-						<th class="w-15 border"><span>Артикул</span></th>
-						<th class="w-10 border"><span>Кол-во</span></th>
-						<th class="w-13 border"><span>Ед. изм.</span></th>
-						<th class="w-15 border"><span>Цена</span></th>
-						<th class="w-20 border"><span>Сумма</span></th>
-						<th class="w-1"><span></span></th>
+						<td class="w-5 border"><span>№</span></td>
+						<td class="w-50 border"><span>Название продукта</span></td>
+						<td class="w-15 border"><span>Артикул</span></td>
+						<td class="w-10 border"><span>Кол-во</span></td>
+						<td class="w-13 border"><span>Ед. изм.</span></td>
+						<td class="w-15 border"><span>Цена</span></td>
+						<td class="w-20 border"><span>Сумма</span></td>
+						<td class="w-1"><span></span></td>
 					</tr>
 				</thead>
 				<tbody>

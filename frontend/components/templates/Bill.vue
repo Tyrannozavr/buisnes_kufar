@@ -2,67 +2,68 @@
 	<div class="font-sans text-l text-justify text-pretty w-full">
 		
 		<table class="p-3 w-full border-2 border-black">
-			
-			<tr>
-				<td colspan="4" rowspan="1">
-					<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full"/>
-					<br />
-					<br />
-					<br />
-					<br />
-				</td>
-				<td class="border">БИК</td>
-				<td>
-					<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full"/>
-				</td>
-			</tr>
+			<tbody>
+				<tr>
+					<td colspan="4" rowspan="1">
+						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full"/>
+						<br />
+						<br />
+						<br />
+						<br />
+					</td>
+					<td class="border">БИК</td>
+					<td>
+						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full"/>
+					</td>
+				</tr>
 
-			<tr class="border-b-2 black">
-				<td colspan="4" class="border">
-					<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full"/>
-				</td>
-				<td class="border">Сч. №</td>
-				<td>
-					<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full"/>
-				</td>
-			</tr>
+				<tr class="border-b-2 black">
+					<td colspan="4" class="border">
+						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full"/>
+					</td>
+					<td class="border">Сч. №</td>
+					<td>
+						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full"/>
+					</td>
+				</tr>
 
-			<tr>
-				<td class="border">ИНН</td>
-				<td class="border">
-					<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full"/>
-				</td>
-				<td class="border">КПП</td>
-				<td class="border">
-					<textarea placeholder="КПП" :disabled="isDisabled" class="w-full"/>
-				</td>
-				<td rowspan="3" class="border">Сч. №</td>
-				<td rowspan="3">
-					<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full"/>
-				</td>
-			</tr>
+				<tr>
+					<td class="border">ИНН</td>
+					<td class="border">
+						<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full"/>
+					</td>
+					<td class="border">КПП</td>
+					<td class="border">
+						<textarea placeholder="КПП" :disabled="isDisabled" class="w-full"/>
+					</td>
+					<td rowspan="3" class="border">Сч. №</td>
+					<td rowspan="3">
+						<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full"/>
+					</td>
+				</tr>
 
-			<tr>
-				<td colspan="4">
-					<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full"/>
-					<br>
-					<br>
-					<br>
-				</td>
-			</tr>
+				<tr>
+					<td colspan="4">
+						<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full"/>
+						<br>
+						<br>
+						<br>
+					</td>
+				</tr>
 
-			<tr>
-				<td colspan="4" class="border">
-					<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full"/>
-				</td>
-			</tr>
-
+				<tr>
+					<td colspan="4" class="border">
+						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full"/>
+					</td>
+				</tr>
+			</tbody>
 		</table>
 
 		<h2 class="font-bold text-2xl">Счёт на оплату № ... от ... г.</h2>
 		<hr class="border-2">
 		<br>
 		<table>
+			<tbody>
 			<tr>
 				<td>
 					<p>Поставщик 
@@ -91,20 +92,23 @@
 					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full"/>
 				</td>
 			</tr>
+			</tbody>
 		</table>
 
 		<br>
 
 		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
 			<thead>
-				<th class="w-5 border"><span>№</span></th>
-				<th class="w-50 border"><span>Название продукта</span></th>
-				<th class="w-15 border"><span>Артикул</span></th>
-				<th class="w-10 border"><span>Кол-во</span></th>
-				<th class="w-13 border"><span>Ед. изм.</span></th>
-				<th class="w-15 border"><span>Цена</span></th>
-				<th class="w-20 border"><span>Сумма</span></th>
-				<th class="w-1"><span></span></th>
+				<tr>
+					<td class="w-5 border"><span>№</span></td>
+					<td class="w-50 border"><span>Название продукта</span></td>
+					<td class="w-15 border"><span>Артикул</span></td>
+					<td class="w-10 border"><span>Кол-во</span></td>
+					<td class="w-13 border"><span>Ед. изм.</span></td>
+					<td class="w-15 border"><span>Цена</span></td>
+					<td class="w-20 border"><span>Сумма</span></td>
+					<td class="w-1"><span></span></td>
+				</tr>
 			</thead>
 			<tbody>
 				<!-- <tr v-for="product in orderData.products">
@@ -213,16 +217,18 @@
 		<br>
 
 		<table class="w-full">
-			<tr>
-				<td>Руководитель</td>
-				<td class="w-2/5 max-w-3/4 border-b-1">
-					<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full"/>
-				</td>
-				<td>Бухгалтер</td>
-				<td class="w-2/5 max-w-3/4 border-b-1">
-					<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full"/>
-				</td>
-			</tr>
+			<tbody>
+				<tr>
+					<td>Руководитель</td>
+					<td class="w-2/5 max-w-3/4 border-b-1">
+						<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full"/>
+					</td>
+					<td>Бухгалтер</td>
+					<td class="w-2/5 max-w-3/4 border-b-1">
+						<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full"/>
+					</td>
+				</tr>
+			</tbody>
 		</table>
 
 	</div>

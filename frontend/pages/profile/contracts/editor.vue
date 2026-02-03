@@ -71,9 +71,8 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
-import A4Page from '~/components/ui/A4-page.vue'
 import { Editor } from '~/constants/keys';
-
+import A4Page from '~/components/ui/A4-page.vue';
 
 // Layout читает это состояние, чтобы знать активную вкладку (для PDF/DOCX/поиска и т.п.)
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))

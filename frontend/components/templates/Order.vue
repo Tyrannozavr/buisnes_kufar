@@ -262,17 +262,17 @@ const removeProduct = (product: any): void => {
 	orderData.value.products.splice(index, 1)
 }
 
-const htmlOrder = useState<HTMLElement | null>('htmlOrder', () => null)
-const a4Ref = ref<{ getDocumentEl: () => HTMLElement | null } | null>(null)
+const html = useTemplateRef('html')
+const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
 onMounted(() => {
-	htmlOrder.value = a4Ref.value?.getDocumentEl?.() ?? null
+	htmlOrder.value = html.value
 })
-	
 </script>
 
 <template>
-	<A4-page ref="a4Ref">
+	<div ref="html">
+
 		<table>
 			<tbody>
 				<tr>
@@ -388,7 +388,7 @@ onMounted(() => {
 
 			<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
 				class="w-full h-15 max-h-40" />
-	</A4-page>
+	</div>
 </template>
 
 <style lang="css" scoped>

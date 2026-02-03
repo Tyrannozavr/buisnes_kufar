@@ -20,6 +20,7 @@ interface StateMap {
 	additionalInfo: boolean
 	vatRateCheck: boolean
 	vatRate: number
+	
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null

@@ -1,3 +1,5 @@
+//Использовать совместно с composables/useTypedState.ts
+
 export const enum RequestedType {
 	PURCHASES_GOOD = 'purchasesGood',
 	PURCHASES_SERVICE = 'purchasesService',

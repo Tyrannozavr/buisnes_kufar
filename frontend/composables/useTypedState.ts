@@ -13,7 +13,7 @@ interface StateMap {
 	isDisabled: boolean
 	clearState: boolean
 	removeDealState: boolean
-	activeTab: '0' | '1' | '2' | '3' | '4' | '5' | '6' 
+	activeTab: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' 
 	reason: string
 	dueDateCheck: boolean
 	dueDate: string

@@ -58,7 +58,7 @@
 
 					<UButton label="Печать" @click="printCurrentDocument(activeTab, orderElement)" icon="i-lucide-printer"
 						class="p-1 w-[97px] h-10 text-sm" :disabled="activeButtons" />
-					<UButton label="DOC" @click="downloadCurrentDocxBlob(activeTab, orderDocxBlob, billDocxBlob)"
+					<UButton label="DOC" @click="downloadCurrentDocxBlob(activeTab)"
 						icon="i-lucide-dock" class="p-1 w-[81px] h-10 text-sm" :disabled="activeButtons" />
 					<UButton label="PDF" @click="downloadCurrentPdf(activeTab, orderElement)" icon="i-lucide-dock"
 						class="p-1 w-[77px] h-10 text-sm" :disabled="activeButtons" />
@@ -153,8 +153,8 @@ const insertLastSalesService = (): void => {
 //DOCX
 const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
 
-let orderDocxBlob: Blob
-let billDocxBlob: Blob
+let orderDocxBlob: Blob | null = null
+let billDocxBlob: Blob | null = null
 
 //присвоение корректного Blob в зависимости от выбранной сделки
 watch(
@@ -188,10 +188,15 @@ watch(
 	{ immediate: false, deep: true }
 )
 
-const downloadCurrentDocxBlob = (activeTab: string, orderDocxBlob: Blob, billDocxBlob: Blob): void => {
-	if (activeTab === '0') {
+const downloadCurrentDocxBlob = async (activeTab: string): Promise<void> => {
+	if (activeTab === '0' && orderDocxBlob) {
 		downloadBlob(orderDocxBlob, 'Order.docx')
 	} else if (activeTab === '1') {
+		if (!billDocxBlob) {
+			// Генерируем billDocxBlob динамически при необходимости
+			// TODO: передать нужные данные для генерации Bill
+			return
+		}
 		downloadBlob(billDocxBlob, 'Bill.docx')
 	}
 }

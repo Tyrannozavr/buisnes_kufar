@@ -1,5 +1,16 @@
+<script setup lang="ts">
+import { TemplateElement } from '~/constants/keys'
+
+const html = useTemplateRef('html')
+const htmlSupplyContract = useTypedState(TemplateElement.SUPPLY_CONTRACT, () => ref(null))
+
+onMounted(() => {
+	htmlSupplyContract.value = html.value
+})
+</script>
+
 <template>
-	<div class="font-serif text-l text-justify text-pretty w-full">
+	<div ref="html" class="font-serif text-l text-justify text-pretty w-full">
 		<h1 class="font-bold">Договор поставки № {НомерДокумента}</h1><br />
 
 		<p class="text-right"> {ДатаДокумента}</p><br />

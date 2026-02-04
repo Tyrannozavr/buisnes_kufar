@@ -24,6 +24,8 @@ interface StateMap {
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null
+	htmlSupplyContract: HTMLElement | null
+	htmlDogovorUslug: HTMLElement | null
 }
 
 export function useTypedState<T extends keyof StateMap>(

@@ -1,5 +1,16 @@
+<script setup lang="ts">
+import { TemplateElement } from '~/constants/keys'
+
+const html = useTemplateRef('html')
+const htmlDogovorUslug = useTypedState(TemplateElement.DOGOVOR_USLUG, () => ref(null))
+
+onMounted(() => {
+	htmlDogovorUslug.value = html.value
+})
+</script>
+
 <template>
-	<div class="font-serif text-l text-justify text-pretty w-full">
+	<div ref="html" class="font-serif text-l text-justify text-pretty w-full">
 		<h1 class="font-bold">Договор возмездного оказания услуг № {НомерДокумента}</h1>
 		<p class="text-right">{ДатаДокумента}</p><br></br>
 		<p>{НазваниеКонтр} именуемое в дальнейшем «Заказчик», в лице {КонтрВЛице}, действующего на основании Устава, с одной

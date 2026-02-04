@@ -25,4 +25,6 @@ export const enum Editor {
 export const enum TemplateElement {
 	ORDER = 'htmlOrder',
 	BILL = 'htmlBill',
+	SUPPLY_CONTRACT = 'htmlSupplyContract',
+	DOGOVOR_USLUG = 'htmlDogovorUslug',
 }

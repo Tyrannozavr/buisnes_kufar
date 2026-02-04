@@ -46,15 +46,13 @@
 
 				<template v-if="activeTab === '6'">
 					<A4Page>
-						
+						<DogovorUslug />
 					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '7'">
 					<div>
-						<A4Page>
-							<DogovorUslug />
-						</A4Page>
+
 					</div>
 				</template>
 			</div>
@@ -71,10 +69,9 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
-import { Editor } from '~/constants/keys';
-import A4Page from '~/components/ui/A4-page.vue';
+import { Editor } from '~/constants/keys'
+import A4Page from '~/components/ui/A4-page.vue'
 
-// Layout читает это состояние, чтобы знать активную вкладку (для PDF/DOCX/поиска и т.п.)
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 
 const items = [

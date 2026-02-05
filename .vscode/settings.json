@@ -1,3 +1,12 @@
 {
 		"git.ignoreLimitWarning": true
+		//напиши настройки, чтобы применялись изменения пр инажатии TAB
+		"editor.tabSize": 2,
+		"editor.insertSpaces": true,
+		"editor.detectIndentation": false,
+		"editor.formatOnSave": true,
+		"editor.formatOnPaste": true,
+		"editor.formatOnType": true,
+		"editor.formatOnSaveMode": "modifications",
+		"editor.formatOnSaveMode": "modifications",
 }

@@ -19,7 +19,7 @@ interface StateMap {
 	dueDate: string
 	additionalInfo: boolean
 	vatRateCheck: boolean
-	vatRate: number
+	vatRate: '0' | '5' | '7' | '10' | '18' | '25'
 	
 	//TemplateElement
 	htmlOrder: HTMLElement | null

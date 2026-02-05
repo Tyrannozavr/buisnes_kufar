@@ -56,8 +56,12 @@ const loadCompany = async () => {
         monthly_views: 0,
         total_purchases: 0,
         created_at: '',
-        updated_at: ''
-      }
+        updated_at: '',
+        current_account_number: '',
+        bic: '',
+        correspondent_bank_account: '',
+        bank_name: '',
+      } as CompanyResponse
       return
     }
     error.value = e.message || 'Ошибка загрузки данных компании'
@@ -129,7 +133,7 @@ const handleSave = async (data: CompanyUpdate) => {
       title: errorTitle,
       description: errorMessage,
       color: 'error',
-      timeout: 8000
+      duration: 8000
     })
   }
 }
@@ -155,7 +159,12 @@ const getFieldDisplayName = (field: string): string => {
     'business_type': 'Род деятельности',
     'activity_type': 'Вид деятельности',
     'description': 'Описание',
-    'website': 'Веб-сайт'
+    'website': 'Веб-сайт',
+		"current_account_number": "Номер расчетного счета",
+		"bic": "БИК банка",
+		"correspondent_bank_account": "Корр. счет банка",
+		"bank_name": "Наименование банка",
+		"vat_rate": "Ставка НДС",
   }
   
   return fieldNames[field] || field

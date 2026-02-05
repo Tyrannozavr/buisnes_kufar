@@ -83,6 +83,13 @@ class CompanyAdmin(ModelView, model=Company):
         Company.phone,
         Company.email,
         Company.website,
+        # Bank details
+        Company.current_account_number,
+        Company.bic,
+        Company.vat_rate,
+        Company.correspondent_bank_account,
+        Company.bank_name,
+        # Statistics
         Company.total_views,
         Company.monthly_views,
         Company.total_purchases,
@@ -111,7 +118,13 @@ class CompanyAdmin(ModelView, model=Company):
         Company.production_address,
         Company.phone,
         Company.email,
-        Company.website
+        Company.website,
+        # Bank details
+        Company.current_account_number,
+        Company.bic,
+        Company.vat_rate,
+        Company.correspondent_bank_account,
+        Company.bank_name
     ]
 
     # Настройка отображения в списке
@@ -139,6 +152,13 @@ class CompanyAdmin(ModelView, model=Company):
         Company.phone: "Телефон",
         Company.email: "Email",
         Company.website: "Веб-сайт",
+        # Bank details
+        Company.current_account_number: "Расчетный счет",
+        Company.bic: "БИК",
+        Company.vat_rate: "Ставка НДС (%)",
+        Company.correspondent_bank_account: "Корреспондентский счет",
+        Company.bank_name: "Название банка",
+        # Statistics
         Company.total_views: "Всего просмотров",
         Company.monthly_views: "Просмотров за месяц",
         Company.total_purchases: "Всего покупок",

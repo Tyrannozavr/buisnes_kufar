@@ -34,6 +34,11 @@ export interface Company {
   totalPurchases: number
   createdAt: string
   updatedAt: string
+	currentAccountNumber?: string | null
+	bic?: string | null
+	correspondentBankAccount?: string | null
+	bankName?: string
+	vatRate?: number
 }
 
 // Base type for company officials
@@ -173,10 +178,11 @@ export interface CompanyResponse {
   total_purchases: number
   created_at: string
   updated_at: string
-	current_account_number: number
-	bic: number
-	correspondent_bank_account: number
-	bank_name: string
+	current_account_number?: string | null
+	bic?: string | null
+	correspondent_bank_account?: string | null
+	bank_name?: string
+	vat_rate?: number
 }
 
 export interface CompanyDataFormState {
@@ -203,10 +209,11 @@ export interface CompanyDataFormState {
   officials: CompanyOfficial[]
   logo: string | null
   logo_url: string | null
-	currentAccountNumber: number
-	bic: number
-	correspondentBankAccount: number
-	bankName: string
+	currentAccountNumber?: string
+	bic?: string
+	correspondentBankAccount?: string
+	bankName?: string
+	vatRate?: number
 }
 
 export interface CompanyDataFormProps {
@@ -237,10 +244,11 @@ export interface CompanyUpdate {
   region?: string
   city?: string
   officials?: CompanyOfficial[]
-	currentAccountNumber?: number
-	bic?: number
-	correspondentBankAccount?: number
-	bankName?: string
+	current_account_number?: string | null
+	bic?: string | null
+	correspondent_bank_account?: string | null
+	bank_name?: string
+	vat_rate?: number
 }
 
 export interface CompanyProfile {

@@ -13,7 +13,6 @@ import type {LocationItem} from '~/types/location'
 import {useLocationsDbApi} from '~/api/locations-db'
 import {useUserStore} from '~/stores/user'
 import {uploadCompanyLogo} from '~/api/companyOwner'
-import UCombobox from "~/components/ui/UCombobox.vue";
 
 const props = defineProps<CompanyDataFormProps>()
 
@@ -75,7 +74,7 @@ const handleCitySearch = async (query: string) => {
         await loadCities(formState.value.country?.value || '', formState.value.region.value)
       } else {
         // Иначе используем поиск по имени
-        await searchCities(query)
+        await searchCities(query, formState.value.country?.value || '')
       }
       cities.value = cityOptions.value
     } catch (error) {
@@ -150,10 +149,11 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       officials: [],
       logo: null,
       logo_url: null,
-			currentAccountNumber: Number(null),
-			bic: Number(null),
-			correspondentBankAccount: Number(null),
-			bankName: '',
+      currentAccountNumber: undefined,
+      bic: undefined,
+      correspondentBankAccount: undefined,
+      bankName: undefined,
+      vatRate: undefined,
     }
   }
 
@@ -182,6 +182,7 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     type: typeValue,
 		current_account_number: currentAccountNumberValue,
 		bic: bicValue,
+    vat_rate: vatRateValue,
 		correspondent_bank_account: correspondentBankAccountValue,
 		bank_name: bankNameValue
 
@@ -218,10 +219,11 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     officials: officialsValue,
     logo: logoValue,
     logo_url: logoUrlValue,
-		currentAccountNumber: currentAccountNumberValue,
-		bic: bicValue,
-		correspondentBankAccount: correspondentBankAccountValue,
-		bankName: bankNameValue
+    currentAccountNumber: currentAccountNumberValue ?? undefined,
+    bic: bicValue ?? undefined,
+    vatRate: vatRateValue ?? undefined,
+    correspondentBankAccount: correspondentBankAccountValue ?? undefined,
+    bankName: bankNameValue ?? undefined
   }
 }
 
@@ -248,7 +250,12 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
     phone: phoneValue,
     email: emailValue,
     productionAddress: productionAddressValue,
-    officials: officialsValue
+    officials: officialsValue,
+    currentAccountNumber: currentAccountNumberValue,
+    bic: bicValue,
+    vatRate: vatRateValue,
+    correspondentBankAccount: correspondentBankAccountValue,
+    bankName: bankNameValue
   } = formData
 
   return {
@@ -272,7 +279,12 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
     federal_district: (federalDistrictItem as LocationItem)?.value,
     region: (regionItem as LocationItem)?.value,
     city: (cityItem as LocationItem)?.value,
-    officials: officialsValue
+    officials: officialsValue,
+    current_account_number: currentAccountNumberValue,
+    bic: bicValue,
+    vat_rate: vatRateValue,
+    correspondent_bank_account: correspondentBankAccountValue,
+    bank_name: bankNameValue
   }
 }
 
@@ -382,7 +394,7 @@ const handleLogoUpload = async (event: Event) => {
       }
     } catch (error) {
       let message = "Не удалось загрузить логотип"
-      if (error.statusCode === 404) {
+      if ((error as any).statusCode === 404) {
         message = "Сначала заполните и сохраните данные компании"
       }
       useToast().add({
@@ -523,7 +535,7 @@ const handleKeydown = (event: KeyboardEvent) => {
           <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Логотип компании</h4>
           <div class="flex items-center gap-4">
             <UAvatar
-                :src="formState.logo_url || null"
+:src="formState.logo_url || undefined"
                 size="xl"
                 :alt="formState.name"
             />

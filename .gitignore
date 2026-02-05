@@ -6,6 +6,8 @@ backend/cache/cache.db-shm
 backend/cache/cache.db-wal
 postgres-data/
 postgres-data-dev
+DEV_SETUP.md
+.vscode
 
 # SSL сертификаты для разработки (не должны попадать в git)
 nginx/letsencrypt/live/tradesynergy.ru/
@@ -17,6 +19,7 @@ cache/*
 
 # Backend файлы окружения и кэш
 backend/.env
+backend/.env.local
 /.env
 /.env.*
 !/.env.example

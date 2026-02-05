@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 
 
 class CompanyBase(BaseModel):
+    # Allow payloads to use either field names (snake_case) or aliases (camelCase).
+    # This is important for update/create flows where frontend may send snake_case keys.
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
     type: str
     trade_activity: TradeActivity
@@ -40,6 +44,13 @@ class CompanyBase(BaseModel):
     phone: constr(min_length=10, max_length=20)
     email: EmailStr
     website: Optional[HttpUrl] = None
+    
+    # Bank details / Payment information
+    current_account_number: Optional[constr(min_length=20, max_length=20)] = Field(None, alias='currentAccountNumber')
+    bic: Optional[constr(min_length=9, max_length=9)] = None
+    vat_rate: Optional[int] = Field(None, ge=0, le=25, alias='vatRate')  # НДС от 0 до 25%
+    correspondent_bank_account: Optional[constr(min_length=20, max_length=20)] = Field(None, alias='correspondentBankAccount')
+    bank_name: Optional[str] = Field(None, alias='bankName')
 
 
 class CompanyCreate(CompanyBase):
@@ -88,6 +99,9 @@ class CompanyLogoUrlMixin(BaseModel):
 
 
 class CompanyUpdate(BaseModel):
+    # Accept both `vat_rate` and `vatRate` (and the same for other aliased fields).
+    model_config = ConfigDict(populate_by_name=True)
+
     name: Optional[str] = None
     logo: Optional[str] = None
     type: Optional[str] = None
@@ -124,6 +138,13 @@ class CompanyUpdate(BaseModel):
     phone: Optional[constr(min_length=10, max_length=20)] = None
     email: Optional[EmailStr] = None
     website: Optional[Union[HttpUrl, str]] = None
+    
+    # Bank details / Payment information
+    current_account_number: Optional[constr(min_length=20, max_length=20)] = Field(None, alias='currentAccountNumber')
+    bic: Optional[constr(min_length=9, max_length=9)] = None
+    vat_rate: Optional[int] = Field(None, ge=0, le=25, alias='vatRate')
+    correspondent_bank_account: Optional[constr(min_length=20, max_length=20)] = Field(None, alias='correspondentBankAccount')
+    bank_name: Optional[str] = Field(None, alias='bankName')
 
     @model_validator(mode='before')
     @classmethod
@@ -183,6 +204,14 @@ class CompanyResponse(CompanyLogoUrlMixin):
     phone: str
     email: str
     website: Optional[str] = None
+    
+    # Bank details / Payment information
+    current_account_number: Optional[str] 
+    bic: Optional[str] = None
+    vat_rate: Optional[int]
+    correspondent_bank_account: Optional[str]
+    bank_name: Optional[str]
+    
     officials: List[CompanyOfficial]
     total_views: int
     monthly_views: int
@@ -190,14 +219,14 @@ class CompanyResponse(CompanyLogoUrlMixin):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class ShortCompanyResponse(CompanyLogoUrlMixin):
     slug: str
     name: str
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class CompanyProfileResponse(BaseModel):

@@ -12,7 +12,7 @@ Run the following command to start the development environment:
 
 This will:
 - Start backend services in Docker (database, RabbitMQ, backend API, Celery workers)
-- Start the frontend locally on `http://localhost:3001`
+- Start the frontend locally on `http://localhost:3000`
 
 ### Manual Setup
 
@@ -56,7 +56,7 @@ Your application will be available at:
 Run the automated script:
 
 ```powershell
-.\create-test-user.ps1
+.\create-test-users.ps1
 ```
 
 This creates a test user with credentials:
@@ -68,7 +68,7 @@ This creates a test user with credentials:
 
 **Step 1: Register**
 
-1. Go to http://localhost:3001/auth/register
+1. Go to http://localhost:3000/auth/register
 2. Fill in the registration form:
    - First Name, Last Name, Patronymic (optional)
    - Email
@@ -83,7 +83,7 @@ docker-compose -f docker-compose.dev.yml logs -f backend | Select-String "verifi
 
 Look for a URL like:
 ```
-http://localhost:3001/auth/register/complete?token=abc123...
+http://localhost:3000/auth/register/complete?token=abc123...
 ```
 
 **Step 2: Complete Registration**
@@ -95,7 +95,7 @@ http://localhost:3001/auth/register/complete?token=abc123...
 
 **Step 3: Login**
 
-1. Go to http://localhost:3001/auth/login
+1. Go to http://localhost:3000/auth/login
 2. Enter your email and password
 3. You'll be redirected to the dashboard
 

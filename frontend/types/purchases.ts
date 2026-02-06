@@ -1,5 +1,5 @@
 export interface TableGoods {
-	dealNumber: number
+	dealNumber: string
 	date: string
 	sallerCompany: string
 	state?: string
@@ -11,7 +11,7 @@ export interface TableGoods {
 }
 
 export interface TableServices {
-	dealNumber: number
+	dealNumber: string
 	date: string
 	sallerCompany: string
 	state?: string

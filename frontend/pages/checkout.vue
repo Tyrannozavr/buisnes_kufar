@@ -39,11 +39,7 @@
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to="/checkout"
-								@click="
-								addDealInStore(postPurchases(cp.products, buyer)),
-								messageToSaller(cp.companyId,cp.products),
-								showToast(),
-								removeItemsFromCart(cp.products)"
+								@click="handleCreateOrder(cp, cp.products), removeItemsFromCart(cp.products), showToast(), messageToSaller(cp.companyId, cp.products)"
             >
               Оформить заказ
             </UButton>
@@ -76,11 +72,7 @@
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to=""
-								@click="
-								addDealInStore(postPurchases(cp.products, buyer)),
-								messageToSaller(cp.companyId,cp.services),
-								showToast(),
-								removeItemsFromCart(cp.services)"
+								@click="handleCreateOrder(cp, cp.services), removeItemsFromCart(cp.services), showToast(), messageToSaller(cp.companyId, cp.services)"
             >
               Оформить заказ
             </UButton>
@@ -115,22 +107,48 @@ import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/produ
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
 import { usePurchasesApi } from '~/api/purchases'
+import { useCompaniesApi } from '~/api/companies'
 
 const purchasesStore = usePurchasesStore()
 
 const { createChat, sendMessage } = useChatsApi()
+const { getCompanyById } = useCompaniesApi()
 
 const userStore = useUserStore()
-const buyer: Buyer = {
-	companyId: userStore.companyId,
-	companyName: userStore.companyName,
-	companySlug: userStore.companySlug,
-}
 
 const cartStore = useCartStore()
 const products = cartStore.items
 
-const { postPurchases } = usePurchasesApi()
+const { createOrderFromCheckout } = usePurchasesApi()
+
+const companySlugCache = new Map<number, string>()
+const handleGetCompanySlug = async (companyId: number): Promise<string | null> => {
+	const cachedSlug = companySlugCache.get(companyId)
+	if (cachedSlug) return cachedSlug
+
+	try {
+		const company = await getCompanyById(companyId, true)
+		const slug = company?.slug
+		if (!slug) return null
+		companySlugCache.set(companyId, slug)
+		return slug
+	} catch {
+		return null
+	}
+}
+
+const handleCreateOrder = async (cp: CompaniesAndProducts, items: ProductInCheckout[]): Promise<void> => {
+	if (!items?.length) return
+
+	const companySlug = await handleGetCompanySlug(cp.companyId)
+	if (!companySlug) return
+
+	await createOrderFromCheckout(items, {
+		companyId: cp.companyId,
+		companyName: cp.companyName,
+		companySlug,
+	} as Buyer)
+}
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 
@@ -286,19 +304,5 @@ const showToast = () => {
 		}]
 	}
 	)
-}
-
-//данный код заменить на отдельную функцию из api/purchases
-const addDealInStore = async (newDeal: Promise<any>): Promise<void> => {
-	console.log(newDeal)
-	const response = await newDeal
-	console.log(response)
-	if (response.goods) {
-		purchasesStore.addNewGoodsDeal(response)
-		console.log('good deal add in store')
-	} else if (response.services) {
-		purchasesStore.addNewServicesDeal(response)
-		console.log('service deal add in store')
-	}
 }
 </script>

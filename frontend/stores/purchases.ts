@@ -4,44 +4,39 @@ import type {
   ServicesDeal,
   EditPersonDeal,
   Product,
+  DealPurchaseResponse,
+  ProductResponse,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
-import {
-  purchasesGoodsData,
-  purchasesServiceData,
-} from "~/mock/exampleStoreData";
 import { usePurchasesApi } from "~/api/purchases";
 
 interface Purchases {
   purchases: {
-    goodsDeals: GoodsDeal[] | null;
-    servicesDeals: ServicesDeal[] | null;
+    goodsDeals: GoodsDeal[];
+    servicesDeals: ServicesDeal[];
   };
 }
-
-const { getBuyerDeals, getDealById, uploadDocumentById } = usePurchasesApi();
 
 export const usePurchasesStore = defineStore("purchases", {
   state: (): Purchases => ({
     purchases: {
-      goodsDeals: [...purchasesGoodsData],
-
-      servicesDeals: [...purchasesServiceData],
+      goodsDeals: [],
+      servicesDeals: [],
     },
   }),
 
   getters: {
     findGoodsDeal: (state) => {
-      return (dealNumber: number) =>
+      return (dealId: number) =>
         state.purchases.goodsDeals?.find(
-          (deal) => dealNumber === deal.dealNumber
+          (deal) => dealId === deal.dealId
         );
     },
 
     findServicesDeal: (state) => {
-      return (dealNumber: number) =>
+      return (dealId: number) =>
         state.purchases.servicesDeals?.find(
-          (deal) => dealNumber === deal.dealNumber
+          (deal) => dealId === deal.dealId
         );
     },
 
@@ -63,16 +58,104 @@ export const usePurchasesStore = defineStore("purchases", {
   },
 
   actions: {
+    //получение и заполнение списка сделок
     async getDeals() {
-      const response = await getBuyerDeals();
-      if (Array.isArray(response)) {
-        response.forEach((deal: GoodsDeal | ServicesDeal) => {
-          if ("goods" in deal) {
-            this.addNewGoodsDeal(deal);
-          } else if ("services" in deal) {
-            this.addNewServicesDeal(deal);
+      const { getDealById, getBuyerDeals } = usePurchasesApi();
+      const buyerDeals = await getBuyerDeals();
+      const dealsIds: number[] = buyerDeals.map((deal: DealPurchaseResponse) => deal.id);
+
+      //функция для преобразования и данных и заполнения списка сделок
+      const fillDeals = async (dealId: number) => {
+        const dealResponse = await getDealById(dealId);
+
+        if (dealResponse) {
+          if (dealResponse.deal_type === "Товары") {
+            this.addNewGoodsDeal({
+              dealId: dealResponse.id,
+              buyerOrderNumber: dealResponse.buyer_order_number, 
+              goods: {
+                goodsList: dealResponse.items.map((item: any) => ({
+                  name: item.product_name,
+                  article: item.product_article,
+                  quantity: item.quantity,
+                  units: item.unit_of_measurement,
+                  price: item.price,
+                  amount: item.amount,
+                  type: dealResponse.deal_type,
+                })),
+                amountPrice: 0,
+                amountWord: '',
+                comments: '',
+              },
+              date: dealResponse.created_at,
+              saller: {
+                name: dealResponse.seller_company.name,
+                phone: dealResponse.seller_company.phone,
+                slug: dealResponse.seller_company.slug,
+                legalAddress: dealResponse.seller_company.legal_address,
+                inn: dealResponse.seller_company.inn,
+                },
+              buyer: {
+                name: dealResponse.buyer_company.name,
+                phone: dealResponse.buyer_company.phone,
+                slug: dealResponse.buyer_company.slug,
+                legalAddress: dealResponse.buyer_company.legal_address,
+                inn: dealResponse.buyer_company.inn,
+              },
+              status: dealResponse.status,
+              bill: '',
+              supplyContract: dealResponse.contract_number,
+              accompanyingDocuments: '',
+              invoice: dealResponse.invoice_number,
+              othersDocuments: '',
+            } as GoodsDeal);
+          } else if (dealResponse.deal_type === "Услуги") {
+            this.addNewServicesDeal({
+              dealId: dealResponse.id,
+              buyerOrderNumber: dealResponse.buyer_order_number,
+              services: {
+                servicesList: dealResponse.items.map((item: any) => ({
+                  name: item.product_name,
+                  article: item.product_article,
+                  quantity: item.quantity,
+                  units: item.unit_of_measurement,
+                  price: item.price,
+                  amount: item.amount,
+                  type: dealResponse.deal_type,
+                })),
+                amountPrice: 0,
+                amountWord: "",
+                comments: "",
+              },
+              date: dealResponse.created_at,
+              saller: {
+                name: dealResponse.seller_company.name,
+                phone: dealResponse.seller_company.phone,
+                slug: dealResponse.seller_company.slug,
+                legalAddress: dealResponse.seller_company.legal_address,
+                inn: dealResponse.seller_company.inn,
+              },
+              buyer: {
+                name: dealResponse.buyer_company.name,
+                phone: dealResponse.buyer_company.phone,
+                slug: dealResponse.buyer_company.slug,
+                legalAddress: dealResponse.buyer_company.legal_address,
+                inn: dealResponse.buyer_company.inn,
+              },
+              status: dealResponse.status,
+              bill: "",
+              contract: dealResponse.contract_number,
+              act: '',
+              invoice: dealResponse.invoice_number,
+              othersDocuments: "",
+            } as ServicesDeal);
           }
-        });
+        }
+      };
+
+      //заполнение списка сделок
+      for (const dealId of dealsIds) {
+        await fillDeals(dealId);
       }
     },
 
@@ -152,94 +235,94 @@ export const usePurchasesStore = defineStore("purchases", {
       });
     },
 
-    addNewGood(dealNumber: number, newGood: Product) {
-      const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
+    addNewGood(dealId: number, newGood: Product) {
+      const goodsList = this.findGoodsDeal(dealId)?.goods.goodsList;
       if (goodsList) {
         goodsList.push(newGood);
       }
     },
 
-    addNewService(dealNumber: number, newService: Product) {
+    addNewService(dealId: number, newService: Product) {
       const servicesList =
-        this.findServicesDeal(dealNumber)?.services.servicesList;
+        this.findServicesDeal(dealId)?.services.servicesList;
       if (servicesList) {
         servicesList.push(newService);
       }
     },
 
     editSallerGoodsDeal(
-      dealNumber: number,
+      dealId: number,
       newSallerGoodsDeal: EditPersonDeal
     ) {
-      const sallerGoodsDeal = this.findGoodsDeal(dealNumber)?.saller;
+      const sallerGoodsDeal = this.findGoodsDeal(dealId)?.saller;
       if (sallerGoodsDeal) {
         Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
       }
     },
 
     editSallerServicesDeal(
-      dealNumber: number,
+      dealId: number,
       newSallerServicesDeal: EditPersonDeal
     ) {
-      const sallerServicesDeal = this.findServicesDeal(dealNumber)?.saller;
+      const sallerServicesDeal = this.findServicesDeal(dealId)?.saller;
       if (sallerServicesDeal) {
         Object.assign(sallerServicesDeal, newSallerServicesDeal);
       }
     },
 
-    editBuyerGoodsDeal(dealNumber: number, newSallerGoodsDeal: EditPersonDeal) {
-      const buyerGoodsDeal = this.findGoodsDeal(dealNumber)?.buyer;
+    editBuyerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
+      const buyerGoodsDeal = this.findGoodsDeal(dealId)?.buyer;
       if (buyerGoodsDeal) {
         Object.assign(buyerGoodsDeal, newSallerGoodsDeal);
       }
     },
 
     editBuyerServicesDeal(
-      dealNumber: number,
+      dealId: number,
       newSallerServicesDeal: EditPersonDeal
     ) {
-      const buyerServicesDeal = this.findServicesDeal(dealNumber)?.buyer;
+      const buyerServicesDeal = this.findServicesDeal(dealId)?.buyer;
       if (buyerServicesDeal) {
         Object.assign(buyerServicesDeal, newSallerServicesDeal);
       }
     },
 
-    editGood(dealNumber: number, newGoodsList: Product[]) {
-      const goodsDeal = this.findGoodsDeal(dealNumber);
+    editGood(dealId: number, newGoodsList: Product[]) {
+      const goodsDeal = this.findGoodsDeal(dealId);
       if (goodsDeal) {
         goodsDeal.goods.goodsList = [...newGoodsList];
       }
     },
 
-    editService(dealNumber: number, newServiceList: Product[]) {
-      const serviceDeal = this.findServicesDeal(dealNumber);
+    editService(dealId: number, newServiceList: Product[]) {
+      const serviceDeal = this.findServicesDeal(dealId);
       if (serviceDeal) {
         serviceDeal.services.servicesList = [...newServiceList];
       }
     },
 
-    editGoodsComments(dealNumber: number, comments: string) {
-      const goods = this.findGoodsDeal(dealNumber)?.goods;
+    editGoodsComments(dealId: number, comments: string) {
+      const goods = this.findGoodsDeal(dealId)?.goods;
       if (goods) {
         goods.comments = comments;
       }
     },
 
-    editServicesComments(dealNumber: number, comments: string) {
-      const goods = this.findServicesDeal(dealNumber)?.services;
+    editServicesComments(dealId: number, comments: string) {
+      const goods = this.findServicesDeal(dealId)?.services;
       if (goods) {
         goods.comments = comments;
       }
     },
 
-    removeGoodsDeal(dealNumber: number) {
-      if (dealNumber) {
-        const goodsDeal = this.findGoodsDeal(dealNumber);
+    removeGoodsDeal(dealId: number) {
+      if (dealId) {
+        const goodsDeal = this.findGoodsDeal(dealId);
         const goodsDeals = this.purchases.goodsDeals;
 
         if (goodsDeal) {
           const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
-            return goods.dealNumber === goodsDeal.dealNumber;
+            return goods.dealId === goodsDeal.dealId;
           });
 
           if (index !== -1 && typeof index !== "undefined") {
@@ -249,14 +332,14 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-    removeServicesDeal(dealNumber: number) {
-      if (dealNumber) {
-        const servicesDeal = this.findServicesDeal(dealNumber);
+    removeServicesDeal(dealId: number) {
+      if (dealId) {
+        const servicesDeal = this.findServicesDeal(dealId);
         const servicesDeals = this.purchases.servicesDeals;
 
         if (servicesDeal) {
           const index = servicesDeals?.findIndex((service: ServicesDeal) => {
-            return service.dealNumber === servicesDeal.dealNumber;
+            return service.dealId === servicesDeal.dealId;
           });
 
           if (index !== -1 && typeof index !== "undefined") {

@@ -79,7 +79,7 @@ async def get_buyer_deals(
             total_amount=deal.total_amount,
             created_at=deal.created_at,
             updated_at=deal.updated_at,
-            supplier_name=deal.seller_company.short_name if deal.seller_company else "Unknown",
+            supplier_name=deal.seller_company.name if deal.seller_company else "Unknown",
             supplier_inn=deal.seller_company.inn if deal.seller_company else None,
             supplier_phone=deal.seller_company.phone if deal.seller_company else None
         ))
@@ -120,7 +120,7 @@ async def get_seller_deals(
             total_amount=deal.total_amount,
             created_at=deal.created_at,
             updated_at=deal.updated_at,
-            buyer_name=deal.buyer_company.short_name if deal.buyer_company else "Unknown",
+            buyer_name=deal.buyer_company.name if deal.buyer_company else "Unknown",
             buyer_inn=deal.buyer_company.inn if deal.buyer_company else None,
             buyer_phone=deal.buyer_company.phone if deal.buyer_company else None
         ))

@@ -209,7 +209,9 @@ class DealRepository:
         
         # Заказы
         query = select(Order).options(
-            selectinload(Order.order_items)
+            selectinload(Order.order_items),
+            selectinload(Order.seller_company),
+            selectinload(Order.buyer_company),
         ).where(
             Order.buyer_company_id == company_id
         ).order_by(desc(Order.created_at)).offset(skip).limit(limit)
@@ -228,7 +230,9 @@ class DealRepository:
         
         # Заказы
         query = select(Order).options(
-            selectinload(Order.order_items)
+            selectinload(Order.order_items),
+            selectinload(Order.seller_company),
+            selectinload(Order.buyer_company),
         ).where(
             Order.seller_company_id == company_id
         ).order_by(desc(Order.created_at)).offset(skip).limit(limit)

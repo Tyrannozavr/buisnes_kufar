@@ -1,281 +1,379 @@
 import { defineStore } from "pinia";
 import type {
-	GoodsDeal,
-	ServicesDeal,
-	EditPersonDeal,
-	Product,
+  GoodsDeal,
+  ServicesDeal,
+  EditPersonDeal,
+  Product,
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
-import { salesGoodsData, salesServiceData } from "~/mock/exampleStoreData";
+import { usePurchasesApi } from "~/api/purchases";
+import type { SellerDealResponse } from "~/types/dealReasponse";
 
 interface Sales {
-	sales: {
-		goodsDeals: GoodsDeal[] | null;
-		servicesDeals: ServicesDeal[] | null;
-	};
+  sales: {
+    goodsDeals: GoodsDeal[]
+    servicesDeals: ServicesDeal[] 
+  };
 }
 
 export const useSalesStore = defineStore("sales", {
-	state: (): Sales => ({
-		sales: {
-			goodsDeals: [
-				...salesGoodsData
-			],
+  state: (): Sales => ({
+    sales: {
+      goodsDeals: [],
+      servicesDeals: [],
+    },
+  }),
 
-			servicesDeals: [
-				...salesServiceData
-			],
-		},
-	}),
+  getters: {
+    findGoodsDeal: (state) => {
+      return (dealId: number) =>
+        state.sales.goodsDeals?.find((deal) => dealId === deal.dealId);
+    },
 
-	getters: {
-		findGoodsDeal: (state) => {
-			return (dealNumber: number) =>
-				state.sales.goodsDeals?.find(
-					(deal) => dealNumber === deal.dealNumber
-				);
-		},
+    findServicesDeal: (state) => {
+      return (dealId: number) =>
+        state.sales.servicesDeals?.find((deal) => dealId === deal.dealId);
+    },
 
-		findServicesDeal: (state) => {
-			return (dealNumber: number) =>
-				state.sales.servicesDeals?.find(
-					(deal) => dealNumber === deal.dealNumber
-				);
-		},
+    lastGoodsDeal: (state): GoodsDeal | undefined => {
+      if (state.sales.goodsDeals?.[0]) {
+        const goodsDeals = state.sales.goodsDeals;
+        const lastDeal = goodsDeals?.[goodsDeals.length - 1];
+        return lastDeal;
+      }
+    },
 
-		lastGoodsDeal: (state): GoodsDeal | undefined => {
-			if (state.sales.goodsDeals?.[0]) {
-				const goodsDeals = state.sales.goodsDeals;
-				const lastDeal = goodsDeals?.[goodsDeals.length - 1];
-				return lastDeal;
-			}
-		},
+    lastServicesDeal: (state): ServicesDeal | undefined => {
+      if (state.sales.servicesDeals?.[0]) {
+        const servicesDeals = state.sales.servicesDeals;
+        const lastDeal = servicesDeals?.[servicesDeals.length - 1];
+        return lastDeal;
+      }
+    },
+  },
 
-		lastServicesDeal: (state): ServicesDeal | undefined => {
-			if (state.sales.servicesDeals?.[0]) {
-				const servicesDeals = state.sales.servicesDeals;
-				const lastDeal = servicesDeals?.[servicesDeals.length - 1];
-				return lastDeal;
-			}
-		},
-	},
+  actions: {
+    //получение и заполнение списка сделок
+    async getDeals() {
+      const { getDealById, getSellerDeals } = usePurchasesApi();
+      const sellerDeals = await getSellerDeals();
+      const dealsIds: number[] = sellerDeals?.map(
+        (deal: SellerDealResponse) => deal.id,
+      ) || [];
 
-	actions: {
-		//функция для получения продаж с сервера
-		async getPurchases() {},
+      //функция для преобразования и данных и заполнения списка сделок
+      const fillDeals = async (dealId: number) => {
+        const dealResponse = await getDealById(dealId);
 
-		amountInGoodsList() {
-			this.sales.goodsDeals?.map((deal) => {
-				deal.goods.goodsList?.map((good) => {
-					good.amount = good.price * good.quantity;
-				});
-			});
-		},
+        if (dealResponse) {
+          if (dealResponse.deal_type === "Товары") {
+            this.addNewGoodsDeal({
+              dealId: dealResponse.id,
+              sellerOrderNumber: dealResponse.seller_order_number,
+              goods: {
+                goodsList: dealResponse.items.map((item: any) => ({
+                  name: item.product_name,
+                  article: item.product_article,
+                  quantity: item.quantity,
+                  units: item.unit_of_measurement,
+                  price: item.price,
+                  amount: item.amount,
+                  type: dealResponse.deal_type,
+                })),
+                amountPrice: 0,
+                amountWord: "",
+                comments: "",
+              },
+              date: dealResponse.created_at,
+              saller: {
+                name: dealResponse.seller_company.name,
+                phone: dealResponse.seller_company.phone,
+                slug: dealResponse.seller_company.slug,
+                legalAddress: dealResponse.seller_company.legal_address,
+                inn: dealResponse.seller_company.inn,
+              },
+              buyer: {
+                name: dealResponse.buyer_company.name,
+                phone: dealResponse.buyer_company.phone,
+                slug: dealResponse.buyer_company.slug,
+                legalAddress: dealResponse.buyer_company.legal_address,
+                inn: dealResponse.buyer_company.inn,
+              },
+              status: dealResponse.status,
+              bill: "",
+              supplyContract: dealResponse.contract_number,
+              closingDocuments: "",
+              othersDocuments: dealResponse.invoice_number || "",
+            } as GoodsDeal);
+          } else if (dealResponse.deal_type === "Услуги") {
+            this.addNewServicesDeal({
+              dealId: dealResponse.id,
+              sellerOrderNumber: dealResponse.seller_order_number,
+              services: {
+                servicesList: dealResponse.items.map((item: any) => ({
+                  name: item.product_name,
+                  article: item.product_article,
+                  quantity: item.quantity,
+                  units: item.unit_of_measurement,
+                  price: item.price,
+                  amount: item.amount,
+                  type: dealResponse.deal_type,
+                })),
+                amountPrice: 0,
+                amountWord: "",
+                comments: "",
+              },
+              date: dealResponse.created_at,
+              saller: {
+                name: dealResponse.seller_company.name,
+                phone: dealResponse.seller_company.phone,
+                slug: dealResponse.seller_company.slug,
+                legalAddress: dealResponse.seller_company.legal_address,
+                inn: dealResponse.seller_company.inn,
+              },
+              buyer: {
+                name: dealResponse.buyer_company.name,
+                phone: dealResponse.buyer_company.phone,
+                slug: dealResponse.buyer_company.slug,
+                legalAddress: dealResponse.buyer_company.legal_address,
+                inn: dealResponse.buyer_company.inn,
+              },
+              status: dealResponse.status,
+              bill: "",
+              contract: dealResponse.contract_number,
+              closingDocuments: "",
+              othersDocuments: dealResponse.invoice_number || "",
+            } as ServicesDeal);
+          }
+        }
+      };
 
-		amountInServicesList() {
-			this.sales.servicesDeals?.map((deal) => {
-				deal.services.servicesList?.map((good) => {
-					good.amount = good.price * good.quantity;
-				});
-			});
-		},
+      //заполнение списка сделок
+      for (const dealId of dealsIds) {
+        await fillDeals(dealId);
+      }
+    },
 
-		amountPriceInGoods() {
-			this.sales.goodsDeals?.map((deal) => {
-				deal.goods.amountPrice = Number(
-					deal.goods.goodsList?.reduce(
-						(acc: number, good: Product) => good.amount + acc,
-						0
-					)
-				);
-			});
-		},
+    addNewGoodsDeal(newDeal: GoodsDeal) {
+      if (newDeal) {
+        this.sales.goodsDeals?.push(newDeal);
+      }
+    },
 
-		amountPriceInServices() {
-			this.sales.servicesDeals?.map((deal) => {
-				deal.services.amountPrice = Number(
-					deal.services.servicesList?.reduce(
-						(acc: number, good: Product) => good.amount + acc,
-						0
-					)
-				);
-			});
-		},
+    addNewServicesDeal(newDeal: ServicesDeal) {
+      if (newDeal) {
+        this.sales.servicesDeals?.push(newDeal);
+      }
+    },
 
-		amountWordGoods() {
-			this.sales.goodsDeals?.map((deal) => {
-				deal.goods.amountWord = numberToWordsRu(deal.goods.amountPrice, {
-					showNumberParts: {
-						fractional: false,
-					},
-					showCurrency: {
-						integer: false,
-					},
-				});
-			});
-		},
+    amountInGoodsList() {
+      this.sales.goodsDeals?.map((deal) => {
+        deal.goods.goodsList?.map((good) => {
+          good.amount = good.price * good.quantity;
+        });
+      });
+    },
 
-		amountWordServices() {
-			this.sales.servicesDeals?.map((deal) => {
-				deal.services.amountWord = numberToWordsRu(deal.services.amountPrice, {
-					showNumberParts: {
-						fractional: false,
-					},
-					showCurrency: {
-						integer: false,
-					},
-				});
-			});
-		},
+    amountInServicesList() {
+      this.sales.servicesDeals?.map((deal) => {
+        deal.services.servicesList?.map((good) => {
+          good.amount = good.price * good.quantity;
+        });
+      });
+    },
 
-		addNewGood(dealNumber: number, newGood: Product) {
-			const goodsList = this.findGoodsDeal(dealNumber)?.goods.goodsList;
-			if (goodsList) {
-				goodsList.push(newGood);
-			}
-		},
+    amountPriceInGoods() {
+      this.sales.goodsDeals?.map((deal) => {
+        deal.goods.amountPrice = Number(
+          deal.goods.goodsList?.reduce(
+            (acc: number, good: Product) => good.amount + acc,
+            0,
+          ),
+        );
+      });
+    },
 
-		addNewService(dealNumber: number, newService: Product) {
-			const servicesList =
-				this.findServicesDeal(dealNumber)?.services.servicesList;
-			if (servicesList) {
-				servicesList.push(newService);
-			}
-		},
+    amountPriceInServices() {
+      this.sales.servicesDeals?.map((deal) => {
+        deal.services.amountPrice = Number(
+          deal.services.servicesList?.reduce(
+            (acc: number, good: Product) => good.amount + acc,
+            0,
+          ),
+        );
+      });
+    },
 
-		editSallerGoodsDeal(
-			dealNumber: number,
-			newSallerGoodsDeal: EditPersonDeal
-		) {
-			const sallerGoodsDeal = this.findGoodsDeal(dealNumber)?.saller;
-			if (sallerGoodsDeal) {
-				Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
-			}
-		},
+    amountWordGoods() {
+      this.sales.goodsDeals?.map((deal) => {
+        deal.goods.amountWord = numberToWordsRu(deal.goods.amountPrice, {
+          showNumberParts: {
+            fractional: false,
+          },
+          showCurrency: {
+            integer: false,
+          },
+        });
+      });
+    },
 
-		editSallerServicesDeal(
-			dealNumber: number,
-			newSallerServicesDeal: EditPersonDeal
-		) {
-			const sallerServicesDeal = this.findServicesDeal(dealNumber)?.saller;
-			if (sallerServicesDeal) {
-				Object.assign(sallerServicesDeal, newSallerServicesDeal);
-			}
-		},
+    amountWordServices() {
+      this.sales.servicesDeals?.map((deal) => {
+        deal.services.amountWord = numberToWordsRu(deal.services.amountPrice, {
+          showNumberParts: {
+            fractional: false,
+          },
+          showCurrency: {
+            integer: false,
+          },
+        });
+      });
+    },
 
-		editBuyerGoodsDeal(dealNumber: number, newSallerGoodsDeal: EditPersonDeal) {
-			const buyerGoodsDeal = this.findGoodsDeal(dealNumber)?.buyer;
-			if (buyerGoodsDeal) {
-				Object.assign(buyerGoodsDeal, newSallerGoodsDeal);
-			}
-		},
+    addNewGood(dealId: number, newGood: Product) {
+      const goodsList = this.findGoodsDeal(dealId)?.goods.goodsList;
+      if (goodsList) {
+        goodsList.push(newGood);
+      }
+    },
 
-		editBuyerServicesDeal(
-			dealNumber: number,
-			newSallerServicesDeal: EditPersonDeal
-		) {
-			const buyerServicesDeal = this.findServicesDeal(dealNumber)?.buyer;
-			if (buyerServicesDeal) {
-				Object.assign(buyerServicesDeal, newSallerServicesDeal);
-			}
-		},
+    addNewService(dealId: number, newService: Product) {
+      const servicesList = this.findServicesDeal(dealId)?.services.servicesList;
+      if (servicesList) {
+        servicesList.push(newService);
+      }
+    },
 
-		editGood(dealNumber: number, newGoodsList: Product[]) {
-			const goodsDeal = this.findGoodsDeal(dealNumber)
-			if (goodsDeal) {
-				goodsDeal.goods.goodsList = [...newGoodsList]
-			}
-		},
+    editSallerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
+      const sallerGoodsDeal = this.findGoodsDeal(dealId)?.saller;
+      if (sallerGoodsDeal) {
+        Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
+      }
+    },
 
-		editService(dealNumber: number, newServiceList: Product[]) {
-			const serviceDeal = this.findServicesDeal(dealNumber)
-			if (serviceDeal) {
-				serviceDeal.services.servicesList = [...newServiceList]
-			}
-		},
+    editSallerServicesDeal(
+      dealId: number,
+      newSallerServicesDeal: EditPersonDeal,
+    ) {
+      const sallerServicesDeal = this.findServicesDeal(dealId)?.saller;
+      if (sallerServicesDeal) {
+        Object.assign(sallerServicesDeal, newSallerServicesDeal);
+      }
+    },
 
-		editGoodsComments(dealNumber: number, comments: string) {
-			const goods = this.findGoodsDeal(dealNumber)?.goods;
-			if (goods) {
-				goods.comments = comments;
-			}
-		},
+    editBuyerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
+      const buyerGoodsDeal = this.findGoodsDeal(dealId)?.buyer;
+      if (buyerGoodsDeal) {
+        Object.assign(buyerGoodsDeal, newSallerGoodsDeal);
+      }
+    },
 
-		editServicesComments(dealNumber: number, comments: string) {
-			const goods = this.findServicesDeal(dealNumber)?.services;
-			if (goods) {
-				goods.comments = comments;
-			}
-		},
+    editBuyerServicesDeal(
+      dealId: number,
+      newSallerServicesDeal: EditPersonDeal,
+    ) {
+      const buyerServicesDeal = this.findServicesDeal(dealId)?.buyer;
+      if (buyerServicesDeal) {
+        Object.assign(buyerServicesDeal, newSallerServicesDeal);
+      }
+    },
 
-		removeGoodsDeal(dealNumber: number) {
-			if (dealNumber) {
-				const goodsDeal = this.findGoodsDeal(dealNumber);
-				const goodsDeals = this.sales.goodsDeals
+    editGood(dealId: number, newGoodsList: Product[]) {
+      const goodsDeal = this.findGoodsDeal(dealId);
+      if (goodsDeal) {
+        goodsDeal.goods.goodsList = [...newGoodsList];
+      }
+    },
 
-				if (goodsDeal) {
-					const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
-						return goods.dealNumber === goodsDeal.dealNumber;
-					});
+    editService(dealId: number, newServiceList: Product[]) {
+      const serviceDeal = this.findServicesDeal(dealId);
+      if (serviceDeal) {
+        serviceDeal.services.servicesList = [...newServiceList];
+      }
+    },
 
-					if (index !== -1 && typeof (index) !== 'undefined') {
-						goodsDeals?.splice(index, 1);
-					}
-				}
-			}
-		},
+    editGoodsComments(dealId: number, comments: string) {
+      const goods = this.findGoodsDeal(dealId)?.goods;
+      if (goods) {
+        goods.comments = comments;
+      }
+    },
 
-		removeServicesDeal(dealNumber: number) {
-			if (dealNumber) {
-				const servicesDeal = this.findServicesDeal(dealNumber);
-				const servicesDeals = this.sales.servicesDeals
+    editServicesComments(dealId: number, comments: string) {
+      const goods = this.findServicesDeal(dealId)?.services;
+      if (goods) {
+        goods.comments = comments;
+      }
+    },
 
-				if (servicesDeal) {
-					const index = servicesDeals?.findIndex((service: ServicesDeal) => {
-						return service.dealNumber === servicesDeal.dealNumber;
-					});
+    removeGoodsDeal(dealId: number) {
+      if (dealId) {
+        const goodsDeal = this.findGoodsDeal(dealId);
+        const goodsDeals = this.sales.goodsDeals;
 
-					if (index !== -1 && typeof (index) !== 'undefined') {
-						servicesDeals?.splice(index, 1);
-					}
-				}
-			}
-		},
+        if (goodsDeal) {
+          const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
+            return goods.dealId === goodsDeal.dealId;
+          });
 
-		async fullUpdateGoodsDeal(
-      orderNumber: number,
+          if (index !== -1 && typeof index !== "undefined") {
+            goodsDeals?.splice(index, 1);
+          }
+        }
+      }
+    },
+
+    removeServicesDeal(dealId: number) {
+      if (dealId) {
+        const servicesDeal = this.findServicesDeal(dealId);
+        const servicesDeals = this.sales.servicesDeals;
+
+        if (servicesDeal) {
+          const index = servicesDeals?.findIndex((service: ServicesDeal) => {
+            return service.dealId === servicesDeal.dealId;
+          });
+
+          if (index !== -1 && typeof index !== "undefined") {
+            servicesDeals?.splice(index, 1);
+          }
+        }
+      }
+    },
+
+    async fullUpdateGoodsDeal(
+      dealId: number,
       saller: EditPersonDeal,
       buyer: EditPersonDeal,
       newGoodsList: Product[],
-      comments?: string
+      comments?: string,
     ) {
       this.amountInGoodsList();
       this.amountPriceInGoods();
       this.amountWordGoods();
-      this.editSallerGoodsDeal(orderNumber, saller);
-      this.editBuyerGoodsDeal(orderNumber, buyer);
-      this.editGood(orderNumber, newGoodsList);
+      this.editSallerGoodsDeal(dealId, saller);
+      this.editBuyerGoodsDeal(dealId, buyer);
+      this.editGood(dealId, newGoodsList);
       if (comments) {
-        this.editGoodsComments(orderNumber, comments);
+        this.editGoodsComments(dealId, comments);
       }
     },
 
-		async fullUpdateServicesDeal(
-			orderNumber: number,
-			saller: EditPersonDeal,
-			buyer: EditPersonDeal,
-			newServiceList: Product[],
-			comments?: string
-		) {
-			this.amountInServicesList();
-			this.amountPriceInServices();
-			this.amountWordServices();
-			this.editSallerServicesDeal(orderNumber, saller);
-			this.editBuyerServicesDeal(orderNumber, buyer);
-			this.editService(orderNumber, newServiceList);
-			if (comments) {
-				this.editServicesComments(orderNumber, comments);
-			}
-		},
-	},
+    async fullUpdateServicesDeal(
+      dealId: number,
+      saller: EditPersonDeal,
+      buyer: EditPersonDeal,
+      newServiceList: Product[],
+      comments?: string,
+    ) {
+      this.amountInServicesList();
+      this.amountPriceInServices();
+      this.amountWordServices();
+      this.editSallerServicesDeal(dealId, saller);
+      this.editBuyerServicesDeal(dealId, buyer);
+      this.editService(dealId, newServiceList);
+      if (comments) {
+        this.editServicesComments(dealId, comments);
+      }
+    },
+  },
 });

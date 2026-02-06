@@ -1,23 +1,21 @@
-export interface TableGoods {
+export interface BuyerTableItems {
 	dealNumber: string
 	date: string
 	sallerCompany: string
 	state?: string
 	bill?: string
 	supplyContract?: string
-	accompanyingDocuments?: string
-	invoice?: string
+	closingDocuments?: string
 	othersDocument?: string
 }
 
-export interface TableServices {
-	dealNumber: string
-	date: string
-	sallerCompany: string
-	state?: string
-	bill?: string
-	contract?: string,
-	act?: string,
-	invoice?: string,
-	othersDocument?: string,
+export interface SellerTableItems {
+  dealNumber: string;
+  date: string;
+  buyerCompany: string;
+  state?: string;
+  bill?: string;
+  supplyContract?: string;
+  closingDocuments?: string;
+  othersDocument?: string;
 }

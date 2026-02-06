@@ -4,12 +4,12 @@
       <h2 class="text-lg font-medium text-gray-900 mb-2 ml-4">Продажи</h2>
       <UTabs :items="items" variant="link">
 
-				<template #goods="{ item }">
+				<template #goods>
 					<UTable sticky :data="tableGoods" :columns="columnsGoodsDeals"
 						class="max-h-100 overflow-y-auto overscroll-auto " />
 				</template>
 
-				<template #services="{ item }">
+				<template #services>
 					<UTable sticky :data="tableServices" :columns="columnsServicesDeals"
 						class="max-h-100 overflow-y-auto overscroll-auto " />
 				</template>
@@ -23,15 +23,11 @@
 import type { TabsItem, TableColumn } from '@nuxt/ui'
 import { useSalesStore } from '~/stores/sales'
 import type { GoodsDeal, ServicesDeal } from '~/types/dealState'
-import type { TableGoods, TableServices } from '~/types/purchases'
+import type { SellerTableItems } from '~/types/purchases'
 
 definePageMeta({
 	layout: 'profile'
 })
-
-const userCompanyId = useUserStore().companyId
-
-const router = useRouter()
 
 const salesStore = useSalesStore()
 const { sales } = storeToRefs(salesStore)
@@ -96,7 +92,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 		}, 
 	},
 	{ 
-		accessorKey: 'sallerCompany', 
+		accessorKey: 'buyerCompany', 
 		header: ({column}) => {
 			const isSorted = column.getIsSorted()
 
@@ -104,7 +100,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 				{
 					color: 'neutral',
 					variant: 'ghost',
-					label: `Продавец`,
+					label: `Покупатель`,
 					icon: isSorted
 						? isSorted === 'asc'
 							? 'i-lucide-arrow-up-narrow-wide'
@@ -117,7 +113,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 		}, 
 	},
 	{
-		accessorKey: 'state',
+		accessorKey: 'status',
 		header: ({column}) => {
 			const isSorted = column.getIsSorted()
 
@@ -137,10 +133,10 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 			)
 		},
 		cell: ({ row }) => {
-			const status = row.getValue('state') as string
+			const status = row.getValue('status') as string
 			const color = {
-				Активно: 'text-emerald-600',
-				Завершено: 'text-gray-500'
+				Активная: 'text-emerald-600',
+				Завершенная: 'text-gray-500'
 			}
 			return h('span',
 				{
@@ -165,19 +161,19 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 		}
 	},
 	{
-		accessorKey: 'accompanyingDocuments',
-		header: 'Сопродительные документы',
+		accessorKey: 'closingDocuments',
+		header: 'Закрывающие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/profile/contracts/editor#accompanyingDocuments', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
+			return h('a', { href: '/profile/contracts/editor#closingDocuments', class: 'text-sky-500 text-wrap' }, row.getValue('closingDocuments'))
 		}
 	},
-	{
-		accessorKey: 'invoice',
-		header: 'Счет-фактура',
-		cell: ({ row }) => {
-			return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
-		}
-	},
+	// {
+	// 	accessorKey: 'invoice',
+	// 	header: 'Счет-фактура',
+	// 	cell: ({ row }) => {
+	// 		return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+	// 	}
+	// },
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
@@ -187,23 +183,26 @@ const columnsGoodsDeals: TableColumn<any>[] = [
 	},
 ]
 
-const goodsDeals: GoodsDeal[] | null = sales.value?.goodsDeals
+//Даем команду на получение и заполнение списка сделок
+salesStore.getDeals()
 
-let tableGoods: Ref<TableGoods[]> = ref([])
+console.log('sales: ', sales.value)
 
-if (goodsDeals) {
-	tableGoods.value = [...goodsDeals.map(deal => ({
-		dealNumber: deal.dealNumber,
-		date: deal.date,
-		sallerCompany: deal.saller.companyName,
-		state: deal.state,
-		bill: deal.bill,
-		supplyContract: deal.supplyContract,
-		accompanyingDocuments: deal.accompanyingDocuments,
-		invoice: deal.invoice,
-		othersDocument: deal.othersDocuments,
-	}))]
-}
+const goodsDeals: GoodsDeal[] = sales.value.goodsDeals
+const tableGoods: Ref<SellerTableItems[]> = ref([])
+
+watch(goodsDeals, () => {
+  tableGoods.value = [...goodsDeals.map(deal => ({
+    dealNumber: deal.sellerOrderNumber || '',
+    date: deal.date,
+    buyerCompany: deal.buyer.name,
+    status: deal.status,
+    bill: deal.bill || 'Создать счет',
+    supplyContract: deal.supplyContract || 'Создать договор поставки',
+    closingDocuments: deal.closingDocuments || 'Создать закрывающие документы',
+    othersDocument: deal.othersDocuments || 'Просмотр',
+  }))]
+}, { immediate: true, deep: true })
 
 //services table
 const columnsServicesDeals: TableColumn<any>[] = [
@@ -251,7 +250,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
 		},
 	},
 	{
-		accessorKey: 'sallerCompany',
+		accessorKey: 'buyerCompany',
 		header: ({column}) => {
 			const isSorted = column.getIsSorted()
 
@@ -259,7 +258,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
 				{
 					color: 'neutral',
 					variant: 'ghost',
-					label: `Поставщик`,
+					label: `Покупатель`,
 					icon: isSorted
 						? isSorted === 'asc'
 							? 'i-lucide-arrow-up-narrow-wide'
@@ -272,7 +271,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
 		},
 	},
 	{
-		accessorKey: 'state', 
+		accessorKey: 'status', 
 		header: ({column}) => {
 			const isSorted = column.getIsSorted()
 
@@ -292,10 +291,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
 			)
 		}, 
 		cell: ({ row }) => {
-			const status = row.getValue('state') as string
+			const status = row.getValue('status') as string
 			const color = {
-				Активно: 'text-emerald-600',
-				Завершено: 'text-gray-500'
+				Активная: 'text-emerald-600',
+				Завершенная: 'text-gray-500'
 			}
 			return h('span',
 				{
@@ -320,19 +319,19 @@ const columnsServicesDeals: TableColumn<any>[] = [
 		}
 	},
 	{
-		accessorKey: 'act',
-		header: 'акт',
+		accessorKey: 'closingDocuments',
+		header: 'Закрывающие документы',
 		cell: ({ row }) => {
-			return h('a', { href: '/profile/contracts/editor#act', class: 'text-sky-500 text-wrap' }, row.getValue('act'))
+			return h('a', { href: '/profile/contracts/editor#closingDocuments', class: 'text-sky-500 text-wrap' }, row.getValue('closingDocuments'))
 		}
 	},
-	{
-		accessorKey: 'invoice',
-		header: 'Счет-фактура',
-		cell: ({ row }) => {
-			return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
-		}
-	},
+	// {
+	// 	accessorKey: 'invoice',
+	// 	header: 'Счет-фактура',
+	// 	cell: ({ row }) => {
+	// 		return h('a', { href: '/profile/contracts/editor#invoice', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+	// 	}
+	// },
 	{
 		accessorKey: 'othersDocument',
 		header: 'Другие документы',
@@ -342,31 +341,19 @@ const columnsServicesDeals: TableColumn<any>[] = [
 	}
 ]
 
-const servicesDeals: ServicesDeal[] | null = sales.value?.servicesDeals
+const servicesDeals: ServicesDeal[] = sales.value.servicesDeals
+const tableServices: Ref<SellerTableItems[]> = ref([])
 
-let tableServices: Ref<TableServices[]> = ref([])
-
-if (servicesDeals) {
-	tableServices.value = [...servicesDeals.map(service => ({
-		dealNumber: service.dealNumber,
-		date: service.date,
-		sallerCompany: service.saller.companyName,
-		state: service.state,
-		bill: service.bill,
-		contract: service.contract,
-		act: service.act,
-		invoice: service.invoice,
-		othersDocument: service.othersDocuments,
-	}))]
-}
-
-
-// //Запрос на заказ для продукции
-// const { data: confirmedProducts , error, refresh, status } = await useLazyFetch('/api/orderedProducts', {
-// 	immediate: true,
-// 	query: {
-// 		sallerId: userCompanyId,
-// 	}
-// })
-// console.log(confirmedProducts)
+watch(servicesDeals, () => {
+  tableServices.value = [...servicesDeals.map(service => ({
+    dealNumber: service.sellerOrderNumber || '',
+    date: service.date,
+    buyerCompany: service.buyer.name,
+    status: service.status,
+    bill: service.bill || 'Создать счет',
+    contract: service.contract || 'Создать договор',
+    closingDocuments: service.closingDocuments || 'Создать закрывающие документы',
+    othersDocument: service.othersDocuments || 'Просмотр',
+  }))]
+}, { immediate: true, deep: true })
 </script>

@@ -1,6 +1,6 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
-import type { DealResponse } from "~/types/dealState"
+import type { DealResponse, BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse"
 
 export const usePurchasesApi = () => {
 	const { $api } = useNuxtApp()
@@ -29,18 +29,18 @@ export const usePurchasesApi = () => {
 		}
 	}
 	
-	const getBuyerDeals = async (skip: number = 0, limit: number = 100) => {
+	const getBuyerDeals = async (skip: number = 0, limit: number = 100): Promise<BuyerDealResponse[] | undefined> => {
 		try {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_BUYER_DEALS), {
 				query: { skip, limit },
-			})
+      })
 			return response
 		} catch(e) {
 			console.log('ERROR: ', e)
 		}
 	}
 	
-	const getSellerDeals = async (skip: number = 0, limit: number = 100) => {
+	const getSellerDeals = async (skip: number = 0, limit: number = 100): Promise<SellerDealResponse[] | undefined> => {
 		try {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_SELLER_DEALS), {
 				query: { skip, limit },

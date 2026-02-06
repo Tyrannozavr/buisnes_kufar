@@ -23,7 +23,7 @@
 import type { TabsItem, TableColumn } from '@nuxt/ui'
 import { usePurchasesStore } from '~/stores/purchases'
 import type { GoodsDeal, ServicesDeal } from '~/types/dealState'
-import type { TableGoods, TableServices } from '~/types/purchases'
+import type { BuyerTableItems } from '~/types/purchases'
 
 definePageMeta({
   layout: 'profile'
@@ -101,7 +101,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         {
           color: 'neutral',
           variant: 'ghost',
-          label: `Продавец`,
+          label: `Поставщик`,
           icon: isSorted
             ? isSorted === 'asc'
               ? 'i-lucide-arrow-up-narrow-wide'
@@ -163,19 +163,19 @@ const columnsGoodsDeals: TableColumn<any>[] = [
     }
   },
   {
-    accessorKey: 'accompanyingDocuments',
-    header: 'Сопродительные документы',
+    accessorKey: 'closingDocuments',
+    header: 'Закрывающие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('accompanyingDocuments'))
+      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('closingDocuments'))
     }
   },
-  {
-    accessorKey: 'invoice',
-    header: 'Счет-фактура',
-    cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
-    }
-  },
+  // {
+  //   accessorKey: 'invoice',
+  //   header: 'Счет-фактура',
+  //   cell: ({ row }) => {
+  //     return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
+  //   }
+  // },
   {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
@@ -191,18 +191,17 @@ purchasesStore.getDeals()
 console.log('purchases: ', purchases.value)
 
 const goodsDeals: GoodsDeal[] = purchases.value.goodsDeals
-const tableGoods: Ref<TableGoods[]> = ref([])
+const tableGoods: Ref<BuyerTableItems[]> = ref([])
 
 watch(goodsDeals, () => {
   tableGoods.value = [...goodsDeals.map(deal => ({
-    dealNumber: deal.buyerOrderNumber,
+    dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
     sallerCompany: deal.saller.name,
     status: deal.status,
     bill: 'Просмотр',
     supplyContract: 'Просмотр',
-    accompanyingDocuments: 'Просмотр',
-    invoice: 'Просмотр',
+    closingDocuments: 'Просмотр',
     othersDocument: 'Просмотр',
   }))]
 }, { immediate: true, deep: true })
@@ -298,8 +297,8 @@ const columnsServicesDeals: TableColumn<any>[] = [
     cell: ({ row }) => {
       const status = row.getValue('status') as string
       const color = {
-        Активно: 'text-emerald-600',
-        Завершено: 'text-gray-500'
+        Активная: 'text-emerald-600',
+        Завершенная: 'text-gray-500'
       }
       return h('span',
         {
@@ -324,19 +323,19 @@ const columnsServicesDeals: TableColumn<any>[] = [
     }
   },
   {
-    accessorKey: 'act',
-    header: 'акт',
+    accessorKey: 'closingDocuments',
+    header: 'Закрывающие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('act'))
+      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('closingDocuments'))
     }
   },
-  {
-    accessorKey: 'invoice',
-    header: 'Счет-фактура',
-    cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('invoice'))
-    }
-  },
+  // {
+  //   accessorKey: 'invoice',
+  //   header: 'Счет-фактура',
+  //   cell: ({ row }) => {
+  //     return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('invoice'))
+  //   }
+  // },
   {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
@@ -346,22 +345,19 @@ const columnsServicesDeals: TableColumn<any>[] = [
   }
 ]
 
-const servicesDeals: ServicesDeal[] | null = purchases.value?.servicesDeals
-let tableServices: Ref<TableServices[]> = ref([])
+const servicesDeals: ServicesDeal[] = purchases.value.servicesDeals
+const tableServices: Ref<BuyerTableItems[]> = ref([])
 
-if (servicesDeals) {
+watch(servicesDeals, () => {
   tableServices.value = [...servicesDeals.map(service => ({
-    dealNumber: service.buyerOrderNumber,
+    dealNumber: service.buyerOrderNumber || '',
     date: service.date,
     sallerCompany: service.saller.name,
     status: service.status,
     bill: 'Просмотр',
     contract: 'Просмотр',
-    act: 'Просмотр',
-    invoice: 'Просмотр',
+    closingDocuments: 'Просмотр',
     othersDocument: 'Просмотр',
   }))]
-}
-
-
+}, { immediate: true, deep: true })
 </script>

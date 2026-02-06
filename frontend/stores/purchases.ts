@@ -4,9 +4,8 @@ import type {
   ServicesDeal,
   EditPersonDeal,
   Product,
-  DealPurchaseResponse,
-  ProductResponse,
 } from "~/types/dealState";
+import type { BuyerDealResponse} from "~/types/dealReasponse";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
 
@@ -62,7 +61,8 @@ export const usePurchasesStore = defineStore("purchases", {
     async getDeals() {
       const { getDealById, getBuyerDeals } = usePurchasesApi();
       const buyerDeals = await getBuyerDeals();
-      const dealsIds: number[] = buyerDeals.map((deal: DealPurchaseResponse) => deal.id);
+      const dealsIds: number[] =
+        buyerDeals?.map((deal: BuyerDealResponse) => deal.id) || [];
 
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
@@ -105,9 +105,8 @@ export const usePurchasesStore = defineStore("purchases", {
               status: dealResponse.status,
               bill: '',
               supplyContract: dealResponse.contract_number,
-              accompanyingDocuments: '',
-              invoice: dealResponse.invoice_number,
-              othersDocuments: '',
+              closingDocuments: '',
+              othersDocuments: dealResponse.invoice_number || '',
             } as GoodsDeal);
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
@@ -145,9 +144,8 @@ export const usePurchasesStore = defineStore("purchases", {
               status: dealResponse.status,
               bill: "",
               contract: dealResponse.contract_number,
-              act: '',
-              invoice: dealResponse.invoice_number,
-              othersDocuments: "",
+              closingDocuments: '',
+              othersDocuments: dealResponse.invoice_number || '',
             } as ServicesDeal);
           }
         }

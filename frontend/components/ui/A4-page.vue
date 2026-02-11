@@ -44,8 +44,8 @@ const fillHtmlContentFromSlot = () => {
 
 onMounted(() => {
 	fillHtmlContentFromSlot()
-	console.log('htmlContent', htmlContent.value)
-	console.dir(slotContainerRef.value)
+	// console.log('htmlContent', htmlContent.value)
+	// console.dir(slotContainerRef.value)
 })
 </script>
 

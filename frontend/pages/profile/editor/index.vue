@@ -71,8 +71,16 @@ import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
+import { usePurchasesStore } from '~/stores/purchases'
+import { useSalesStore } from '~/stores/sales'
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
+const route = useRoute()
+const purchasesStore = usePurchasesStore()
+const salesStore = useSalesStore()
+
+purchasesStore.getDeals()
+salesStore.getDeals()
 
 const items = [
 	{
@@ -109,12 +117,12 @@ const items = [
 	},
 ]
 
-const route = useRoute()
-
 watch(
 	() => route.fullPath,
 	() => {
-		if (route.hash === '#bill') {
+		if (route.hash === '#order') {
+			activeTab.value = '0'
+		} else if (route.hash === '#bill') {
 			activeTab.value = '1'
 		} else if (route.hash === '#supplyContract') {
 			activeTab.value = '2'

@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import type {  OrderData } from '~/types/contracts';
+import type { OrderData, ProductsInOrder } from '~/types/contracts';
 import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
-import type { Product, Person, GoodsDeal, ServicesDeal } from '~/types/dealState';
+import type { Product, GoodsDeal, ServicesDeal } from '~/types/dealState';
 import { Editor, RequestedType, TemplateElement } from '~/constants/keys';
 import { useInsertState } from '~/composables/useStates';
+import { normalizeDate } from '~/utils/normalize';
+import { useRoute } from 'vue-router';
 
+const route = useRoute()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
 
-let products: Product[] = []
-let saller = {} as Person
-let buyer = {} as Person
+let products: ProductsInOrder[] = []
+let saller: OrderData['saller'] = {}
+let buyer: OrderData['buyer'] = {}
 
 const orderData: Ref<OrderData> = ref({
-	orderNumber: NaN,
+  orderNumber: '',
+  dealId: 0,
 	orderDate: '',
 	comments: '',
 	amount: 0,
@@ -26,99 +30,174 @@ const orderData: Ref<OrderData> = ref({
 })
 
 const insertState = useTypedState(Editor.INSERT_STATE)
-
 let requestedData = ''
+let goodsDeal: GoodsDeal | undefined = undefined
+let servicesDeal: ServicesDeal | undefined = undefined
+
+const fillOrderData = () => {
+  if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
+    && goodsDeal) {
+
+    products = goodsDeal.goods.goodsList?.map((product: Product): ProductsInOrder => ({
+      name: product.name,
+      article: product.article,
+      quantity: product.quantity,
+      units: product.units,
+      price: product.price,
+      amount: product.amount,
+      type: product.type,
+    })) || []
+
+    saller = {
+      sallerName: goodsDeal?.saller.sallerName,
+      companyName: goodsDeal?.saller.companyName,
+      mobileNumber: goodsDeal?.saller.phone,
+      legalAddress: goodsDeal?.saller.legalAddress,
+      inn: Number(goodsDeal?.saller.inn) || 0,
+    }
+    buyer = {
+      buyerName: goodsDeal?.buyer.buyerName,
+      companyName: goodsDeal?.buyer.companyName,
+      mobileNumber: goodsDeal?.buyer.phone,
+      legalAddress: goodsDeal?.buyer.legalAddress,
+      inn: Number(goodsDeal?.buyer.inn) || 0,
+    }
+
+    orderData.value = {
+      orderNumber: goodsDeal?.buyerOrderNumber || '',
+      dealId: goodsDeal?.dealId,
+      orderDate: goodsDeal?.date,
+      comments: goodsDeal?.goods.comments,
+      amount: goodsDeal?.goods.amountPrice,
+      amountWord: goodsDeal?.goods.amountWord,
+      saller,
+      buyer,
+      products,
+    }
+
+    if (requestedData === RequestedType.SALES_GOOD) {
+      orderData.value.orderNumber = goodsDeal?.sellerOrderNumber || ''
+    }
+  }
+
+  if ((requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
+    && servicesDeal) {
+
+    products = servicesDeal.services.servicesList?.map((product: Product): ProductsInOrder => ({
+      name: product.name,
+      article: product.article,
+      quantity: product.quantity,
+      units: product.units,
+      price: product.price,
+      amount: product.amount,
+      type: product.type,
+    })) || []
+
+    saller = {
+      sallerName: servicesDeal?.saller.sallerName,
+      companyName: servicesDeal?.saller.companyName,
+      mobileNumber: servicesDeal?.saller.phone,
+      legalAddress: servicesDeal?.saller.legalAddress,
+      inn: Number(servicesDeal?.saller.inn) || 0,
+    }
+    buyer = {
+      buyerName: servicesDeal?.buyer.buyerName,
+      companyName: servicesDeal?.buyer.companyName,
+      mobileNumber: servicesDeal?.buyer.phone,
+      legalAddress: servicesDeal?.buyer.legalAddress,
+      inn: Number(servicesDeal?.buyer.inn) || 0,
+    }
+
+    orderData.value = {
+      orderNumber: servicesDeal?.buyerOrderNumber || '',
+      dealId: servicesDeal?.dealId,
+      orderDate: servicesDeal?.date,
+      comments: servicesDeal?.services.comments,
+      amount: servicesDeal?.services.amountPrice,
+      amountWord: servicesDeal?.services.amountWord,
+      saller,
+      buyer,
+      products,
+    }
+
+    if (requestedData === RequestedType.SALES_SERVICE) {
+      orderData.value.orderNumber = servicesDeal?.sellerOrderNumber || ''
+    }
+  }
+}
+
+const fillFromQuery = () => {
+  const query = route.query
+  
+  if (!query?.dealId || !query?.role || !query?.productType) return
+
+  if (query.role === 'purchases') {
+    if (query.productType === 'goods') {
+      requestedData = RequestedType.PURCHASES_GOOD
+      goodsDeal = purchasesStore.findGoodsDeal(Number(query.dealId))
+    } else if (query.productType === 'services') {
+      requestedData = RequestedType.PURCHASES_SERVICE
+      servicesDeal = purchasesStore.findServicesDeal(Number(query.dealId))
+    }
+  } else if (query.role === 'sales') {
+    if (query.productType === 'goods') {
+      requestedData = RequestedType.SALES_GOOD
+      goodsDeal = salesStore.findGoodsDeal(Number(query.dealId))
+    } else if (query.productType === 'services') {
+      requestedData = RequestedType.SALES_SERVICE
+      servicesDeal = salesStore.findServicesDeal(Number(query.dealId))
+    }
+  }
+  fillOrderData()
+}
+
+// пришли с query — заполняем форму; также следим за store (deals подгружаются асинхронно)
+watch(
+  () => [
+    route.query.dealId,
+    route.query.role,
+    route.query.productType,
+    salesStore.sales?.goodsDeals?.length ?? 0,
+    salesStore.sales?.servicesDeals?.length ?? 0,
+    purchasesStore.purchases?.goodsDeals?.length ?? 0,
+    purchasesStore.purchases?.servicesDeals?.length ?? 0,
+  ],
+  fillFromQuery,
+  { immediate: true }
+)
 
 //присвоение конкретного состояния и значений,в зависимости от состояния
 watch(() => insertState.value,
 	() => {
-		let lastGoodsDeal: GoodsDeal | undefined = undefined
-		let lastServicesDeal: ServicesDeal | undefined = undefined
-
 		if (insertState.value.purchasesGood) {
 			requestedData = RequestedType.PURCHASES_GOOD
 			if (purchasesStore.lastGoodsDeal) {
-				lastGoodsDeal = purchasesStore.lastGoodsDeal
+				goodsDeal = purchasesStore.lastGoodsDeal
 			}
 			statePurchasesGood(false)
 
 		} else if (insertState.value.purchasesService) {
 			requestedData = RequestedType.PURCHASES_SERVICE
 			if (purchasesStore.lastServicesDeal) {
-				lastServicesDeal = purchasesStore.lastServicesDeal
+				servicesDeal = purchasesStore.lastServicesDeal
 			}
 			statePurchasesService(false)
 
 		} else if (insertState.value.salesGood) {
 			requestedData = RequestedType.SALES_GOOD
 			if (salesStore.lastGoodsDeal) {
-				lastGoodsDeal = salesStore.lastGoodsDeal
+				goodsDeal = salesStore.lastGoodsDeal
 			}
 			stateSalesGood(false)
 
 		} else if (insertState.value.salesService) {
 			requestedData = RequestedType.SALES_SERVICE
 			if (salesStore.lastServicesDeal) {
-				lastServicesDeal = salesStore.lastServicesDeal
+				servicesDeal = salesStore.lastServicesDeal
 			}
 			stateSalesService(false)
-		}
-
-		if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
-			&& lastGoodsDeal) {
-
-			products = lastGoodsDeal.goods.goodsList?.map((product: Product) => ({
-				name: product.name,
-				article: product.article,
-				quantity: product.quantity,
-				units: product.units,
-				price: product.price,
-				amount: product.amount,
-				type: product.type,
-			}))
-
-			saller = Object.assign({}, lastGoodsDeal?.saller)
-			buyer = Object.assign({}, lastGoodsDeal?.buyer)
-
-			orderData.value = {
-				orderNumber: Number(lastGoodsDeal?.dealNumber),
-				orderDate: lastGoodsDeal?.date,
-				comments: lastGoodsDeal?.goods.comments,
-				amount: lastGoodsDeal?.goods.amountPrice,
-				amountWord: lastGoodsDeal?.goods.amountWord,
-				saller,
-				buyer,
-				products,
-			}
-		}
-
-		if ((requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
-			&& lastServicesDeal) {
-
-			products = lastServicesDeal.services.servicesList?.map((product: Product) => ({
-				name: product.name,
-				article: product.article,
-				quantity: product.quantity,
-				units: product.units,
-				price: product.price,
-				amount: product.amount,
-				type: product.type,
-			}))
-
-			saller = Object.assign({}, lastServicesDeal?.saller)
-			buyer = Object.assign({}, lastServicesDeal?.buyer)
-
-			orderData.value = {
-				orderNumber: Number(lastServicesDeal?.dealNumber),
-				orderDate: lastServicesDeal?.date,
-				comments: lastServicesDeal?.services.comments,
-				amount: lastServicesDeal?.services.amountPrice,
-				amountWord: lastServicesDeal?.services.amountWord,
-				saller,
-				buyer,
-				products,
-			}
-		}
+    }
+    fillOrderData()
 	},
 	{ deep: true }
 )
@@ -129,47 +208,47 @@ watch(() => saveState.value,
 	async () => {
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			await purchasesStore.fullUpdateGoodsDeal(
-				orderData.value.orderNumber,
-				saller,
-				buyer,
-				products,
+				orderData.value.dealId,
+				orderData.value.saller,
+				orderData.value.buyer,
+				orderData.value.products,
 				orderData.value.comments)
 
-			orderData.value.amount = await purchasesStore?.lastGoodsDeal?.goods.amountPrice
-			orderData.value.amountWord = await purchasesStore?.lastGoodsDeal?.goods.amountWord
+      orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
+      orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
 
 		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 			await purchasesStore.fullUpdateServicesDeal(
-				orderData.value.orderNumber,
-				saller,
-				buyer,
-				products,
+				orderData.value.dealId,
+				orderData.value.saller,
+				orderData.value.buyer,
+				orderData.value.products,
 				orderData.value.comments)
 
-			orderData.value.amount = await purchasesStore?.lastServicesDeal?.services.amountPrice
-			orderData.value.amountWord = await purchasesStore?.lastServicesDeal?.services.amountWord
+      orderData.value.amount = purchasesStore?.lastServicesDeal?.services.amountPrice
+      orderData.value.amountWord = purchasesStore?.lastServicesDeal?.services.amountWord
 
 		} else if (requestedData === RequestedType.SALES_GOOD) {
 			await salesStore.fullUpdateGoodsDeal(
-				orderData.value.orderNumber,
-				saller,
-				buyer,
-				products,
+				orderData.value.dealId,
+				orderData.value.saller,
+				orderData.value.buyer,
+				orderData.value.products,
 				orderData.value.comments)
 
-			orderData.value.amount = await salesStore?.lastGoodsDeal?.goods.amountPrice
-			orderData.value.amountWord = await salesStore?.lastGoodsDeal?.goods.amountWord
+      orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
+      orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
 
 		} else if (requestedData === RequestedType.SALES_SERVICE) {
 			await salesStore.fullUpdateServicesDeal(
-				orderData.value.orderNumber,
-				saller,
-				buyer,
-				products,
+				orderData.value.dealId,
+				orderData.value.saller,
+				orderData.value.buyer,
+				orderData.value.products,
 				orderData.value.comments)
 
-			orderData.value.amount = await salesStore?.lastServicesDeal?.services.amountPrice
-			orderData.value.amountWord = await salesStore?.lastServicesDeal?.services.amountWord
+      orderData.value.amount = salesStore?.lastServicesDeal?.services.amountPrice
+      orderData.value.amountWord = salesStore?.lastServicesDeal?.services.amountWord
 		}
 	},
 	{ deep: true }
@@ -179,16 +258,16 @@ const addProduct = () => {
 	// По умолчанию считаем "товар", а "услуга" — только если явно выбран тип сделки услуг.
 	const productType: string =
 		(requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
-			? 'услуга'
-			: 'товар'
+			? 'Услуга'
+			: 'Товар'
 
-	const product: Product = {
+  const product: ProductsInOrder = {
 		name: '',
-		article: Number(),
-		quantity: Number(),
+    article: '',
+    quantity: 0,
 		units: '',
-		price: Number(),
-		amount: Number(),
+    price: 0,
+    amount: 0,
 		type: productType
 	}
 
@@ -202,11 +281,12 @@ const clearState = useTypedState(Editor.CLEAR_STATE)
 
 const clearForm = () => {
 	products = []
-	saller = {} as Person
-	buyer = {} as Person
+  saller = {}
+  buyer = {}
 
 	orderData.value = {
-		orderNumber: NaN,
+		orderNumber: '',
+		dealId: 0,
 		orderDate: '',
 		comments: '',
 		amount: 0,
@@ -232,16 +312,16 @@ const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 
 const removeDeal = (requestedData: string) => {
 	if (requestedData === RequestedType.PURCHASES_GOOD) {
-		purchasesStore.removeGoodsDeal(orderData.value.orderNumber)
+		purchasesStore.removeGoodsDeal(orderData.value.dealId)
 
 	} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
-		purchasesStore.removeServicesDeal(orderData.value.orderNumber)
+		purchasesStore.removeServicesDeal(orderData.value.dealId)
 
 	} else if (requestedData === RequestedType.SALES_GOOD) {
-		salesStore.removeGoodsDeal(orderData.value.orderNumber)
+		salesStore.removeGoodsDeal(orderData.value.dealId)
 
 	} else if (requestedData === RequestedType.SALES_SERVICE) {
-		salesStore.removeServicesDeal(orderData.value.orderNumber)
+		salesStore.removeServicesDeal(orderData.value.dealId)
 	}
 
 	clearForm()
@@ -257,7 +337,7 @@ watch(() => removeDealState.value,
 )
 
 //remove product
-const removeProduct = (product: any): void => {
+const removeProduct = (product: ProductsInOrder): void => {
 	const index = orderData.value.products.indexOf(product)
 	orderData.value.products.splice(index, 1)
 }
@@ -302,8 +382,8 @@ onMounted(() => {
 		</table>
 
 		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку
-			<span v-if="orderData.orderNumber">{{ orderData.orderNumber }}</span>
-			от {{ orderData.orderDate }}
+			<span>{{ orderData.orderNumber }}</span>
+			от {{ normalizeDate(orderData.orderDate || '') }}
 		</h1>
 
 			<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
@@ -380,9 +460,9 @@ onMounted(() => {
 		<br />
 		<p>
 			<span style="text-align: start;">Менеджер </span>
-			<input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.name" />
+			<input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.sallerName" />
 			<span style="text-align: center;">Покупатель</span>
-			<input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.name" />
+			<input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.buyerName" />
 		</p>
 		<br />
 

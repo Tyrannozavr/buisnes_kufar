@@ -32,6 +32,17 @@ export interface ProductResponse {
   updated_at: string;
 }
 
+export interface CompanyInDealResponse {
+  name: string; // имя владельца компании
+  company_name: string; // название компании
+  slug: string;
+  id: number;
+  inn: string;
+  phone: string;
+  email: string;
+  legal_address: string;
+}
+
 export interface DealResponse {
   id: number;
   buyer_company_id: number;
@@ -42,15 +53,21 @@ export interface DealResponse {
   deal_type: "Товары" | "Услуги";
   total_amount: number;
   comments: string;
-  invoice_number: string;
-  contract_number: string;
-  invoice_date: string;
-  contract_date: string;
+  buyer_order_date: string | null;
+  seller_order_date: string | null;
+  contract_number: string | null;
+  contract_date: string | null;
+  bill_number: string | null;
+  bill_date: string | null;
+  supply_contracts_number: string | null;
+  supply_contracts_date: string | null;
+  closing_documents: unknown[];
+  others_documents: unknown[];
   created_at: string;
   updated_at: string;
   items: [ProductResponse[]];
-  buyer_company: any;
-  seller_company: any;
+  buyer_company: CompanyInDealResponse;
+  seller_company: CompanyInDealResponse;
 }
 
 export interface BuyerDealResponse {

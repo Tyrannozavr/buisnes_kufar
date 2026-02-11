@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, BuyerDealResponse, 
-    SellerDealResponse, OrderItemResponse, DocumentUpload
+    SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -83,6 +83,22 @@ class DealService:
             print(f"Error updating deal: {e}")
             return None
 
+    async def delete_deal(self, deal_id: int, company_id: int) -> bool:
+        """Удаление сделки"""
+        try:
+            # Проверяем, что сделка существует и пользователь имеет к ней доступ
+            order = await self.repository.get_order_by_id(deal_id, company_id)
+            if not order:
+                return False
+            
+            # Удаляем сделку
+            deleted = await self.repository.delete_order(deal_id, company_id)
+            return deleted
+        except Exception as e:
+            await self.session.rollback()
+            print(f"Error deleting deal: {e}")
+            return False
+
     async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
         """Добавление документа к сделке"""
         try:
@@ -92,6 +108,18 @@ class DealService:
             await self.session.rollback()
             print(f"Error adding document: {e}")
             return None
+
+    async def assign_bill(self, deal_id: int, company_id: int, date=None):
+        """Генерация и присвоение номера и даты счета."""
+        return await self.repository.assign_bill(deal_id, company_id, date)
+
+    async def assign_contract(self, deal_id: int, company_id: int, date=None):
+        """Генерация и присвоение номера и даты договора."""
+        return await self.repository.assign_contract(deal_id, company_id, date)
+
+    async def assign_supply_contract(self, deal_id: int, company_id: int, date=None):
+        """Генерация и присвоение номера и даты договора поставки."""
+        return await self.repository.assign_supply_contract(deal_id, company_id, date)
 
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""
@@ -144,26 +172,37 @@ class DealService:
             seller_company = await self.repository.get_company_by_id(order.seller_company_id)
         
             if buyer_company:
-                buyer_company_info = {
-                    "id": buyer_company.id,
-                    "name": buyer_company.name,
-                    "slug": buyer_company.slug,
-                    "inn": buyer_company.inn,
-                    "phone": buyer_company.phone,
-                    "email": buyer_company.email
-                }
+                # Получаем имя владельца компании
+                buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id)
+                buyer_company_info = CompanyInDealResponse(
+                    id=buyer_company.id,
+                    company_name=buyer_company.name,
+                    name=buyer_owner_name or "",
+                    slug=buyer_company.slug,
+                    inn=buyer_company.inn,
+                    phone=buyer_company.phone,
+                    email=buyer_company.email,
+                    legal_address=buyer_company.legal_address
+                )
             
             if seller_company:
-                seller_company_info = {
-                    "id": seller_company.id,
-                    "name": seller_company.name,
-                    "slug": seller_company.slug,
-                    "inn": seller_company.inn,
-                    "phone": seller_company.phone,
-                    "email": seller_company.email
-                }
+                # Получаем имя владельца компании
+                seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id)
+                seller_company_info = CompanyInDealResponse(
+                    id=seller_company.id,
+                    company_name=seller_company.name,
+                    name=seller_owner_name or "",
+                    slug=seller_company.slug,
+                    inn=seller_company.inn,
+                    phone=seller_company.phone,
+                    email=seller_company.email,
+                    legal_address=seller_company.legal_address
+                )
             
             print(f"DEBUG: Создаем DealResponse")
+            closing_docs = order.closing_documents if order.closing_documents is not None else []
+            others_docs = order.others_documents if order.others_documents is not None else []
+
             return DealResponse(
                 id=order.id,
                 buyer_company_id=order.buyer_company_id,
@@ -174,10 +213,16 @@ class DealService:
                 deal_type=order.deal_type,
                 total_amount=order.total_amount,
                 comments=order.comments,
-                invoice_number=order.invoice_number,
+                buyer_order_date=order.buyer_order_date,
+                seller_order_date=order.seller_order_date,
                 contract_number=order.contract_number,
-                invoice_date=order.invoice_date,
                 contract_date=order.contract_date,
+                bill_number=order.bill_number,
+                bill_date=order.bill_date,
+                supply_contracts_number=order.supply_contracts_number,
+                supply_contracts_date=order.supply_contracts_date,
+                closing_documents=closing_docs,
+                others_documents=others_docs,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
                 items=items,

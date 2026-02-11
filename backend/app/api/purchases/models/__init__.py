@@ -53,11 +53,21 @@ class Order(Base):
     buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     
+    # Даты заказов
+    buyer_order_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата заказа покупателя
+    seller_order_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата заказа продавца
+
     # Связанные документы (номера)
-    invoice_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета
     contract_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора
-    invoice_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
     contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора
+    bill_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета на оплату
+    bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
+    supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
+    supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
+
+    # Закрывающие и прочие документы (пока пустые)
+    closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
+    others_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Прочие документы
     
     # Дополнительная информация
     comments: Mapped[Optional[str]] = mapped_column(Text)

@@ -132,7 +132,20 @@ def custom_openapi():
     
     # Принудительно устанавливаем только схему Bearer
     openapi_schema["components"]["securitySchemes"] = final_schemes
-    
+
+    # Описания тегов для Swagger UI (счет, договор, договор поставки)
+    if "tags" not in openapi_schema:
+        openapi_schema["tags"] = []
+    doc_tags = [
+        {"name": "bill", "description": "Создание номера и даты счета на оплату"},
+        {"name": "contract", "description": "Создание номера и даты договора"},
+        {"name": "supply-contract", "description": "Создание номера и даты договора поставки"},
+    ]
+    existing_names = {t["name"] for t in openapi_schema["tags"] if isinstance(t, dict) and "name" in t}
+    for tag in doc_tags:
+        if tag["name"] not in existing_names:
+            openapi_schema["tags"].append(tag)
+
     # Не кэшируем схему, чтобы изменения применялись сразу
     # app.openapi_schema = openapi_schema
     return openapi_schema

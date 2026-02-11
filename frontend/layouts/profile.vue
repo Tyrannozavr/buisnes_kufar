@@ -67,10 +67,10 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
           active: route.path === '/profile/documents'
         },
         {
-          label: 'Договоры',
+          label: 'Редактор документов',
           icon: 'i-heroicons-document-text',
-          to: '/profile/contracts',
-          active: route.path === '/profile/contracts'
+          to: '/profile/editor',
+          active: route.path === '/profile/editor'
         },
         {
           label: 'Продажи',

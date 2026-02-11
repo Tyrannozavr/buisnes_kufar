@@ -7,8 +7,12 @@ export const API_URLS = {
 	GET_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
 	UPLOAD_DOCUMENT_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
+	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
+	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
+	CREATE_SUPPLY_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/supply-contract`,
 	CREATE_ORDER_FROM_CHECKOUT: '/api/v1/purchases/checkout',
 	GET_UNITS_MEASUREMENT: '/api/v1/purchases/units',
+	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
 
   // Companies
   COMPANIES: '/v1/companies/',

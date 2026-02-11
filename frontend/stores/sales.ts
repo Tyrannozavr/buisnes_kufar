@@ -11,8 +11,8 @@ import type { SellerDealResponse } from "~/types/dealReasponse";
 
 interface Sales {
   sales: {
-    goodsDeals: GoodsDeal[]
-    servicesDeals: ServicesDeal[] 
+    goodsDeals: GoodsDeal[];
+    servicesDeals: ServicesDeal[];
   };
 }
 
@@ -25,6 +25,20 @@ export const useSalesStore = defineStore("sales", {
   }),
 
   getters: {
+    findGoodsDealByDealNumber: (state) => {
+      return (dealNumber: string) =>
+        state.sales.goodsDeals?.find(
+          (deal) => dealNumber === deal.sellerOrderNumber,
+        );
+    },
+    
+    findServicesDealByDealNumber: (state) => {
+      return (dealNumber: string) =>
+        state.sales.servicesDeals?.find(
+          (deal) => dealNumber === deal.sellerOrderNumber,
+        );
+    },
+
     findGoodsDeal: (state) => {
       return (dealId: number) =>
         state.sales.goodsDeals?.find((deal) => dealId === deal.dealId);
@@ -38,7 +52,17 @@ export const useSalesStore = defineStore("sales", {
     lastGoodsDeal: (state): GoodsDeal | undefined => {
       if (state.sales.goodsDeals?.[0]) {
         const goodsDeals = state.sales.goodsDeals;
-        const lastDeal = goodsDeals?.[goodsDeals.length - 1];
+        let maxDealId = 0;
+        goodsDeals?.forEach((deal) => {
+          if (deal.dealId > maxDealId) {
+            maxDealId = deal.dealId;
+          }
+        });
+
+        const lastDeal = state.sales.goodsDeals?.find(
+          (deal) => deal.dealId === maxDealId,
+        );
+
         return lastDeal;
       }
     },
@@ -46,20 +70,35 @@ export const useSalesStore = defineStore("sales", {
     lastServicesDeal: (state): ServicesDeal | undefined => {
       if (state.sales.servicesDeals?.[0]) {
         const servicesDeals = state.sales.servicesDeals;
-        const lastDeal = servicesDeals?.[servicesDeals.length - 1];
+        let maxDealId = 0;
+        servicesDeals?.forEach((deal) => {
+          if (deal.dealId > maxDealId) {
+            maxDealId = deal.dealId;
+          }
+        });
+
+        const lastDeal = state.sales.servicesDeals?.find(
+          (deal) => deal.dealId === maxDealId,
+        );
+
         return lastDeal;
       }
     },
   },
 
   actions: {
+    async clearStore() {
+      this.sales.goodsDeals = [];
+      this.sales.servicesDeals = [];
+    },
     //получение и заполнение списка сделок
     async getDeals() {
+      this.clearStore();
+
       const { getDealById, getSellerDeals } = usePurchasesApi();
       const sellerDeals = await getSellerDeals();
-      const dealsIds: number[] = sellerDeals?.map(
-        (deal: SellerDealResponse) => deal.id,
-      ) || [];
+      const dealsIds: number[] =
+        sellerDeals?.map((deal: SellerDealResponse) => deal.id) || [];
 
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
@@ -86,24 +125,32 @@ export const useSalesStore = defineStore("sales", {
               },
               date: dealResponse.created_at,
               saller: {
+                companyName: dealResponse.seller_company.company_name,
                 name: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                legalAddress: dealResponse.seller_company.legal_address,
+                id: dealResponse.seller_company.id,
                 inn: dealResponse.seller_company.inn,
+                email: dealResponse.seller_company.email,
+                legalAddress: dealResponse.seller_company.legal_address,
               },
               buyer: {
-                name: dealResponse.buyer_company.name,
+                companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                legalAddress: dealResponse.buyer_company.legal_address,
+                id: dealResponse.buyer_company.id,
                 inn: dealResponse.buyer_company.inn,
+                email: dealResponse.buyer_company.email,
+                legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
-              bill: "",
-              supplyContract: dealResponse.contract_number,
+              bill: dealResponse.bill_number || "",
+              supplyContract:
+                dealResponse.supply_contracts_number ||
+                dealResponse.contract_number ||
+                "",
               closingDocuments: "",
-              othersDocuments: dealResponse.invoice_number || "",
+              othersDocuments: "",
             } as GoodsDeal);
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
@@ -125,24 +172,30 @@ export const useSalesStore = defineStore("sales", {
               },
               date: dealResponse.created_at,
               saller: {
+                companyName: dealResponse.seller_company.company_name,
                 name: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                legalAddress: dealResponse.seller_company.legal_address,
+                id: dealResponse.seller_company.id,
+                email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
               },
               buyer: {
-                name: dealResponse.buyer_company.name,
+                companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                legalAddress: dealResponse.buyer_company.legal_address,
+                id: dealResponse.buyer_company.id,
+                email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
               },
               status: dealResponse.status,
-              bill: "",
-              contract: dealResponse.contract_number,
+              bill: dealResponse.bill_number || "",
+              contract:
+                dealResponse.supply_contracts_number ||
+                dealResponse.contract_number ||
+                "",
               closingDocuments: "",
-              othersDocuments: dealResponse.invoice_number || "",
+              othersDocuments: "",
             } as ServicesDeal);
           }
         }
@@ -310,6 +363,7 @@ export const useSalesStore = defineStore("sales", {
       if (dealId) {
         const goodsDeal = this.findGoodsDeal(dealId);
         const goodsDeals = this.sales.goodsDeals;
+        const { deleteDealById } = usePurchasesApi();
 
         if (goodsDeal) {
           const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
@@ -318,6 +372,7 @@ export const useSalesStore = defineStore("sales", {
 
           if (index !== -1 && typeof index !== "undefined") {
             goodsDeals?.splice(index, 1);
+            deleteDealById(dealId);
           }
         }
       }
@@ -327,6 +382,7 @@ export const useSalesStore = defineStore("sales", {
       if (dealId) {
         const servicesDeal = this.findServicesDeal(dealId);
         const servicesDeals = this.sales.servicesDeals;
+        const { deleteDealById } = usePurchasesApi();
 
         if (servicesDeal) {
           const index = servicesDeals?.findIndex((service: ServicesDeal) => {
@@ -335,6 +391,7 @@ export const useSalesStore = defineStore("sales", {
 
           if (index !== -1 && typeof index !== "undefined") {
             servicesDeals?.splice(index, 1);
+            deleteDealById(dealId);
           }
         }
       }

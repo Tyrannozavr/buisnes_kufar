@@ -24,13 +24,20 @@ import type { TabsItem, TableColumn } from '@nuxt/ui'
 import { usePurchasesStore } from '~/stores/purchases'
 import type { GoodsDeal, ServicesDeal } from '~/types/dealState'
 import type { BuyerTableItems } from '~/types/purchases'
+import { normalizeDate } from '~/utils/normalize'
+import { useRouter } from 'vue-router'
+import { usePurchasesApi } from '~/api/purchases'
 
 definePageMeta({
   layout: 'profile'
 })
 
+const router = useRouter()
+const purchasesApi = usePurchasesApi()
 const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
+const UButton = resolveComponent('UButton')
+
 
 const items = [
   {
@@ -45,7 +52,6 @@ const items = [
   }
 ] satisfies TabsItem[]
 
-const UButton = resolveComponent('UButton')
 
 //goods table
 const columnsGoodsDeals: TableColumn<any>[] = [
@@ -69,7 +75,18 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         }
       )
     },
-    cell: ({ row }) => `№ ${row.getValue('dealNumber')}`
+    cell: ({ row }) => {
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: `№ ${row.getValue('dealNumber')}`,
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
+    }
   },
   {
     accessorKey: 'date',
@@ -91,6 +108,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         }
       )
     },
+    cell: ({ row }) => normalizeDate(row.getValue('date'))
   },
   {
     accessorKey: 'sallerCompany',
@@ -152,35 +170,64 @@ const columnsGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'bill',
     header: 'Счет',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('bill'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('bill'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
   {
     accessorKey: 'supplyContract',
     header: 'Договор поставки',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('supplyContract'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('supplyContract'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
   {
     accessorKey: 'closingDocuments',
     header: 'Закрывающие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('closingDocuments'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('closingDocuments'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
-  // {
-  //   accessorKey: 'invoice',
-  //   header: 'Счет-фактура',
-  //   cell: ({ row }) => {
-  //     return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('invoice'))
-  //   }
-  // },
   {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('othersDocument'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
 ]
@@ -197,7 +244,7 @@ watch(goodsDeals, () => {
   tableGoods.value = [...goodsDeals.map(deal => ({
     dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
-    sallerCompany: deal.saller.name,
+    sallerCompany: deal.saller.companyName || '',
     status: deal.status,
     bill: 'Просмотр',
     supplyContract: 'Просмотр',
@@ -230,7 +277,18 @@ const columnsServicesDeals: TableColumn<any>[] = [
         }
       )
     },
-    cell: ({ row }) => `№ ${row.getValue('dealNumber')}`
+    cell: ({ row }) => {
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: `№ ${row.getValue('dealNumber')}`,
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
+    }
   },
   {
     accessorKey: 'date',
@@ -252,6 +310,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
         }
       )
     },
+    cell: ({ row }) => normalizeDate(row.getValue('date'))
   },
   {
     accessorKey: 'sallerCompany',
@@ -312,35 +371,64 @@ const columnsServicesDeals: TableColumn<any>[] = [
     accessorKey: 'bill',
     header: 'Счет',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('bill'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('bill'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
   {
     accessorKey: 'contract',
     header: 'Договор',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('contract'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('contract'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
   {
     accessorKey: 'closingDocuments',
     header: 'Закрывающие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('closingDocuments'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('closingDocuments'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   },
-  // {
-  //   accessorKey: 'invoice',
-  //   header: 'Счет-фактура',
-  //   cell: ({ row }) => {
-  //     return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('invoice'))
-  //   }
-  // },
   {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/', class: 'text-sky-500' }, row.getValue('othersDocument'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('othersDocument'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push('/profile/documents')
+          }
+        })
     }
   }
 ]
@@ -352,7 +440,7 @@ watch(servicesDeals, () => {
   tableServices.value = [...servicesDeals.map(service => ({
     dealNumber: service.buyerOrderNumber || '',
     date: service.date,
-    sallerCompany: service.saller.name,
+    sallerCompany: service.saller.companyName || '',
     status: service.status,
     bill: 'Просмотр',
     contract: 'Просмотр',

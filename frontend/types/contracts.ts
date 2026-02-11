@@ -1,15 +1,16 @@
 export interface ProductsInOrder {
   name: string;
-  article: number;
+  article: string;
   quantity: number;
   units: string;
   price: number;
   amount: number;
-	type?: string;
+	type: string;
 }
 
-interface Person {
-  name?: string;
+interface Company {
+  sallerName?: string;
+  buyerName?: string;
   mobileNumber?: string;
   companyName?: string;
   legalAddress?: string;
@@ -17,9 +18,10 @@ interface Person {
 }
 
 export interface OrderData {
-	saller: Person
-	buyer: Person
-  orderNumber: number;
+	saller: Company
+	buyer: Company
+  orderNumber: string; // номер заказа "00001"
+  dealId: number; // id заказа 1
   orderDate?: string;
   comments?: string;
   amount?: number ;

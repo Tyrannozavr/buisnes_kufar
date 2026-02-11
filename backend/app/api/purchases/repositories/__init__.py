@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, desc, asc
+from sqlalchemy import select, and_, or_, func, desc, asc, extract
 from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime
 
@@ -20,14 +20,16 @@ class DealRepository:
         print(f"DEBUG: Начинаем создание заказа для покупателя {buyer_company_id}")
         
         try:
-            # Генерируем номера заказов для покупателя и продавца
+            # Генерируем номера заказов для покупателя и продавца (ежегодное обнуление)
             print(f"DEBUG: Генерируем номер заказа для покупателя {buyer_company_id}")
-            buyer_order_number = await self._generate_order_number(buyer_company_id)
+            buyer_order_number = await self._generate_order_number(buyer_company_id, "buyer")
             print(f"DEBUG: Номер покупателя: {buyer_order_number}")
-            
+
             print(f"DEBUG: Генерируем номер заказа для продавца {order_data.seller_company_id}")
-            seller_order_number = await self._generate_order_number(order_data.seller_company_id)
+            seller_order_number = await self._generate_order_number(order_data.seller_company_id, "seller")
             print(f"DEBUG: Номер продавца: {seller_order_number}")
+
+            order_date = datetime.utcnow()
             
             # Проверяем соответствие типа заказа типам продуктов
             from app.api.purchases.schemas import ItemType
@@ -72,6 +74,8 @@ class DealRepository:
             order = Order(
                 buyer_order_number=buyer_order_number,
                 seller_order_number=seller_order_number,
+                buyer_order_date=order_date,
+                seller_order_date=order_date,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
                 deal_type=order_deal_type,
@@ -242,6 +246,17 @@ class DealRepository:
         
         return list(orders), total
 
+    async def delete_order(self, order_id: int, company_id: int) -> bool:
+        """Удаление заказа"""
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return False
+        
+        # Удаляем заказ (каскадное удаление позиций и истории через relationships)
+        await self.session.delete(order)
+        await self.session.commit()
+        return True
+
     async def update_order(self, order_id: int, order_data: DealUpdate, company_id: int) -> Optional[Order]:
         """Обновление заказа"""
         order = await self.get_order_by_id(order_id, company_id)
@@ -252,19 +267,46 @@ class DealRepository:
         old_data = {
             "status": order.status,
             "comments": order.comments,
-            "invoice_number": order.invoice_number,
-            "contract_number": order.contract_number
+            "contract_number": order.contract_number,
+            "bill_number": order.bill_number,
+            "bill_date": order.bill_date,
+            "supply_contracts_number": order.supply_contracts_number,
+            "supply_contracts_date": order.supply_contracts_date,
+            "buyer_order_date": order.buyer_order_date,
+            "seller_order_date": order.seller_order_date,
         }
-        
+
         # Обновляем поля
         if order_data.status is not None:
             order.status = order_data.status
         if order_data.comments is not None:
             order.comments = order_data.comments
-        if order_data.invoice_number is not None:
-            order.invoice_number = order_data.invoice_number
         if order_data.contract_number is not None:
             order.contract_number = order_data.contract_number
+        if order_data.buyer_order_date is not None:
+            order.buyer_order_date = order_data.buyer_order_date
+        if order_data.seller_order_date is not None:
+            order.seller_order_date = order_data.seller_order_date
+
+        # bill_number / bill_date: при установке bill_date без bill_number — генерируем номер
+        if order_data.bill_date is not None:
+            order.bill_date = order_data.bill_date
+            if order_data.bill_number is not None:
+                order.bill_number = order_data.bill_number
+            elif not order.bill_number:
+                order.bill_number = await self._generate_bill_number(order.seller_company_id)
+        elif order_data.bill_number is not None:
+            order.bill_number = order_data.bill_number
+
+        # supply_contracts_number / supply_contracts_date: при установке date без number — генерируем
+        if order_data.supply_contracts_date is not None:
+            order.supply_contracts_date = order_data.supply_contracts_date
+            if order_data.supply_contracts_number is not None:
+                order.supply_contracts_number = order_data.supply_contracts_number
+            elif not order.supply_contracts_number:
+                order.supply_contracts_number = await self._generate_supply_contract_number(order.seller_company_id)
+        elif order_data.supply_contracts_number is not None:
+            order.supply_contracts_number = order_data.supply_contracts_number
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
@@ -378,8 +420,13 @@ class DealRepository:
         new_data = {
             "status": order.status,
             "comments": order.comments,
-            "invoice_number": order.invoice_number,
-            "contract_number": order.contract_number
+            "contract_number": order.contract_number,
+            "bill_number": order.bill_number,
+            "bill_date": order.bill_date,
+            "supply_contracts_number": order.supply_contracts_number,
+            "supply_contracts_date": order.supply_contracts_date,
+            "buyer_order_date": order.buyer_order_date,
+            "seller_order_date": order.seller_order_date,
         }
         
         self._add_order_history(
@@ -445,54 +492,223 @@ class DealRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_company_owner_name(self, company_id: int) -> Optional[str]:
+        """Получение имени владельца компании"""
+        from app.api.authentication.models.user import User
+        from app.api.authentication.models.roles_positions import UserRole
+        
+        # Сначала ищем пользователя с ролью OWNER
+        owner_query = select(User).where(
+            and_(
+                User.company_id == company_id,
+                User.role == UserRole.OWNER
+            )
+        ).order_by(User.id.asc()).limit(1)
+        
+        owner_result = await self.session.execute(owner_query)
+        owner = owner_result.scalar_one_or_none()
+        
+        if owner:
+            # Формируем полное имя из first_name, last_name, patronymic
+            name_parts = []
+            if owner.first_name:
+                name_parts.append(owner.first_name)
+            if owner.last_name:
+                name_parts.append(owner.last_name)
+            if owner.patronymic:
+                name_parts.append(owner.patronymic)
+            
+            if name_parts:
+                return " ".join(name_parts)
+            # Если нет имени, возвращаем email
+            return owner.email or ""
+        
+        # Если нет OWNER, берем первого пользователя компании
+        first_user_query = select(User).where(
+            User.company_id == company_id
+        ).order_by(User.id.asc()).limit(1)
+        
+        first_user_result = await self.session.execute(first_user_query)
+        first_user = first_user_result.scalar_one_or_none()
+        
+        if first_user:
+            name_parts = []
+            if first_user.first_name:
+                name_parts.append(first_user.first_name)
+            if first_user.last_name:
+                name_parts.append(first_user.last_name)
+            if first_user.patronymic:
+                name_parts.append(first_user.patronymic)
+            
+            if name_parts:
+                return " ".join(name_parts)
+            return first_user.email or ""
+        
+        return None
+
     async def get_units_of_measurement(self) -> List[UnitOfMeasurement]:
         """Получение всех единиц измерения"""
         query = select(UnitOfMeasurement).order_by(UnitOfMeasurement.name)
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
-    async def _generate_order_number(self, company_id: int) -> str:
-        """Генерация номера заказа"""
-        print(f"DEBUG: _generate_order_number для компании {company_id}")
-        
-        try:
-            # Ищем максимальный номер заказа для данной компании
-            print(f"DEBUG: Выполняем запрос для поиска максимального номера")
-            query = select(func.max(Order.buyer_order_number)).where(
-                Order.buyer_company_id == company_id
-            )
-            
-            print(f"DEBUG: Выполняем execute запроса")
-            result = await self.session.execute(query)
-            print(f"DEBUG: Получаем scalar результат")
-            max_number = result.scalar()
-            print(f"DEBUG: Максимальный номер: {max_number}")
-            
-            if max_number:
-                # Извлекаем числовую часть и увеличиваем на 1
-                try:
-                    # Убираем все нецифровые символы и преобразуем в int
-                    number_part = int(''.join(filter(str.isdigit, max_number)))
-                    next_number = number_part + 1
-                    print(f"DEBUG: Следующий номер: {next_number}")
-                except (ValueError, AttributeError):
-                    next_number = 1
-                    print(f"DEBUG: Ошибка парсинга, используем номер 1")
-            else:
+    async def _generate_order_number(self, company_id: int, order_type: str) -> str:
+        """Генерация номера заказа (маска 00001, ежегодное обнуление).
+
+        order_type: "buyer" — max(buyer_order_number) по buyer_company_id;
+                   "seller" — max(seller_order_number) по seller_company_id.
+        """
+        current_year = datetime.utcnow().year
+        if order_type == "buyer":
+            col = Order.buyer_order_number
+            filter_col = Order.buyer_company_id
+        else:
+            col = Order.seller_order_number
+            filter_col = Order.seller_company_id
+
+        query = select(func.max(col)).where(
+            and_(filter_col == company_id, extract("year", Order.created_at) == current_year)
+        )
+        result = await self.session.execute(query)
+        max_number = result.scalar()
+
+        if max_number:
+            try:
+                number_part = int("".join(filter(str.isdigit, max_number)))
+                next_number = number_part + 1
+            except (ValueError, AttributeError):
                 next_number = 1
-                print(f"DEBUG: Нет существующих номеров, начинаем с 1")
-            
-            # Форматируем номер с ведущими нулями (маска 00000)
-            formatted_number = f"{next_number:05d}"
-            print(f"DEBUG: Отформатированный номер: {formatted_number}")
-            return formatted_number
-            
-        except Exception as e:
-            print(f"DEBUG: Ошибка в _generate_order_number: {e}")
-            print(f"DEBUG: Тип ошибки: {type(e)}")
-            import traceback
-            traceback.print_exc()
-            raise
+        else:
+            next_number = 1
+
+        return f"{next_number:05d}"
+
+    async def _generate_bill_number(self, seller_company_id: int) -> str:
+        """Генерация номера счета на оплату (маска 00001, ежегодное обнуление)."""
+        current_year = datetime.utcnow().year
+        # Используем bill_date если есть, иначе created_at
+        date_col = func.coalesce(Order.bill_date, Order.created_at)
+        query = (
+            select(func.max(Order.bill_number))
+            .where(Order.seller_company_id == seller_company_id)
+            .where(Order.bill_number.isnot(None))
+            .where(extract("year", date_col) == current_year)
+        )
+        result = await self.session.execute(query)
+        max_number = result.scalar()
+
+        if max_number:
+            try:
+                number_part = int("".join(filter(str.isdigit, max_number)))
+                next_number = number_part + 1
+            except (ValueError, AttributeError):
+                next_number = 1
+        else:
+            next_number = 1
+
+        return f"{next_number:05d}"
+
+    async def _generate_supply_contract_number(self, seller_company_id: int) -> str:
+        """Генерация номера договора поставки (маска 00001, ежегодное обнуление)."""
+        current_year = datetime.utcnow().year
+        date_col = func.coalesce(Order.supply_contracts_date, Order.created_at)
+        query = (
+            select(func.max(Order.supply_contracts_number))
+            .where(Order.seller_company_id == seller_company_id)
+            .where(Order.supply_contracts_number.isnot(None))
+            .where(extract("year", date_col) == current_year)
+        )
+        result = await self.session.execute(query)
+        max_number = result.scalar()
+
+        if max_number:
+            try:
+                number_part = int("".join(filter(str.isdigit, max_number)))
+                next_number = number_part + 1
+            except (ValueError, AttributeError):
+                next_number = 1
+        else:
+            next_number = 1
+
+        return f"{next_number:05d}"
+
+    async def _generate_contract_number(self, seller_company_id: int) -> str:
+        """Генерация номера договора (маска 00001, ежегодное обнуление)."""
+        current_year = datetime.utcnow().year
+        date_col = func.coalesce(Order.contract_date, Order.created_at)
+        query = (
+            select(func.max(Order.contract_number))
+            .where(Order.seller_company_id == seller_company_id)
+            .where(Order.contract_number.isnot(None))
+            .where(extract("year", date_col) == current_year)
+        )
+        result = await self.session.execute(query)
+        max_number = result.scalar()
+
+        if max_number:
+            try:
+                number_part = int("".join(filter(str.isdigit, max_number)))
+                next_number = number_part + 1
+            except (ValueError, AttributeError):
+                next_number = 1
+        else:
+            next_number = 1
+
+        return f"{next_number:05d}"
+
+    async def assign_bill(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+        """Генерирует и присваивает номер и дату счета заказу. Возвращает (bill_number, bill_date)."""
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        bill_date = date or datetime.utcnow()
+        if not order.bill_number:
+            order.bill_number = await self._generate_bill_number(order.seller_company_id)
+        order.bill_date = bill_date
+        order.updated_at = datetime.utcnow()
+        self._add_order_history(
+            order_id, company_id, "bill_assigned",
+            f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
+            None, {"bill_number": order.bill_number, "bill_date": str(bill_date)}
+        )
+        await self.session.commit()
+        return (order.bill_number, order.bill_date)
+
+    async def assign_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+        """Генерирует и присваивает номер и дату договора заказу. Возвращает (contract_number, contract_date)."""
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        contract_date = date or datetime.utcnow()
+        if not order.contract_number:
+            order.contract_number = await self._generate_contract_number(order.seller_company_id)
+        order.contract_date = contract_date
+        order.updated_at = datetime.utcnow()
+        self._add_order_history(
+            order_id, company_id, "contract_assigned",
+            f"Присвоен договор № {order.contract_number} от {contract_date.strftime('%d.%m.%Y')}",
+            None, {"contract_number": order.contract_number, "contract_date": str(contract_date)}
+        )
+        await self.session.commit()
+        return (order.contract_number, order.contract_date)
+
+    async def assign_supply_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+        """Генерирует и присваивает номер и дату договора поставки заказу. Возвращает (supply_contracts_number, supply_contracts_date)."""
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        supply_date = date or datetime.utcnow()
+        if not order.supply_contracts_number:
+            order.supply_contracts_number = await self._generate_supply_contract_number(order.seller_company_id)
+        order.supply_contracts_date = supply_date
+        order.updated_at = datetime.utcnow()
+        self._add_order_history(
+            order_id, company_id, "supply_contract_assigned",
+            f"Присвоен договор поставки № {order.supply_contracts_number} от {supply_date.strftime('%d.%m.%Y')}",
+            None, {"supply_contracts_number": order.supply_contracts_number, "supply_contracts_date": str(supply_date)}
+        )
+        await self.session.commit()
+        return (order.supply_contracts_number, order.supply_contracts_date)
 
     def _add_order_history(self, order_id: int, company_id: int, change_type: str, 
                                 description: str, old_data: Optional[dict] = None, 

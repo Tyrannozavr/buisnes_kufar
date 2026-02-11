@@ -132,8 +132,28 @@ class DealUpdate(BaseModel):
     status: Optional[DealStatus] = Field(None, description="Статус заказа")
     items: Optional[List[OrderItemCreate]] = Field(None, description="Обновленные позиции")
     comments: Optional[str] = Field(None, description="Комментарии")
-    invoice_number: Optional[str] = Field(None, description="Номер счета")
     contract_number: Optional[str] = Field(None, description="Номер договора")
+    bill_number: Optional[str] = Field(None, description="Номер счета на оплату")
+    bill_date: Optional[datetime] = Field(None, description="Дата счета на оплату")
+    supply_contracts_number: Optional[str] = Field(None, description="Номер договора поставки")
+    supply_contracts_date: Optional[datetime] = Field(None, description="Дата договора поставки")
+    buyer_order_date: Optional[datetime] = Field(None, description="Дата заказа покупателя")
+    seller_order_date: Optional[datetime] = Field(None, description="Дата заказа продавца")
+
+    class Config:
+        from_attributes = True
+
+
+class CompanyInDealResponse(BaseModel):
+    """Схема компании в контексте сделки"""
+    id: int = Field(..., description="ID компании")
+    company_name: str = Field(..., description="Название компании")
+    name: str = Field(..., description="Имя владельца компании")
+    slug: str = Field(..., description="Slug компании")
+    inn: Optional[str] = Field(None, description="ИНН компании")
+    phone: str = Field(..., description="Телефон компании")
+    email: str = Field(..., description="Email компании")
+    legal_address: str = Field(..., description="Юридический адрес компании")
 
     class Config:
         from_attributes = True
@@ -150,17 +170,23 @@ class DealResponse(BaseModel):
     deal_type: ItemType
     total_amount: float
     comments: Optional[str]
-    invoice_number: Optional[str]
-    contract_number: Optional[str]
-    invoice_date: Optional[datetime]
-    contract_date: Optional[datetime]
+    buyer_order_date: Optional[datetime] = None
+    seller_order_date: Optional[datetime] = None
+    contract_number: Optional[str] = None
+    contract_date: Optional[datetime] = None
+    bill_number: Optional[str] = None
+    bill_date: Optional[datetime] = None
+    supply_contracts_number: Optional[str] = None
+    supply_contracts_date: Optional[datetime] = None
+    closing_documents: List[Any] = Field(default_factory=list, description="Закрывающие документы (пока пустой список)")
+    others_documents: List[Any] = Field(default_factory=list, description="Прочие документы (пока пустой список)")
     created_at: datetime
     updated_at: datetime
-    
+
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)
-    buyer_company: Optional[Dict[str, Any]] = Field(None)
-    seller_company: Optional[Dict[str, Any]] = Field(None)
+    buyer_company: Optional[CompanyInDealResponse] = Field(None, description="Информация о компании-покупателе")
+    seller_company: Optional[CompanyInDealResponse] = Field(None, description="Информация о компании-продавце")
 
     class Config:
         from_attributes = True
@@ -216,6 +242,47 @@ class DealListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentNumberDateRequest(BaseModel):
+    """Опциональная дата для генерации номера документа."""
+    date: Optional[datetime] = Field(None, description="Дата документа (если не указана — текущая дата)")
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "examples": [
+                {},
+                {"date": "2026-02-11T12:00:00"},
+            ]
+        }
+
+
+class BillResponse(BaseModel):
+    """Ответ: номер и дата счета."""
+    bill_number: str
+    bill_date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ContractResponse(BaseModel):
+    """Ответ: номер и дата договора."""
+    contract_number: str
+    contract_date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SupplyContractResponse(BaseModel):
+    """Ответ: номер и дата договора поставки."""
+    supply_contracts_number: str
+    supply_contracts_date: datetime
 
     class Config:
         from_attributes = True

@@ -5,7 +5,7 @@ import type {
   EditPersonDeal,
   Product,
 } from "~/types/dealState";
-import type { BuyerDealResponse} from "~/types/dealReasponse";
+import type { BuyerDealResponse } from "~/types/dealReasponse";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
 
@@ -25,24 +25,44 @@ export const usePurchasesStore = defineStore("purchases", {
   }),
 
   getters: {
+    findGoodsDealByDealNumber: (state) => {
+      return (dealNumber: string) =>
+        state.purchases.goodsDeals?.find(
+          (deal) => dealNumber === deal.buyerOrderNumber,
+        );
+    },
+
+    findServicesDealByDealNumber: (state) => {
+      return (dealNumber: string) =>
+        state.purchases.servicesDeals?.find(
+          (deal) => dealNumber === deal.buyerOrderNumber,
+        );
+    },
+
     findGoodsDeal: (state) => {
       return (dealId: number) =>
-        state.purchases.goodsDeals?.find(
-          (deal) => dealId === deal.dealId
-        );
+        state.purchases.goodsDeals?.find((deal) => dealId === deal.dealId);
     },
 
     findServicesDeal: (state) => {
       return (dealId: number) =>
-        state.purchases.servicesDeals?.find(
-          (deal) => dealId === deal.dealId
-        );
+        state.purchases.servicesDeals?.find((deal) => dealId === deal.dealId);
     },
 
     lastGoodsDeal: (state): GoodsDeal | undefined => {
       if (state.purchases.goodsDeals?.[0]) {
         const goodsDeals = state.purchases.goodsDeals;
-        const lastDeal = goodsDeals?.[goodsDeals.length - 1];
+        let maxDealId = 0;
+        goodsDeals?.forEach((deal) => {
+          if (deal.dealId > maxDealId) {
+            maxDealId = deal.dealId;
+          }
+        });
+
+        const lastDeal = state.purchases.goodsDeals?.find(
+          (deal) => deal.dealId === maxDealId,
+        );
+
         return lastDeal;
       }
     },
@@ -50,15 +70,31 @@ export const usePurchasesStore = defineStore("purchases", {
     lastServicesDeal: (state): ServicesDeal | undefined => {
       if (state.purchases.servicesDeals?.[0]) {
         const servicesDeals = state.purchases.servicesDeals;
-        const lastDeal = servicesDeals?.[servicesDeals.length - 1];
+        let maxDealId = 0;
+        servicesDeals?.forEach((deal) => {
+          if (deal.dealId > maxDealId) {
+            maxDealId = deal.dealId;
+          }
+        });
+
+        const lastDeal = state.purchases.servicesDeals?.find(
+          (deal) => deal.dealId === maxDealId,
+        );
+
         return lastDeal;
       }
     },
   },
 
   actions: {
+    async clearStore() {
+      this.purchases.goodsDeals = [];
+      this.purchases.servicesDeals = [];
+    },
     //получение и заполнение списка сделок
     async getDeals() {
+      this.clearStore();
+
       const { getDealById, getBuyerDeals } = usePurchasesApi();
       const buyerDeals = await getBuyerDeals();
       const dealsIds: number[] =
@@ -72,7 +108,8 @@ export const usePurchasesStore = defineStore("purchases", {
           if (dealResponse.deal_type === "Товары") {
             this.addNewGoodsDeal({
               dealId: dealResponse.id,
-              buyerOrderNumber: dealResponse.buyer_order_number, 
+              buyerOrderNumber: dealResponse.buyer_order_number,
+              sellerOrderNumber: dealResponse.seller_order_number,
               goods: {
                 goodsList: dealResponse.items.map((item: any) => ({
                   name: item.product_name,
@@ -84,29 +121,38 @@ export const usePurchasesStore = defineStore("purchases", {
                   type: dealResponse.deal_type,
                 })),
                 amountPrice: 0,
-                amountWord: '',
-                comments: '',
+                amountWord: "",
+                comments: "",
               },
               date: dealResponse.created_at,
               saller: {
-                name: dealResponse.seller_company.name,
+                sallerName: dealResponse.seller_company.name,
+                companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                legalAddress: dealResponse.seller_company.legal_address,
+                sallerId: dealResponse.seller_company.id,
+                email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
-                },
+                legalAddress: dealResponse.seller_company.legal_address,
+              },
               buyer: {
-                name: dealResponse.buyer_company.name,
+                buyerName: dealResponse.buyer_company.name,
+                companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                legalAddress: dealResponse.buyer_company.legal_address,
+                buyerId: dealResponse.buyer_company.id,
+                email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
+                legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
-              bill: '',
-              supplyContract: dealResponse.contract_number,
-              closingDocuments: '',
-              othersDocuments: dealResponse.invoice_number || '',
+              bill: dealResponse.bill_number || "",
+              supplyContract:
+                dealResponse.supply_contracts_number ||
+                dealResponse.contract_number ||
+                "",
+              closingDocuments: "",
+              othersDocuments: "",
             } as GoodsDeal);
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
@@ -128,24 +174,31 @@ export const usePurchasesStore = defineStore("purchases", {
               },
               date: dealResponse.created_at,
               saller: {
-                name: dealResponse.seller_company.name,
+                sallerName: dealResponse.seller_company.name,
+                companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                legalAddress: dealResponse.seller_company.legal_address,
+                sallerId: dealResponse.seller_company.id,
+                email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
               },
               buyer: {
-                name: dealResponse.buyer_company.name,
+                buyerName: dealResponse.buyer_company.name,
+                companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                legalAddress: dealResponse.buyer_company.legal_address,
+                buyerId: dealResponse.buyer_company.id,
+                email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
               },
               status: dealResponse.status,
-              bill: "",
-              contract: dealResponse.contract_number,
-              closingDocuments: '',
-              othersDocuments: dealResponse.invoice_number || '',
+              bill: dealResponse.bill_number || "",
+              contract:
+                dealResponse.supply_contracts_number ||
+                dealResponse.contract_number ||
+                "",
+              closingDocuments: "",
+              othersDocuments: "",
             } as ServicesDeal);
           }
         }
@@ -190,8 +243,8 @@ export const usePurchasesStore = defineStore("purchases", {
         deal.goods.amountPrice = Number(
           deal.goods.goodsList?.reduce(
             (acc: number, good: Product) => good.amount + acc,
-            0
-          )
+            0,
+          ),
         );
       });
     },
@@ -201,8 +254,8 @@ export const usePurchasesStore = defineStore("purchases", {
         deal.services.amountPrice = Number(
           deal.services.servicesList?.reduce(
             (acc: number, good: Product) => good.amount + acc,
-            0
-          )
+            0,
+          ),
         );
       });
     },
@@ -241,17 +294,13 @@ export const usePurchasesStore = defineStore("purchases", {
     },
 
     addNewService(dealId: number, newService: Product) {
-      const servicesList =
-        this.findServicesDeal(dealId)?.services.servicesList;
+      const servicesList = this.findServicesDeal(dealId)?.services.servicesList;
       if (servicesList) {
         servicesList.push(newService);
       }
     },
 
-    editSallerGoodsDeal(
-      dealId: number,
-      newSallerGoodsDeal: EditPersonDeal
-    ) {
+    editSallerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
       const sallerGoodsDeal = this.findGoodsDeal(dealId)?.saller;
       if (sallerGoodsDeal) {
         Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
@@ -260,7 +309,7 @@ export const usePurchasesStore = defineStore("purchases", {
 
     editSallerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal
+      newSallerServicesDeal: EditPersonDeal,
     ) {
       const sallerServicesDeal = this.findServicesDeal(dealId)?.saller;
       if (sallerServicesDeal) {
@@ -277,7 +326,7 @@ export const usePurchasesStore = defineStore("purchases", {
 
     editBuyerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal
+      newSallerServicesDeal: EditPersonDeal,
     ) {
       const buyerServicesDeal = this.findServicesDeal(dealId)?.buyer;
       if (buyerServicesDeal) {
@@ -317,6 +366,7 @@ export const usePurchasesStore = defineStore("purchases", {
       if (dealId) {
         const goodsDeal = this.findGoodsDeal(dealId);
         const goodsDeals = this.purchases.goodsDeals;
+        const { deleteDealById } = usePurchasesApi();
 
         if (goodsDeal) {
           const index = goodsDeals?.findIndex((goods: GoodsDeal) => {
@@ -325,6 +375,7 @@ export const usePurchasesStore = defineStore("purchases", {
 
           if (index !== -1 && typeof index !== "undefined") {
             goodsDeals?.splice(index, 1);
+            deleteDealById(dealId);
           }
         }
       }
@@ -334,6 +385,7 @@ export const usePurchasesStore = defineStore("purchases", {
       if (dealId) {
         const servicesDeal = this.findServicesDeal(dealId);
         const servicesDeals = this.purchases.servicesDeals;
+        const { deleteDealById } = usePurchasesApi();
 
         if (servicesDeal) {
           const index = servicesDeals?.findIndex((service: ServicesDeal) => {
@@ -342,44 +394,45 @@ export const usePurchasesStore = defineStore("purchases", {
 
           if (index !== -1 && typeof index !== "undefined") {
             servicesDeals?.splice(index, 1);
+            deleteDealById(dealId);
           }
         }
       }
     },
 
     async fullUpdateGoodsDeal(
-      orderNumber: number,
+      dealId: number,
       saller: EditPersonDeal,
       buyer: EditPersonDeal,
       newGoodsList: Product[],
-      comments?: string
+      comments?: string,
     ) {
       this.amountInGoodsList();
       this.amountPriceInGoods();
       this.amountWordGoods();
-      this.editSallerGoodsDeal(orderNumber, saller);
-      this.editBuyerGoodsDeal(orderNumber, buyer);
-      this.editGood(orderNumber, newGoodsList);
+      this.editSallerGoodsDeal(dealId, saller);
+      this.editBuyerGoodsDeal(dealId, buyer);
+      this.editGood(dealId, newGoodsList);
       if (comments) {
-        this.editGoodsComments(orderNumber, comments);
+        this.editGoodsComments(dealId, comments);
       }
     },
 
     async fullUpdateServicesDeal(
-      orderNumber: number,
+      dealId: number,
       saller: EditPersonDeal,
       buyer: EditPersonDeal,
       newServiceList: Product[],
-      comments?: string
+      comments?: string,
     ) {
       this.amountInServicesList();
       this.amountPriceInServices();
       this.amountWordServices();
-      this.editSallerServicesDeal(orderNumber, saller);
-      this.editBuyerServicesDeal(orderNumber, buyer);
-      this.editService(orderNumber, newServiceList);
+      this.editSallerServicesDeal(dealId, saller);
+      this.editBuyerServicesDeal(dealId, buyer);
+      this.editService(dealId, newServiceList);
       if (comments) {
-        this.editServicesComments(orderNumber, comments);
+        this.editServicesComments(dealId, comments);
       }
     },
   },

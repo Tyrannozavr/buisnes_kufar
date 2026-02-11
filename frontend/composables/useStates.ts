@@ -38,6 +38,7 @@ const disabldeState = useTypedState(Editor.IS_DISABLED, () =>
   ref(true)
 );
 
+//манипуляции с состоянием кнопки вставки данных
 export const useIsDisableState = () => {
   const reversDisable = (): void => {
     disabldeState.value = !disabldeState.value;

@@ -1,5 +1,7 @@
 import {defineStore} from 'pinia'
-import {AUTH_API, useAuthApi} from "~/api/auth";
+import { AUTH_API, useAuthApi } from "~/api/auth";
+import { usePurchasesStore } from "~/stores/purchases";
+import { useSalesStore } from "~/stores/sales";
 
 interface UserState {
   isAuthenticated: boolean
@@ -86,8 +88,15 @@ export const useUserStore = defineStore('user', {
       this.companyLogo = ''
       this.companySlug = ''
       this.companyId = 0
-      
-      console.log('✅ Logout completed - cookie, localStorage and store cleared')
+    
+      // Clear purchases and sales stores
+      const purchasesStore = usePurchasesStore()
+      const salesStore = useSalesStore()
+      await purchasesStore.clearStore()
+      await salesStore.clearStore()
+
+
+      console.log('✅ Logout completed - cookie, localStorage and stores cleared')
     }
   },
   

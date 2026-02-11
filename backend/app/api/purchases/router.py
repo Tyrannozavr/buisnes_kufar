@@ -1,5 +1,6 @@
 from typing import Annotated, List
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
+from pydantic import BaseModel, Field
 
 from app.db.dependencies import async_db_dep
 from app.api.authentication.dependencies import get_current_user
@@ -7,9 +8,10 @@ from app.api.authentication.models.user import User
 from app.api.purchases.dependencies import deal_service_dep_annotated
 from app.api.purchases.services import DealService
 from app.api.purchases.schemas import (
-    DealCreate, DealUpdate, DealResponse, DealListResponse, 
+    DealCreate, DealUpdate, DealResponse, DealListResponse,
     BuyerDealResponse, SellerDealResponse, DocumentUpload,
-    CheckoutRequest, CheckoutItem
+    CheckoutRequest, CheckoutItem,
+    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
 )
 from app.api.purchases.schemas import DealStatus, ItemType
 
@@ -175,6 +177,84 @@ async def update_deal(
     return deal
 
 
+class DeleteDealResponse(BaseModel):
+    """Схема ответа при удалении сделки"""
+    message: str = "Deal deleted successfully"
+    deal_id: int
+
+
+@router.delete(
+    "/deals/{deal_id}",
+    response_model=DeleteDealResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["deals", "orders", "delete"],
+    summary="Удаление заказа",
+    description="""
+    Удаление заказа по ID.
+    
+    **Доступ:** Только для участников сделки (покупателя или продавца)
+    
+    **Действия при удалении:**
+    - Удаляется сам заказ
+    - Каскадно удаляются все позиции заказа (order_items)
+    - Каскадно удаляется история изменений заказа (order_history)
+    
+    **Ошибки:**
+    - `404` - Заказ не найден или у пользователя нет доступа
+    - `404` - Компания пользователя не найдена
+    """,
+    responses={
+        200: {
+            "description": "Заказ успешно удален",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Deal deleted successfully",
+                        "deal_id": 123
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Заказ не найден или доступ запрещен",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Deal not found or access denied"
+                    }
+                }
+            }
+        }
+    }
+)
+async def delete_deal(
+    deal_id: int = Path(..., description="ID сделки для удаления", example=123, gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...
+):
+    """
+    Удаление заказа
+    
+    Удаляет заказ по ID. Доступно только для участников сделки (покупателя или продавца).
+    При удалении также удаляются все связанные позиции заказа и история изменений.
+    """
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found for this user"
+        )
+    
+    deleted = await deal_service.delete_deal(deal_id, company.id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Deal not found or access denied"
+        )
+    
+    return DeleteDealResponse(message="Deal deleted successfully", deal_id=deal_id)
+
+
 @router.post("/deals/{deal_id}/documents", tags=["documents", "upload", "files"])
 async def upload_document(
     deal_id: int,
@@ -220,6 +300,93 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="Failed to add document")
     
     return {"message": "Document uploaded successfully", "document_id": document.id}
+
+
+@router.post(
+    "/deals/{deal_id}/bill",
+    response_model=BillResponse,
+    tags=["bill"],
+    summary="Создать номер и дату счета",
+    responses={
+        200: {"description": "Номер и дата счета успешно присвоены заказу"},
+        404: {"description": "Заказ не найден или доступ запрещен"},
+    },
+)
+async def create_bill(
+    deal_id: int,
+    body: DocumentNumberDateRequest | None = Body(default=None),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...
+):
+    """
+    Генерирует и присваивает номер счета и дату заказу.
+    Номер: маска 00001, ежегодное обнуление. Дата — из body или текущая.
+    """
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    result = await deal_service.assign_bill(deal_id, company.id, body.date if (body and body.date) else None)
+    if not result:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return BillResponse(bill_number=result[0], bill_date=result[1])
+
+
+@router.post(
+    "/deals/{deal_id}/contract",
+    response_model=ContractResponse,
+    tags=["contract"],
+    summary="Создать номер и дату договора",
+    responses={
+        200: {"description": "Номер и дата договора успешно присвоены заказу"},
+        404: {"description": "Заказ не найден или доступ запрещен"},
+    },
+)
+async def create_contract(
+    deal_id: int,
+    body: DocumentNumberDateRequest | None = Body(default=None),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...
+):
+    """
+    Генерирует и присваивает номер договора и дату заказу.
+    Номер: маска 00001, ежегодное обнуление. Дата — из body или текущая.
+    """
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    result = await deal_service.assign_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    if not result:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return ContractResponse(contract_number=result[0], contract_date=result[1])
+
+
+@router.post(
+    "/deals/{deal_id}/supply-contract",
+    response_model=SupplyContractResponse,
+    tags=["supply-contract"],
+    summary="Создать номер и дату договора поставки",
+    responses={
+        200: {"description": "Номер и дата договора поставки успешно присвоены заказу"},
+        404: {"description": "Заказ не найден или доступ запрещен"},
+    },
+)
+async def create_supply_contract(
+    deal_id: int,
+    body: DocumentNumberDateRequest | None = Body(default=None),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...
+):
+    """
+    Генерирует и присваивает номер и дату договора поставки заказу.
+    Номер: маска 00001, ежегодное обнуление. Дата — из body или текущая.
+    """
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    result = await deal_service.assign_supply_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    if not result:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return SupplyContractResponse(supply_contracts_number=result[0], supply_contracts_date=result[1])
 
 
 @router.post("/checkout", response_model=DealResponse, tags=["checkout", "orders", "create"])

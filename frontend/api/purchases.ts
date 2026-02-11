@@ -1,13 +1,10 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
 import type { DealResponse, BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse"
+import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
 	const { $api } = useNuxtApp()
-
-	// API_URLS.* historically contains "/api/..." paths, but $api already has baseURL="/api"
-	// so we normalize to avoid "/api/api/..."
-	const normalizeApiPath = (url: string) => (url.startsWith('/api/') ? url.replace(/^\/api/, '') : url)
 
 	const createDeal = async (products: ProductInCheckout[], buyer: Buyer): Promise<any> => {
 		if (products[0]) {
@@ -55,6 +52,7 @@ export const usePurchasesApi = () => {
 	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
 		try {
       const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
+      console.log("RESPONSE: ", response);
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)
@@ -120,22 +118,80 @@ export const usePurchasesApi = () => {
 	}
 
 	const getUnitsOfMeasurement = async () => {
+    try {
+      const response = await $api.get(
+        normalizeApiPath(API_URLS.GET_UNITS_MEASUREMENT),
+      );
+      return response;
+    } catch (error) {
+      console.log("ERROR: ", error);
+    }
+  }
+  
+	const createBill = async (dealId: number, date?: string) => {
 		try {
-			const response = await $api.get(normalizeApiPath(API_URLS.GET_UNITS_MEASUREMENT))
+			const body = date ? { date } : {}
+			const response = await $api.post(
+				normalizeApiPath(API_URLS.CREATE_BILL(dealId)),
+				body
+      )
+      console.log("RESPONSE: ", response);
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)
 		}
 	}
 
-	return {
-		createDeal,
-		getBuyerDeals,
-		getSellerDeals,
-		getDealById,
-		putDealById,
-		uploadDocumentById,
-		createOrderFromCheckout,
-		getUnitsOfMeasurement,
+	const createContract = async (dealId: number, date?: string) => {
+		try {
+			const body = date ? { date } : {}
+			const response = await $api.post(
+				normalizeApiPath(API_URLS.CREATE_CONTRACT(dealId)),
+				body
+			)
+			return response
+		} catch (error) {
+			console.log('ERROR: ', error)
+		}
 	}
+
+	const createSupplyContract = async (dealId: number, date?: string) => {
+		try {
+			const body = date ? { date } : {}
+			const response = await $api.post(
+				normalizeApiPath(API_URLS.CREATE_SUPPLY_CONTRACT(dealId)),
+				body
+			)
+			return response
+		} catch (error) {
+			console.log('ERROR: ', error)
+		}
+	}
+
+	const deleteDealById = async (deal_id: number) => {
+    try {
+      const response = await $api.delete(
+        normalizeApiPath(API_URLS.DELETE_DEAL_BY_ID(deal_id)),
+      );
+      console.log("RESPONSE: ", response);
+      return response;
+    } catch (error) {
+      console.log("ERROR: ", error);
+    }
+  };
+
+	return {
+    createDeal,
+    getBuyerDeals,
+    getSellerDeals,
+    getDealById,
+    putDealById,
+    uploadDocumentById,
+    createBill,
+    createContract,
+    createSupplyContract,
+    createOrderFromCheckout,
+    getUnitsOfMeasurement,
+    deleteDealById,
+  };
 }

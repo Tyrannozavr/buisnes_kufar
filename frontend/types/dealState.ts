@@ -7,11 +7,15 @@ export interface Person {
 }
 
 export interface Company {
-  slug: string;
-  name: string;
-  phone: string;
-  legalAddress: string;
-  inn: string;
+  sallerName?: string;
+  buyerName?: string;
+  companyName?: string;
+  slug?: string;
+  id?: number;
+  inn?: string;
+  phone?: string;
+  email?: string;
+  legalAddress?: string;
 }
 
 export interface Product {

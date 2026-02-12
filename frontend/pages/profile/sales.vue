@@ -57,7 +57,7 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         path: '/profile/editor',
         query: {
           dealId: dealId.toString(),
-          role: 'sales',
+          role: 'seller',
           productType
         },
         hash: '#order'
@@ -69,7 +69,7 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         path: '/profile/editor',
         query: {
           dealId: dealId.toString(),
-          role: 'sales',
+          role: 'seller',
           productType
         },
         hash: '#bill'
@@ -90,7 +90,7 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         path: '/profile/editor',
         query: {
           dealId: dealId.toString(),
-          role: 'sales',
+          role: 'seller',
           productType
         },
         hash: '#closingDocuments'
@@ -100,7 +100,7 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         path: '/profile/editor',
         query: {
           dealId: dealId.toString(),
-          role: 'sales',
+          role: 'seller',
           productType
         },
         hash: '#othersDocument'

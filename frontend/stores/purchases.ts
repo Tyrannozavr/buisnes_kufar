@@ -130,7 +130,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                sallerId: dealResponse.seller_company.id,
+                companyId: dealResponse.seller_company.id,
                 email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
                 legalAddress: dealResponse.seller_company.legal_address,
@@ -140,7 +140,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                buyerId: dealResponse.buyer_company.id,
+                companyId: dealResponse.buyer_company.id,
                 email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
                 legalAddress: dealResponse.buyer_company.legal_address,
@@ -153,7 +153,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 "",
               closingDocuments: "",
               othersDocuments: "",
-            } as GoodsDeal);
+            });
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
               dealId: dealResponse.id,
@@ -178,7 +178,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                sallerId: dealResponse.seller_company.id,
+                companyId: dealResponse.seller_company.id,
                 email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
               },
@@ -187,7 +187,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                buyerId: dealResponse.buyer_company.id,
+                companyId: dealResponse.buyer_company.id,
                 email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
               },
@@ -199,7 +199,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 "",
               closingDocuments: "",
               othersDocuments: "",
-            } as ServicesDeal);
+            });
           }
         }
       };

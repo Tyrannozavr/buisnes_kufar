@@ -9,6 +9,7 @@ export interface ProductsInOrder {
 }
 
 interface Company {
+  companyId?: number;
   sallerName?: string;
   buyerName?: string;
   mobileNumber?: string;

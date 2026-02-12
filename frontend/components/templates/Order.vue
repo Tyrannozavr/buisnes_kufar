@@ -7,8 +7,12 @@ import { Editor, RequestedType, TemplateElement } from '~/constants/keys';
 import { useInsertState } from '~/composables/useStates';
 import { normalizeDate } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '~/stores/user';
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
@@ -34,6 +38,32 @@ let requestedData = ''
 let goodsDeal: GoodsDeal | undefined = undefined
 let servicesDeal: ServicesDeal | undefined = undefined
 
+const fillQuery = () => {
+  const query: Record<string, any> = {...route.query}
+
+  if (orderData.value.dealId) {
+    query.dealId = String(orderData.value.dealId)
+  }
+
+  if (userStore.companyId === orderData.value.buyer.companyId) {
+    query.role = 'buyer'
+  } else {
+    query.role = 'seller'
+  }
+
+  if (orderData.value.products?.[0]?.type === 'Товар') {
+    query.productType = 'goods'
+  } else if (orderData.value.products?.[0]?.type === 'Услуга') {
+    query.productType = 'services'
+  }
+
+  
+  router.replace({
+    query,
+    hash: '#order'
+  })
+} 
+
 const fillOrderData = () => {
   if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
     && goodsDeal) {
@@ -49,6 +79,7 @@ const fillOrderData = () => {
     })) || []
 
     saller = {
+      companyId: goodsDeal?.saller.companyId,
       sallerName: goodsDeal?.saller.sallerName,
       companyName: goodsDeal?.saller.companyName,
       mobileNumber: goodsDeal?.saller.phone,
@@ -56,6 +87,7 @@ const fillOrderData = () => {
       inn: Number(goodsDeal?.saller.inn) || 0,
     }
     buyer = {
+      companyId: goodsDeal?.buyer.companyId,
       buyerName: goodsDeal?.buyer.buyerName,
       companyName: goodsDeal?.buyer.companyName,
       mobileNumber: goodsDeal?.buyer.phone,
@@ -94,6 +126,7 @@ const fillOrderData = () => {
     })) || []
 
     saller = {
+      companyId: servicesDeal?.saller.companyId,
       sallerName: servicesDeal?.saller.sallerName,
       companyName: servicesDeal?.saller.companyName,
       mobileNumber: servicesDeal?.saller.phone,
@@ -101,6 +134,7 @@ const fillOrderData = () => {
       inn: Number(servicesDeal?.saller.inn) || 0,
     }
     buyer = {
+      companyId: servicesDeal?.buyer.companyId,
       buyerName: servicesDeal?.buyer.buyerName,
       companyName: servicesDeal?.buyer.companyName,
       mobileNumber: servicesDeal?.buyer.phone,
@@ -124,6 +158,8 @@ const fillOrderData = () => {
       orderData.value.orderNumber = servicesDeal?.sellerOrderNumber || ''
     }
   }
+
+  fillQuery()
 }
 
 const fillFromQuery = () => {
@@ -131,7 +167,7 @@ const fillFromQuery = () => {
   
   if (!query?.dealId || !query?.role || !query?.productType) return
 
-  if (query.role === 'purchases') {
+  if (query.role === 'buyer') {
     if (query.productType === 'goods') {
       requestedData = RequestedType.PURCHASES_GOOD
       goodsDeal = purchasesStore.findGoodsDeal(Number(query.dealId))
@@ -139,7 +175,7 @@ const fillFromQuery = () => {
       requestedData = RequestedType.PURCHASES_SERVICE
       servicesDeal = purchasesStore.findServicesDeal(Number(query.dealId))
     }
-  } else if (query.role === 'sales') {
+  } else if (query.role === 'seller') {
     if (query.productType === 'goods') {
       requestedData = RequestedType.SALES_GOOD
       goodsDeal = salesStore.findGoodsDeal(Number(query.dealId))
@@ -157,13 +193,15 @@ watch(
     route.query.dealId,
     route.query.role,
     route.query.productType,
+    route.query.dealId,
+    route.hash,
     salesStore.sales?.goodsDeals?.length ?? 0,
     salesStore.sales?.servicesDeals?.length ?? 0,
     purchasesStore.purchases?.goodsDeals?.length ?? 0,
     purchasesStore.purchases?.servicesDeals?.length ?? 0,
   ],
-  fillFromQuery,
-  { immediate: true }
+  () => fillFromQuery(),
+  { immediate: true, deep: true }
 )
 
 //присвоение конкретного состояния и значений,в зависимости от состояния

@@ -11,7 +11,7 @@ export interface Company {
   buyerName?: string;
   companyName?: string;
   slug?: string;
-  id?: number;
+  companyId: number;
   inn?: string;
   phone?: string;
   email?: string;

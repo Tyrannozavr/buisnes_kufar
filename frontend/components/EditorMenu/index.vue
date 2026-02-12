@@ -161,27 +161,23 @@ watch(
 	insertState,
 	async (insert) => {
 		if (purchases.value.goodsDeals && insert.purchasesGood) {
-			const indexPurchasesGood: number = purchases.value.goodsDeals.length - 1
-			if (purchases.value.goodsDeals?.[indexPurchasesGood]) {
-				orderDocxBlob = await generateDocxOrder(purchases.value.goodsDeals[indexPurchasesGood])
+			if (purchasesStore.lastGoodsDeal) {
+				orderDocxBlob = await generateDocxOrder(purchasesStore.lastGoodsDeal)
 			}
 
 		} else if (purchases.value.servicesDeals && insert.purchasesService) {
-			const indexPurchasesService: number = purchases.value.servicesDeals.length - 1
-			if (purchases.value.servicesDeals?.[indexPurchasesService]) {
-				orderDocxBlob = await generateDocxOrder(purchases.value.servicesDeals[indexPurchasesService])
+			if (purchasesStore.lastServicesDeal) {
+				orderDocxBlob = await generateDocxOrder(purchasesStore.lastServicesDeal)
 			}
 
 		} else if (sales.value.goodsDeals && insert.salesGood) {
-			const indexSalesGood: number = sales.value.goodsDeals.length - 1
-			if (sales.value.goodsDeals?.[indexSalesGood]) {
-				orderDocxBlob = await generateDocxOrder(sales.value.goodsDeals[indexSalesGood])
+			if (salesStore.lastGoodsDeal) {
+				orderDocxBlob = await generateDocxOrder(salesStore.lastGoodsDeal)
 			}
 
 		} else if (sales.value.servicesDeals && insert.salesGood) {
-			const indexSalesService: number = sales.value.servicesDeals.length - 1
-			if (sales.value.servicesDeals?.[indexSalesService]) {
-				orderDocxBlob = await generateDocxOrder(sales.value.servicesDeals[indexSalesService])
+			if (salesStore.lastServicesDeal) {
+				orderDocxBlob = await generateDocxOrder(salesStore.lastServicesDeal)
 			}
 		}
 	},

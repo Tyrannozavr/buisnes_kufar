@@ -11,6 +11,11 @@ import {
   BorderStyle,
 } from "docx";
 import type { GoodsDeal, ServicesDeal, Product } from "~/types/dealState";
+import { normalizeDate } from "~/utils/normalize";
+import { useUserStore } from "~/stores/user";
+
+const userStore = useUserStore()
+const myCompanyId = userStore.companyId
 
 export const generateDocxOrder = async (orderDealData: GoodsDeal | ServicesDeal ): Promise<Blob> => {
   // Создание таблицы с данными поставщика и покупателя
@@ -32,7 +37,7 @@ export const generateDocxOrder = async (orderDealData: GoodsDeal | ServicesDeal 
               new Paragraph(
                 `${orderDealData.saller.inn}  ${orderDealData.saller.companyName}
 ${orderDealData.saller.legalAddress}  
-${orderDealData.saller.mobileNumber}
+${orderDealData.saller.phone}
 			`
               ),
             ],
@@ -61,7 +66,7 @@ ${orderDealData.saller.mobileNumber}
               new Paragraph(
                 `${orderDealData.buyer.companyName}
 ${orderDealData.buyer.legalAddress},
-${orderDealData.buyer.mobileNumber}
+${orderDealData.buyer.phone}
 `
               ),
             ],
@@ -81,7 +86,7 @@ ${orderDealData.buyer.mobileNumber}
   const orderTitle = new Paragraph({
     children: [
       new TextRun({
-        text: `Заказ № ${orderDealData.dealNumber} от ${orderDealData.date}`,
+        text: `Заказ № ${myCompanyId === orderDealData.saller.id ? orderDealData.sellerOrderNumber : orderDealData.buyerOrderNumber} от ${normalizeDate(orderDealData.date)} г.`,
         bold: true,
         size: 28,
       }),
@@ -94,7 +99,7 @@ ${orderDealData.buyer.mobileNumber}
   });
 
 	//Отдельная констаннта для данных таблицы
-	const rowsData = orderDealData.goods
+	const rowsData = "goods" in orderDealData 
 		? orderDealData.goods.goodsList?.map((good: Product, index: number) => {
 					return new TableRow({
 						children: [
@@ -148,7 +153,7 @@ ${orderDealData.buyer.mobileNumber}
   // Итоговая информация
   const summary = [
     new Paragraph({
-      text: `Итого: ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice}`,
+      text: `Итого: ${("goods" in orderDealData) ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice} р.`,
       spacing: {
         before: 200,
       },
@@ -158,20 +163,20 @@ ${orderDealData.buyer.mobileNumber}
       },
     }),
     new Paragraph({
-      text: `В том числе НДС: ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice}`,
+      text: `В том числе НДС: ${("goods" in orderDealData) ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice} р.`,
       indent: {
         start: 6000,
         hanging: 1180,
       },
     }),
     new Paragraph({
-      text: `Всего наименований ${orderDealData.goods ? orderDealData.goods.goodsList.length : orderDealData.services.servicesList.length}, на сумму ${orderDealData.goods ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice} руб.`,
+      text: `Всего наименований ${("goods" in orderDealData) ? orderDealData.goods.goodsList.length : orderDealData.services.servicesList.length}, на сумму ${("goods" in orderDealData) ? orderDealData.goods.amountPrice : orderDealData.services.amountPrice} руб.`,
       spacing: {
         before: 500,
       },
     }),
     new Paragraph({
-      text: `${ orderDealData.goods ? orderDealData.goods.amountWord : orderDealData.services.amountWord}`,
+      text: `${ ("goods" in orderDealData) ? orderDealData.goods.amountWord : orderDealData.services.amountWord}`,
       spacing: {
         before: 200,
         after: 0,
@@ -231,7 +236,7 @@ ${orderDealData.buyer.mobileNumber}
 								size: 25,
 								type: WidthType.PERCENTAGE,
 							},
-              children: [new Paragraph(`${orderDealData.buyer.name}`)],
+              children: [new Paragraph(`${orderDealData.buyer.buyerName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -279,7 +284,7 @@ ${orderDealData.buyer.mobileNumber}
 								size: 25,
 								type: WidthType.PERCENTAGE,
 							},
-              children: [new Paragraph(`${orderDealData.saller.name}`)],
+              children: [new Paragraph(`${orderDealData.saller.sallerName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },

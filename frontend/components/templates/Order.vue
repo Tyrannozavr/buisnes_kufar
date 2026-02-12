@@ -151,7 +151,7 @@ const fillFromQuery = () => {
   fillOrderData()
 }
 
-// пришли с query — заполняем форму; также следим за store (deals подгружаются асинхронно)
+//заполнение формы при наличии данных в query или store
 watch(
   () => [
     route.query.dealId,
@@ -324,6 +324,9 @@ const removeDeal = (requestedData: string) => {
 		salesStore.removeServicesDeal(orderData.value.dealId)
 	}
 
+	requestedData = ''
+	goodsDeal = undefined
+	servicesDeal = undefined
 	clearForm()
 }
 
@@ -383,7 +386,7 @@ onMounted(() => {
 
 		<h1 style="font-weight: 700;" class="font-bold my-2">Заказ на поставку
 			<span>{{ orderData.orderNumber }}</span>
-			от {{ normalizeDate(orderData.orderDate || '') }}
+			от {{ normalizeDate(orderData.orderDate || '') }} г.
 		</h1>
 
 			<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">

@@ -130,15 +130,24 @@ async def get_seller_deals(
     return seller_deals
 
 
-@router.get("/deals/{deal_id}", response_model=DealResponse, tags=["deals", "orders", "detail"])
+@router.get(
+    "/deals/{deal_id}",
+    response_model=DealResponse,
+    tags=["deals", "orders", "detail"],
+    summary="Получение заказа по ID",
+    responses={
+        200: {"description": "Заказ найден"},
+        404: {"description": "Заказ не найден или компания пользователя не участвует в сделке"},
+    },
+)
 async def get_deal(
     deal_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     deal_service: deal_service_dep_annotated
 ):
     """
-    Получение конкретного заказа
-    
+    Получение конкретного заказа.
+
     Возвращает детальную информацию о заказе включая все позиции и документы.
     Доступ только для участников сделки (покупателя или продавца).
     """
@@ -153,7 +162,18 @@ async def get_deal(
     return deal
 
 
-@router.put("/deals/{deal_id}", response_model=DealResponse, tags=["deals", "orders", "update"])
+@router.put(
+    "/deals/{deal_id}",
+    response_model=DealResponse,
+    tags=["deals", "orders", "update"],
+    summary="Обновление заказа",
+    responses={
+        200: {"description": "Заказ успешно обновлён"},
+        403: {"description": "Доступ запрещён: компания пользователя не является покупателем или продавцом по этой сделке"},
+        404: {"description": "Заказ не найден по указанному ID"},
+        422: {"description": "Ошибка валидации тела запроса (DealUpdate)"},
+    },
+)
 async def update_deal(
     deal_id: int,
     deal_data: DealUpdate,
@@ -161,19 +181,31 @@ async def update_deal(
     deal_service: deal_service_dep_annotated
 ):
     """
-    Обновление заказа
-    
-    Позволяет изменить статус, комментарии или позиции заказа.
-    Все изменения записываются в историю и уведомляют контрагента.
+    Обновление заказа.
+
+    Позволяет изменить статус, комментарии или позиции заказа (поле **items** в формате **OrderItemUpdate**:
+    допускаются `quantity >= 0`, `price >= 0`).
+    Все изменения записываются в историю.
     """
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    
-    deal = await deal_service.update_deal(deal_id, deal_data, company.id)
+
+    order_exists = await deal_service.get_order_by_id_only(deal_id)
+    if not order_exists:
+        raise HTTPException(status_code=404, detail="Deal not found")
+
+    try:
+        deal = await deal_service.update_deal(deal_id, deal_data, company.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
     if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found or access denied")
-    
+        raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this deal")
     return deal
 
 

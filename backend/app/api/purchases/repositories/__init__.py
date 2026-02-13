@@ -1,8 +1,9 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, asc, extract
 from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime
+import enum
 
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
 from app.api.purchases.schemas import OrderItemCreate, DealCreate, DealUpdate
@@ -110,9 +111,9 @@ class DealRepository:
                     product_description = product.description
                     product_article = product.article
                     product_type = product.type.value  # Enum -> str
-                    logo_url = product.images[0] if product.images else None
+                    logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
                     unit_of_measurement = product.unit_of_measurement or "шт"
-                    price = product.price
+                    price = product.price if product.price is not None else 0.0
                     quantity = item_data.quantity
                 else:
                     # Ручной ввод - используем данные из запроса
@@ -186,8 +187,14 @@ class DealRepository:
             traceback.print_exc()
             raise
 
+    async def get_order_by_id_only(self, order_id: int) -> Optional[Order]:
+        """Получение заказа по ID без проверки доступа (для различения 404/403)."""
+        query = select(Order).where(Order.id == order_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_order_by_id(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Получение заказа по ID с проверкой доступа"""
+        """Получение заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
         query = select(Order).options(
             selectinload(Order.order_items),
             selectinload(Order.order_history)
@@ -200,7 +207,6 @@ class DealRepository:
                 )
             )
         )
-        
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -344,17 +350,10 @@ class DealRepository:
                     f"All products in an order must be of the same type (either all goods or all services)."
                 )
             
-            # Удаляем старые позиции
-            await self.session.execute(
-                select(OrderItem).where(OrderItem.order_id == order_id)
-            )
-            old_items = await self.session.execute(
-                select(OrderItem).where(OrderItem.order_id == order_id)
-            )
-            for item in old_items.scalars():
-                self.session.delete(item)
-            
-            # Добавляем новые позиции
+            # Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
+            order.order_items.clear()
+            await self.session.flush()
+
             total_amount = 0
             for i, item_data in enumerate(order_data.items, 1):
                 # Если article указан, получаем данные из БД
@@ -363,7 +362,7 @@ class DealRepository:
                     product = await products_repo.get_by_article(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
-                    
+
                     product_id = product.id
                     # Используем данные из БД
                     product_name = product.name
@@ -371,30 +370,30 @@ class DealRepository:
                     product_description = product.description
                     product_article = product.article
                     product_type = product.type.value
-                    logo_url = product.images[0] if product.images else None
+                    logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
                     unit_of_measurement = product.unit_of_measurement or "шт"
-                    price = product.price
+                    price = product.price if product.price is not None else 0.0
                 else:
-                    # Ручной ввод - используем данные из запроса
+                    # Ручной ввод - используем данные из запроса (price может быть 0 при обновлении)
                     if not item_data.product_name:
                         raise ValueError("product_name is required when article is not specified")
-                    if not item_data.price:
+                    if item_data.price is None:
                         raise ValueError("price is required when article is not specified")
                     if not item_data.unit_of_measurement:
                         raise ValueError("unit_of_measurement is required when article is not specified")
-                    
+
                     product_name = item_data.product_name
-                    product_slug = item_data.product_slug
-                    product_description = item_data.product_description
-                    product_article = item_data.product_article
-                    product_type = item_data.product_type
-                    logo_url = item_data.logo_url
-                    unit_of_measurement = item_data.unit_of_measurement
-                    price = item_data.price
-                
+                    product_slug = item_data.product_slug or None
+                    product_description = item_data.product_description or None
+                    product_article = item_data.product_article or None
+                    product_type = item_data.product_type or None
+                    logo_url = item_data.logo_url or None
+                    unit_of_measurement = item_data.unit_of_measurement or "шт"
+                    price = float(item_data.price)
+
                 amount = item_data.quantity * price
                 total_amount += amount
-                
+
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=product_id,
@@ -410,8 +409,8 @@ class DealRepository:
                     amount=amount,
                     position=i
                 )
-                self.session.add(order_item)
-            
+                order.order_items.append(order_item)
+
             order.total_amount = total_amount
         
         order.updated_at = datetime.utcnow()
@@ -439,7 +438,9 @@ class DealRepository:
         )
         
         await self.session.commit()
-        return order
+        # Перезагружаем заказ с позициями для ответа (order.order_items иначе может быть пуст/устаревший)
+        reloaded = await self.get_order_by_id(order_id, company_id)
+        return reloaded if reloaded else order
 
     async def add_document(self, order_id: int, document_data: dict, file_path: str, company_id: int) -> Optional[OrderDocument]:
         """Добавление документа к заказу"""
@@ -710,8 +711,23 @@ class DealRepository:
         await self.session.commit()
         return (order.supply_contracts_number, order.supply_contracts_date)
 
-    def _add_order_history(self, order_id: int, company_id: int, change_type: str, 
-                                description: str, old_data: Optional[dict] = None, 
+    @staticmethod
+    def _to_json_serializable(obj: Any) -> Any:
+        """Приводит значение к виду, сериализуемому в JSON (datetime → строка, enum → value)."""
+        if obj is None:
+            return None
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, enum.Enum):
+            return obj.value
+        if isinstance(obj, dict):
+            return {k: DealRepository._to_json_serializable(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [DealRepository._to_json_serializable(v) for v in obj]
+        return obj
+
+    def _add_order_history(self, order_id: int, company_id: int, change_type: str,
+                                description: str, old_data: Optional[dict] = None,
                                 new_data: Optional[dict] = None):
         """Добавление записи в историю заказа"""
         history = OrderHistory(
@@ -719,8 +735,7 @@ class DealRepository:
             changed_by_company_id=company_id,
             change_type=change_type,
             change_description=description,
-            old_data=old_data,
-            new_data=new_data
+            old_data=DealRepository._to_json_serializable(old_data),
+            new_data=DealRepository._to_json_serializable(new_data)
         )
-        
         self.session.add(history)

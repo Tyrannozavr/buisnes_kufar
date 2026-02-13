@@ -5,7 +5,11 @@ import type {
   EditPersonDeal,
   Product,
 } from "~/types/dealState";
-import type { BuyerDealResponse } from "~/types/dealReasponse";
+import type {
+  BuyerDealResponse,
+  DealUpdate,
+  OrderItemUpdate,
+} from "~/types/dealReasponse";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
 
@@ -84,6 +88,37 @@ export const usePurchasesStore = defineStore("purchases", {
         return lastDeal;
       }
     },
+
+    createBodyForUpdate:
+      (state) =>
+      (orderId: number): DealUpdate | null => {
+        const deal: GoodsDeal | ServicesDeal | undefined =
+          state.purchases.goodsDeals?.find((d) => d.dealId === orderId) ??
+          state.purchases.servicesDeals?.find((d) => d.dealId === orderId);
+
+        if (!deal) return null;
+
+        const items = "goods" in deal ? deal.goods : deal.services;
+        const products = "goodsList" in items ? items.goodsList : items.servicesList;
+
+        const itemsList: OrderItemUpdate[] = (products ?? []).map((p) => ({
+          product_name: p.name?.trim() || "—",
+          quantity: p.quantity,
+          unit_of_measurement: p.units?.trim() || "шт",
+          price: p.price,
+        }));
+
+        const body: DealUpdate = {
+          items: itemsList,
+          comments: items.comments ?? undefined,
+        };
+        if (deal.status) body.status = deal.status;
+        if (deal.contractNumber) body.contract_number = deal.contractNumber;
+        if (deal.bill) body.bill_number = deal.bill;
+        if (deal.supplyContractNumber)
+          body.supply_contracts_number = deal.supplyContractNumber;
+        return body;
+      },
   },
 
   actions: {
@@ -110,6 +145,7 @@ export const usePurchasesStore = defineStore("purchases", {
               dealId: dealResponse.id,
               buyerOrderNumber: dealResponse.buyer_order_number,
               sellerOrderNumber: dealResponse.seller_order_number,
+              date: dealResponse.created_at,
               goods: {
                 goodsList: dealResponse.items.map((item: any) => ({
                   name: item.product_name,
@@ -124,7 +160,6 @@ export const usePurchasesStore = defineStore("purchases", {
                 amountWord: "",
                 comments: "",
               },
-              date: dealResponse.created_at,
               saller: {
                 sallerName: dealResponse.seller_company.name,
                 companyName: dealResponse.seller_company.company_name,
@@ -147,17 +182,19 @@ export const usePurchasesStore = defineStore("purchases", {
               },
               status: dealResponse.status,
               bill: dealResponse.bill_number || "",
-              supplyContract:
-                dealResponse.supply_contracts_number ||
-                dealResponse.contract_number ||
-                "",
-              closingDocuments: "",
-              othersDocuments: "",
+              billDate: dealResponse.bill_date || "",
+              contractNumber: dealResponse.contract_number || "",
+              contractDate: dealResponse.contract_date || "",
+              supplyContractNumber: dealResponse.supply_contracts_number || "",
+              supplyContractDate: dealResponse.supply_contracts_date || "",
+              closingDocuments: dealResponse.closing_documents || [],
+              othersDocuments: dealResponse.others_documents || [],
             });
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
               dealId: dealResponse.id,
               buyerOrderNumber: dealResponse.buyer_order_number,
+              date: dealResponse.created_at,
               services: {
                 servicesList: dealResponse.items.map((item: any) => ({
                   name: item.product_name,
@@ -172,7 +209,6 @@ export const usePurchasesStore = defineStore("purchases", {
                 amountWord: "",
                 comments: "",
               },
-              date: dealResponse.created_at,
               saller: {
                 sallerName: dealResponse.seller_company.name,
                 companyName: dealResponse.seller_company.company_name,
@@ -193,12 +229,13 @@ export const usePurchasesStore = defineStore("purchases", {
               },
               status: dealResponse.status,
               bill: dealResponse.bill_number || "",
-              contract:
-                dealResponse.supply_contracts_number ||
-                dealResponse.contract_number ||
-                "",
-              closingDocuments: "",
-              othersDocuments: "",
+              billDate: dealResponse.bill_date || "",
+              contractNumber: dealResponse.contract_number || "",
+              contractDate: dealResponse.contract_date || "",
+              supplyContractNumber: dealResponse.supply_contracts_number || "",
+              supplyContractDate: dealResponse.supply_contracts_date || "",
+              closingDocuments: dealResponse.closing_documents || [],
+              othersDocuments: dealResponse.others_documents || [],
             });
           }
         }
@@ -413,8 +450,14 @@ export const usePurchasesStore = defineStore("purchases", {
       this.editSallerGoodsDeal(dealId, saller);
       this.editBuyerGoodsDeal(dealId, buyer);
       this.editGood(dealId, newGoodsList);
-      if (comments) {
+      if (comments !== undefined) {
         this.editGoodsComments(dealId, comments);
+      }
+      const { updateDealById } = usePurchasesApi();
+
+      const body = this.createBodyForUpdate(dealId);
+      if (body) {
+        await updateDealById(dealId, body);
       }
     },
 
@@ -431,8 +474,13 @@ export const usePurchasesStore = defineStore("purchases", {
       this.editSallerServicesDeal(dealId, saller);
       this.editBuyerServicesDeal(dealId, buyer);
       this.editService(dealId, newServiceList);
-      if (comments) {
+      if (comments !== undefined) {
         this.editServicesComments(dealId, comments);
+      }
+      const { updateDealById } = usePurchasesApi();
+      const body = this.createBodyForUpdate(dealId);
+      if (body) {
+        await updateDealById(dealId, body);
       }
     },
   },

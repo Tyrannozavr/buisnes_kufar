@@ -100,13 +100,45 @@ class OrderItemCreate(BaseModel):
         }
 
 
+class OrderItemUpdate(BaseModel):
+    """Схема позиции заказа для обновления (допускает quantity/price >= 0)."""
+    article: Optional[str] = Field(None, description="Артикул продукта из каталога")
+    quantity: float = Field(..., ge=0, description="Количество")
+    product_name: Optional[str] = Field(None, description="Наименование товара/услуги")
+    product_slug: Optional[str] = Field(None, description="Slug продукта")
+    product_description: Optional[str] = Field(None, description="Описание продукта")
+    product_article: Optional[str] = Field(None, description="Артикул")
+    product_type: Optional[str] = Field(None, description="Тип продукта")
+    logo_url: Optional[str] = Field(None, description="URL логотипа")
+    unit_of_measurement: Optional[str] = Field(None, description="Единица измерения")
+    price: Optional[float] = Field(None, ge=0, description="Цена за единицу")
+
+    @model_validator(mode='after')
+    def validate_required_fields(self):
+        """Если article не указан, обязательны product_name, price (может быть 0), unit_of_measurement."""
+        if not self.article:
+            if not self.product_name:
+                raise ValueError("product_name is required when article is not specified")
+            if self.price is None:
+                raise ValueError("price is required when article is not specified")
+            if not self.unit_of_measurement:
+                raise ValueError("unit_of_measurement is required when article is not specified")
+        return self
+
+    class Config:
+        from_attributes = True
+
+
 class OrderItemResponse(OrderItemBase):
-    """Схема для ответа с позицией заказа"""
+    """Схема для ответа с позицией заказа (price/quantity могут быть 0)."""
     id: int
     order_id: int
     amount: float = Field(..., description="Сумма (quantity * price)")
     created_at: datetime
     updated_at: datetime
+    # В ответе допускаем 0 (в отличие от создания)
+    quantity: float = Field(..., ge=0)
+    price: float = Field(..., ge=0)
 
     class Config:
         from_attributes = True
@@ -128,9 +160,9 @@ class DealCreate(BaseModel):
 
 
 class DealUpdate(BaseModel):
-    """Схема для обновления заказа"""
+    """Схема для обновления заказа (PUT /deals/{deal_id}). Все поля опциональны. items — в формате OrderItemUpdate (допускаются quantity, price >= 0)."""
     status: Optional[DealStatus] = Field(None, description="Статус заказа")
-    items: Optional[List[OrderItemCreate]] = Field(None, description="Обновленные позиции")
+    items: Optional[List[OrderItemUpdate]] = Field(None, description="Обновлённые позиции (OrderItemUpdate: quantity >= 0, price >= 0)")
     comments: Optional[str] = Field(None, description="Комментарии")
     contract_number: Optional[str] = Field(None, description="Номер договора")
     bill_number: Optional[str] = Field(None, description="Номер счета на оплату")

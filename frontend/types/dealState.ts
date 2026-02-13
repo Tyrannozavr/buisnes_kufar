@@ -50,11 +50,15 @@ export interface GoodsDeal {
   date: string;
   saller: Company;
   buyer: Company;
-  status: "Активная" | "Завершенная";
+  status: "Активная" | "Завершенная"
   bill?: string
-  supplyContract?: string
-  closingDocuments?: string
-  othersDocuments?: string
+  billDate?: string
+  contractNumber?: string
+  contractDate?: string
+  supplyContractNumber?: string
+  supplyContractDate?: string
+  closingDocuments?: unknown[]
+  othersDocuments?: unknown[]
 }
 
 export interface ServicesDeal {
@@ -67,9 +71,13 @@ export interface ServicesDeal {
   buyer: Company;
   status: "Активная" | "Завершенная";
   bill?: string
-	contract?: string
-	closingDocuments?: string
-  othersDocuments?: string
+  billDate?: string
+	contractNumber?: string
+	contractDate?: string
+	supplyContractNumber?: string
+	supplyContractDate?: string
+	closingDocuments?: unknown[]
+  othersDocuments?: unknown[]
 }
 
 export interface EditPersonDeal {

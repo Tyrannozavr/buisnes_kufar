@@ -43,6 +43,27 @@ export interface CompanyInDealResponse {
   legal_address: string;
 }
 
+export interface OrderItemUpdate {
+  product_name?: string;
+  quantity: number;
+  unit_of_measurement?: string;
+  price?: number;
+  article?: string;
+}
+
+export interface DealUpdate {
+  status?: "Активная" | "Завершенная";
+  items?: OrderItemUpdate[];
+  comments?: string;
+  contract_number?: string | null;
+  bill_number?: string | null;
+  bill_date?: string | null;
+  supply_contracts_number?: string | null;
+  supply_contracts_date?: string | null;
+  buyer_order_date?: string | null;
+  seller_order_date?: string | null;
+}
+
 export interface DealResponse {
   id: number;
   buyer_company_id: number;

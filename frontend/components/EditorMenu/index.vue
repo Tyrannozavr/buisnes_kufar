@@ -6,7 +6,7 @@
 
 				<div class="w-full">
 					<UCollapsible>
-						<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" />
+						<UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center" :disabled="activeButtons" />
 
 						<template #content>
 							<div class="flex-col mt-4 justify-center">
@@ -65,20 +65,22 @@
 				</div>
 
 				<div class="flex flex-col gap-2">
-					<UButton @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle"
+					<UButton :disabled="activeButtons" @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle"
 						class="active:bg-green-500" />
 					<div class="flex gap-2">
 						<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
 							class="w-1/2" @click="clearCurrentForm(activeTab)" />
 						<UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
-							:disabled="!activeButtons" class="w-1/2" @click="removeCurrentDeal(activeTab)" />
+							class="w-1/2" @click="removeCurrentDeal(activeTab)" />
 					</div>
 				</div>
 
-				<div>
-					<UButton label="Сохранить изменения" icon="i-lucide-save" size="xl" class="w-full justify-center"
-						:disabled="activeButtons" @click="saveChanges(activeTab)" />
-				</div>
+        <div v-if="activeButtons" class="flex gap-2 border-2 border-emerald-500 rounded-md p-2">
+          <UButton label="Сохранить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
+						:disabled="!activeButtons" @click="saveChanges(activeTab), editButton()" />
+          <UButton label="Отмена" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
+						:disabled="!activeButtons" @click="cancelChanges(), editButton()" />
+        </div>
 
 				<div class="flex flex-col gap-2 text-center ">
 					<p>Фото/Сканы документа</p>
@@ -255,6 +257,7 @@ const removeCurrentDeal = (activeTab: string) => {
 	}
 }
 
+//FIXME: логика сохранения изменений
 // save button 
 const { saveOrder } = useSaveState()
 
@@ -262,5 +265,11 @@ const saveChanges = (activeTab: string) => {
 	if (activeTab === '0') {
 		saveOrder()
 	}
+}
+
+// cancel button\
+//TODO: добавить логику отмены изменений
+const cancelChanges = () => {
+	console.log('cancelChanges')
 }
 </script>

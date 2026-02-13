@@ -3,8 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
-    DealCreate, DealUpdate, DealResponse, BuyerDealResponse, 
-    SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse
+    DealCreate, DealUpdate, DealResponse, BuyerDealResponse,
+    SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse,
+    DealStatus, ItemType,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -54,12 +55,15 @@ class DealService:
             print(traceback.format_exc())
             raise
 
+    async def get_order_by_id_only(self, deal_id: int) -> Optional[Order]:
+        """Проверка существования заказа по ID без проверки доступа."""
+        return await self.repository.get_order_by_id_only(deal_id)
+
     async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
         """Получение сделки по ID"""
         order = await self.repository.get_order_by_id(deal_id, company_id)
         if not order:
             return None
-        
         return await self._order_to_deal_response(order)
 
     async def get_buyer_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
@@ -76,12 +80,11 @@ class DealService:
             order = await self.repository.update_order(deal_id, deal_data, company_id)
             if not order:
                 return None
-            
             return await self._order_to_deal_response(order)
         except Exception as e:
             await self.session.rollback()
             print(f"Error updating deal: {e}")
-            return None
+            raise
 
     async def delete_deal(self, deal_id: int, company_id: int) -> bool:
         """Удаление сделки"""
@@ -209,8 +212,8 @@ class DealService:
                 seller_company_id=order.seller_company_id,
                 buyer_order_number=order.buyer_order_number,
                 seller_order_number=order.seller_order_number,
-                status=order.status,
-                deal_type=order.deal_type,
+                status=DealStatus(order.status.value),
+                deal_type=ItemType(order.deal_type.value),
                 total_amount=order.total_amount,
                 comments=order.comments,
                 buyer_order_date=order.buyer_order_date,

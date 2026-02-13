@@ -1,6 +1,6 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
-import type { DealResponse, BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse"
+import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
@@ -59,12 +59,13 @@ export const usePurchasesApi = () => {
 		}
 	}
 	
-	const putDealById = async (deal_id: number) => {
+	const updateDealById = async (deal_id: number, body: DealUpdate | Record<string, unknown> = {}) => {
 		try {
-			const response = await $api.put(normalizeApiPath(API_URLS.PUT_DEAL_BY_ID(deal_id)), {})
+			const response = await $api.put(normalizeApiPath(API_URLS.PUT_DEAL_BY_ID(deal_id)), body)
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)
+			throw error
 		}
 	}
 
@@ -185,7 +186,7 @@ export const usePurchasesApi = () => {
     getBuyerDeals,
     getSellerDeals,
     getDealById,
-    putDealById,
+    updateDealById,
     uploadDocumentById,
     createBill,
     createContract,

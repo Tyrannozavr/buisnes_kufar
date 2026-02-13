@@ -7,7 +7,7 @@ import type {
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
-import type { SellerDealResponse } from "~/types/dealReasponse";
+import type { DealUpdate, OrderItemUpdate, SellerDealResponse } from "~/types/dealReasponse";
 
 interface Sales {
   sales: {
@@ -84,6 +84,38 @@ export const useSalesStore = defineStore("sales", {
         return lastDeal;
       }
     },
+
+    createBodyForUpdate:
+      (state) =>
+      (orderId: number): DealUpdate | null => {
+        const deal: GoodsDeal | ServicesDeal | undefined =
+          state.sales.goodsDeals?.find((d) => d.dealId === orderId) ??
+          state.sales.servicesDeals?.find((d) => d.dealId === orderId);
+
+        if (!deal) return null;
+
+        const items = "goods" in deal ? deal.goods : deal.services;
+        const products =
+          "goodsList" in items ? items.goodsList : items.servicesList;
+
+        const itemsList: OrderItemUpdate[] = (products ?? []).map((p) => ({
+          product_name: p.name?.trim() || "—",
+          quantity: p.quantity,
+          unit_of_measurement: p.units?.trim() || "шт",
+          price: p.price,
+        }));
+
+        const body: DealUpdate = {
+          items: itemsList,
+          comments: items.comments ?? undefined,
+        };
+        if (deal.status) body.status = deal.status;
+        if (deal.contractNumber) body.contract_number = deal.contractNumber;
+        if (deal.bill) body.bill_number = deal.bill;
+        if (deal.supplyContractNumber)
+          body.supply_contracts_number = deal.supplyContractNumber;
+        return body;
+      },
   },
 
   actions: {
@@ -126,10 +158,10 @@ export const useSalesStore = defineStore("sales", {
               date: dealResponse.created_at,
               saller: {
                 companyName: dealResponse.seller_company.company_name,
-                name: dealResponse.seller_company.name,
+                sallerName: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                id: dealResponse.seller_company.id,
+                companyId: dealResponse.seller_company.id,
                 inn: dealResponse.seller_company.inn,
                 email: dealResponse.seller_company.email,
                 legalAddress: dealResponse.seller_company.legal_address,
@@ -138,20 +170,18 @@ export const useSalesStore = defineStore("sales", {
                 companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                id: dealResponse.buyer_company.id,
+                companyId: dealResponse.buyer_company.id,
                 inn: dealResponse.buyer_company.inn,
                 email: dealResponse.buyer_company.email,
                 legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
               bill: dealResponse.bill_number || "",
-              supplyContract:
-                dealResponse.supply_contracts_number ||
-                dealResponse.contract_number ||
-                "",
-              closingDocuments: "",
-              othersDocuments: "",
-            } as GoodsDeal);
+              billDate: dealResponse.bill_date || "",
+              supplyContractNumber: dealResponse.supply_contracts_number || "",
+              closingDocuments: dealResponse.closing_documents || [],
+              othersDocuments: dealResponse.others_documents || [],
+            });
           } else if (dealResponse.deal_type === "Услуги") {
             this.addNewServicesDeal({
               dealId: dealResponse.id,
@@ -173,30 +203,32 @@ export const useSalesStore = defineStore("sales", {
               date: dealResponse.created_at,
               saller: {
                 companyName: dealResponse.seller_company.company_name,
-                name: dealResponse.seller_company.name,
+                sallerName: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
-                id: dealResponse.seller_company.id,
+                companyId: dealResponse.seller_company.id,
                 email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
               },
               buyer: {
                 companyName: dealResponse.buyer_company.company_name,
+                buyerName: dealResponse.buyer_company.name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,
-                id: dealResponse.buyer_company.id,
+                companyId: dealResponse.buyer_company.id,
                 email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
               },
               status: dealResponse.status,
               bill: dealResponse.bill_number || "",
-              contract:
-                dealResponse.supply_contracts_number ||
-                dealResponse.contract_number ||
-                "",
-              closingDocuments: "",
-              othersDocuments: "",
-            } as ServicesDeal);
+              billDate: dealResponse.bill_date || "",
+              supplyContractNumber: dealResponse.supply_contracts_number || "",
+              supplyContractDate: dealResponse.supply_contracts_date || "",
+              contractNumber: dealResponse.contract_number || "",
+              contractDate: dealResponse.contract_date || "",
+              closingDocuments: dealResponse.closing_documents || [],
+              othersDocuments: dealResponse.others_documents || [],
+            });
           }
         }
       };
@@ -413,6 +445,11 @@ export const useSalesStore = defineStore("sales", {
       if (comments) {
         this.editGoodsComments(dealId, comments);
       }
+      const { updateDealById } = usePurchasesApi();
+      const body = this.createBodyForUpdate(dealId);
+      if (body) {
+        await updateDealById(dealId, body);
+      }
     },
 
     async fullUpdateServicesDeal(
@@ -430,6 +467,11 @@ export const useSalesStore = defineStore("sales", {
       this.editService(dealId, newServiceList);
       if (comments) {
         this.editServicesComments(dealId, comments);
+      }
+      const { updateDealById } = usePurchasesApi();
+      const body = this.createBodyForUpdate(dealId);
+      if (body) {
+        await updateDealById(dealId, body);
       }
     },
   },

@@ -68,7 +68,7 @@ const fillOrderData = () => {
   if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
     && goodsDeal) {
 
-    products = goodsDeal.goods.goodsList?.map((product: Product): ProductsInOrder => ({
+    products = (goodsDeal.goods.goodsList ?? []).map((product: Product): ProductsInOrder => ({
       name: product.name,
       article: product.article,
       quantity: product.quantity,
@@ -76,7 +76,7 @@ const fillOrderData = () => {
       price: product.price,
       amount: product.amount,
       type: product.type,
-    })) || []
+    }))
 
     saller = {
       companyId: goodsDeal?.saller.companyId,
@@ -104,18 +104,16 @@ const fillOrderData = () => {
       amountWord: goodsDeal?.goods.amountWord,
       saller,
       buyer,
-      products,
+      products: [...products],
     }
 
     if (requestedData === RequestedType.SALES_GOOD) {
       orderData.value.orderNumber = goodsDeal?.sellerOrderNumber || ''
     }
-  }
-
-  if ((requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
+  } else if ((requestedData === RequestedType.PURCHASES_SERVICE || requestedData === RequestedType.SALES_SERVICE)
     && servicesDeal) {
 
-    products = servicesDeal.services.servicesList?.map((product: Product): ProductsInOrder => ({
+    products = (servicesDeal.services.servicesList ?? []).map((product: Product): ProductsInOrder => ({
       name: product.name,
       article: product.article,
       quantity: product.quantity,
@@ -123,7 +121,7 @@ const fillOrderData = () => {
       price: product.price,
       amount: product.amount,
       type: product.type,
-    })) || []
+    }))
 
     saller = {
       companyId: servicesDeal?.saller.companyId,
@@ -151,7 +149,7 @@ const fillOrderData = () => {
       amountWord: servicesDeal?.services.amountWord,
       saller,
       buyer,
-      products,
+      products: [...products],
     }
 
     if (requestedData === RequestedType.SALES_SERVICE) {
@@ -164,24 +162,28 @@ const fillOrderData = () => {
 
 const fillFromQuery = () => {
   const query = route.query
-  
+
   if (!query?.dealId || !query?.role || !query?.productType) return
 
   if (query.role === 'buyer') {
     if (query.productType === 'goods') {
       requestedData = RequestedType.PURCHASES_GOOD
-      goodsDeal = purchasesStore.findGoodsDeal(Number(query.dealId))
+      goodsDeal = purchasesStore.findGoodsDeal(Number(query.dealId)) ?? undefined
+      servicesDeal = undefined
     } else if (query.productType === 'services') {
       requestedData = RequestedType.PURCHASES_SERVICE
-      servicesDeal = purchasesStore.findServicesDeal(Number(query.dealId))
+      servicesDeal = purchasesStore.findServicesDeal(Number(query.dealId)) ?? undefined
+      goodsDeal = undefined
     }
   } else if (query.role === 'seller') {
     if (query.productType === 'goods') {
       requestedData = RequestedType.SALES_GOOD
-      goodsDeal = salesStore.findGoodsDeal(Number(query.dealId))
+      goodsDeal = salesStore.findGoodsDeal(Number(query.dealId)) ?? undefined
+      servicesDeal = undefined
     } else if (query.productType === 'services') {
       requestedData = RequestedType.SALES_SERVICE
-      servicesDeal = salesStore.findServicesDeal(Number(query.dealId))
+      servicesDeal = salesStore.findServicesDeal(Number(query.dealId)) ?? undefined
+      goodsDeal = undefined
     }
   }
   fillOrderData()
@@ -204,33 +206,26 @@ watch(() => insertState.value,
 	() => {
 		if (insertState.value.purchasesGood) {
 			requestedData = RequestedType.PURCHASES_GOOD
-			if (purchasesStore.lastGoodsDeal) {
-				goodsDeal = purchasesStore.lastGoodsDeal
-			}
+			goodsDeal = purchasesStore.lastGoodsDeal ?? undefined
+			servicesDeal = undefined
 			statePurchasesGood(false)
-
 		} else if (insertState.value.purchasesService) {
 			requestedData = RequestedType.PURCHASES_SERVICE
-			if (purchasesStore.lastServicesDeal) {
-				servicesDeal = purchasesStore.lastServicesDeal
-			}
+			servicesDeal = purchasesStore.lastServicesDeal ?? undefined
+			goodsDeal = undefined
 			statePurchasesService(false)
-
 		} else if (insertState.value.salesGood) {
 			requestedData = RequestedType.SALES_GOOD
-			if (salesStore.lastGoodsDeal) {
-				goodsDeal = salesStore.lastGoodsDeal
-			}
+			goodsDeal = salesStore.lastGoodsDeal ?? undefined
+			servicesDeal = undefined
 			stateSalesGood(false)
-
 		} else if (insertState.value.salesService) {
 			requestedData = RequestedType.SALES_SERVICE
-			if (salesStore.lastServicesDeal) {
-				servicesDeal = salesStore.lastServicesDeal
-			}
+			servicesDeal = salesStore.lastServicesDeal ?? undefined
+			goodsDeal = undefined
 			stateSalesService(false)
-    }
-    fillOrderData()
+		}
+		fillOrderData()
 	},
 	{ deep: true }
 )

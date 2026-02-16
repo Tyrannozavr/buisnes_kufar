@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.api.authentication.models import User
+from app.api.authentication.models.roles_positions import UserRole
 from app.api.chats.models.chat import Chat
 from app.api.chats.models.chat_participant import ChatParticipant
 from app.api.company.models.company import Company
@@ -104,6 +105,20 @@ class ChatRepository:
         stmt = select(Company).where(Company.id == company_id)
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
+
+    async def get_company_user_id(self, company_id: int) -> Optional[int]:
+        """Получает user_id владельца или первого пользователя компании (User.company_id -> Company)"""
+        stmt = select(User.id).where(
+            User.company_id == company_id,
+            User.role == UserRole.OWNER
+        ).limit(1)
+        result = await self.db.execute(stmt)
+        user_id = result.scalar_one_or_none()
+        if user_id is not None:
+            return user_id
+        stmt = select(User.id).where(User.company_id == company_id).limit(1)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_user_by_id(self, user_id: int) -> Optional[User]:
         """Получает пользователя по ID"""

@@ -23,18 +23,14 @@ export const useChatsApi = () => {
     return useApi<any>(`/v1/chats/${chatId}/online-status`, options)
   }
 
-  const sendMessage = (chatId: number, data: { senderId: number, content: string, file?: File }, options: UseFetchOptions<ChatMessage> = {}) => {
+  const sendMessage = async (chatId: number, data: { content: string; file?: File }): Promise<ChatMessage> => {
+    const { $api } = useNuxtApp()
     const formData = new FormData()
     formData.append('content', data.content)
     if (data.file) {
       formData.append('file', data.file)
     }
-
-    return useApi<ChatMessage>(`/v1/chats/${chatId}/send`, {
-      method: 'POST',
-      body: formData,
-      ...options
-    })
+    return await $api.post(`/v1/chats/${chatId}/send`, formData) as ChatMessage
   }
 
   const createChat = async (params: { 

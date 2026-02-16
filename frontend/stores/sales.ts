@@ -129,8 +129,9 @@ export const useSalesStore = defineStore("sales", {
 
       const { getDealById, getSellerDeals } = usePurchasesApi();
       const sellerDeals = await getSellerDeals();
-      const dealsIds: number[] =
-        sellerDeals?.map((deal: SellerDealResponse) => deal.id) || [];
+      const dealsIds: number[] = [
+        ...new Set(sellerDeals?.map((deal: SellerDealResponse) => deal.id) || []),
+      ];
 
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
@@ -141,6 +142,7 @@ export const useSalesStore = defineStore("sales", {
             this.addNewGoodsDeal({
               dealId: dealResponse.id,
               sellerOrderNumber: dealResponse.seller_order_number,
+              buyerOrderNumber: dealResponse.buyer_order_number,
               goods: {
                 goodsList: dealResponse.items.map((item: any) => ({
                   name: item.product_name,
@@ -186,6 +188,7 @@ export const useSalesStore = defineStore("sales", {
             this.addNewServicesDeal({
               dealId: dealResponse.id,
               sellerOrderNumber: dealResponse.seller_order_number,
+              buyerOrderNumber: dealResponse.buyer_order_number,
               services: {
                 servicesList: dealResponse.items.map((item: any) => ({
                   name: item.product_name,
@@ -240,13 +243,17 @@ export const useSalesStore = defineStore("sales", {
     },
 
     addNewGoodsDeal(newDeal: GoodsDeal) {
-      if (newDeal) {
+      if (!newDeal) return;
+      const exists = this.sales.goodsDeals?.some((d) => d.dealId === newDeal.dealId);
+      if (!exists) {
         this.sales.goodsDeals?.push(newDeal);
       }
     },
 
     addNewServicesDeal(newDeal: ServicesDeal) {
-      if (newDeal) {
+      if (!newDeal) return;
+      const exists = this.sales.servicesDeals?.some((d) => d.dealId === newDeal.dealId);
+      if (!exists) {
         this.sales.servicesDeals?.push(newDeal);
       }
     },

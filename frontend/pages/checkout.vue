@@ -39,7 +39,7 @@
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to="/checkout"
-								@click="handleCreateOrder(cp, cp.products), removeItemsFromCart(cp.products), showToast(), messageToSaller(cp.companyId, cp.products)"
+								@click.prevent="handleOrderSubmit(cp, cp.products)"
             >
               Оформить заказ
             </UButton>
@@ -72,7 +72,7 @@
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to=""
-								@click="handleCreateOrder(cp, cp.services), removeItemsFromCart(cp.services), showToast(), messageToSaller(cp.companyId, cp.services)"
+								@click.prevent="handleOrderSubmit(cp, cp.services)"
             >
               Оформить заказ
             </UButton>
@@ -148,6 +148,14 @@ const handleCreateOrder = async (cp: CompaniesAndProducts, items: ProductInCheck
 		companyName: cp.companyName,
 		companySlug,
 	} as Buyer)
+}
+
+const handleOrderSubmit = async (cp: CompaniesAndProducts, items: ProductInCheckout[]): Promise<void> => {
+	await handleCreateOrder(cp, items)
+	await messageToSaller(cp.companyId, items)
+	removeItemsFromCart(items)
+	showToast()
+	navigateTo('/profile/purchases')
 }
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
@@ -281,11 +289,17 @@ const removeItemsFromCart = (items: ProductInCheckout[]): void => {
 }
 
 //отправляем сообщение продавцу о намерении совершить заказ
-const messageToSaller = async (companyId: number , product: ProductInCheckout[]): Promise<void> =>  {
-	const response = await createChat({participantId: companyId})
-	const productList: string[] = []
-	product.forEach(prod => productList.push(prod.productName))
-	sendMessage(response.id, {senderId: companyId, content: `Здравуствуйте, хочу приобрести у вас следующую продукцию: ${productList}`})
+const messageToSaller = async (companyId: number, product: ProductInCheckout[]): Promise<void> => {
+	try {
+		const chatData = await createChat({ participantId: companyId })
+		if (!chatData?.id) return
+		const productList = product.map((p) => p.productName).join(', ')
+		await sendMessage(chatData.id, {
+			content: `Здравствуйте, хочу приобрести у вас следующую продукцию: ${productList}`,
+		})
+	} catch (err) {
+		console.error('Ошибка при создании чата/отправке сообщения:', err)
+	}
 }
 
 //всплывающее уведомление

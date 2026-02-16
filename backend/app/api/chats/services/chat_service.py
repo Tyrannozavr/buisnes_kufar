@@ -21,19 +21,21 @@ class ChatService:
         if existing_chat:
             return await self._format_chat_response(existing_chat, current_company_id)
 
-        # Получаем компанию-участника для определения владельца
+        # Получаем компанию-участника
         participant_company = await self.repository.get_company_by_id(chat_data.participant_company_id)
         if not participant_company:
             raise ValueError(f"Company with ID {chat_data.participant_company_id} not found")
+
+        participant_user_id = await self.repository.get_company_user_id(chat_data.participant_company_id)
+        if not participant_user_id:
+            raise ValueError(f"No user found for company ID {chat_data.participant_company_id}")
 
         # Создаем новый чат
         chat = await self.repository.create_chat(title=chat_data.title)
 
         # Добавляем участников
-        # Первый участник - текущий пользователь и его компания
         await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        # Второй участник - владелец компании-участника
-        await self.repository.add_participant(chat.id, chat_data.participant_company_id, participant_company.user_id)
+        await self.repository.add_participant(chat.id, chat_data.participant_company_id, participant_user_id)
 
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)
@@ -59,6 +61,10 @@ class ChatService:
         if not participant_company:
             raise ValueError(f"Company with slug {participant_slug} not found")
 
+        participant_user_id = await self.repository.get_company_user_id(participant_company.id)
+        if not participant_user_id:
+            raise ValueError(f"No user found for company {participant_slug}")
+
         # Проверяем, существует ли уже чат
         existing_chat = await self.repository.find_existing_chat(current_company_id, participant_company.id)
 
@@ -69,10 +75,8 @@ class ChatService:
         chat = await self.repository.create_chat()
 
         # Добавляем участников
-        # Первый участник - текущий пользователь и его компания
         await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        # Второй участник - владелец компании-участника
-        await self.repository.add_participant(chat.id, participant_company.id, participant_company.user_id)
+        await self.repository.add_participant(chat.id, participant_company.id, participant_user_id)
 
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)

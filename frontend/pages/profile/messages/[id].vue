@@ -217,16 +217,15 @@ const handleSendMessage = async () => {
 
     // Отправляем сообщение на сервер
     const messageResponse = await sendMessage(chatId, {
-      senderId: userStore.companyId || 0,
       content: messageContent,
       file: fileToSend || undefined
     })
 
     // Заменяем временное сообщение на реальное
-    if (messages.value && messageResponse.data.value) {
+    if (messages.value && messageResponse) {
       const tempIndex = messages.value.findIndex(m => m.is_temp)
       if (tempIndex !== -1) {
-        messages.value[tempIndex] = messageResponse.data.value
+        messages.value[tempIndex] = { ...messageResponse, is_temp: false }
       }
     }
 

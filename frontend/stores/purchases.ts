@@ -132,8 +132,9 @@ export const usePurchasesStore = defineStore("purchases", {
 
       const { getDealById, getBuyerDeals } = usePurchasesApi();
       const buyerDeals = await getBuyerDeals();
-      const dealsIds: number[] =
-        buyerDeals?.map((deal: BuyerDealResponse) => deal.id) || [];
+      const dealsIds: number[] = [
+        ...new Set(buyerDeals?.map((deal: BuyerDealResponse) => deal.id) || []),
+      ];
 
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
@@ -194,6 +195,7 @@ export const usePurchasesStore = defineStore("purchases", {
             this.addNewServicesDeal({
               dealId: dealResponse.id,
               buyerOrderNumber: dealResponse.buyer_order_number,
+              sellerOrderNumber: dealResponse.seller_order_number,
               date: dealResponse.created_at,
               services: {
                 servicesList: dealResponse.items.map((item: any) => ({
@@ -243,20 +245,24 @@ export const usePurchasesStore = defineStore("purchases", {
         }
       };
 
-      //заполнение списка сделок
+      //заполнение списка сделок (последовательно, чтобы избежать дублирования)
       for (const dealId of dealsIds) {
         await fillDeals(dealId);
       }
     },
 
     addNewGoodsDeal(newDeal: GoodsDeal) {
-      if (newDeal) {
+      if (!newDeal) return;
+      const exists = this.purchases.goodsDeals?.some((d) => d.dealId === newDeal.dealId);
+      if (!exists) {
         this.purchases.goodsDeals?.push(newDeal);
       }
     },
 
     addNewServicesDeal(newDeal: ServicesDeal) {
-      if (newDeal) {
+      if (!newDeal) return;
+      const exists = this.purchases.servicesDeals?.some((d) => d.dealId === newDeal.dealId);
+      if (!exists) {
         this.purchases.servicesDeals?.push(newDeal);
       }
     },

@@ -87,9 +87,8 @@
 				</div>
 
         <div v-if="activeButtons" class="flex gap-2 border-2 border-emerald-500 rounded-md p-2">
-          <UButton label="Сохранить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
-						:disabled="!activeButtons" @click="saveChanges(activeTab), editButton()" />
-          <UButton label="Отмена" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
+          <!-- <UButton label="Сохранить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle":disabled="!activeButtons" @click="saveChanges(activeTab), editButton()" /> -->
+          <UButton label="Отменить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
 						:disabled="!activeButtons" @click="cancelChanges(activeTab), editButton()" />
         </div>
 
@@ -101,7 +100,7 @@
 
 				<div class="flex flex-row justify-between">
 					<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-						:disabled="activeButtons" @click="inDevelopment()" />
+						:disabled="!activeButtons || activeTab !== '0'" @click="handleSendToCounterpart" />
 				</div>
 			</div>
 
@@ -121,7 +120,8 @@ import { CalendarDate } from '@internationalized/date'
 import OrderMenu from './OrderMenu.vue';
 import BillMenu from './BillMenu.vue';
 import { useRoute } from 'vue-router';
-
+import { useChatsApi } from '~/api/chats';
+import { useUserStore } from '~/stores/user';
 const modalIsOpen = ref(false)
 const route = useRoute()
 const purchasesStore = usePurchasesStore()
@@ -275,6 +275,75 @@ const { saveOrder } = useSaveState()
 const saveChanges = (activeTab: string) => {
 	if (activeTab === '0') {
 		saveOrder()
+	}
+}
+
+const { createChat, sendMessage } = useChatsApi()
+
+const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber: string } | null => {
+	const query = route.query
+	const dealId = Number(query?.dealId)
+	const role = query?.role
+  const productType = query?.productType
+  
+	if (!dealId || !role || !productType) return null
+
+	if (role === 'buyer') {
+		if (productType === 'goods') {
+			const deal = purchasesStore.findGoodsDeal(dealId)
+      return { companyId: deal?.saller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
+      
+		} else if (productType === 'services') {
+			const deal = purchasesStore.findServicesDeal(dealId)
+			return { companyId: deal?.saller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
+		}
+  }
+  
+	if (role === 'seller') {
+		if (productType === 'goods') {
+			const deal = salesStore.findGoodsDeal(dealId)
+      return { companyId: deal?.buyer?.companyId ?? 0, dealNumber: deal?.buyerOrderNumber ?? '' }
+      
+		} else if (productType === 'services') {
+			const deal = salesStore.findServicesDeal(dealId)
+			return { companyId: deal?.buyer?.companyId ?? 0, dealNumber: deal?.buyerOrderNumber ?? '' }
+		}
+	}
+	return null
+}
+
+const handleSendToCounterpart = async (): Promise<void> => {
+  if (activeTab.value !== '0') return
+  
+  const counterpartData = getCounterpartCompanyIdAndDealNumber()
+  
+	if (!counterpartData) {
+		useToast().add({ title: 'Нет данных о контрагенте', color: 'error' })
+		return
+  }
+  
+	try {
+		saveOrder()
+		const orderNumber = counterpartData.dealNumber
+		const chatData = await createChat({ participantId: counterpartData.companyId })
+		if (chatData?.id) {
+			await sendMessage(chatData.id, {
+				content: `Изменены условия заказа ${orderNumber}. Пожалуйста, ознакомьтесь с обновлённой версией.`,
+			})
+    }
+    
+		editButton()
+		useToast().add({
+			title: 'Изменения сохранены и отправлены контрагенту',
+			color: 'success',
+    })
+    
+	} catch (err) {
+		console.error('Ошибка при отправке контрагенту:', err)
+		useToast().add({
+			title: 'Ошибка при отправке сообщения контрагенту',
+			color: 'error',
+		})
 	}
 }
 

@@ -36,9 +36,11 @@ async def create_chat(
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Получаем компанию текущего пользователя
+    # Получаем компанию текущего пользователя (User.company_id -> Company)
+    if not current_user.company_id:
+        raise HTTPException(status_code=404, detail="Company not found for current user")
     result = await db.execute(
-        select(Company).where(Company.user_id == current_user.id)
+        select(Company).where(Company.id == current_user.company_id)
     )
     current_company = result.scalar_one_or_none()
 
@@ -64,9 +66,11 @@ async def create_chat_by_slug(
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Получаем компанию текущего пользователя
+    # Получаем компанию текущего пользователя (User.company_id -> Company)
+    if not current_user.company_id:
+        raise HTTPException(status_code=404, detail="Company not found for current user")
     result = await db.execute(
-        select(Company).where(Company.user_id == current_user.id)
+        select(Company).where(Company.id == current_user.company_id)
     )
     current_company = result.scalar_one_or_none()
 
@@ -225,9 +229,11 @@ async def send_message(
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Получаем компанию текущего пользователя
+    # Получаем компанию текущего пользователя (User.company_id -> Company)
+    if not current_user.company_id:
+        raise HTTPException(status_code=404, detail="Company not found for current user")
     result = await db.execute(
-        select(Company).where(Company.user_id == current_user.id)
+        select(Company).where(Company.id == current_user.company_id)
     )
     current_company = result.scalar_one_or_none()
 

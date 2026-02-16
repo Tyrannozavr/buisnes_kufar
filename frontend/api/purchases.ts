@@ -42,7 +42,7 @@ export const usePurchasesApi = () => {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_SELLER_DEALS), {
 				query: { skip, limit },
 			})
-			console.log('RESPONSE: ',response)
+			console.log('RESPONSE GET SELLER DEALS: ',response)
 			return response
 		} catch(e) {
 			console.log('ERROR: ', e)
@@ -52,7 +52,7 @@ export const usePurchasesApi = () => {
 	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
 		try {
       const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
-      console.log("RESPONSE: ", response);
+      console.log("RESPONSE GET DEAL BY ID: ", response);
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)

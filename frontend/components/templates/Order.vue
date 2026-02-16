@@ -47,13 +47,13 @@ const fillQuery = () => {
 
   if (userStore.companyId === orderData.value.buyer.companyId) {
     query.role = 'buyer'
-  } else {
+  } else if (userStore.companyId === orderData.value.saller.companyId) {
     query.role = 'seller'
   }
 
-  if (orderData.value.products?.[0]?.type === 'Товар') {
+  if (orderData.value.products?.[0]?.type === 'Товары') {
     query.productType = 'goods'
-  } else if (orderData.value.products?.[0]?.type === 'Услуга') {
+  } else if (orderData.value.products?.[0]?.type === 'Услуги') {
     query.productType = 'services'
   }
 
@@ -187,14 +187,9 @@ const fillFromQuery = () => {
   fillOrderData()
 }
 
-//заполнение формы при наличии данных в query или store
+//заполнение формы из query при наличии данных в store
 watch(
   () => [
-    route.query.dealId,
-    route.query.role,
-    route.query.productType,
-    route.query.dealId,
-    route.hash,
     salesStore.sales?.goodsDeals?.length ?? 0,
     salesStore.sales?.servicesDeals?.length ?? 0,
     purchasesStore.purchases?.goodsDeals?.length ?? 0,
@@ -507,7 +502,7 @@ onMounted(() => {
 		</p>
 		<br />
 
-			<textarea :disabled="isDisabled" ref="comment" placeholder="Комментарии" v-model.lazy="orderData.comments"
+			<textarea :disabled="isDisabled" placeholder="Комментарии" v-model.lazy="orderData.comments"
 				class="w-full h-15 max-h-40" />
 	</div>
 </template>

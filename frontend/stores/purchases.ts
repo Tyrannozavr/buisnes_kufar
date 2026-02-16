@@ -158,7 +158,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 })),
                 amountPrice: 0,
                 amountWord: "",
-                comments: "",
+                comments: dealResponse.comments ?? "",
               },
               saller: {
                 sallerName: dealResponse.seller_company.name,
@@ -207,7 +207,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 })),
                 amountPrice: 0,
                 amountWord: "",
-                comments: "",
+                comments: dealResponse.comments ?? "",
               },
               saller: {
                 sallerName: dealResponse.seller_company.name,
@@ -217,6 +217,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyId: dealResponse.seller_company.id,
                 email: dealResponse.seller_company.email,
                 inn: dealResponse.seller_company.inn,
+                legalAddress: dealResponse.seller_company.legal_address,
               },
               buyer: {
                 buyerName: dealResponse.buyer_company.name,
@@ -226,6 +227,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 companyId: dealResponse.buyer_company.id,
                 email: dealResponse.buyer_company.email,
                 inn: dealResponse.buyer_company.inn,
+                legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
               bill: dealResponse.bill_number || "",

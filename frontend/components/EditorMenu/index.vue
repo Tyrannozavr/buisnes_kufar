@@ -70,8 +70,19 @@
 					<div class="flex gap-2">
 						<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
 							class="w-1/2" @click="clearCurrentForm(activeTab)" />
-						<UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
-							class="w-1/2" @click="removeCurrentDeal(activeTab)" />
+            <UModal
+              v-model:open="modalIsOpen"
+              title="Вы уверены, что хотите удалить сделку?"
+              description="Удаление сделки приведет к удалению всех данных у вас и у контрагента"
+            >
+             <UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle" class="w-1/2"/>
+             
+              <template #footer>
+                <UButton label="Удалить сделку" icon="i-lucide-file-x" color="neutral" variant="subtle"
+                  class="w-1/2" @click="removeCurrentDeal(activeTab), modalIsOpen = false" />
+                <UButton label="Отмена" icon="i-lucide-x" color="neutral" variant="subtle" class="w-1/2" @click="modalIsOpen = false" />
+              </template>
+            </UModal>
 					</div>
 				</div>
 
@@ -79,7 +90,7 @@
           <UButton label="Сохранить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
 						:disabled="!activeButtons" @click="saveChanges(activeTab), editButton()" />
           <UButton label="Отмена" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
-						:disabled="!activeButtons" @click="cancelChanges(), editButton()" />
+						:disabled="!activeButtons" @click="cancelChanges(activeTab), editButton()" />
         </div>
 
 				<div class="flex flex-col gap-2 text-center ">
@@ -91,7 +102,6 @@
 				<div class="flex flex-row justify-between">
 					<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
 						:disabled="activeButtons" @click="inDevelopment()" />
-					<!-- <UButton label="Сохранить"/> -->
 				</div>
 			</div>
 
@@ -110,8 +120,10 @@ import { useInsertState, useIsDisableState, useClearState, useSaveState, useRemo
 import { CalendarDate } from '@internationalized/date'
 import OrderMenu from './OrderMenu.vue';
 import BillMenu from './BillMenu.vue';
+import { useRoute } from 'vue-router';
 
-
+const modalIsOpen = ref(false)
+const route = useRoute()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
@@ -257,7 +269,6 @@ const removeCurrentDeal = (activeTab: string) => {
 	}
 }
 
-//FIXME: логика сохранения изменений
 // save button 
 const { saveOrder } = useSaveState()
 
@@ -267,9 +278,23 @@ const saveChanges = (activeTab: string) => {
 	}
 }
 
-// cancel button\
-//TODO: добавить логику отмены изменений
-const cancelChanges = () => {
-	console.log('cancelChanges')
+// cancel button
+const cancelChanges = (activeTab: string) => {
+  const role = route.query.role
+  const productType = route.query.productType
+
+  if (role === 'seller') {
+    if (productType === 'goods') {
+      insertLastSalesGood()
+    } else if (productType === 'services') {
+      insertLastSalesService()
+    }
+  } else if (role === 'buyer') {
+    if (productType === 'goods') {
+      insertLastPurchasesGood()
+    } else if (productType === 'services') {
+      insertLastPurchasesService()
+    }
+  }
 }
 </script>

@@ -73,9 +73,11 @@ import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
 import { usePurchasesStore } from '~/stores/purchases'
 import { useSalesStore } from '~/stores/sales'
+import { useRouter } from 'vue-router'
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const route = useRoute()
+const router = useRouter()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
 
@@ -139,5 +141,22 @@ watch(
 		}
 	},
 	{ immediate: true }
+)
+
+watch(
+  () => activeTab.value,
+  () => {
+    if (activeTab.value === '0') {
+      router.replace({
+        query: route.query,
+        hash: '#order'
+      })
+    } else if (activeTab.value === '1') {
+      router.replace({
+        query: route.query,
+        hash: '#bill'
+      })
+    }
+  }
 )
 </script>

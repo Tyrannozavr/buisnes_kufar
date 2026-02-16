@@ -153,7 +153,7 @@ export const useSalesStore = defineStore("sales", {
                 })),
                 amountPrice: 0,
                 amountWord: "",
-                comments: "",
+                comments: dealResponse.comments ?? "",
               },
               date: dealResponse.created_at,
               saller: {
@@ -198,7 +198,7 @@ export const useSalesStore = defineStore("sales", {
                 })),
                 amountPrice: 0,
                 amountWord: "",
-                comments: "",
+                comments: dealResponse.comments ?? "",
               },
               date: dealResponse.created_at,
               saller: {

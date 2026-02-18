@@ -471,6 +471,33 @@ class DealRepository:
         
         return document
 
+    async def get_document_by_id(
+        self, deal_id: int, document_id: int, company_id: int
+    ) -> Optional[OrderDocument]:
+        """Получение документа по ID с проверкой доступа к заказу."""
+        order = await self.get_order_by_id(deal_id, company_id)
+        if not order:
+            return None
+        query = select(OrderDocument).where(
+            and_(
+                OrderDocument.id == document_id,
+                OrderDocument.order_id == deal_id,
+            )
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def delete_document(
+        self, deal_id: int, document_id: int, company_id: int
+    ) -> bool:
+        """Удаление документа (после удаления файла из S3 вызывающий код должен удалить запись)."""
+        doc = await self.get_document_by_id(deal_id, document_id, company_id)
+        if not doc:
+            return False
+        await self.session.delete(doc)
+        await self.session.commit()
+        return True
+
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""
         from app.api.authentication.models.user import User

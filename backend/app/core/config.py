@@ -91,6 +91,19 @@ class Settings(BaseSettings):
     RECAPTCHA_SITE_KEY: str = "6LdJHHorAAAAAG2JB9CyOtRQbPJWrxbdRPy0dMHO"  # Замените на ваш публичный ключ
     RECAPTCHA_MIN_SCORE: float = 0.5  # Минимальный балл для прохождения проверки
 
+    # S3-compatible storage (Cloudflare R2, MinIO, AWS S3)
+    S3_ENDPOINT_URL: Optional[str] = None  # R2: https://<ACCOUNT_ID>.r2.cloudflarestorage.com, MinIO: http://localhost:9000
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
+    S3_BUCKET: Optional[str] = None
+    S3_REGION: str = "auto"  # R2 uses "auto", AWS uses e.g. us-east-1
+    S3_DOCUMENTS_PREFIX: str = "documents"
+    S3_PRESIGNED_EXPIRES: int = 3600  # seconds
+
+    @property
+    def S3_ENABLED(self) -> bool:
+        return bool(self.S3_BUCKET and self.S3_ACCESS_KEY and self.S3_SECRET_KEY)
+
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         return get_async_database_url(self.SQLALCHEMY_DATABASE_URL)

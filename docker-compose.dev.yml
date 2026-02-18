@@ -58,6 +58,19 @@ services:
       timeout: 10s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: "${S3_ACCESS_KEY:-admin}"
+      MINIO_ROOT_PASSWORD: "${S3_SECRET_KEY:-SuperSecret123!}"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data_dev:/data
+    command: server /data --console-address ":9001"
+
   backend:
     build:
       context: .
@@ -88,6 +101,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      minio:
+        condition: service_started
 
   frontend:
     build:
@@ -189,3 +204,4 @@ volumes:
   backend_poetry_cache:
   backend_venv:
   rabbitmq_data_dev:
+  minio_data_dev:

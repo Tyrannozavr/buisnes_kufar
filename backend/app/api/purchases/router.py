@@ -1,8 +1,10 @@
 from typing import Annotated, List
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.db.dependencies import async_db_dep
+from app.core.config import settings
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
 from app.api.purchases.dependencies import deal_service_dep_annotated
@@ -299,39 +301,116 @@ async def upload_document(
     file: UploadFile = File(...)
 ):
     """
-    Загрузка документа к заказу
-    
-    Позволяет прикрепить документ (счет, договор, акт, счет-фактура и т.д.) к заказу.
-    Поддерживает различные типы файлов и автоматически определяет размер.
+    Загрузка документа к заказу в S3.
+    Требует настройки S3 (Cloudflare R2, MinIO или AWS S3).
     """
+    if not settings.S3_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="S3 storage is not configured. Set S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY (and optionally S3_ENDPOINT_URL for R2/MinIO).",
+        )
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    
-    # Проверяем права доступа к заказу
     deal = await deal_service.get_deal_by_id(deal_id, company.id)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
-    
-    # Сохраняем файл (здесь нужно реализовать логику сохранения файлов)
-    # Пока заглушка
-    file_path = f"uploads/deals/{deal_id}/{file.filename}"
-    
+
+    content = await file.read()
+    from app.core.s3 import upload_document as s3_upload_document
+
+    try:
+        file_path = s3_upload_document(
+            deal_id=deal_id,
+            filename=file.filename or "document",
+            content=content,
+            content_type=file.content_type,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to upload file to storage: {e!s}",
+        ) from e
+
     from app.api.purchases.schemas import DocumentUpload
     from datetime import datetime
-    
+
     document_data = DocumentUpload(
         document_type=document_type,
         document_number=document_number,
         document_date=datetime.fromisoformat(document_date) if document_date else None,
-        description=description
+        description=description,
     )
-    
     document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
     if not document:
         raise HTTPException(status_code=400, detail="Failed to add document")
-    
     return {"message": "Document uploaded successfully", "document_id": document.id}
+
+
+@router.get(
+    "/deals/{deal_id}/documents/{document_id}/download",
+    tags=["documents", "download", "files"],
+    responses={
+        302: {"description": "Redirect to presigned download URL"},
+        404: {"description": "Deal or document not found"},
+        503: {"description": "S3 not configured"},
+    },
+)
+async def download_document(
+    deal_id: int,
+    document_id: int,
+    redirect: bool = Query(True, description="If true, redirect to URL; else return JSON with url"),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Получить ссылку на скачивание документа (presigned URL) или редирект на неё."""
+    if not settings.S3_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="S3 storage is not configured.",
+        )
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    doc = await deal_service.get_document(deal_id, document_id, company.id)
+    if not doc or not doc.document_file_path:
+        raise HTTPException(status_code=404, detail="Document not found or has no file")
+    from app.core.s3 import get_presigned_download_url
+
+    url = get_presigned_download_url(doc.document_file_path)
+    if redirect:
+        return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
+    return {"url": url}
+
+
+@router.delete(
+    "/deals/{deal_id}/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["documents", "delete", "files"],
+)
+async def delete_document(
+    deal_id: int,
+    document_id: int,
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Удалить документ (файл в S3 и запись в БД)."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    doc = await deal_service.get_document(deal_id, document_id, company.id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if settings.S3_ENABLED and doc.document_file_path:
+        from app.core.s3 import delete_document as s3_delete_document
+
+        try:
+            s3_delete_document(doc.document_file_path)
+        except Exception:
+            pass
+    deleted = await deal_service.delete_document(deal_id, document_id, company.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 
 @router.post(

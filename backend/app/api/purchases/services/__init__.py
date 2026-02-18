@@ -105,12 +105,20 @@ class DealService:
     async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
         """Добавление документа к сделке"""
         try:
-            document_dict = document_data.dict()
+            document_dict = document_data.model_dump()
             return await self.repository.add_document(deal_id, document_dict, file_path, company_id)
         except Exception as e:
             await self.session.rollback()
             print(f"Error adding document: {e}")
             return None
+
+    async def get_document(self, deal_id: int, document_id: int, company_id: int) -> Optional[OrderDocument]:
+        """Получение документа по ID с проверкой доступа."""
+        return await self.repository.get_document_by_id(deal_id, document_id, company_id)
+
+    async def delete_document(self, deal_id: int, document_id: int, company_id: int) -> bool:
+        """Удаление документа из БД (файл из S3 вызывающий код удаляет отдельно)."""
+        return await self.repository.delete_document(deal_id, document_id, company_id)
 
     async def assign_bill(self, deal_id: int, company_id: int, date=None):
         """Генерация и присвоение номера и даты счета."""

@@ -31,6 +31,7 @@ export const usePurchasesApi = () => {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_BUYER_DEALS), {
 				query: { skip, limit },
       })
+      // console.log('RESPONSE GET BUYER DEALS: ', response)
 			return response
 		} catch(e) {
 			console.log('ERROR: ', e)
@@ -41,8 +42,8 @@ export const usePurchasesApi = () => {
 		try {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_SELLER_DEALS), {
 				query: { skip, limit },
-			})
-			console.log('RESPONSE GET SELLER DEALS: ',response)
+      })
+      // console.log('RESPONSE GET SELLER DEALS: ', response)
 			return response
 		} catch(e) {
 			console.log('ERROR: ', e)
@@ -52,7 +53,6 @@ export const usePurchasesApi = () => {
 	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
 		try {
       const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
-      console.log("RESPONSE GET DEAL BY ID: ", response);
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)
@@ -69,17 +69,7 @@ export const usePurchasesApi = () => {
 		}
 	}
 
-	const uploadDocumentById = async (deal_id: number, formData?: FormData) => {
-		try {
-			const response = await $api.post(
-				normalizeApiPath(API_URLS.UPLOAD_DOCUMENT_BY_ID(deal_id)),
-				formData ?? {},
-			)
-			return response
-		} catch (error) {
-			console.log('ERROR: ', error)
-		}
-	}
+
 
 	const createOrderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
 		// NOTE: backend CheckoutRequest expects shape: { items: CheckoutItem[], comments?: string }
@@ -187,7 +177,6 @@ export const usePurchasesApi = () => {
     getSellerDeals,
     getDealById,
     updateDealById,
-    uploadDocumentById,
     createBill,
     createContract,
     createSupplyContract,

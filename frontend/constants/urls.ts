@@ -6,13 +6,18 @@ export const API_URLS = {
 	GET_SELLER_DEALS: '/api/v1/purchases/seller/deals',
 	GET_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
-	UPLOAD_DOCUMENT_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
 	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
 	CREATE_SUPPLY_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/supply-contract`,
 	CREATE_ORDER_FROM_CHECKOUT: '/api/v1/purchases/checkout',
 	GET_UNITS_MEASUREMENT: '/api/v1/purchases/units',
 	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
+
+  // Documents
+  GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
+  UPLOAD_DOCUMENT_BY_DEAL_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
+  DOWNLOAD_DOCUMENT: (deal_id: number, document_id: number) => `/api/v1/purchases/deals/${deal_id}/documents/${document_id}/download`,
+  DELETE_DOCUMENT: (deal_id: number, document_id: number) => `/api/v1/purchases/deals/${deal_id}/documents/${document_id}`,
 
   // Companies
   COMPANIES: '/v1/companies/',

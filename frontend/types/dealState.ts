@@ -51,7 +51,7 @@ export interface GoodsDeal {
   saller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная"
-  bill?: string
+  billNumber?: string
   billDate?: string
   contractNumber?: string
   contractDate?: string
@@ -70,7 +70,7 @@ export interface ServicesDeal {
   saller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная";
-  bill?: string
+  billNumber?: string
   billDate?: string
 	contractNumber?: string
 	contractDate?: string

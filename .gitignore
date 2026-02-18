@@ -20939,3 +20939,5 @@ nginx/letsencrypt/renewal/
 /backend/celery_worker.log
 /backend/new_venv/lib64/
 /backend/new_venv/
+.vscode/settings.json
+frontend/TODO

@@ -331,6 +331,38 @@ class DocumentUpload(BaseModel):
         from_attributes = True
 
 
+class DocumentResponse(BaseModel):
+    """Схема документа в ответе API (поля соответствуют DocumentApiItem на фронте)."""
+    document_id: int
+    deal_id: int
+    document_type: str
+    document_number: Optional[str] = None
+    document_date: Optional[str] = None
+    document_file_path: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Маппинг OrderDocument (id, order_id) -> DocumentResponse (document_id, deal_id)."""
+        if hasattr(obj, "id") and hasattr(obj, "order_id"):
+            doc_num = obj.document_number if obj.document_number != "-" else None
+            return super().model_validate(
+                {
+                    "document_id": obj.id,
+                    "deal_id": obj.order_id,
+                    "document_type": obj.document_type,
+                    "document_number": doc_num,
+                    "document_date": obj.document_date.isoformat() if obj.document_date else None,
+                    "document_file_path": obj.document_file_path,
+                    "created_at": obj.created_at.isoformat() if obj.created_at else "",
+                    "updated_at": obj.updated_at.isoformat() if obj.updated_at else "",
+                },
+                **kwargs,
+            )
+        return super().model_validate(obj, **kwargs)
+
+
 class OrderHistoryResponse(BaseModel):
     """Схема для истории изменений заказа"""
     id: int

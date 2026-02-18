@@ -1,6 +1,6 @@
 from typing import Annotated, List
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from app.db.dependencies import async_db_dep
@@ -11,7 +11,7 @@ from app.api.purchases.dependencies import deal_service_dep_annotated
 from app.api.purchases.services import DealService
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
-    BuyerDealResponse, SellerDealResponse, DocumentUpload,
+    BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
 )
@@ -337,21 +337,52 @@ async def upload_document(
 
     document_data = DocumentUpload(
         document_type=document_type,
-        document_number=document_number,
+        document_number=document_number if document_number and str(document_number).strip() else None,
         document_date=datetime.fromisoformat(document_date) if document_date else None,
         description=description,
     )
-    document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
+    try:
+        document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add document: {e!s}",
+        ) from e
     if not document:
         raise HTTPException(status_code=400, detail="Failed to add document")
     return {"message": "Document uploaded successfully", "document_id": document.id}
 
 
 @router.get(
+    "/deals/{deal_id}/documents",
+    response_model=List[DocumentResponse],
+    tags=["documents", "list", "files"],
+)
+async def get_documents(
+    deal_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    deal_service: deal_service_dep_annotated,
+):
+    """Получить список документов заказа."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    deal = await deal_service.get_deal_by_id(deal_id, company.id)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+
+    return await deal_service.get_documents(deal_id, company.id)
+
+
+@router.get(
     "/deals/{deal_id}/documents/{document_id}/download",
     tags=["documents", "download", "files"],
     responses={
-        302: {"description": "Redirect to presigned download URL"},
+        200: {"description": "File content (stream=true) or JSON with url (stream=false)"},
+        302: {"description": "Redirect to presigned URL (redirect=true)"},
         404: {"description": "Deal or document not found"},
         503: {"description": "S3 not configured"},
     },
@@ -359,11 +390,12 @@ async def upload_document(
 async def download_document(
     deal_id: int,
     document_id: int,
-    redirect: bool = Query(True, description="If true, redirect to URL; else return JSON with url"),
+    redirect: bool = Query(True, description="If true, redirect to URL"),
+    stream: bool = Query(False, description="If true, stream file through backend (no presigned URL)"),
     current_user: Annotated[User, Depends(get_current_user)] = ...,
     deal_service: deal_service_dep_annotated = ...,
 ):
-    """Получить ссылку на скачивание документа (presigned URL) или редирект на неё."""
+    """Скачать документ: stream=True — через backend, иначе presigned URL."""
     if not settings.S3_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -375,6 +407,23 @@ async def download_document(
     doc = await deal_service.get_document(deal_id, document_id, company.id)
     if not doc or not doc.document_file_path:
         raise HTTPException(status_code=404, detail="Document not found or has no file")
+
+    if stream:
+        import asyncio
+        from app.core.s3 import get_document_content
+
+        content, content_type = await asyncio.to_thread(
+            get_document_content, doc.document_file_path
+        )
+        filename = doc.document_file_path.split("/")[-1] if "/" in doc.document_file_path else "document"
+        return Response(
+            content=content,
+            media_type=content_type or "application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
     from app.core.s3 import get_presigned_download_url
 
     url = get_presigned_download_url(doc.document_file_path)

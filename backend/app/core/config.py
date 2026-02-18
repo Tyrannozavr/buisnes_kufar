@@ -92,7 +92,8 @@ class Settings(BaseSettings):
     RECAPTCHA_MIN_SCORE: float = 0.5  # Минимальный балл для прохождения проверки
 
     # S3-compatible storage (Cloudflare R2, MinIO, AWS S3)
-    S3_ENDPOINT_URL: Optional[str] = None  # R2: https://<ACCOUNT_ID>.r2.cloudflarestorage.com, MinIO: http://localhost:9000
+    S3_ENDPOINT_URL: Optional[str] = None  # R2: https://<ACCOUNT_ID>.r2.cloudflarestorage.com, MinIO: http://minio:9000
+    S3_PUBLIC_ENDPOINT_URL: Optional[str] = None  # Для presigned URL: адрес, доступный из браузера. Docker: http://localhost:9000
     S3_ACCESS_KEY: Optional[str] = None
     S3_SECRET_KEY: Optional[str] = None
     S3_BUCKET: Optional[str] = None

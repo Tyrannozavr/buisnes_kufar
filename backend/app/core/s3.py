@@ -61,16 +61,39 @@ def upload_document(deal_id: int, filename: str, content: bytes, content_type: O
     return key
 
 
+def _client_for_presigned():
+    """Client для presigned URL: использует S3_PUBLIC_ENDPOINT_URL если задан (доступен из браузера)."""
+    base_kwargs = {
+        "aws_access_key_id": settings.S3_ACCESS_KEY,
+        "aws_secret_access_key": settings.S3_SECRET_KEY,
+        "region_name": settings.S3_REGION,
+        "config": Config(signature_version="s3v4"),
+    }
+    endpoint = settings.S3_PUBLIC_ENDPOINT_URL or settings.S3_ENDPOINT_URL
+    if endpoint:
+        base_kwargs["endpoint_url"] = endpoint
+    return boto3.client("s3", **base_kwargs)
+
+
 def get_presigned_download_url(key: str, expires_in: Optional[int] = None) -> str:
-    """Generate presigned URL for GET. Default expiry from settings."""
+    """Generate presigned URL for GET. Uses S3_PUBLIC_ENDPOINT_URL when set (browser-accessible)."""
     if expires_in is None:
         expires_in = settings.S3_PRESIGNED_EXPIRES
-    client = _client()
+    client = _client_for_presigned()
     return client.generate_presigned_url(
         "get_object",
         Params={"Bucket": _bucket(), "Key": key},
         ExpiresIn=expires_in,
     )
+
+
+def get_document_content(key: str) -> tuple[bytes, Optional[str]]:
+    """Скачать содержимое файла из S3. Возвращает (content, content_type)."""
+    client = _client()
+    response = client.get_object(Bucket=_bucket(), Key=key)
+    body = response["Body"].read()
+    content_type = response.get("ContentType")
+    return (body, content_type)
 
 
 def delete_document(key: str) -> bool:

@@ -451,14 +451,14 @@ class DealRepository:
         document = OrderDocument(
             order_id=order_id,
             document_type=document_data.get("document_type"),
-            document_number=document_data.get("document_number"),
+            document_number=(document_data.get("document_number") or "").strip() or "-",
             document_date=document_data.get("document_date") or datetime.utcnow(),
             document_file_path=file_path
         )
         
         self.session.add(document)
         await self.session.commit()
-        
+
         # Записываем в историю
         self._add_order_history(
             order_id,
@@ -468,7 +468,8 @@ class DealRepository:
             None,
             document_data
         )
-        
+        await self.session.commit()
+
         return document
 
     async def get_document_by_id(
@@ -486,6 +487,22 @@ class DealRepository:
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_documents_by_deal_id(
+        self, deal_id: int, company_id: int
+    ) -> List[OrderDocument]:
+        """Получение списка документов заказа с проверкой доступа."""
+        order = await self.get_order_by_id(deal_id, company_id)
+        if not order:
+            return []
+
+        query = (
+            select(OrderDocument)
+            .where(OrderDocument.order_id == deal_id)
+            .order_by(desc(OrderDocument.created_at))
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
 
     async def delete_document(
         self, deal_id: int, document_id: int, company_id: int

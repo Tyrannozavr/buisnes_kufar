@@ -43,6 +43,11 @@ class Order(Base):
     """Заказ - основная сущность для документооборота"""
     __tablename__ = "orders"
 
+    # Technical row PK + stable business id
+    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
     # Основная информация
     buyer_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа покупателя (00000)
     seller_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа продавца (00000)
@@ -92,7 +97,7 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     # Связь с заказом
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    order_row_id: Mapped[int] = mapped_column(ForeignKey("orders.row_id", ondelete="CASCADE"), nullable=False)
     
     # Информация о продукте
     product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)  # Может быть null для ручного ввода
@@ -117,7 +122,7 @@ class OrderItem(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    order: Mapped["Order"] = relationship("Order", back_populates="order_items")
+    order: Mapped["Order"] = relationship("Order", back_populates="order_items", foreign_keys=[order_row_id])
     product: Mapped[Optional["Product"]] = relationship("Product")
 
     def __str__(self):
@@ -129,7 +134,7 @@ class OrderHistory(Base):
     __tablename__ = "order_history"
 
     # Связь с заказом
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False)
+    order_row_id: Mapped[int] = mapped_column(ForeignKey("orders.row_id", ondelete="CASCADE"), nullable=False)
     
     # Информация об изменении
     changed_by_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)  # Кто изменил
@@ -144,11 +149,11 @@ class OrderHistory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    order: Mapped["Order"] = relationship("Order", back_populates="order_history")
+    order: Mapped["Order"] = relationship("Order", back_populates="order_history", foreign_keys=[order_row_id])
     changed_by_company: Mapped["Company"] = relationship("Company")
 
     def __str__(self):
-        return f"Изменение в заказе {self.order_id} от {self.changed_by_company_id}"
+        return f"Изменение в заказе row_id={self.order_row_id} от {self.changed_by_company_id}"
 
 
 class OrderDocument(Base):
@@ -156,7 +161,7 @@ class OrderDocument(Base):
     __tablename__ = "order_documents"
 
     # Связь с заказом
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    order_row_id: Mapped[int] = mapped_column(ForeignKey("orders.row_id", ondelete="CASCADE"), nullable=False)
     
     # Информация о документе
     document_type: Mapped[str] = mapped_column(String(50), nullable=False)  # Тип документа (invoice, contract, act, etc.)
@@ -176,7 +181,7 @@ class OrderDocument(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    order: Mapped["Order"] = relationship("Order")
+    order: Mapped["Order"] = relationship("Order", foreign_keys=[order_row_id])
 
     def __str__(self):
         return f"{self.document_type} {self.document_number} от {self.document_date.strftime('%d.%m.%Y')}"

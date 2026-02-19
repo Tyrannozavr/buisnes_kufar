@@ -86,6 +86,27 @@ class DealService:
             print(f"Error updating deal: {e}")
             raise
 
+    async def create_new_deal_version(
+        self, deal_id: int, company_id: int, deal_data: Optional[DealUpdate] = None
+    ) -> Optional[DealResponse]:
+        """Создание новой версии сделки по текущей последней версии с опциональным обновлением полей."""
+        try:
+            order = await self.repository.create_new_order_version(deal_id, company_id)
+            if not order:
+                return None
+
+            # If request body contains fields, apply them to the newly created latest version.
+            if deal_data and deal_data.model_dump(exclude_none=True):
+                updated_order = await self.repository.update_order(deal_id, deal_data, company_id)
+                if updated_order:
+                    order = updated_order
+
+            return await self._order_to_deal_response(order)
+        except Exception as e:
+            await self.session.rollback()
+            print(f"Error creating new deal version: {e}")
+            raise
+
     async def delete_deal(self, deal_id: int, company_id: int) -> bool:
         """Удаление сделки"""
         try:
@@ -101,6 +122,15 @@ class DealService:
             await self.session.rollback()
             print(f"Error deleting deal: {e}")
             return False
+
+    async def delete_last_deal_version(self, deal_id: int, company_id: int) -> Optional[int]:
+        """Удаление только последней версии сделки."""
+        try:
+            return await self.repository.delete_last_order_version(deal_id, company_id)
+        except Exception as e:
+            await self.session.rollback()
+            print(f"Error deleting last deal version: {e}")
+            return None
 
     async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
         """Добавление документа к сделке"""
@@ -159,7 +189,7 @@ class DealService:
                 
                 items.append(OrderItemResponse(
                     id=item.id,
-                    order_id=item.order_id,
+                    order_id=order.id,
                     product_id=item.product_id,
                     product_name=item.product_name,
                     product_slug=item.product_slug,
@@ -221,6 +251,7 @@ class DealService:
 
             return DealResponse(
                 id=order.id,
+                version=order.version,
                 buyer_company_id=order.buyer_company_id,
                 seller_company_id=order.seller_company_id,
                 buyer_order_number=order.buyer_order_number,

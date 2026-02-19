@@ -1,12 +1,12 @@
 from typing import Optional, List, Tuple, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, desc, asc, extract
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy import select, and_, or_, func, desc, extract
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 import enum
 
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
-from app.api.purchases.schemas import OrderItemCreate, DealCreate, DealUpdate
+from app.api.purchases.schemas import DealCreate, DealUpdate
 from app.api.company.models.company import Company
 
 
@@ -70,9 +70,11 @@ class DealRepository:
                     f"All products in an order must be of the same type (either all goods or all services)."
                 )
             
-            # Создаем заказ
+            # Создаем заказ (version starts at 1 for a new deal id)
             print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")
             order = Order(
+                id=await self._generate_deal_id(),
+                version=1,
                 buyer_order_number=buyer_order_number,
                 seller_order_number=seller_order_number,
                 buyer_order_date=order_date,
@@ -140,7 +142,7 @@ class DealRepository:
                 print(f"DEBUG: Обрабатываем позицию {position}: {product_name} (qty={quantity}, price={price})")
                 
                 order_item = OrderItem(
-                    order_id=order.id,
+                    order_row_id=order.row_id,
                     product_id=product_id,
                     product_name=product_name,
                     product_slug=product_slug,
@@ -163,7 +165,7 @@ class DealRepository:
             # Записываем в историю
             print(f"DEBUG: Добавляем запись в историю")
             self._add_order_history(
-                order.id, 
+                order.row_id,
                 buyer_company_id, 
                 "created", 
                 "Заказ создан покупателем",
@@ -188,80 +190,232 @@ class DealRepository:
             raise
 
     async def get_order_by_id_only(self, order_id: int) -> Optional[Order]:
-        """Получение заказа по ID без проверки доступа (для различения 404/403)."""
-        query = select(Order).where(Order.id == order_id)
+        """Получение latest-версии заказа по ID без проверки доступа (для различения 404/403)."""
+        query = (
+            select(Order)
+            .where(Order.id == order_id)
+            .order_by(desc(Order.version))
+            .limit(1)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_order_by_id_and_version(
+        self, order_id: int, version: int, company_id: int
+    ) -> Optional[Order]:
+        """Получение конкретной версии заказа по deal ID и version с проверкой доступа."""
+        query = (
+            select(Order)
+            .options(selectinload(Order.order_items), selectinload(Order.order_history))
+            .where(
+                and_(
+                    Order.id == order_id,
+                    Order.version == version,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
+            )
+            .limit(1)
+        )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def get_order_by_id(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Получение заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
-        query = select(Order).options(
-            selectinload(Order.order_items),
-            selectinload(Order.order_history)
-        ).where(
-            and_(
-                Order.id == order_id,
-                or_(
-                    Order.buyer_company_id == company_id,
-                    Order.seller_company_id == company_id
+        """Получение latest-версии заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
+        query = (
+            select(Order)
+            .options(selectinload(Order.order_items), selectinload(Order.order_history))
+            .where(
+                and_(
+                    Order.id == order_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
                 )
             )
+            .order_by(desc(Order.version))
+            .limit(1)
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение заказов покупателя"""
-        # Общее количество
-        count_query = select(func.count(Order.id)).where(Order.buyer_company_id == company_id)
+        """Получение latest-версий заказов покупателя."""
+        # Общее количество (distinct deals)
+        count_query = select(func.count(func.distinct(Order.id))).where(Order.buyer_company_id == company_id)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
-        
-        # Заказы
-        query = select(Order).options(
-            selectinload(Order.order_items),
-            selectinload(Order.seller_company),
-            selectinload(Order.buyer_company),
-        ).where(
-            Order.buyer_company_id == company_id
-        ).order_by(desc(Order.created_at)).offset(skip).limit(limit)
-        
+
+        latest_subquery = (
+            select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
+            .where(Order.buyer_company_id == company_id)
+            .group_by(Order.id)
+            .subquery()
+        )
+
+        query = (
+            select(Order)
+            .join(
+                latest_subquery,
+                and_(
+                    Order.id == latest_subquery.c.deal_id,
+                    Order.version == latest_subquery.c.max_version,
+                ),
+            )
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
+            .order_by(desc(Order.updated_at))
+            .offset(skip)
+            .limit(limit)
+        )
+
         result = await self.session.execute(query)
         orders = result.scalars().all()
-        
+
         return list(orders), total
 
     async def get_seller_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение заказов продавца"""
-        # Общее количество
-        count_query = select(func.count(Order.id)).where(Order.seller_company_id == company_id)
+        """Получение latest-версий заказов продавца."""
+        # Общее количество (distinct deals)
+        count_query = select(func.count(func.distinct(Order.id))).where(Order.seller_company_id == company_id)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
-        
-        # Заказы
-        query = select(Order).options(
-            selectinload(Order.order_items),
-            selectinload(Order.seller_company),
-            selectinload(Order.buyer_company),
-        ).where(
-            Order.seller_company_id == company_id
-        ).order_by(desc(Order.created_at)).offset(skip).limit(limit)
-        
+
+        latest_subquery = (
+            select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
+            .where(Order.seller_company_id == company_id)
+            .group_by(Order.id)
+            .subquery()
+        )
+
+        query = (
+            select(Order)
+            .join(
+                latest_subquery,
+                and_(
+                    Order.id == latest_subquery.c.deal_id,
+                    Order.version == latest_subquery.c.max_version,
+                ),
+            )
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
+            .order_by(desc(Order.updated_at))
+            .offset(skip)
+            .limit(limit)
+        )
+
         result = await self.session.execute(query)
         orders = result.scalars().all()
-        
+
         return list(orders), total
 
     async def delete_order(self, order_id: int, company_id: int) -> bool:
-        """Удаление заказа"""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
+        """Удаление всех версий заказа."""
+        latest_order = await self.get_order_by_id(order_id, company_id)
+        if not latest_order:
             return False
-        
-        # Удаляем заказ (каскадное удаление позиций и истории через relationships)
-        await self.session.delete(order)
+
+        query = (
+            select(Order)
+            .where(
+                and_(
+                    Order.id == order_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
+            )
+            .order_by(desc(Order.version))
+        )
+        result = await self.session.execute(query)
+        orders = list(result.scalars().all())
+        for order in orders:
+            await self.session.delete(order)
         await self.session.commit()
         return True
+
+    async def delete_last_order_version(self, order_id: int, company_id: int) -> Optional[int]:
+        """Удаление только последней версии заказа. Возвращает удаленную version."""
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        deleted_version = order.version
+        await self.session.delete(order)
+        await self.session.commit()
+        return deleted_version
+
+    async def create_new_order_version(self, order_id: int, company_id: int) -> Optional[Order]:
+        """Создание новой версии заказа по latest snapshot."""
+        latest_order = await self.get_order_by_id(order_id, company_id)
+        if not latest_order:
+            return None
+
+        new_version = latest_order.version + 1
+        new_order = Order(
+            id=latest_order.id,
+            version=new_version,
+            buyer_order_number=latest_order.buyer_order_number,
+            seller_order_number=latest_order.seller_order_number,
+            deal_type=latest_order.deal_type,
+            status=latest_order.status,
+            buyer_company_id=latest_order.buyer_company_id,
+            seller_company_id=latest_order.seller_company_id,
+            buyer_order_date=self._normalize_datetime(latest_order.buyer_order_date),
+            seller_order_date=self._normalize_datetime(latest_order.seller_order_date),
+            contract_number=latest_order.contract_number,
+            contract_date=self._normalize_datetime(latest_order.contract_date),
+            bill_number=latest_order.bill_number,
+            bill_date=self._normalize_datetime(latest_order.bill_date),
+            supply_contracts_number=latest_order.supply_contracts_number,
+            supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
+            closing_documents=latest_order.closing_documents,
+            others_documents=latest_order.others_documents,
+            comments=latest_order.comments,
+            total_amount=latest_order.total_amount,
+        )
+
+        self.session.add(new_order)
+        await self.session.flush()
+
+        for item in latest_order.order_items:
+            cloned_item = OrderItem(
+                order_row_id=new_order.row_id,
+                product_id=item.product_id,
+                product_name=item.product_name,
+                product_slug=item.product_slug,
+                product_description=item.product_description,
+                product_article=item.product_article,
+                product_type=item.product_type,
+                logo_url=item.logo_url,
+                quantity=item.quantity,
+                unit_of_measurement=item.unit_of_measurement,
+                price=item.price,
+                amount=item.amount,
+                position=item.position,
+            )
+            self.session.add(cloned_item)
+
+        self._add_order_history(
+            new_order.row_id,
+            company_id,
+            "version_created",
+            f"Создана новая версия сделки: v{new_version}",
+            {"source_version": latest_order.version},
+            {"version": new_version},
+        )
+
+        await self.session.commit()
+        return await self.get_order_by_id_and_version(order_id, new_version, company_id)
 
     async def update_order(self, order_id: int, order_data: DealUpdate, company_id: int) -> Optional[Order]:
         """Обновление заказа"""
@@ -395,7 +549,7 @@ class DealRepository:
                 total_amount += amount
 
                 order_item = OrderItem(
-                    order_id=order.id,
+                    order_row_id=order.row_id,
                     product_id=product_id,
                     product_name=product_name,
                     product_slug=product_slug,
@@ -429,7 +583,7 @@ class DealRepository:
         }
         
         self._add_order_history(
-            order.id,
+            order.row_id,
             company_id,
             "updated",
             "Заказ обновлен",
@@ -449,7 +603,7 @@ class DealRepository:
             return None
         
         document = OrderDocument(
-            order_id=order_id,
+            order_row_id=order.row_id,
             document_type=document_data.get("document_type"),
             document_number=(document_data.get("document_number") or "").strip() or "-",
             document_date=document_data.get("document_date") or datetime.utcnow(),
@@ -461,7 +615,7 @@ class DealRepository:
 
         # Записываем в историю
         self._add_order_history(
-            order_id,
+            order.row_id,
             company_id,
             "document_added",
             f"Добавлен документ: {document_data.get('document_type', 'Неизвестный тип')}",
@@ -479,10 +633,10 @@ class DealRepository:
         order = await self.get_order_by_id(deal_id, company_id)
         if not order:
             return None
-        query = select(OrderDocument).where(
+        query = select(OrderDocument).options(selectinload(OrderDocument.order)).where(
             and_(
                 OrderDocument.id == document_id,
-                OrderDocument.order_id == deal_id,
+                OrderDocument.order_row_id == order.row_id,
             )
         )
         result = await self.session.execute(query)
@@ -498,7 +652,8 @@ class DealRepository:
 
         query = (
             select(OrderDocument)
-            .where(OrderDocument.order_id == deal_id)
+            .options(selectinload(OrderDocument.order))
+            .where(OrderDocument.order_row_id == order.row_id)
             .order_by(desc(OrderDocument.created_at))
         )
         result = await self.session.execute(query)
@@ -628,6 +783,13 @@ class DealRepository:
 
         return f"{next_number:05d}"
 
+    async def _generate_deal_id(self) -> int:
+        """Генерация нового business deal id (стабильный для всех версий)."""
+        query = select(func.max(Order.id))
+        result = await self.session.execute(query)
+        max_id = result.scalar()
+        return (max_id or 0) + 1
+
     async def _generate_bill_number(self, seller_company_id: int) -> str:
         """Генерация номера счета на оплату (маска 00001, ежегодное обнуление)."""
         current_year = datetime.utcnow().year
@@ -712,7 +874,7 @@ class DealRepository:
         order.bill_date = bill_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(
-            order_id, company_id, "bill_assigned",
+            order.row_id, company_id, "bill_assigned",
             f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
             None, {"bill_number": order.bill_number, "bill_date": str(bill_date)}
         )
@@ -730,7 +892,7 @@ class DealRepository:
         order.contract_date = contract_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(
-            order_id, company_id, "contract_assigned",
+            order.row_id, company_id, "contract_assigned",
             f"Присвоен договор № {order.contract_number} от {contract_date.strftime('%d.%m.%Y')}",
             None, {"contract_number": order.contract_number, "contract_date": str(contract_date)}
         )
@@ -748,7 +910,7 @@ class DealRepository:
         order.supply_contracts_date = supply_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(
-            order_id, company_id, "supply_contract_assigned",
+            order.row_id, company_id, "supply_contract_assigned",
             f"Присвоен договор поставки № {order.supply_contracts_number} от {supply_date.strftime('%d.%m.%Y')}",
             None, {"supply_contracts_number": order.supply_contracts_number, "supply_contracts_date": str(supply_date)}
         )
@@ -770,12 +932,21 @@ class DealRepository:
             return [DealRepository._to_json_serializable(v) for v in obj]
         return obj
 
-    def _add_order_history(self, order_id: int, company_id: int, change_type: str,
+    @staticmethod
+    def _normalize_datetime(value: Optional[datetime]) -> Optional[datetime]:
+        """Приводит datetime к naive UTC для полей БД без timezone."""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value
+        return value.replace(tzinfo=None)
+
+    def _add_order_history(self, order_row_id: int, company_id: int, change_type: str,
                                 description: str, old_data: Optional[dict] = None,
                                 new_data: Optional[dict] = None):
         """Добавление записи в историю заказа"""
         history = OrderHistory(
-            order_id=order_id,
+            order_row_id=order_row_id,
             changed_by_company_id=company_id,
             change_type=change_type,
             change_description=description,

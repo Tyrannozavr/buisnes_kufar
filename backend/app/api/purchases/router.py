@@ -74,6 +74,7 @@ async def get_buyer_deals(
     for deal in deals:
         buyer_deals.append(BuyerDealResponse(
             id=deal.id,
+            version=deal.version,
             buyer_company_id=deal.buyer_company_id,
             seller_company_id=deal.seller_company_id,
             buyer_order_number=deal.buyer_order_number,
@@ -115,6 +116,7 @@ async def get_seller_deals(
     for deal in deals:
         seller_deals.append(SellerDealResponse(
             id=deal.id,
+            version=deal.version,
             buyer_company_id=deal.buyer_company_id,
             seller_company_id=deal.seller_company_id,
             buyer_order_number=deal.buyer_order_number,
@@ -136,9 +138,30 @@ async def get_seller_deals(
     "/deals/{deal_id}",
     response_model=DealResponse,
     tags=["deals", "orders", "detail"],
-    summary="Получение заказа по ID",
+    summary="Получение последней версии заказа по ID сделки",
     responses={
-        200: {"description": "Заказ найден"},
+        200: {
+            "description": "Возвращена последняя версия сделки",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 321,
+                        "version": 3,
+                        "buyer_company_id": 10,
+                        "seller_company_id": 20,
+                        "buyer_order_number": "00042",
+                        "seller_order_number": "00058",
+                        "status": "Активная",
+                        "deal_type": "Товары",
+                        "total_amount": 246.9,
+                        "comments": "latest version",
+                        "items": [],
+                        "created_at": "2026-02-19T10:00:00",
+                        "updated_at": "2026-02-19T11:00:00"
+                    }
+                }
+            }
+        },
         404: {"description": "Заказ не найден или компания пользователя не участвует в сделке"},
     },
 )
@@ -148,8 +171,9 @@ async def get_deal(
     deal_service: deal_service_dep_annotated
 ):
     """
-    Получение конкретного заказа.
+    Получение конкретного заказа по ID сделки.
 
+    По умолчанию возвращает последнюю версию (`max(version)`).
     Возвращает детальную информацию о заказе включая все позиции и документы.
     Доступ только для участников сделки (покупателя или продавца).
     """
@@ -168,9 +192,30 @@ async def get_deal(
     "/deals/{deal_id}",
     response_model=DealResponse,
     tags=["deals", "orders", "update"],
-    summary="Обновление заказа",
+    summary="Обновление последней версии заказа",
     responses={
-        200: {"description": "Заказ успешно обновлён"},
+        200: {
+            "description": "Последняя версия заказа успешно обновлена",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 321,
+                        "version": 3,
+                        "buyer_company_id": 10,
+                        "seller_company_id": 20,
+                        "buyer_order_number": "00042",
+                        "seller_order_number": "00058",
+                        "status": "Активная",
+                        "deal_type": "Товары",
+                        "total_amount": 246.9,
+                        "comments": "updated latest version",
+                        "items": [],
+                        "created_at": "2026-02-19T10:00:00",
+                        "updated_at": "2026-02-19T11:30:00"
+                    }
+                }
+            }
+        },
         403: {"description": "Доступ запрещён: компания пользователя не является покупателем или продавцом по этой сделке"},
         404: {"description": "Заказ не найден по указанному ID"},
         422: {"description": "Ошибка валидации тела запроса (DealUpdate)"},
@@ -183,8 +228,9 @@ async def update_deal(
     deal_service: deal_service_dep_annotated
 ):
     """
-    Обновление заказа.
+    Обновление заказа по ID сделки.
 
+    Обновляет только последнюю версию сделки (in-place), новую версию не создает.
     Позволяет изменить статус, комментарии или позиции заказа (поле **items** в формате **OrderItemUpdate**:
     допускаются `quantity >= 0`, `price >= 0`).
     Все изменения записываются в историю.
@@ -212,8 +258,8 @@ async def update_deal(
 
 
 class DeleteDealResponse(BaseModel):
-    """Схема ответа при удалении сделки"""
-    message: str = "Deal deleted successfully"
+    """Схема ответа при удалении сделки (все версии)."""
+    message: str = "Deal versions deleted successfully"
     deal_id: int
 
 
@@ -222,14 +268,14 @@ class DeleteDealResponse(BaseModel):
     response_model=DeleteDealResponse,
     status_code=status.HTTP_200_OK,
     tags=["deals", "orders", "delete"],
-    summary="Удаление заказа",
+    summary="Удаление заказа (все версии)",
     description="""
-    Удаление заказа по ID.
+    Удаление заказа по ID сделки (все версии).
     
     **Доступ:** Только для участников сделки (покупателя или продавца)
     
     **Действия при удалении:**
-    - Удаляется сам заказ
+    - Удаляются все версии заказа
     - Каскадно удаляются все позиции заказа (order_items)
     - Каскадно удаляется история изменений заказа (order_history)
     
@@ -243,7 +289,7 @@ class DeleteDealResponse(BaseModel):
             "content": {
                 "application/json": {
                     "example": {
-                        "message": "Deal deleted successfully",
+                        "message": "Deal versions deleted successfully",
                         "deal_id": 123
                     }
                 }
@@ -269,8 +315,8 @@ async def delete_deal(
     """
     Удаление заказа
     
-    Удаляет заказ по ID. Доступно только для участников сделки (покупателя или продавца).
-    При удалении также удаляются все связанные позиции заказа и история изменений.
+    Удаляет все версии заказа по ID сделки. Доступно только для участников сделки
+    (покупателя или продавца).
     """
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
@@ -286,7 +332,130 @@ async def delete_deal(
             detail="Deal not found or access denied"
         )
     
-    return DeleteDealResponse(message="Deal deleted successfully", deal_id=deal_id)
+    return DeleteDealResponse(message="Deal versions deleted successfully", deal_id=deal_id)
+
+
+@router.post(
+    "/deals/{deal_id}/versions",
+    response_model=DealResponse,
+    tags=["deals", "orders", "versions", "create"],
+    summary="Создание новой версии заказа",
+    description="""
+    Создает новую версию сделки на основе текущей последней версии.
+
+    - `id` сделки остается неизменным
+    - `version` увеличивается на 1
+    - предыдущие версии сохраняются
+    """,
+    responses={
+        200: {
+            "description": "Новая версия сделки создана",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 321,
+                        "version": 4,
+                        "buyer_company_id": 10,
+                        "seller_company_id": 20,
+                        "buyer_order_number": "00042",
+                        "seller_order_number": "00058",
+                        "status": "Активная",
+                        "deal_type": "Товары",
+                        "total_amount": 246.9,
+                        "comments": "copied from previous version",
+                        "items": [],
+                        "created_at": "2026-02-19T12:00:00",
+                        "updated_at": "2026-02-19T12:00:00"
+                    }
+                }
+            }
+        },
+        404: {"description": "Сделка не найдена или доступ запрещен"},
+    },
+)
+async def create_new_deal_version(
+    deal_id: int = Path(..., description="ID сделки", example=123, gt=0),
+    deal_data: DealUpdate = Body(
+        default_factory=DealUpdate,
+        examples={
+            "empty_body_copy_only": {
+                "summary": "Создать новую версию без изменений",
+                "value": {},
+            },
+            "copy_with_patch": {
+                "summary": "Создать новую версию и обновить поля",
+                "value": {
+                    "comments": "Новая версия с изменениями",
+                    "status": "Активная",
+                },
+            },
+        },
+    ),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Создает новую версию сделки, не затрагивая предыдущие версии, и применяет поля из тела запроса."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    new_version_deal = await deal_service.create_new_deal_version(deal_id, company.id, deal_data)
+    if not new_version_deal:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return new_version_deal
+
+
+class DeleteLastVersionDealResponse(BaseModel):
+    """Схема ответа при удалении последней версии сделки."""
+    message: str = "Last deal version deleted successfully"
+    deal_id: int
+    deleted_version: int
+
+
+@router.delete(
+    "/deals/{deal_id}/versions/last",
+    response_model=DeleteLastVersionDealResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["deals", "orders", "versions", "delete"],
+    summary="Удаление последней версии заказа",
+    description="""
+    Удаляет только последнюю версию сделки (`max(version)`).
+    Другие версии с тем же `deal_id` сохраняются.
+    """,
+    responses={
+        200: {
+            "description": "Последняя версия сделки удалена",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Last deal version deleted successfully",
+                        "deal_id": 321,
+                        "deleted_version": 4
+                    }
+                }
+            }
+        },
+        404: {"description": "Сделка не найдена или доступ запрещен"},
+    },
+)
+async def delete_last_deal_version(
+    deal_id: int = Path(..., description="ID сделки", example=123, gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Удаляет только последнюю версию сделки."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    deleted_version = await deal_service.delete_last_deal_version(deal_id, company.id)
+    if deleted_version is None:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+
+    return DeleteLastVersionDealResponse(
+        deal_id=deal_id,
+        deleted_version=deleted_version,
+    )
 
 
 @router.post("/deals/{deal_id}/documents", tags=["documents", "upload", "files"])

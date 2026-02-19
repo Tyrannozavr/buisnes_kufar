@@ -140,6 +140,7 @@ def custom_openapi():
         {"name": "bill", "description": "Создание номера и даты счета на оплату"},
         {"name": "contract", "description": "Создание номера и даты договора"},
         {"name": "supply-contract", "description": "Создание номера и даты договора поставки"},
+        {"name": "versions", "description": "Управление версиями сделки: создание новой и удаление последней версии"},
     ]
     existing_names = {t["name"] for t in openapi_schema["tags"] if isinstance(t, dict) and "name" in t}
     for tag in doc_tags:

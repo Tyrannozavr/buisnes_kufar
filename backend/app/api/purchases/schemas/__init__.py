@@ -194,6 +194,7 @@ class CompanyInDealResponse(BaseModel):
 class DealResponse(BaseModel):
     """Полная схема заказа для ответа"""
     id: int
+    version: int = Field(..., description="Версия сделки (1..N), где N — последняя версия")
     buyer_company_id: int
     seller_company_id: int
     buyer_order_number: str
@@ -227,6 +228,7 @@ class DealResponse(BaseModel):
 class BuyerDealResponse(BaseModel):
     """Схема заказа для покупателя"""
     id: int
+    version: int = Field(..., description="Текущая версия сделки в списке")
     buyer_company_id: int
     seller_company_id: int
     buyer_order_number: str
@@ -249,6 +251,7 @@ class BuyerDealResponse(BaseModel):
 class SellerDealResponse(BaseModel):
     """Схема заказа для продавца"""
     id: int
+    version: int = Field(..., description="Текущая версия сделки в списке")
     buyer_company_id: int
     seller_company_id: int
     buyer_order_number: str
@@ -344,13 +347,14 @@ class DocumentResponse(BaseModel):
 
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Маппинг OrderDocument (id, order_id) -> DocumentResponse (document_id, deal_id)."""
-        if hasattr(obj, "id") and hasattr(obj, "order_id"):
+        """Маппинг OrderDocument -> DocumentResponse."""
+        if hasattr(obj, "id") and hasattr(obj, "order_row_id"):
             doc_num = obj.document_number if obj.document_number != "-" else None
+            deal_id = obj.order.id if getattr(obj, "order", None) else obj.order_row_id
             return super().model_validate(
                 {
                     "document_id": obj.id,
-                    "deal_id": obj.order_id,
+                    "deal_id": deal_id,
                     "document_type": obj.document_type,
                     "document_number": doc_num,
                     "document_date": obj.document_date.isoformat() if obj.document_date else None,

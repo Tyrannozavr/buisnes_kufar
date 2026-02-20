@@ -4,14 +4,18 @@ export const API_URLS = {
 	CREATE_DEAL: '/api/v1/purchases/deals',
 	GET_BUYER_DEALS: '/api/v1/purchases/buyer/deals', 
 	GET_SELLER_DEALS: '/api/v1/purchases/seller/deals',
-	GET_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
-	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
+	GET_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,//работает с последней версией сделки
+	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,//работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
 	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
 	CREATE_SUPPLY_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/supply-contract`,
 	CREATE_ORDER_FROM_CHECKOUT: '/api/v1/purchases/checkout',
 	GET_UNITS_MEASUREMENT: '/api/v1/purchases/units',
-	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,
+  DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,//удаляет все версии сделки
+  
+  //versions 
+  CREATE_NEW_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions`,
+  DELETE_LAST_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions/last`,
 
   // Documents
   GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,

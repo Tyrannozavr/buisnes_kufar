@@ -38,6 +38,8 @@ const purchasesStore = usePurchasesStore()
 const { purchases } = storeToRefs(purchasesStore)
 const UButton = resolveComponent('UButton')
 
+//Даем команду на получение и заполнение списка сделок
+purchasesStore.getDeals()
 
 const items = [
   {
@@ -51,6 +53,15 @@ const items = [
     slot: 'services' as const
   }
 ] satisfies TabsItem[]
+
+const getDealIdByDealNumber = (dealNumber: string, productType: 'goods' | 'services'): number | undefined => {
+  if (productType === 'goods') {
+    return purchasesStore.findGoodsDealByDealNumber(dealNumber)?.dealId
+  } else if (productType === 'services') {
+    return purchasesStore.findServicesDealByDealNumber(dealNumber)?.dealId
+  }
+  return undefined
+}
 
 
 //goods table
@@ -83,7 +94,10 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: `№ ${row.getValue('dealNumber')}`,
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
@@ -177,7 +191,10 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('bill'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
@@ -193,7 +210,10 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('supplyContract'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
@@ -209,7 +229,10 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('closingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
@@ -225,17 +248,15 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('othersDocument'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
   },
 ]
-
-//Даем команду на получение и заполнение списка сделок
-purchasesStore.getDeals()
-
-console.log('purchases: ', purchases.value)
 
 const goodsDeals: GoodsDeal[] = purchases.value.goodsDeals
 const tableGoods: Ref<BuyerTableItems[]> = ref([])
@@ -246,10 +267,10 @@ watch(goodsDeals, () => {
     date: deal.date,
     sallerCompany: deal.saller.companyName || '',
     status: deal.status,
-    bill: 'Просмотр',
-    supplyContract: 'Просмотр',
-    closingDocuments: 'Просмотр',
-    othersDocument: 'Просмотр',
+    bill: deal.billNumber ? `${deal.billNumber} от ${normalizeDate(deal.billDate || '')}` : 'Просмотр',
+    supplyContract: deal.supplyContractNumber ? `${deal.supplyContractNumber} от ${normalizeDate(deal.supplyContractDate || '')}` : 'Просмотр',
+    closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
+    othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
   }))]
 }, { immediate: true, deep: true })
 
@@ -285,7 +306,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
           label: `№ ${row.getValue('dealNumber')}`,
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
           }
         })
     }
@@ -378,7 +402,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
           label: row.getValue('bill'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
           }
         })
     }
@@ -394,7 +421,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
           label: row.getValue('contract'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
           }
         })
     }
@@ -410,7 +440,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
           label: row.getValue('closingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
           }
         })
     }
@@ -426,7 +459,10 @@ const columnsServicesDeals: TableColumn<any>[] = [
           label: row.getValue('othersDocument'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push('/profile/documents')
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
           }
         })
     }

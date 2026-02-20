@@ -114,7 +114,7 @@ export const usePurchasesStore = defineStore("purchases", {
         };
         if (deal.status) body.status = deal.status;
         if (deal.contractNumber) body.contract_number = deal.contractNumber;
-        if (deal.bill) body.bill_number = deal.bill;
+        if (deal.billNumber) body.bill_number = deal.billNumber;
         if (deal.supplyContractNumber)
           body.supply_contracts_number = deal.supplyContractNumber;
         return body;
@@ -128,7 +128,7 @@ export const usePurchasesStore = defineStore("purchases", {
     },
     //получение и заполнение списка сделок
     async getDeals() {
-      this.clearStore();
+      await this.clearStore();
 
       const { getDealById, getBuyerDeals } = usePurchasesApi();
       const buyerDeals = await getBuyerDeals();
@@ -139,7 +139,7 @@ export const usePurchasesStore = defineStore("purchases", {
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
         const dealResponse = await getDealById(dealId);
-
+        console.log('DEALS PURCHASES: ', dealResponse)
         if (dealResponse) {
           if (dealResponse.deal_type === "Товары") {
             this.addNewGoodsDeal({
@@ -182,7 +182,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
-              bill: dealResponse.bill_number || "",
+              billNumber: dealResponse.bill_number || "",
               billDate: dealResponse.bill_date || "",
               contractNumber: dealResponse.contract_number || "",
               contractDate: dealResponse.contract_date || "",
@@ -232,7 +232,7 @@ export const usePurchasesStore = defineStore("purchases", {
                 legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
-              bill: dealResponse.bill_number || "",
+              billNumber: dealResponse.bill_number || "",
               billDate: dealResponse.bill_date || "",
               contractNumber: dealResponse.contract_number || "",
               contractDate: dealResponse.contract_date || "",
@@ -249,6 +249,12 @@ export const usePurchasesStore = defineStore("purchases", {
       for (const dealId of dealsIds) {
         await fillDeals(dealId);
       }
+    },
+
+    async createNewDealVersion(dealId: number) { 
+      const { createNewDealVersion } = usePurchasesApi();
+      const body = this.createBodyForUpdate(dealId);
+      await createNewDealVersion(dealId, body ?? {});
     },
 
     addNewGoodsDeal(newDeal: GoodsDeal) {

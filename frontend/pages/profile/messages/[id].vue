@@ -268,12 +268,58 @@ const formatFileSize = (bytes: number) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
+
+const escapeHtml = (value: string) => {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
+const formatMessageContent = (content: string, isMine: boolean) => {
+  const escaped = escapeHtml(content)
+  const urlRegex = /(https?:\/\/[^\s<]+)/g
+  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
+  const linkClass = isMine ? 'underline text-blue-100' : 'underline text-blue-600'
+  const linkTokens: string[] = []
+
+  const replaceWithToken = (html: string) => {
+    const token = `__LINK_TOKEN_${linkTokens.length}__`
+    linkTokens.push(html)
+    return token
+  }
+
+  const withMarkdownLinks = escaped.replace(
+    markdownLinkRegex,
+    (_, label: string, url: string) =>
+      replaceWithToken(
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${label}</a>`
+      )
+  )
+
+  const withAutoLinks = withMarkdownLinks.replace(
+      urlRegex,
+      (url) =>
+        replaceWithToken(
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${url}</a>`
+        )
+  )
+
+  const restoredLinks = withAutoLinks.replace(
+    /__LINK_TOKEN_(\d+)__/g,
+    (_, index: string) => linkTokens[Number(index)] || ''
+    )
+
+  return restoredLinks.replaceAll('\n', '<br>')
+}
 </script>
 
 <template>
   <div class="flex h-[calc(100vh-16rem)]">
     <!-- Боковая панель с чатами - скрыта на мобильных устройствах -->
-    <div class="hidden lg:flex w-80 border-r border-gray-200 flex flex-col">
+    <div class="hidden lg:flex w-80 border-r border-gray-200 flex-col">
       <div class="p-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold">Сообщения</h2>
       </div>
@@ -403,8 +449,11 @@ const formatFileSize = (bytes: number) => {
                 class="max-w-[70%] p-4 rounded-lg"
                 :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
-              <div v-if="message.content" class="mb-2">
-                {{ message.content }}
+              <div
+                v-if="message.content"
+                class="mb-2 break-words"
+                v-html="formatMessageContent(message.content, message.sender_company_id?.toString() === userStore.companyId?.toString())"
+              >
               </div>
               <div v-if="message.file_path" class="mt-2">
                 <a

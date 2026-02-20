@@ -234,6 +234,7 @@ const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
 
 watch(() => saveState.value,
 	async () => {
+    if (!saveState.value) return
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			await purchasesStore.fullUpdateGoodsDeal(
 				orderData.value.dealId,

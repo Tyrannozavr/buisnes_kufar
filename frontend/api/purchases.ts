@@ -53,9 +53,10 @@ export const usePurchasesApi = () => {
 	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
 		try {
       const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
+      console.log('RESPONSE GET DEAL BY ID: ', response)
 			return response
 		} catch (error) {
-			console.log('ERROR: ', error)
+			console.log('ERROR GET DEAL BY ID: ', error)
 		}
 	}
 	
@@ -72,15 +73,11 @@ export const usePurchasesApi = () => {
 
 
 	const createOrderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
-		// NOTE: backend CheckoutRequest expects shape: { items: CheckoutItem[], comments?: string }
-		// where companyId/companyName/companySlug belong to SELLER company for each item.
 		if (!products?.length) return
 
 		const bodyPost = {
 			items: products.map((product) => ({
 				slug: String(product.slug),
-				// Optional fields in Pydantic are still required if no default is set.
-				// Also `undefined` gets dropped by JSON.stringify -> causes 422 "field required".
 				description: product.description ?? null,
 				logoUrl: product.logoUrl ?? null,
 				type: String(product.type),
@@ -171,6 +168,29 @@ export const usePurchasesApi = () => {
     }
   };
 
+  const createNewDealVersion = async (deal_id: number, body: DealUpdate): Promise<DealResponse | undefined> => {
+    try {
+      const response = await $api.post(
+        normalizeApiPath(API_URLS.CREATE_NEW_DEAL_VERSION(deal_id)),
+        body
+      );
+      return response;
+    } catch (e) {
+      console.log("ERROR: ", e);
+    }
+  }
+
+  const deleteLastDealVersion = async (deal_id: number) => {
+    try {
+      const response = await $api.delete(
+        normalizeApiPath(API_URLS.DELETE_LAST_DEAL_VERSION(deal_id))
+      )
+      console.log("RESPONSE delete last version", response )
+    } catch(e) {
+      console.log("ERROR: ", e)
+    }
+  }
+
 	return {
     createDeal,
     getBuyerDeals,
@@ -183,5 +203,7 @@ export const usePurchasesApi = () => {
     createOrderFromCheckout,
     getUnitsOfMeasurement,
     deleteDealById,
+    createNewDealVersion,
+    deleteLastDealVersion,
   };
 }

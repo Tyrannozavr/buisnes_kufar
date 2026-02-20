@@ -2,7 +2,15 @@
 	<div>
 		<UCard variant="subtle" class="top-26">
 
-			<div class="flex flex-col justify-between gap-5">
+      <div v-if="confirmation" class="flex flex-col justify-between gap-5">
+        <UButton label="Принять изменения" icon="i-lucide-check" color="success" variant="solid"
+          class="w-full justify-center" @click="confirm()" />
+        <UButton label="Отклонить изменения" icon="i-lucide-x" color="error" variant="soft"
+          class="w-full justify-center" @click="reject(), clearCurrentForm(activeTab)" />
+      </div>
+
+
+			<div v-else class="flex flex-col justify-between gap-5">
 
 				<div class="w-full">
 					<UCollapsible>
@@ -67,9 +75,11 @@
 				<div class="flex flex-col gap-2">
 					<UButton :disabled="activeButtons" @click="editButton()" label="Редактировать" icon="i-lucide-file-pen" color="neutral" variant="subtle"
 						class="active:bg-green-500" />
+
 					<div class="flex gap-2">
 						<UButton label="Oчистить форму" icon="lucide:remove-formatting" color="neutral" variant="subtle"
 							class="w-1/2" @click="clearCurrentForm(activeTab)" />
+
             <UModal
               v-model:open="modalIsOpen"
               title="Вы уверены, что хотите удалить сделку?"
@@ -83,14 +93,9 @@
                 <UButton label="Отмена" icon="i-lucide-x" color="neutral" variant="subtle" class="w-1/2" @click="modalIsOpen = false" />
               </template>
             </UModal>
+
 					</div>
 				</div>
-
-        <div v-if="activeButtons" class="flex gap-2 border-2 border-emerald-500 rounded-md p-2">
-          <!-- <UButton label="Сохранить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle":disabled="!activeButtons" @click="saveChanges(activeTab), editButton()" /> -->
-          <UButton label="Отменить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
-						:disabled="!activeButtons" @click="cancelChanges(activeTab), editButton()" />
-        </div>
 
 				<div class="flex flex-col gap-2 text-center ">
 					<p>Фото/Сканы документа</p>
@@ -98,14 +103,22 @@
 						class="justify-center" :disabled="activeButtons" @click="inDevelopment()" />
 				</div>
 
+        <div v-if="activeButtons" class="">
+          <UButton label="Отменить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
+						:disabled="!activeButtons" @click="cancelChanges(activeTab), editButton()" />
+        </div>
+
 				<div class="flex flex-row justify-between">
 					<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-						:disabled="!activeButtons || activeTab !== '0'" @click="handleSendToCounterpart" />
+						:disabled="!activeButtons || activeTab !== '0'" @click="saveChanges(), sendMessageToCounterpart()" />
 				</div>
 			</div>
 
-		</UCard>
-	</div>
+
+
+      
+    </UCard>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -116,16 +129,19 @@ import { usePurchasesStore } from '~/stores/purchases';
 import { useSalesStore } from '~/stores/sales';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { useInsertState, useIsDisableState, useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
-import { CalendarDate } from '@internationalized/date'
 import OrderMenu from './OrderMenu.vue';
 import BillMenu from './BillMenu.vue';
 import { useRoute } from 'vue-router';
 import { useChatsApi } from '~/api/chats';
-import { useUserStore } from '~/stores/user';
+import { usePurchasesApi } from '~/api/purchases';
+
+
 const modalIsOpen = ref(false)
 const route = useRoute()
+const router = useRouter()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
+const { deleteLastDealVersion } = usePurchasesApi()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
@@ -271,13 +287,6 @@ const removeCurrentDeal = (activeTab: string) => {
 
 // save button 
 const { saveOrder } = useSaveState()
-
-const saveChanges = (activeTab: string) => {
-	if (activeTab === '0') {
-		saveOrder()
-	}
-}
-
 const { createChat, sendMessage } = useChatsApi()
 
 const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber: string } | null => {
@@ -312,27 +321,61 @@ const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber
 	return null
 }
 
-const handleSendToCounterpart = async (): Promise<void> => {
+const sendMessageToCounterpart = async (isConfirm?: boolean): Promise<void> => {
+  const dealId = route.query.dealId
+  const role = route.query.role === 'seller' ? 'buyer' : 'seller'//меняем роль на противоположную
+  const productType = route.query.productType
+  const counterpartData = getCounterpartCompanyIdAndDealNumber()
+  if (!counterpartData) {
+    useToast().add({ title: 'Нет данных о контрагенте', color: 'error' })
+    return
+  }
+  const orderNumber = String(await Promise.resolve(counterpartData.dealNumber ?? ''))
+  const chatData = await createChat({ participantId: counterpartData.companyId })
+  if (chatData?.id) {
+    const resolvedDealRoute = router.resolve({
+      path: route.path,
+      query: {
+        dealId: dealId,
+        role: role,
+        productType: productType,
+        confirmation: isConfirm === undefined ? 'true' : 'false', //выставляем true если изменения приняты или отклонены, false если мы отправляем сообщение об изменениях 
+      },
+    })
+    const reviewUrl = process.client
+      ? new URL(resolvedDealRoute.href, window.location.origin).toString()
+      : resolvedDealRoute.href
+
+    const normalizedReviewUrl = String(await Promise.resolve(reviewUrl))
+
+    let content = ''
+    if (isConfirm === true) {
+      content = `Изменения заказа ${orderNumber} ПРИНЯТЫ. [Просмотр заказа](${normalizedReviewUrl})`
+    } else if (isConfirm === false) {
+      content = `Изменения заказа ${orderNumber} ОТКЛОНЕНЫ. [Просмотр заказа](${normalizedReviewUrl})`
+    } else {
+      content = `Изменены условия заказа ${orderNumber}. Пожалуйста, ознакомьтесь с обновлённой версией. [Просмотр заказа](${normalizedReviewUrl})`
+    }
+
+    await sendMessage(chatData.id, {
+      content: content,
+    })
+  }
+}
+
+const saveChanges = async (): Promise<void> => {
   if (activeTab.value !== '0') return
   
-  const counterpartData = getCounterpartCompanyIdAndDealNumber()
-  
-	if (!counterpartData) {
-		useToast().add({ title: 'Нет данных о контрагенте', color: 'error' })
-		return
-  }
-  
 	try {
-		saveOrder()
-		const orderNumber = counterpartData.dealNumber
-		const chatData = await createChat({ participantId: counterpartData.companyId })
-		if (chatData?.id) {
-			await sendMessage(chatData.id, {
-				content: `Изменены условия заказа ${orderNumber}. Пожалуйста, ознакомьтесь с обновлённой версией.`,
-			})
+    // Сначала создаем новую версию, чтобы исходная версия осталась нетронутой для reject.
+    if (route.query.role === 'seller') {
+      await salesStore.createNewDealVersion(Number(route.query.dealId))
+    } else if (route.query.role === 'buyer') {
+      await purchasesStore.createNewDealVersion(Number(route.query.dealId))
     }
-    
-		editButton()
+		await saveOrder()
+    editButton()
+
 		useToast().add({
 			title: 'Изменения сохранены и отправлены контрагенту',
 			color: 'success',
@@ -366,4 +409,40 @@ const cancelChanges = (activeTab: string) => {
     }
   }
 }
+
+//подтверждение изменений при изменении заказа одной из сторон
+const confirmation = ref(false)
+
+watch(() => route.fullPath,
+  () => {
+  confirmation.value = route.query.confirmation === 'true' ? true : false
+}, { immediate: true, deep: true})
+
+const confirm = () => {
+  router.replace({ query: { ...route.query, confirmation: 'false' } })
+  sendMessageToCounterpart(true)
+  useToast().add({
+    title: 'Изменения приняты',
+    color: 'success',
+  })
+}
+
+const reject = async () => {
+  router.replace({ query: { ...route.query, confirmation: 'false' } })
+  sendMessageToCounterpart(false)
+  const dealId = Number(route.query.dealId)
+
+  if (dealId) {
+    await deleteLastDealVersion(dealId)
+    await purchasesStore.getDeals()
+    await salesStore.getDeals()
+  }
+  
+
+  useToast().add({
+    title: 'Изменения отклонены',
+    color: 'warning',
+  })
+}
+
 </script>

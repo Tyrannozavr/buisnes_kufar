@@ -31,7 +31,7 @@ export const useSalesStore = defineStore("sales", {
           (deal) => dealNumber === deal.sellerOrderNumber,
         );
     },
-    
+
     findServicesDealByDealNumber: (state) => {
       return (dealNumber: string) =>
         state.sales.servicesDeals?.find(
@@ -111,7 +111,7 @@ export const useSalesStore = defineStore("sales", {
         };
         if (deal.status) body.status = deal.status;
         if (deal.contractNumber) body.contract_number = deal.contractNumber;
-        if (deal.bill) body.bill_number = deal.bill;
+        if (deal.billNumber) body.bill_number = deal.billNumber;
         if (deal.supplyContractNumber)
           body.supply_contracts_number = deal.supplyContractNumber;
         return body;
@@ -130,7 +130,9 @@ export const useSalesStore = defineStore("sales", {
       const { getDealById, getSellerDeals } = usePurchasesApi();
       const sellerDeals = await getSellerDeals();
       const dealsIds: number[] = [
-        ...new Set(sellerDeals?.map((deal: SellerDealResponse) => deal.id) || []),
+        ...new Set(
+          sellerDeals?.map((deal: SellerDealResponse) => deal.id) || [],
+        ),
       ];
 
       //функция для преобразования и данных и заполнения списка сделок
@@ -178,7 +180,7 @@ export const useSalesStore = defineStore("sales", {
                 legalAddress: dealResponse.buyer_company.legal_address,
               },
               status: dealResponse.status,
-              bill: dealResponse.bill_number || "",
+              billNumber: dealResponse.bill_number || "",
               billDate: dealResponse.bill_date || "",
               supplyContractNumber: dealResponse.supply_contracts_number || "",
               closingDocuments: dealResponse.closing_documents || [],
@@ -223,7 +225,7 @@ export const useSalesStore = defineStore("sales", {
                 inn: dealResponse.buyer_company.inn,
               },
               status: dealResponse.status,
-              bill: dealResponse.bill_number || "",
+              billNumber: dealResponse.bill_number || "",
               billDate: dealResponse.bill_date || "",
               supplyContractNumber: dealResponse.supply_contracts_number || "",
               supplyContractDate: dealResponse.supply_contracts_date || "",
@@ -242,9 +244,17 @@ export const useSalesStore = defineStore("sales", {
       }
     },
 
+    async createNewDealVersion(dealId: number) {
+      const { createNewDealVersion } = usePurchasesApi();
+      const body = this.createBodyForUpdate(dealId);
+      await createNewDealVersion(dealId, body ?? {});
+    },
+
     addNewGoodsDeal(newDeal: GoodsDeal) {
       if (!newDeal) return;
-      const exists = this.sales.goodsDeals?.some((d) => d.dealId === newDeal.dealId);
+      const exists = this.sales.goodsDeals?.some(
+        (d) => d.dealId === newDeal.dealId,
+      );
       if (!exists) {
         this.sales.goodsDeals?.push(newDeal);
       }
@@ -252,7 +262,9 @@ export const useSalesStore = defineStore("sales", {
 
     addNewServicesDeal(newDeal: ServicesDeal) {
       if (!newDeal) return;
-      const exists = this.sales.servicesDeals?.some((d) => d.dealId === newDeal.dealId);
+      const exists = this.sales.servicesDeals?.some(
+        (d) => d.dealId === newDeal.dealId,
+      );
       if (!exists) {
         this.sales.servicesDeals?.push(newDeal);
       }

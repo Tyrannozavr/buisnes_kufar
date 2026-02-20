@@ -66,6 +66,7 @@ export interface DealUpdate {
 
 export interface DealResponse {
   id: number;
+  version: number;
   buyer_company_id: number;
   seller_company_id: number;
   buyer_order_number: string;

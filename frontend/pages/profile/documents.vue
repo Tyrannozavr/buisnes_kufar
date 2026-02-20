@@ -85,12 +85,15 @@ import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealReaspons
 import { usePurchasesStore } from "~/stores/purchases";
 import { useSalesStore } from "~/stores/sales";
 import { useDocxGenerator } from "~/composables/useDocxGenerator";
+import { useRoute, useRouter } from "vue-router";
 
 definePageMeta({
   layout: "profile",
 });
 
 const toast = useToast();
+const route = useRoute();
+const router = useRouter();
 const documentsApi = useDocumentsApi();
 const purchasesApi = usePurchasesApi();
 const UButton = resolveComponent("UButton");
@@ -120,8 +123,6 @@ const uploadForm = reactive<{
   documentNumber: "",
   file: null,
 });
-
-
 
 const isUploadDisabled = computed(() => {
   if (!selectedDealId.value) return true;
@@ -163,7 +164,6 @@ const handleSelectDocumentType = (documentType: DocumentTypeCode): void => {
   console.log('documentType: ', documentType);
   uploadForm.documentType = documentType;
 };
-
 
 const getDocumentTypeLabel = (documentType: string): string => {
   return DOCUMENT_TYPE_LABELS[documentType] || documentType;
@@ -407,7 +407,7 @@ const handleDeleteDocument = async (row: DocumentTableRow): Promise<void> => {
 };
 
 const handleDeleteDocumetWithBlob = (row: DocumentTableRow): void => {
-  //если есть blob, то удаляем все поля в store, связанные с этим документом 
+  //FIXME: если есть blob, то удаляем все поля в store, связанные с этим документом 
   //сейчас временно просто показываем toast
   toast.add({
     title: "Ой!",
@@ -463,10 +463,20 @@ const columns: TableColumn<DocumentTableRow>[] = [
   },
 ];
 
+watch(() => route.query,
+  () => {
+    if (route.query.dealId) {
+      selectedDealId.value = Number(route.query.dealId);
+    }
+}, { immediate: true })
+
 watch(
   () => selectedDealId.value,
   async () => {
-    await loadDocuments();
+    if (selectedDealId.value) {
+      await loadDocuments();
+      router.replace({ query: {...route.query, dealId: selectedDealId.value.toString()}})
+    }
   },
 );
 

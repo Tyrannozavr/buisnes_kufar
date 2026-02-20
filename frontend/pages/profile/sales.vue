@@ -38,17 +38,21 @@ const salesStore = useSalesStore()
 const { sales } = storeToRefs(salesStore)
 const UButton = resolveComponent('UButton')
 
+//Даем команду на получение и заполнение списка сделок
+salesStore.getDeals()
+
+const getDealIdByDealNumber = (dealNumber: string, productType: 'goods' | 'services'): number | undefined => {
+  if (productType === 'goods') {
+    return salesStore.findGoodsDealByDealNumber(dealNumber)?.dealId
+  } else if (productType === 'services') {
+    return salesStore.findServicesDealByDealNumber(dealNumber)?.dealId
+  }
+  return undefined
+}
+
 //функция создает документ, если его нет и перебрасывает на страницу редактора
 const editSalesDocument = async (productType: 'goods' | 'services', documentType: 'order' | 'bill' | 'supplyContract' | 'closingDocuments' | 'othersDocument', dealNumber: string) => {
-  let dealId: number | undefined
-
-  if (productType === 'goods') {
-    const deal = salesStore.findGoodsDealByDealNumber(dealNumber)
-    dealId = deal?.dealId
-  } else if (productType === 'services') {
-    const deal = salesStore.findServicesDealByDealNumber(dealNumber)
-    dealId = deal?.dealId
-  }
+  const dealId = getDealIdByDealNumber(dealNumber, productType)
 
   if (dealId) {
     //подразумевается, что заказ уже создан и мы перебрасываем на страницу редактора
@@ -243,7 +247,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('bill') === 'Создать счет' ? 'Создать счет' : `${row.getValue('bill')} от ${normalizeDate(row.getValue('date'))}`,
+          label: row.getValue('bill'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('bill') === 'Создать счет') {
@@ -261,7 +265,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('supplyContract') === 'Создать договор поставки' ? 'Создать договор поставки' : `${row.getValue('supplyContract')} от ${normalizeDate(row.getValue('date'))}`,
+          label: row.getValue('supplyContract'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('supplyContract') === 'Создать договор поставки') {
@@ -299,17 +303,15 @@ const columnsGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('othersDocument'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            editSalesDocument('goods', 'othersDocument', row.getValue('dealNumber'))
+            router.push({
+              path: '/profile/documents', 
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+            })
           }
         })
     }
   },
 ]
-
-//Даем команду на получение и заполнение списка сделок
-salesStore.getDeals()
-
-console.log('sales: ', sales.value)
 
 const goodsDeals: GoodsDeal[] = sales.value.goodsDeals
 const tableGoods: Ref<SellerTableItems[]> = ref([])
@@ -320,10 +322,10 @@ watch(goodsDeals, () => {
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',
     status: deal.status,
-    bill: deal.bill || 'Создать счет',
-    supplyContract: deal.supplyContract || 'Создать договор поставки',
-    closingDocuments: deal.closingDocuments || 'Создать закрывающие документы',
-    othersDocument: deal.othersDocuments || 'Просмотр',
+    bill: deal.billNumber || 'Создать счет',
+    supplyContract: deal.supplyContractNumber || 'Создать договор поставки',
+    closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Создать',
+    othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Загрузить',
   }))]
 }, { immediate: true, deep: true })
 
@@ -447,7 +449,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('bill') === 'Создать счет' ? 'Создать счет' : `${row.getValue('bill')} от ${normalizeDate(row.getValue('date'))}`,
+          label: row.getValue('bill'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('bill') === 'Создать счет') {
@@ -465,7 +467,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('contract') === 'Создать договор' ? 'Создать договор' : `${row.getValue('contract')} от ${normalizeDate(row.getValue('date'))}`,
+          label: row.getValue('contract'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('contract') === 'Создать договор') {
@@ -479,14 +481,38 @@ const columnsServicesDeals: TableColumn<any>[] = [
     accessorKey: 'closingDocuments',
     header: 'Закрывающие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/profile/contracts/editor#closingDocuments', class: 'text-sky-500 text-wrap' }, row.getValue('closingDocuments'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('closingDocuments'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push({
+              path: '/profile/documents',
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
+          }
+        })
     }
   },
   {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
-      return h('a', { href: '/profile/contracts/editor#othersDocument', class: 'text-sky-500 text-wrap' }, row.getValue('othersDocument'))
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('othersDocument'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            router.push({
+              path: '/profile/documents',
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'services')?.toString() }
+            })
+          }
+        })
     }
   }
 ]
@@ -500,10 +526,10 @@ watch(servicesDeals, () => {
     date: service.date,
     buyerCompany: service.buyer.companyName || '',
     status: service.status,
-    bill: service.bill || 'Создать счет',
-    contract: service.contract || 'Создать договор',
-    closingDocuments: service.closingDocuments || 'Создать закрывающие документы',
-    othersDocument: service.othersDocuments || 'Просмотр',
+    bill: service.billNumber ? `${service.billNumber} от ${normalizeDate(service.billDate || '')}` : 'Создать счет',
+    contract: service.contractNumber || 'Создать договор',
+    closingDocuments: service.closingDocuments?.map((document: any) => document.name).join(', ') || 'Создать',
+    othersDocument: service.othersDocuments?.map((document: any) => document.name).join(', ') || 'Загрузить',
   }))]
 }, { immediate: true, deep: true })
 </script>

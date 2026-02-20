@@ -171,6 +171,7 @@ export const useSalesStore = defineStore("sales", {
                 legalAddress: dealResponse.seller_company.legal_address,
               },
               buyer: {
+                buyerName: dealResponse.buyer_company.name,
                 companyName: dealResponse.buyer_company.company_name,
                 phone: dealResponse.buyer_company.phone,
                 slug: dealResponse.buyer_company.slug,

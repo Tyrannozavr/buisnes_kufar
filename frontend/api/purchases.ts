@@ -18,7 +18,6 @@ export const usePurchasesApi = () => {
 
 			try {
 				const response = await $api.post(normalizeApiPath(API_URLS.CREATE_DEAL), bodyPost)
-				console.log(response)
 				return response
 			} catch (err: any) {
 				console.log('POST ERROR: ', err)
@@ -31,8 +30,7 @@ export const usePurchasesApi = () => {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_BUYER_DEALS), {
 				query: { skip, limit },
       })
-      // console.log('RESPONSE GET BUYER DEALS: ', response)
-			return response
+      return response
 		} catch(e) {
 			console.log('ERROR: ', e)
 		}
@@ -43,7 +41,6 @@ export const usePurchasesApi = () => {
 			const response = await $api.get(normalizeApiPath(API_URLS.GET_SELLER_DEALS), {
 				query: { skip, limit },
       })
-      // console.log('RESPONSE GET SELLER DEALS: ', response)
 			return response
 		} catch(e) {
 			console.log('ERROR: ', e)
@@ -53,7 +50,6 @@ export const usePurchasesApi = () => {
 	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
 		try {
       const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
-      console.log('RESPONSE GET DEAL BY ID: ', response)
 			return response
 		} catch (error) {
 			console.log('ERROR GET DEAL BY ID: ', error)
@@ -98,7 +94,6 @@ export const usePurchasesApi = () => {
 
 		try {
 			const response = await $api.post(normalizeApiPath(API_URLS.CREATE_ORDER_FROM_CHECKOUT), bodyPost)
-			console.log(response)
 			return response
 		} catch (err: any) {
 			console.log('POST ERROR: ', err)
@@ -123,7 +118,6 @@ export const usePurchasesApi = () => {
 				normalizeApiPath(API_URLS.CREATE_BILL(dealId)),
 				body
       )
-      console.log("RESPONSE: ", response);
 			return response
 		} catch (error) {
 			console.log('ERROR: ', error)
@@ -161,7 +155,6 @@ export const usePurchasesApi = () => {
       const response = await $api.delete(
         normalizeApiPath(API_URLS.DELETE_DEAL_BY_ID(deal_id)),
       );
-      console.log("RESPONSE: ", response);
       return response;
     } catch (error) {
       console.log("ERROR: ", error);
@@ -185,7 +178,6 @@ export const usePurchasesApi = () => {
       const response = await $api.delete(
         normalizeApiPath(API_URLS.DELETE_LAST_DEAL_VERSION(deal_id))
       )
-      console.log("RESPONSE delete last version", response )
     } catch(e) {
       console.log("ERROR: ", e)
     }

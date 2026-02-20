@@ -490,12 +490,21 @@ onMounted(() => {
 				p.</span></p>
 		<p><span class="underline underline-offset-4">{{ orderData.amountWord }}</span></p>
 		<br />
-		<p>
-			<span style="text-align: start;">Менеджер </span>
-			<input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.sallerName" />
-			<span style="text-align: center;">Покупатель</span>
-			<input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.buyerName" />
-		</p>
+
+		<table>
+      <tbody>
+        <tr>
+          <td>Менеджер</td>
+          <td class="w-2/6">
+            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.sallerName"  />
+          </td>
+          <td>Покупатель</td>
+          <td class="w-2/6">
+            <input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.buyerName" />
+          </td>
+        </tr>
+      </tbody>
+		</table>
 		<br />
 
 			<textarea :disabled="isDisabled" placeholder="Комментарии" v-model.lazy="orderData.comments"

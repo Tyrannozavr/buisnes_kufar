@@ -539,11 +539,26 @@ async def get_documents(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
 
-    deal = await deal_service.get_deal_by_id(deal_id, company.id)
-    if not deal:
+    has_access = await deal_service.has_deal_access(deal_id, company.id)
+    if not has_access:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
 
-    return await deal_service.get_documents(deal_id, company.id)
+    documents = await deal_service.get_documents(deal_id, company.id)
+
+    # Возвращаем уже нормализованные DTO, чтобы избежать падений на сериализации ORM-объектов.
+    return [
+        DocumentResponse(
+            document_id=doc.id,
+            deal_id=deal_id,
+            document_type=doc.document_type,
+            document_number=doc.document_number if doc.document_number != "-" else None,
+            document_date=doc.document_date.isoformat() if doc.document_date else None,
+            document_file_path=doc.document_file_path,
+            created_at=doc.created_at.isoformat() if doc.created_at else "",
+            updated_at=doc.updated_at.isoformat() if doc.updated_at else "",
+        )
+        for doc in documents
+    ]
 
 
 @router.get(

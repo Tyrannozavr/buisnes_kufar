@@ -139,7 +139,6 @@ export const usePurchasesStore = defineStore("purchases", {
       //функция для преобразования и данных и заполнения списка сделок
       const fillDeals = async (dealId: number) => {
         const dealResponse = await getDealById(dealId);
-        console.log('DEALS PURCHASES: ', dealResponse)
         if (dealResponse) {
           if (dealResponse.deal_type === "Товары") {
             this.addNewGoodsDeal({

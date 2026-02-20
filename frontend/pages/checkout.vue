@@ -155,7 +155,6 @@ const handleOrderSubmit = async (cp: CompaniesAndProducts, items: ProductInCheck
 	await messageToSaller(cp.companyId, items)
 	removeItemsFromCart(items)
 	showToast()
-	navigateTo('/profile/purchases')
 }
 
 let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])

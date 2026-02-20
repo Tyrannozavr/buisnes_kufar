@@ -64,6 +64,14 @@
         </div>
       </template>
     </UModal>
+
+    <FileViewer 
+    v-model:isModalOpen="isFileViewerModalOpen" :dealId="dataForFileViewer?.dealId ?? 0" 
+    :documentId="dataForFileViewer?.documentId ?? 0" 
+    :name="dataForFileViewer?.name" 
+    :type="dataForFileViewer?.type" 
+    @close="isFileViewerModalOpen = false"
+    />
   </div>
 </template>
 
@@ -86,6 +94,7 @@ import { usePurchasesStore } from "~/stores/purchases";
 import { useSalesStore } from "~/stores/sales";
 import { useDocxGenerator } from "~/composables/useDocxGenerator";
 import { useRoute, useRouter } from "vue-router";
+import FileViewer from "~/components/ui/File-viewer.vue";
 
 definePageMeta({
   layout: "profile",
@@ -98,6 +107,7 @@ const documentsApi = useDocumentsApi();
 const purchasesApi = usePurchasesApi();
 const UButton = resolveComponent("UButton");
 const USelect = resolveComponent("USelect");
+const UDropdownMenu = resolveComponent("UDropdownMenu");
 const purchasesStore = usePurchasesStore();
 const salesStore = useSalesStore();
 const { generateDocxOrder, generateDocxBill, downloadBlob } = useDocxGenerator();
@@ -109,10 +119,13 @@ const buyerDeals = ref<(BuyerDealResponse | SellerDealResponse)[]>([]);
 const sellerDeals = ref<(BuyerDealResponse | SellerDealResponse)[]>([]);
 const documents = ref<DocumentApiItem[]>([]);
 const isLoadingDocuments = ref(false);
+const isDealsLoaded = ref(false);
 
 const isUploadModalOpen = ref(false);
 const isUploading = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const dataForFileViewer = ref<{ name: string; dealId: number; documentId: number; type: string } | null>(null);
+const isFileViewerModalOpen = ref(false);
 
 const uploadForm = reactive<{
   documentType: DocumentTypeCode | null;
@@ -139,6 +152,11 @@ const orderOptions = computed<OrderOption[]>(() => {
     orderNumber: deal.buyer_order_number,
     label: `№ ${deal.buyer_order_number}`,
   }));
+});
+
+const hasValidSelectedDeal = computed(() => {
+  if (!selectedDealId.value) return false;
+  return orderOptions.value.some((option) => option.value === selectedDealId.value);
 });
 
 const handleSelectDealType = (dealType: DealTypeFilter): void => {
@@ -178,6 +196,8 @@ const getFileFormat = (path: string | null): string => {
 
 //загрузка сделок, заполнение orderMap, выбор дефолтной сделки
 const loadDeals = async (): Promise<void> => {
+  isDealsLoaded.value = false;
+
   const [buyer, seller] = await Promise.all([
     purchasesApi.getBuyerDeals(),
     purchasesApi.getSellerDeals(),
@@ -212,6 +232,8 @@ const loadDeals = async (): Promise<void> => {
   if (!selectedDealId.value || !options.some((d) => d.id === selectedDealId.value)) {
     selectedDealId.value = firstId;
   }
+
+  isDealsLoaded.value = true;
 };
 
 //функция, получающая данные сделки по selectedDealId из store и преобразующая их в массив объектов DocumentApiItem + генерация Blob для создания документа из таблицы
@@ -267,7 +289,7 @@ const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem
 
 //загрузка документов по selectedDealId
 const loadDocuments = async (): Promise<void> => {
-  if (!selectedDealId.value) {
+  if (!isDealsLoaded.value || !selectedDealId.value || !hasValidSelectedDeal.value) {
     documents.value = [];
     return;
   }
@@ -437,43 +459,84 @@ const columns: TableColumn<DocumentTableRow>[] = [
   { accessorKey: "format", header: "Формат" },
   {
     id: "actions",
-    header: "Действия",
+    meta: {
+      class: {
+        td: "flex justify-end",
+      }
+    },
     cell: ({ row }) => {
       const rowData = row.original;
-      return h("div", { class: "flex items-center gap-2" }, [
-        h(UButton, {
-          size: "xs",
-          color: "primary",
-          variant: "soft",
-          icon: "i-lucide-download",
-          label: "Скачать",
-          onClick: () => rowData.blob ? downloadBlob(rowData.blob, `document-${rowData.orderNumber}`) : handleDownloadDocument(rowData),
-        }),
-        h(UButton, {
-          size: "xs",
-          color: "error",
-          variant: "soft",
-          icon: "i-lucide-trash-2",
-          label: "Удалить",
-          onClick: () => rowData.blob ? handleDeleteDocumetWithBlob(rowData) : handleDeleteDocument(rowData),
-        }),
+      return h(UDropdownMenu, {
+        items: [
+          {
+            label: "Скачать",
+            icon: "i-lucide-download",
+            color: "primary",
+            variant: "soft",
+            onClick: () => rowData.blob ? downloadBlob(rowData.blob, `document-${rowData.orderNumber}`) : handleDownloadDocument(rowData),
+          },
+          {
+            label: "Удалить",
+            icon: "i-lucide-trash-2",
+            color: "error",
+            variant: "soft",
+            onClick: () => rowData.blob ? handleDeleteDocumetWithBlob(rowData) : handleDeleteDocument(rowData),
+          },
+          {
+            label: "Просмотр",
+            icon: "i-lucide-eye",
+            onClick: () => {
+              if (rowData.format === '-') {
+                router.push({
+                  path: '/profile/editor',
+                  query: {
+                    dealId: rowData.dealId,
+                    role: dealTypeFilter.value === "purchases" ? "buyer" : "seller",
+                    productType: purchasesStore.findGoodsDeal(rowData.dealId) ? "goods" : "services",
 
-      ]);
-    },
+                  }
+                })
+                return;
+              } else {
+                isFileViewerModalOpen.value = true;
+                dataForFileViewer.value = {
+                  dealId: rowData.dealId,
+                  documentId: rowData.id,
+                  type: rowData.format.toLowerCase(),
+                  name: rowData.documentNumber,
+                }
+              }
+            }
+          }
+        ],
+          'aria-label': 'Действия с документом',
+        },
+        () => h(UButton, {
+          icon: "i-lucide-ellipsis",
+          size: "xs",
+          color: "neutral",
+          variant: "soft",
+          'aria-label': 'Действия с документом',
+        }),
+      );
+    }
   },
 ];
 
 watch(() => route.query,
   () => {
-    if (route.query.dealId) {
-      selectedDealId.value = Number(route.query.dealId);
+    if (!route.query.dealId) return;
+    const parsedDealId = Number(route.query.dealId);
+    if (Number.isNaN(parsedDealId) || parsedDealId <= 0) return;
+    if (!selectedDealId.value || selectedDealId.value !== parsedDealId) {
+      selectedDealId.value = parsedDealId;
     }
 }, { immediate: true })
 
 watch(
   () => selectedDealId.value,
   async () => {
-    if (selectedDealId.value) {
+    if (isDealsLoaded.value && selectedDealId.value && hasValidSelectedDeal.value) {
       await loadDocuments();
       router.replace({ query: {...route.query, dealId: selectedDealId.value.toString()}})
     }

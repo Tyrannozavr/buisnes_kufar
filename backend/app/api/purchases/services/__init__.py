@@ -66,6 +66,11 @@ class DealService:
             return None
         return await self._order_to_deal_response(order)
 
+    async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
+        """Проверка существования сделки и доступа без тяжелой сериализации."""
+        order = await self.repository.get_order_by_id(deal_id, company_id)
+        return order is not None
+
     async def get_buyer_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
         """Получение заказов покупателя"""
         return await self.repository.get_buyer_orders(company_id, skip, limit)

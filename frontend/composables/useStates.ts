@@ -1,15 +1,16 @@
 import { Editor } from "~/constants/keys";
-
-const insertState = useState(Editor.INSERT_STATE, () =>
-  ref({
-    purchasesGood: false,
-    purchasesService: false,
-    salesGood: false,
-    salesService: false,
-  })
-);
+import { useTypedState } from "~/composables/useTypedState";
 
 export const useInsertState = () => {
+  const insertState = useState(Editor.INSERT_STATE, () =>
+    ref({
+      purchasesGood: false,
+      purchasesService: false,
+      salesGood: false,
+      salesService: false,
+    })
+  );
+
   const statePurchasesGood = (newVal: boolean): void => {
     nextTick(() => (insertState.value.purchasesGood = newVal));
   };
@@ -34,12 +35,10 @@ export const useInsertState = () => {
   };
 };
 
-const disabldeState = useTypedState(Editor.IS_DISABLED, () =>
-  ref(true)
-);
-
 //манипуляции с состоянием кнопки вставки данных
 export const useIsDisableState = () => {
+  const disabldeState = useTypedState(Editor.IS_DISABLED, () => ref(true));
+
   const reversDisable = (): void => {
     disabldeState.value = !disabldeState.value;
   };
@@ -55,9 +54,9 @@ export const useIsDisableState = () => {
   };
 };
 
-const clearState = useTypedState(Editor.CLEAR_STATE, () => ref(false));
-
 export const useClearState = () => {
+  const clearState = useTypedState(Editor.CLEAR_STATE, () => ref(false));
+
   const applyClearState = (): void => {
     clearState.value = true;
     nextTick(() => (clearState.value = false));
@@ -67,29 +66,27 @@ export const useClearState = () => {
   };
 };
 
-const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () =>
-  ref(false)
-);
-
 export const useSaveState = () => {
+  const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () => ref(false));
+
   const saveOrder = (): void => {
     saveStateOrder.value = true;
     nextTick(() => (saveStateOrder.value = false));
   };
-	
+
   return {
-		saveOrder
-	};
+    saveOrder,
+  };
 };
 
-const removeDealState = useTypedState(Editor.REMOVE_DEAL, () => ref(false))
-
 export const useRemoveDealState = () => {
-	const removeDeal = () => {
-		removeDealState.value = !removeDealState.value
-		nextTick(() => (removeDealState.value = !removeDealState.value))
-	}
-	return {
-		removeDeal
-	}
-}
+  const removeDealState = useTypedState(Editor.REMOVE_DEAL, () => ref(false));
+
+  const removeDeal = () => {
+    removeDealState.value = !removeDealState.value;
+    nextTick(() => (removeDealState.value = !removeDealState.value));
+  };
+  return {
+    removeDeal,
+  };
+};

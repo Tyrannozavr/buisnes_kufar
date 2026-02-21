@@ -6,6 +6,37 @@
 - **Повторно запустить** workflow в GitHub: Actions → Deploy to production → Re-run all jobs.
 - **Вручную на сервере:** `ssh root@77.222.47.33`, затем `cd /root/buisnes_kufar && git fetch origin && git reset --hard origin/master && docker compose up -d --build`.
 
+### Если на сервере не тянется образ python:3.12-slim (Docker Hub)
+
+Образ можно залить с локальной машины, где Docker Hub доступен:
+
+```bash
+# Локально
+docker pull python:3.12-slim
+docker save -o /tmp/python-3.12-slim.tar python:3.12-slim
+scp /tmp/python-3.12-slim.tar root@77.222.47.33:/tmp/
+
+# На сервере
+ssh root@77.222.47.33
+docker load -i /tmp/python-3.12-slim.tar
+rm /tmp/python-3.12-slim.tar
+cd /root/buisnes_kufar && docker compose up -d --build
+```
+
+### Продовая БД: колонки в companies
+
+Если API компаний отдаёт 500 с ошибкой `column companies.current_account_number does not exist`, на проде нужно добавить колонки (пользователь БД в docker-compose — `postgres`):
+
+```bash
+docker compose exec -T db psql -U postgres -d buisnes_kufar -c "
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS current_account_number VARCHAR(50);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS bic VARCHAR(20);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS vat_rate NUMERIC(5,2);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS correspondent_bank_account VARCHAR(50);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255);
+"
+```
+
 ---
 
 ## Запуск
@@ -65,6 +96,18 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255);
 - Редактор заказа с вкладками, «Заполнить данными», Печать, DOC/PDF
 - Версионирование сделок, уведомление контрагента, Принять/Отклонить
 - Должностные лица, платежные реквизиты компании, S3
+
+### Авто-проверка продакшена по ТЗ
+
+Скрипт проверяет страницы и публичные API (без авторизации):
+
+```bash
+bash scripts/test_production.sh
+```
+
+Проверяются: главная, вход, каталог товаров/услуг, checkout, профили (закупки/продажи/документы), редактор заказа, компании, Swagger, о нас; API: companies, announcements, products, locations.
+
+---
 
 Рекомендуется вручную проверить в браузере:
 

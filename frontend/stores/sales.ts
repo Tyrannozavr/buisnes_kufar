@@ -5,7 +5,8 @@ import type {
   EditPersonDeal,
   Product,
 } from "~/types/dealState";
-import { convert as numberToWordsRu } from "number-to-words-ru";
+import numberToWordsRuPkg from "number-to-words-ru";
+const numberToWordsRu = numberToWordsRuPkg.convert;
 import { usePurchasesApi } from "~/api/purchases";
 import type { DealUpdate, OrderItemUpdate, SellerDealResponse } from "~/types/dealResponse";
 

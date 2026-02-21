@@ -10,7 +10,8 @@ import type {
   DealUpdate,
   OrderItemUpdate,
 } from "~/types/dealResponse";
-import { convert as numberToWordsRu } from "number-to-words-ru";
+import numberToWordsRuPkg from "number-to-words-ru";
+const numberToWordsRu = numberToWordsRuPkg.convert;
 import { usePurchasesApi } from "~/api/purchases";
 
 interface Purchases {

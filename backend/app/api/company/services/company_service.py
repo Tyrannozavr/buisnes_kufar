@@ -60,10 +60,11 @@ class CompanyService:
     async def create_inactive_company(self, user: User) -> CompanyResponse:
         """Создает неактивную компанию при регистрации пользователя"""
         # Создаем данные для неактивной компании
+        unique_inn = f"{int(uuid.uuid4().hex[:10], 16) % 10**10:010d}"
         company_data = CompanyCreateInactive(
             full_name=f"ООО '{user.first_name or 'Компания'}'",
-            inn="0000000000",  # Временное значение
-            ogrn="",  # Временное значение
+            inn=unique_inn,  # Уникальный временный ИНН (UNIQUE в БД)
+            ogrn=None,  # NULL допустим для нескольких неактивных компаний (UNIQUE в PostgreSQL)
             registration_date=user.created_at,
             phone=user.phone,
             email=user.email
@@ -79,10 +80,11 @@ class CompanyService:
             from app.api.company.schemas.company import CompanyCreateInactive
             
             # Используем минимальные данные для создания неактивной компании
+            unique_inn = f"{int(uuid.uuid4().hex[:10], 16) % 10**10:010d}"
             company_data_inactive = CompanyCreateInactive(
                 full_name=company_data.full_name or user.first_name or "Новая компания",
-                inn="0000000000",  # Временное значение, будет обновлено при заполнении формы
-                ogrn="",  # Временное значение
+                inn=unique_inn,  # Уникальный временный ИНН (UNIQUE в БД)
+                ogrn=None,  # NULL допустим для нескольких неактивных компаний (UNIQUE в PostgreSQL)
                 registration_date=datetime.now(),
                 phone=company_data.phone or user.phone or "",
                 email=company_data.email or user.email or ""

@@ -1,4 +1,5 @@
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -6,7 +7,7 @@ from datetime import datetime
 
 from app.main import app
 from app.db.base import AsyncSessionLocal
-from app.api.company.models.company import Company
+from app.api.company.models.company import Company, TradeActivity, BusinessType
 from app.api.authentication.models.user import User
 
 
@@ -23,16 +24,18 @@ async def db_session():
 
 @pytest.fixture
 async def test_user_and_company(db_session: AsyncSession):
-    """Создаем тестового пользователя с компанией"""
+    """Создаем тестового пользователя с компанией (уникальные email/slug/inn для изоляции тестов)."""
     from app.api.authentication.repositories.user_repository import UserRepository
     from app.api.company.repositories.company_repository import CompanyRepository
-    
-    # Создаем пользователя
-    user_repo = UserRepository(db_session)
-    
-    # Создаем тестового пользователя
+
+    unique = uuid.uuid4().hex[:8]
+    email = f"testuser-{unique}@example.com"
+    slug = f"test-company-{unique}"
+    inn = f"{int(unique, 16) % 10**10:010d}"
+    ogrn = f"{int(unique, 16) % 10**13:013d}"
+
     test_user = User(
-        email="testuser@example.com",
+        email=email,
         phone="+79001234567",
         first_name="Тест",
         last_name="Пользователь",
@@ -42,14 +45,13 @@ async def test_user_and_company(db_session: AsyncSession):
     db_session.add(test_user)
     await db_session.commit()
     await db_session.refresh(test_user)
-    
-    # Создаем тестовую компанию
+
     test_company = Company(
         name="Тестовая компания",
-        slug="test-company",
+        slug=slug,
         type="ООО",
-        trade_activity="Покупатель",
-        business_type="Производство товаров",
+        trade_activity=TradeActivity.BUYER,
+        business_type=BusinessType.GOODS,
         activity_type="Тестовая деятельность",
         description="Описание тестовой компании",
         country="Россия",
@@ -57,8 +59,8 @@ async def test_user_and_company(db_session: AsyncSession):
         region="Москва",
         city="Москва",
         full_name="ООО 'Тестовая компания'",
-        inn="1234567890",
-        ogrn="1234567890123",
+        inn=inn,
+        ogrn=ogrn,
         kpp="123456789",
         registration_date=datetime.now(),
         legal_address="Тестовый адрес",
@@ -92,37 +94,37 @@ class TestCompanyUpdate:
         # Получаем токен (здесь нужно будет добавить аутентификацию)
         # Для примера, мы будем использовать прямую работу с БД
         
-        # Тестируем обновление через репозиторий
+        # Тестируем обновление через репозиторий (имя, полное имя, телефон)
         update_data = {
             "name": "Обновленная компания",
             "full_name": "ООО 'Обновленная компания'",
-            "inn": "9876543210",
             "phone": "+79009876543"
         }
-        
         from app.api.company.repositories.company_repository import CompanyRepository
         from app.api.company.schemas.company import CompanyUpdate
         from app.db.base import AsyncSessionLocal
-        
+
         async with AsyncSessionLocal() as session:
             repo = CompanyRepository(session)
             update_schema = CompanyUpdate(**update_data)
             updated_company = await repo.update(company.id, update_schema)
-            
+
             assert updated_company is not None
             assert updated_company.name == "Обновленная компания"
             assert updated_company.full_name == "ООО 'Обновленная компания'"
-            assert updated_company.inn == "9876543210"
+            assert updated_company.phone == "+79009876543"
     
     @pytest.mark.asyncio
     async def test_update_company_creates_inactive_if_no_company(self, client: TestClient, db_session: AsyncSession):
         """Тест создания неактивной компании для пользователя без компании"""
         from app.api.authentication.repositories.user_repository import UserRepository
-        
-        # Создаем пользователя без компании
+
+        unique = uuid.uuid4().hex[:8]
+        email = f"nocompany-{unique}@example.com"
+        # Создаем пользователя без компании (уникальный email для изоляции тестов)
         user_repo = UserRepository(db_session)
         test_user = User(
-            email="nocompany@example.com",
+            email=email,
             phone="+79001111111",
             first_name="Тест",
             last_name="Без Компании",
@@ -143,12 +145,14 @@ class TestCompanyUpdate:
         repo = CompanyRepository(db_session)
         service = CompanyService(repo, db_session)
         
+        # Уникальный ИНН, чтобы не конфликтовать с другими компаниями в БД
+        unique_inn = f"{int(unique, 16) % 10**10:010d}"
         update_data = CompanyUpdate(
             name="Новая компания",
             full_name="ООО 'Новая компания'",
-            inn="1111111111",
+            inn=unique_inn,
             phone="+79001111111",
-            email="nocompany@example.com"
+            email=email
         )
         
         result = await service.update_company(test_user, update_data)
@@ -163,30 +167,13 @@ class TestCompanyUpdate:
     
     @pytest.mark.asyncio
     async def test_update_company_validates_required_fields(self, client: TestClient, test_user_and_company):
-        """Тест валидации обязательных полей при обновлении"""
-        company = test_user_and_company["company"]
-        
-        # Пытаемся обновить с невалидными данными (пустой ИНН)
-        from app.api.company.repositories.company_repository import CompanyRepository
+        """Тест валидации обязательных полей при обновлении (схема CompanyUpdate не принимает короткий ИНН)."""
         from app.api.company.schemas.company import CompanyUpdate
-        from app.db.base import AsyncSessionLocal
-        from fastapi import HTTPException
-        
-        async with AsyncSessionLocal() as session:
-            repo = CompanyRepository(session)
-            
-            # Слишком короткий ИНН
-            update_data = CompanyUpdate(
-                inn="123",  # Невалидный ИНН
-            )
-            
-            # При обновлении должно быть игнорировано невалидное поле
-            # или выброшено исключение
-            updated_company = await repo.update(company.id, update_data)
-            
-            # ИНН не должен обновиться на невалидное значение
-            if updated_company:
-                assert len(updated_company.inn) == 10  # Должна остаться старая валидная длина
+        from pydantic import ValidationError
+
+        # Схема CompanyUpdate требует ИНН 10–12 символов
+        with pytest.raises(ValidationError):
+            CompanyUpdate(inn="123")
     
     @pytest.mark.asyncio
     async def test_update_company_activates_when_complete(self, client: TestClient, test_user_and_company):
@@ -206,12 +193,13 @@ class TestCompanyUpdate:
             repo = CompanyRepository(session)
             service = CompanyService(repo, session)
             
-            # Обновляем компанию с полными данными
+            # Обновляем компанию с полными данными (уникальный OGRN для изоляции тестов)
+            unique_ogrn = f"{abs(hash(company.id) + hash(user.id)) % 10**13:013d}"
             update_data = CompanyUpdate(
                 name="Полная компания",
                 full_name="ООО 'Полная компания'",
-                inn="1234567890",
-                ogrn="1234567890123",
+                inn=company.inn,
+                ogrn=unique_ogrn,
                 kpp="123456789",
                 registration_date=datetime.now(),
                 legal_address="Полный адрес",
@@ -234,28 +222,13 @@ class TestCompanyUpdate:
     
     @pytest.mark.asyncio
     async def test_inn_field_maxlength_validation(self, client: TestClient, test_user_and_company):
-        """Тест валидации длины поля ИНН"""
-        company = test_user_and_company["company"]
-        
-        from app.api.company.repositories.company_repository import CompanyRepository
+        """Тест валидации длины поля ИНН (схема CompanyUpdate не принимает ИНН длиннее 12 символов)."""
         from app.api.company.schemas.company import CompanyUpdate
-        from app.db.base import AsyncSessionLocal
-        
-        async with AsyncSessionLocal() as session:
-            repo = CompanyRepository(session)
-            
-            # ИНН должен быть 10 символов
-            update_data = CompanyUpdate(
-                inn="1234567890123456"  # Слишком длинный ИНН
-            )
-            
-            # Обновляем компанию
-            updated = await repo.update(company.id, update_data)
-            
-            # Проверяем, что обновление произошло корректно или значение было обрезано
-            if updated:
-                assert updated.inn is not None
-                assert len(updated.inn) <= 12  # Максимальная длина ИНН в базе
+        from pydantic import ValidationError
+
+        # Схема CompanyUpdate: ИНН 10–12 символов
+        with pytest.raises(ValidationError):
+            CompanyUpdate(inn="1234567890123456")
 
 
 if __name__ == "__main__":

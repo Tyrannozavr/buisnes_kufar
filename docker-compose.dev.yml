@@ -35,8 +35,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - ./postgres-data-dev:/var/lib/postgresql/data:cached
 
@@ -195,6 +195,36 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
+  # Запуск тестов: docker compose -f docker-compose.dev.yml run --rm backend-test
+  # Используем отдельную БД buisnes_kufar_test, создаём и накатываем миграции с нуля.
+  backend-test:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    env_file:
+      - ./.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      SQLALCHEMY_DATABASE_URL: "postgresql://postgres:postgres@db:5432/buisnes_kufar_test"
+    volumes:
+      - ./backend:/app:cached
+      - backend_poetry_cache:/root/.cache/pypoetry
+      - backend_venv:/root/.cache/pypoetry/virtualenvs
+    command:
+      - sh
+      - -c
+      - >
+        ( python -c "import psycopg2; c=psycopg2.connect('postgresql://postgres:postgres@db:5432/postgres'); c.autocommit=True; c.cursor().execute('CREATE DATABASE buisnes_kufar_test'); c.close()" )
+        2>/dev/null || true;
+        poetry run pytest tests/ -v --tb=short
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - test
 
 volumes:
   frontend_node_modules:

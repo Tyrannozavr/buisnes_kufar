@@ -28,12 +28,12 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
-          changes=$(ssh target-server "cd buisnes_kufar && git fetch origin && git diff --name-only HEAD origin/master")
+          changes=$(ssh target-server "cd /root/buisnes_kufar && git fetch origin && git diff --name-only HEAD origin/master")
           if [ -z "$changes" ]; then
-            echo "::set-output name=has_changes::false"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "✅ No changes detected"
           else
-            echo "::set-output name=has_changes::true"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "🔴 Changes detected:"
             echo "$changes"
           fi
@@ -43,7 +43,7 @@ jobs:
         run: |
           ssh target-server << 'EOF'
           set -e
-          cd buisnes_kufar
+          cd /root/buisnes_kufar
           
           # Create rollback point
           current_commit=$(git rev-parse HEAD)

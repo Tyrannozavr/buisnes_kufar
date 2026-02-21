@@ -1,5 +1,13 @@
 # Локальный запуск и проверка в браузере
 
+## Деплой на прод (GitHub Actions)
+
+При пуше в `master` запускается workflow **Deploy to production**: он подключается по SSH к серверу, подтягивает `origin/master` в `/root/buisnes_kufar` и выполняет `docker compose up -d --build`. Если деплой упал (например, из‑за сетевой ошибки при `docker pull`), можно:
+- **Повторно запустить** workflow в GitHub: Actions → Deploy to production → Re-run all jobs.
+- **Вручную на сервере:** `ssh root@77.222.47.33`, затем `cd /root/buisnes_kufar && git fetch origin && git reset --hard origin/master && docker compose up -d --build`.
+
+---
+
 ## Запуск
 
 ```bash

@@ -18,7 +18,7 @@ const salesStore = useSalesStore()
 const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
 
 let products: ProductsInOrder[] = []
-let saller: OrderData['saller'] = {}
+let seller: OrderData['seller'] = {}
 let buyer: OrderData['buyer'] = {}
 
 const orderData: Ref<OrderData> = ref({
@@ -28,7 +28,7 @@ const orderData: Ref<OrderData> = ref({
 	comments: '',
 	amount: 0,
 	amountWord: '',
-	saller,
+	seller,
 	buyer,
 	products,
 })
@@ -47,7 +47,7 @@ const fillQuery = () => {
 
   if (userStore.companyId === orderData.value.buyer.companyId) {
     query.role = 'buyer'
-  } else if (userStore.companyId === orderData.value.saller.companyId) {
+  } else if (userStore.companyId === orderData.value.seller.companyId) {
     query.role = 'seller'
   }
 
@@ -78,13 +78,13 @@ const fillOrderData = () => {
       type: product.type,
     }))
 
-    saller = {
-      companyId: goodsDeal?.saller.companyId,
-      sallerName: goodsDeal?.saller.sallerName,
-      companyName: goodsDeal?.saller.companyName,
-      mobileNumber: goodsDeal?.saller.phone,
-      legalAddress: goodsDeal?.saller.legalAddress,
-      inn: Number(goodsDeal?.saller.inn) || 0,
+    seller = {
+      companyId: goodsDeal?.seller.companyId,
+      sellerName: goodsDeal?.seller.sellerName,
+      companyName: goodsDeal?.seller.companyName,
+      mobileNumber: goodsDeal?.seller.phone,
+      legalAddress: goodsDeal?.seller.legalAddress,
+      inn: Number(goodsDeal?.seller.inn) || 0,
     }
     buyer = {
       companyId: goodsDeal?.buyer.companyId,
@@ -102,7 +102,7 @@ const fillOrderData = () => {
       comments: goodsDeal?.goods.comments,
       amount: goodsDeal?.goods.amountPrice,
       amountWord: goodsDeal?.goods.amountWord,
-      saller,
+      seller,
       buyer,
       products: [...products],
     }
@@ -123,13 +123,13 @@ const fillOrderData = () => {
       type: product.type,
     }))
 
-    saller = {
-      companyId: servicesDeal?.saller.companyId,
-      sallerName: servicesDeal?.saller.sallerName,
-      companyName: servicesDeal?.saller.companyName,
-      mobileNumber: servicesDeal?.saller.phone,
-      legalAddress: servicesDeal?.saller.legalAddress,
-      inn: Number(servicesDeal?.saller.inn) || 0,
+    seller = {
+      companyId: servicesDeal?.seller.companyId,
+      sellerName: servicesDeal?.seller.sellerName,
+      companyName: servicesDeal?.seller.companyName,
+      mobileNumber: servicesDeal?.seller.phone,
+      legalAddress: servicesDeal?.seller.legalAddress,
+      inn: Number(servicesDeal?.seller.inn) || 0,
     }
     buyer = {
       companyId: servicesDeal?.buyer.companyId,
@@ -147,7 +147,7 @@ const fillOrderData = () => {
       comments: servicesDeal?.services.comments,
       amount: servicesDeal?.services.amountPrice,
       amountWord: servicesDeal?.services.amountWord,
-      saller,
+      seller,
       buyer,
       products: [...products],
     }
@@ -238,7 +238,7 @@ watch(() => saveState.value,
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			await purchasesStore.fullUpdateGoodsDeal(
 				orderData.value.dealId,
-				orderData.value.saller,
+				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
@@ -249,7 +249,7 @@ watch(() => saveState.value,
 		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 			await purchasesStore.fullUpdateServicesDeal(
 				orderData.value.dealId,
-				orderData.value.saller,
+				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
@@ -260,7 +260,7 @@ watch(() => saveState.value,
 		} else if (requestedData === RequestedType.SALES_GOOD) {
 			await salesStore.fullUpdateGoodsDeal(
 				orderData.value.dealId,
-				orderData.value.saller,
+				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
@@ -271,7 +271,7 @@ watch(() => saveState.value,
 		} else if (requestedData === RequestedType.SALES_SERVICE) {
 			await salesStore.fullUpdateServicesDeal(
 				orderData.value.dealId,
-				orderData.value.saller,
+				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
@@ -310,7 +310,7 @@ const clearState = useTypedState(Editor.CLEAR_STATE)
 
 const clearForm = () => {
 	products = []
-  saller = {}
+  seller = {}
   buyer = {}
 
 	orderData.value = {
@@ -320,7 +320,7 @@ const clearForm = () => {
 		comments: '',
 		amount: 0,
 		amountWord: '',
-		saller,
+		seller,
 		buyer,
 		products,
 	}
@@ -390,12 +390,12 @@ onMounted(() => {
 				<tr>
 					<td><span>Поставщик:</span> </td>
 					<td style="padding-inline: 10px;">
-						<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.saller.inn" /><br />
+						<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.seller.inn" /><br />
 						<input :disabled="isDisabled" placeholder="Название компании"
-							v-model.lazy="orderData.saller.companyName" /><br />
-						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.saller.legalAddress" /><br />
+							v-model.lazy="orderData.seller.companyName" /><br />
+						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.seller.legalAddress" /><br />
 						<input :disabled="isDisabled" placeholder="Контактный телефон"
-							v-model.trim.lazy="orderData.saller.mobileNumber" />
+							v-model.trim.lazy="orderData.seller.mobileNumber" />
 					</td>
 				</tr>
 				<tr>
@@ -496,7 +496,7 @@ onMounted(() => {
         <tr>
           <td>Менеджер</td>
           <td class="w-2/6">
-            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.saller.sallerName"  />
+            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.seller.sellerName"  />
           </td>
           <td>Покупатель</td>
           <td class="w-2/6">

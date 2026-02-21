@@ -7,7 +7,7 @@ export interface Person {
 }
 
 export interface Company {
-  sallerName?: string;
+  sellerName?: string;
   buyerName?: string;
   companyName?: string;
   slug?: string;
@@ -48,7 +48,7 @@ export interface GoodsDeal {
   sellerOrderNumber?: string;
   goods: Goods;
   date: string;
-  saller: Company;
+  seller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная"
   billNumber?: string
@@ -67,7 +67,7 @@ export interface ServicesDeal {
   sellerOrderNumber?: string;
   services: Services;
   date: string;
-  saller: Company;
+  seller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная";
   billNumber?: string

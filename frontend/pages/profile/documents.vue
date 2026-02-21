@@ -89,7 +89,7 @@ import {
   type DocumentTypeCode,
   type OrderOption,
 } from "~/types/documents";
-import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse";
+import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse";
 import { usePurchasesStore } from "~/stores/purchases";
 import { useSalesStore } from "~/stores/sales";
 import { useDocxGenerator } from "~/composables/useDocxGenerator";

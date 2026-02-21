@@ -35,9 +35,9 @@ export const generateDocxOrder = async (orderDealData: GoodsDeal | ServicesDeal 
           new TableCell({
             children: [
               new Paragraph(
-                `${orderDealData.saller.inn}  ${orderDealData.saller.companyName}
-${orderDealData.saller.legalAddress}  
-${orderDealData.saller.phone}
+                `${orderDealData.seller.inn}  ${orderDealData.seller.companyName}
+${orderDealData.seller.legalAddress}  
+${orderDealData.seller.phone}
 			`
               ),
             ],
@@ -86,7 +86,7 @@ ${orderDealData.buyer.phone}
   const orderTitle = new Paragraph({
     children: [
       new TextRun({
-        text: `Заказ № ${myCompanyId === orderDealData.saller.id ? orderDealData.sellerOrderNumber : orderDealData.buyerOrderNumber} от ${normalizeDate(orderDealData.date)} г.`,
+        text: `Заказ № ${myCompanyId === orderDealData.seller.id ? orderDealData.sellerOrderNumber : orderDealData.buyerOrderNumber} от ${normalizeDate(orderDealData.date)} г.`,
         bold: true,
         size: 28,
       }),
@@ -262,7 +262,7 @@ ${orderDealData.buyer.phone}
               },
             }),
             new TableCell({
-              children: [new Paragraph(`${orderDealData.saller.companyName}`)],
+              children: [new Paragraph(`${orderDealData.seller.companyName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -284,7 +284,7 @@ ${orderDealData.buyer.phone}
 								size: 25,
 								type: WidthType.PERCENTAGE,
 							},
-              children: [new Paragraph(`${orderDealData.saller.sallerName}`)],
+              children: [new Paragraph(`${orderDealData.seller.sellerName}`)],
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },

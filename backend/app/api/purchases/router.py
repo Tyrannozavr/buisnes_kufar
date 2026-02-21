@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.db.dependencies import async_db_dep
 from app.core.config import settings
 from app.api.authentication.dependencies import get_current_user
+from app_logging.logger import logger
 from app.api.authentication.models.user import User
 from app.api.purchases.dependencies import deal_service_dep_annotated
 from app.api.purchases.services import DealService
@@ -248,8 +249,7 @@ async def update_deal(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error updating deal %s: %s", deal_id, e)
         raise HTTPException(status_code=500, detail=str(e))
 
     if not deal:
@@ -513,8 +513,7 @@ async def upload_document(
     try:
         document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Failed to add document to deal %s: %s", deal_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to add document: {e!s}",

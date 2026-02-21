@@ -9,6 +9,7 @@ from app.api.purchases.schemas import (
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
+from app_logging.logger import logger
 
 
 class DealService:
@@ -20,17 +21,13 @@ class DealService:
 
     async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание новой сделки"""
-        import traceback
-        from app_logging.logger import logger
         from sqlalchemy.exc import IntegrityError
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
             return await self._order_to_deal_response(order)
         except IntegrityError as e:
             await self.session.rollback()
-            error_msg = f"Database integrity error creating deal: {str(e)}"
-            logger.error(error_msg)
-            logger.error(traceback.format_exc())
+            logger.exception("Database integrity error creating deal: %s", e)
             # Проверяем, какое ограничение нарушено
             error_str = str(e)
             if "seller_company_id_fkey" in error_str:
@@ -48,11 +45,7 @@ class DealService:
             raise ValueError("Database constraint violation")
         except Exception as e:
             await self.session.rollback()
-            error_msg = f"Error creating deal: {str(e)}"
-            logger.error(error_msg)
-            logger.error(traceback.format_exc())
-            print(f"Error creating deal: {e}")
-            print(traceback.format_exc())
+            logger.exception("Error creating deal: %s", e)
             raise
 
     async def get_order_by_id_only(self, deal_id: int) -> Optional[Order]:
@@ -88,7 +81,7 @@ class DealService:
             return await self._order_to_deal_response(order)
         except Exception as e:
             await self.session.rollback()
-            print(f"Error updating deal: {e}")
+            logger.exception("Error updating deal: %s", e)
             raise
 
     async def create_new_deal_version(
@@ -109,7 +102,7 @@ class DealService:
             return await self._order_to_deal_response(order)
         except Exception as e:
             await self.session.rollback()
-            print(f"Error creating new deal version: {e}")
+            logger.exception("Error creating new deal version: %s", e)
             raise
 
     async def delete_deal(self, deal_id: int, company_id: int) -> bool:
@@ -125,7 +118,7 @@ class DealService:
             return deleted
         except Exception as e:
             await self.session.rollback()
-            print(f"Error deleting deal: {e}")
+            logger.exception("Error deleting deal: %s", e)
             return False
 
     async def delete_last_deal_version(self, deal_id: int, company_id: int) -> Optional[int]:
@@ -134,7 +127,7 @@ class DealService:
             return await self.repository.delete_last_order_version(deal_id, company_id)
         except Exception as e:
             await self.session.rollback()
-            print(f"Error deleting last deal version: {e}")
+            logger.exception("Error deleting last deal version: %s", e)
             return None
 
     async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
@@ -144,8 +137,7 @@ class DealService:
             return await self.repository.add_document(deal_id, document_dict, file_path, company_id)
         except Exception as e:
             await self.session.rollback()
-            import traceback
-            traceback.print_exc()
+            logger.exception("Error adding document to deal %s: %s", deal_id, e)
             raise
 
     async def get_document(self, deal_id: int, document_id: int, company_id: int) -> Optional[OrderDocument]:
@@ -182,11 +174,11 @@ class DealService:
 
     async def _order_to_deal_response(self, order: Order) -> DealResponse:
         """Преобразование Order в DealResponse"""
-        print(f"DEBUG: _order_to_deal_response для заказа {order.id}")
+        logger.debug("_order_to_deal_response для заказа %s", order.id)
         
         try:
             # Преобразуем позиции заказа
-            print(f"DEBUG: Обрабатываем {len(order.order_items)} позиций заказа")
+            logger.debug("Обрабатываем %s позиций заказа", len(order.order_items))
             items = []
             for item in order.order_items:
                 # Рассчитываем сумму если она не задана
@@ -212,14 +204,14 @@ class DealService:
                 ))
         
             # Информация о компаниях - загружаем отдельно
-            print(f"DEBUG: Загружаем компании")
+            logger.debug("Загружаем компании")
             buyer_company_info = None
             seller_company_info = None
             
             # Загружаем компании отдельно
-            print(f"DEBUG: Загружаем компанию покупателя {order.buyer_company_id}")
+            logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
             buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
-            print(f"DEBUG: Загружаем компанию продавца {order.seller_company_id}")
+            logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
             seller_company = await self.repository.get_company_by_id(order.seller_company_id)
         
             if buyer_company:
@@ -250,7 +242,7 @@ class DealService:
                     legal_address=seller_company.legal_address
                 )
             
-            print(f"DEBUG: Создаем DealResponse")
+            logger.debug("Создаем DealResponse")
             closing_docs = order.closing_documents if order.closing_documents is not None else []
             others_docs = order.others_documents if order.others_documents is not None else []
 
@@ -283,10 +275,7 @@ class DealService:
             )
         
         except Exception as e:
-            print(f"DEBUG: Ошибка в _order_to_deal_response: {e}")
-            print(f"DEBUG: Тип ошибки: {type(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Ошибка в _order_to_deal_response для заказа %s: %s (тип: %s)", order.id, e, type(e).__name__)
             raise
 
     async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
@@ -370,5 +359,5 @@ class DealService:
             
         except Exception as e:
             await self.session.rollback()
-            print(f"Error creating deal from checkout: {e}")
+            logger.exception("Error creating deal from checkout: %s", e)
             return None

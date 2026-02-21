@@ -300,11 +300,11 @@ const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber
 	if (role === 'buyer') {
 		if (productType === 'goods') {
 			const deal = purchasesStore.findGoodsDeal(dealId)
-      return { companyId: deal?.saller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
+      return { companyId: deal?.seller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
       
 		} else if (productType === 'services') {
 			const deal = purchasesStore.findServicesDeal(dealId)
-			return { companyId: deal?.saller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
+			return { companyId: deal?.seller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
 		}
   }
   

@@ -10,7 +10,7 @@ export interface ProductsInOrder {
 
 interface Company {
   companyId?: number;
-  sallerName?: string;
+  sellerName?: string;
   buyerName?: string;
   mobileNumber?: string;
   companyName?: string;
@@ -19,7 +19,7 @@ interface Company {
 }
 
 export interface OrderData {
-	saller: Company
+	seller: Company
 	buyer: Company
   orderNumber: string; // номер заказа "00001"
   dealId: number; // id заказа 1

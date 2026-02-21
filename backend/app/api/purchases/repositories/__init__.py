@@ -8,6 +8,7 @@ import enum
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
 from app.api.purchases.schemas import DealCreate, DealUpdate
 from app.api.company.models.company import Company
+from app_logging.logger import logger
 
 
 class DealRepository:
@@ -18,17 +19,17 @@ class DealRepository:
 
     async def create_order(self, order_data: DealCreate, buyer_company_id: int) -> Order:
         """Создание нового заказа"""
-        print(f"DEBUG: Начинаем создание заказа для покупателя {buyer_company_id}")
+        logger.debug("Начинаем создание заказа для покупателя %s", buyer_company_id)
         
         try:
             # Генерируем номера заказов для покупателя и продавца (ежегодное обнуление)
-            print(f"DEBUG: Генерируем номер заказа для покупателя {buyer_company_id}")
+            logger.debug("Генерируем номер заказа для покупателя %s", buyer_company_id)
             buyer_order_number = await self._generate_order_number(buyer_company_id, "buyer")
-            print(f"DEBUG: Номер покупателя: {buyer_order_number}")
+            logger.debug("Номер покупателя: %s", buyer_order_number)
 
-            print(f"DEBUG: Генерируем номер заказа для продавца {order_data.seller_company_id}")
+            logger.debug("Генерируем номер заказа для продавца %s", order_data.seller_company_id)
             seller_order_number = await self._generate_order_number(order_data.seller_company_id, "seller")
-            print(f"DEBUG: Номер продавца: {seller_order_number}")
+            logger.debug("Номер продавца: %s", seller_order_number)
 
             order_date = datetime.utcnow()
             
@@ -71,7 +72,7 @@ class DealRepository:
                 )
             
             # Создаем заказ (version starts at 1 for a new deal id)
-            print(f"DEBUG: Создаем объект Order с типом {order_deal_type.value}")
+            logger.debug("Создаем объект Order с типом %s", order_deal_type.value)
             order = Order(
                 id=await self._generate_deal_id(),
                 version=1,
@@ -86,14 +87,14 @@ class DealRepository:
                 comments=order_data.comments
             )
             
-            print(f"DEBUG: Добавляем заказ в сессию")
+            logger.debug("Добавляем заказ в сессию")
             self.session.add(order)
-            print(f"DEBUG: Выполняем flush для получения ID")
+            logger.debug("Выполняем flush для получения ID")
             await self.session.flush()  # Получаем ID заказа
-            print(f"DEBUG: Получен ID заказа: {order.id}")
+            logger.debug("Получен ID заказа: %s", order.id)
             
             # Добавляем позиции заказа
-            print(f"DEBUG: Добавляем {len(order_data.items)} позиций заказа")
+            logger.debug("Добавляем %s позиций заказа", len(order_data.items))
             total_amount = 0
             
             for i, item_data in enumerate(order_data.items, 1):
@@ -139,7 +140,7 @@ class DealRepository:
                 amount = quantity * price
                 total_amount += amount
 
-                print(f"DEBUG: Обрабатываем позицию {position}: {product_name} (qty={quantity}, price={price})")
+                logger.debug("Обрабатываем позицию %s: %s (qty=%s, price=%s)", position, product_name, quantity, price)
                 
                 order_item = OrderItem(
                     order_row_id=order.row_id,
@@ -156,14 +157,14 @@ class DealRepository:
                     amount=amount,
                     position=position
                 )
-                print(f"DEBUG: Добавляем позицию в сессию")
+                logger.debug("Добавляем позицию в сессию")
                 self.session.add(order_item)
             
             order.total_amount = total_amount
-            print(f"DEBUG: Общая сумма заказа: {total_amount}")
+            logger.debug("Общая сумма заказа: %s", total_amount)
             
             # Записываем в историю
-            print(f"DEBUG: Добавляем запись в историю")
+            logger.debug("Добавляем запись в историю")
             self._add_order_history(
                 order.row_id,
                 buyer_company_id, 
@@ -173,20 +174,17 @@ class DealRepository:
                 order_data.dict()
             )
             
-            print(f"DEBUG: Выполняем commit")
+            logger.debug("Выполняем commit")
             await self.session.commit()
-            print(f"DEBUG: Заказ успешно создан с ID {order.id}")
+            logger.debug("Заказ успешно создан с ID %s", order.id)
             
             # Перезагружаем заказ с связанными данными
-            print(f"DEBUG: Перезагружаем заказ с связанными данными")
+            logger.debug("Перезагружаем заказ с связанными данными")
             reloaded_order = await self.get_order_by_id(order.id, buyer_company_id)
             return reloaded_order
             
         except Exception as e:
-            print(f"DEBUG: Ошибка в create_order: {e}")
-            print(f"DEBUG: Тип ошибки: {type(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Ошибка в create_order: %s (тип: %s)", e, type(e).__name__)
             raise
 
     async def get_order_by_id_only(self, order_id: int) -> Optional[Order]:

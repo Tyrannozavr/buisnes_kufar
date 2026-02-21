@@ -1,7 +1,7 @@
 export interface BuyerTableItems {
 	dealNumber: string
 	date: string
-	sallerCompany: string
+	sellerCompany: string
 	state?: string
 	bill?: string
 	supplyContract?: string

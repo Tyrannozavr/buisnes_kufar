@@ -7,7 +7,7 @@ import type {
 } from "~/types/dealState";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
-import type { DealUpdate, OrderItemUpdate, SellerDealResponse } from "~/types/dealReasponse";
+import type { DealUpdate, OrderItemUpdate, SellerDealResponse } from "~/types/dealResponse";
 
 interface Sales {
   sales: {
@@ -160,9 +160,9 @@ export const useSalesStore = defineStore("sales", {
                 comments: dealResponse.comments ?? "",
               },
               date: dealResponse.created_at,
-              saller: {
+              seller: {
                 companyName: dealResponse.seller_company.company_name,
-                sallerName: dealResponse.seller_company.name,
+                sellerName: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
                 companyId: dealResponse.seller_company.id,
@@ -207,9 +207,9 @@ export const useSalesStore = defineStore("sales", {
                 comments: dealResponse.comments ?? "",
               },
               date: dealResponse.created_at,
-              saller: {
+              seller: {
                 companyName: dealResponse.seller_company.company_name,
-                sallerName: dealResponse.seller_company.name,
+                sellerName: dealResponse.seller_company.name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
                 companyId: dealResponse.seller_company.id,
@@ -349,37 +349,37 @@ export const useSalesStore = defineStore("sales", {
       }
     },
 
-    editSallerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
-      const sallerGoodsDeal = this.findGoodsDeal(dealId)?.saller;
-      if (sallerGoodsDeal) {
-        Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
+    editSellerGoodsDeal(dealId: number, newSellerGoodsDeal: EditPersonDeal) {
+      const sellerGoodsDeal = this.findGoodsDeal(dealId)?.seller;
+      if (sellerGoodsDeal) {
+        Object.assign(sellerGoodsDeal, newSellerGoodsDeal);
       }
     },
 
-    editSallerServicesDeal(
+    editSellerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal,
+      newSellerServicesDeal: EditPersonDeal,
     ) {
-      const sallerServicesDeal = this.findServicesDeal(dealId)?.saller;
-      if (sallerServicesDeal) {
-        Object.assign(sallerServicesDeal, newSallerServicesDeal);
+      const sellerServicesDeal = this.findServicesDeal(dealId)?.seller;
+      if (sellerServicesDeal) {
+        Object.assign(sellerServicesDeal, newSellerServicesDeal);
       }
     },
 
-    editBuyerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
+    editBuyerGoodsDeal(dealId: number, newSellerGoodsDeal: EditPersonDeal) {
       const buyerGoodsDeal = this.findGoodsDeal(dealId)?.buyer;
       if (buyerGoodsDeal) {
-        Object.assign(buyerGoodsDeal, newSallerGoodsDeal);
+        Object.assign(buyerGoodsDeal, newSellerGoodsDeal);
       }
     },
 
     editBuyerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal,
+      newSellerServicesDeal: EditPersonDeal,
     ) {
       const buyerServicesDeal = this.findServicesDeal(dealId)?.buyer;
       if (buyerServicesDeal) {
-        Object.assign(buyerServicesDeal, newSallerServicesDeal);
+        Object.assign(buyerServicesDeal, newSellerServicesDeal);
       }
     },
 
@@ -451,7 +451,7 @@ export const useSalesStore = defineStore("sales", {
 
     async fullUpdateGoodsDeal(
       dealId: number,
-      saller: EditPersonDeal,
+      seller: EditPersonDeal,
       buyer: EditPersonDeal,
       newGoodsList: Product[],
       comments?: string,
@@ -459,7 +459,7 @@ export const useSalesStore = defineStore("sales", {
       this.amountInGoodsList();
       this.amountPriceInGoods();
       this.amountWordGoods();
-      this.editSallerGoodsDeal(dealId, saller);
+      this.editSellerGoodsDeal(dealId, seller);
       this.editBuyerGoodsDeal(dealId, buyer);
       this.editGood(dealId, newGoodsList);
       if (comments) {
@@ -474,7 +474,7 @@ export const useSalesStore = defineStore("sales", {
 
     async fullUpdateServicesDeal(
       dealId: number,
-      saller: EditPersonDeal,
+      seller: EditPersonDeal,
       buyer: EditPersonDeal,
       newServiceList: Product[],
       comments?: string,
@@ -482,7 +482,7 @@ export const useSalesStore = defineStore("sales", {
       this.amountInServicesList();
       this.amountPriceInServices();
       this.amountWordServices();
-      this.editSallerServicesDeal(dealId, saller);
+      this.editSellerServicesDeal(dealId, seller);
       this.editBuyerServicesDeal(dealId, buyer);
       this.editService(dealId, newServiceList);
       if (comments) {

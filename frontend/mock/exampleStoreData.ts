@@ -18,7 +18,7 @@ export const purchasesGoodsData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 7777777,
       name: "Кузя",
       companyName: "Кузя принимает",
@@ -274,7 +274,7 @@ export const purchasesGoodsData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 6666666,
       name: "Yasha Lava",
       companyName: "DeppAndHard",
@@ -317,7 +317,7 @@ export const purchasesServiceData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 7777777,
       name: "Yasha Lava",
       companyName: "DeppAndHard",
@@ -360,7 +360,7 @@ export const salesGoodsData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 7777777,
       name: "Кузя",
       companyName: "Кузя принимает",
@@ -400,7 +400,7 @@ export const salesGoodsData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 3423423,
       name: "Sergey",
       companyName: "Home secrets",
@@ -443,7 +443,7 @@ export const salesServiceData = [
       comments: "",
     },
     date: `${new Date().getDate()}.${new Date().getMonth()}.${new Date().getFullYear()}`,
-    saller: {
+    seller: {
       inn: 3423423,
       name: "Sergey",
       companyName: "Home secrets",

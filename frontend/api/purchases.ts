@@ -1,6 +1,6 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
-import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealReasponse"
+import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {

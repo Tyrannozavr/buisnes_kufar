@@ -125,7 +125,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
     cell: ({ row }) => normalizeDate(row.getValue('date'))
   },
   {
-    accessorKey: 'sallerCompany',
+    accessorKey: 'sellerCompany',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -144,7 +144,7 @@ const columnsGoodsDeals: TableColumn<any>[] = [
         }
       )
     },
-    cell: ({ row }) => row.getValue('sallerCompany')
+    cell: ({ row }) => row.getValue('sellerCompany')
   },
   {
     accessorKey: 'status',
@@ -265,7 +265,7 @@ watch(goodsDeals, () => {
   tableGoods.value = [...goodsDeals.map(deal => ({
     dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
-    sallerCompany: deal.saller.companyName || '',
+    sellerCompany: deal.seller.companyName || '',
     status: deal.status,
     bill: deal.billNumber ? `${deal.billNumber} от ${normalizeDate(deal.billDate || '')}` : 'Просмотр',
     supplyContract: deal.supplyContractNumber ? `${deal.supplyContractNumber} от ${normalizeDate(deal.supplyContractDate || '')}` : 'Просмотр',
@@ -337,7 +337,7 @@ const columnsServicesDeals: TableColumn<any>[] = [
     cell: ({ row }) => normalizeDate(row.getValue('date'))
   },
   {
-    accessorKey: 'sallerCompany',
+    accessorKey: 'sellerCompany',
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
 
@@ -476,7 +476,7 @@ watch(servicesDeals, () => {
   tableServices.value = [...servicesDeals.map(service => ({
     dealNumber: service.buyerOrderNumber || '',
     date: service.date,
-    sallerCompany: service.saller.companyName || '',
+    sellerCompany: service.seller.companyName || '',
     status: service.status,
     bill: 'Просмотр',
     contract: 'Просмотр',

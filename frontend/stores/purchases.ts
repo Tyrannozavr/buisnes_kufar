@@ -9,7 +9,7 @@ import type {
   BuyerDealResponse,
   DealUpdate,
   OrderItemUpdate,
-} from "~/types/dealReasponse";
+} from "~/types/dealResponse";
 import { convert as numberToWordsRu } from "number-to-words-ru";
 import { usePurchasesApi } from "~/api/purchases";
 
@@ -160,8 +160,8 @@ export const usePurchasesStore = defineStore("purchases", {
                 amountWord: "",
                 comments: dealResponse.comments ?? "",
               },
-              saller: {
-                sallerName: dealResponse.seller_company.name,
+              seller: {
+                sellerName: dealResponse.seller_company.name,
                 companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
@@ -210,8 +210,8 @@ export const usePurchasesStore = defineStore("purchases", {
                 amountWord: "",
                 comments: dealResponse.comments ?? "",
               },
-              saller: {
-                sallerName: dealResponse.seller_company.name,
+              seller: {
+                sellerName: dealResponse.seller_company.name,
                 companyName: dealResponse.seller_company.company_name,
                 phone: dealResponse.seller_company.phone,
                 slug: dealResponse.seller_company.slug,
@@ -350,37 +350,37 @@ export const usePurchasesStore = defineStore("purchases", {
       }
     },
 
-    editSallerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
-      const sallerGoodsDeal = this.findGoodsDeal(dealId)?.saller;
-      if (sallerGoodsDeal) {
-        Object.assign(sallerGoodsDeal, newSallerGoodsDeal);
+    editSellerGoodsDeal(dealId: number, newSellerGoodsDeal: EditPersonDeal) {
+      const sellerGoodsDeal = this.findGoodsDeal(dealId)?.seller;
+      if (sellerGoodsDeal) {
+        Object.assign(sellerGoodsDeal, newSellerGoodsDeal);
       }
     },
 
-    editSallerServicesDeal(
+    editSellerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal,
+      newSellerServicesDeal: EditPersonDeal,
     ) {
-      const sallerServicesDeal = this.findServicesDeal(dealId)?.saller;
-      if (sallerServicesDeal) {
-        Object.assign(sallerServicesDeal, newSallerServicesDeal);
+      const sellerServicesDeal = this.findServicesDeal(dealId)?.seller;
+      if (sellerServicesDeal) {
+        Object.assign(sellerServicesDeal, newSellerServicesDeal);
       }
     },
 
-    editBuyerGoodsDeal(dealId: number, newSallerGoodsDeal: EditPersonDeal) {
+    editBuyerGoodsDeal(dealId: number, newSellerGoodsDeal: EditPersonDeal) {
       const buyerGoodsDeal = this.findGoodsDeal(dealId)?.buyer;
       if (buyerGoodsDeal) {
-        Object.assign(buyerGoodsDeal, newSallerGoodsDeal);
+        Object.assign(buyerGoodsDeal, newSellerGoodsDeal);
       }
     },
 
     editBuyerServicesDeal(
       dealId: number,
-      newSallerServicesDeal: EditPersonDeal,
+      newSellerServicesDeal: EditPersonDeal,
     ) {
       const buyerServicesDeal = this.findServicesDeal(dealId)?.buyer;
       if (buyerServicesDeal) {
-        Object.assign(buyerServicesDeal, newSallerServicesDeal);
+        Object.assign(buyerServicesDeal, newSellerServicesDeal);
       }
     },
 
@@ -452,7 +452,7 @@ export const usePurchasesStore = defineStore("purchases", {
 
     async fullUpdateGoodsDeal(
       dealId: number,
-      saller: EditPersonDeal,
+      seller: EditPersonDeal,
       buyer: EditPersonDeal,
       newGoodsList: Product[],
       comments?: string,
@@ -460,7 +460,7 @@ export const usePurchasesStore = defineStore("purchases", {
       this.amountInGoodsList();
       this.amountPriceInGoods();
       this.amountWordGoods();
-      this.editSallerGoodsDeal(dealId, saller);
+      this.editSellerGoodsDeal(dealId, seller);
       this.editBuyerGoodsDeal(dealId, buyer);
       this.editGood(dealId, newGoodsList);
       if (comments !== undefined) {
@@ -476,7 +476,7 @@ export const usePurchasesStore = defineStore("purchases", {
 
     async fullUpdateServicesDeal(
       dealId: number,
-      saller: EditPersonDeal,
+      seller: EditPersonDeal,
       buyer: EditPersonDeal,
       newServiceList: Product[],
       comments?: string,
@@ -484,7 +484,7 @@ export const usePurchasesStore = defineStore("purchases", {
       this.amountInServicesList();
       this.amountPriceInServices();
       this.amountWordServices();
-      this.editSallerServicesDeal(dealId, saller);
+      this.editSellerServicesDeal(dealId, seller);
       this.editBuyerServicesDeal(dealId, buyer);
       this.editService(dealId, newServiceList);
       if (comments !== undefined) {

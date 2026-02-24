@@ -6,6 +6,7 @@ from slugify import slugify
 from sqlalchemy import select, update, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.authentication.models.user import User
 from app.api.company.models.company import Company
 from app.api.products.models.product import Product, ProductType
 from app.api.products.schemas.product import ProductCreate, ProductUpdate
@@ -42,10 +43,13 @@ class MyProductsRepository:
                 return slug
 
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
-        """Получить компанию по user_id для проверки прав доступа"""
-        query = select(Company).where(Company.user_id == user_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        """Получить компанию по user_id (через User.company_id)"""
+        user_result = await self.session.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if not user or not user.company_id:
+            return None
+        company_result = await self.session.execute(select(Company).where(Company.id == user.company_id))
+        return company_result.scalar_one_or_none()
 
     async def get_by_id(self, product_id: int, user_id: int) -> Optional[Product]:
         """Получить продукт по ID, только если он принадлежит компании пользователя"""

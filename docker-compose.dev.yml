@@ -113,6 +113,10 @@ services:
     environment:
       # Все конфиги берём из корневого .env через env_file
       NODE_ENV: "${NODE_ENV:-development}"
+      # HMR подключается к этому порту (nginx), чтобы WebSocket работал при открытии localhost:8080
+      DEV_NGINX_PORT: "${DEV_NGINX_PORT:-8080}"
+      # Прокси /api из контейнера фронта на бэкенд по имени сервиса
+      NUXT_DEV_API_PROXY_TARGET: "http://backend:8000"
       # Включаем polling для file watcher на Windows
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "1000"
@@ -217,7 +221,7 @@ services:
       - sh
       - -c
       - >
-        ( python -c "import psycopg2; c=psycopg2.connect('postgresql://postgres:postgres@db:5432/postgres'); c.autocommit=True; c.cursor().execute('CREATE DATABASE buisnes_kufar_test'); c.close()" )
+        ( python -c "import psycopg2; c=psycopg2.connect('postgresql://postgres:postgres@db:5432/postgres'); c.autocommit=True; cur=c.cursor(); cur.execute('DROP DATABASE IF EXISTS buisnes_kufar_test'); cur.execute('CREATE DATABASE buisnes_kufar_test'); c.close()" )
         2>/dev/null || true;
         poetry run pytest tests/ -v --tb=short
     depends_on:

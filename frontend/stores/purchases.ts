@@ -129,9 +129,8 @@ export const usePurchasesStore = defineStore("purchases", {
     },
     //получение и заполнение списка сделок
     async getDeals() {
-      await this.clearStore();
-
       const { getDealById, getBuyerDeals } = usePurchasesApi();
+      await this.clearStore();
       const buyerDeals = await getBuyerDeals();
       const dealsIds: number[] = [
         ...new Set(buyerDeals?.map((deal: BuyerDealResponse) => deal.id) || []),
@@ -270,6 +269,20 @@ export const usePurchasesStore = defineStore("purchases", {
       const exists = this.purchases.servicesDeals?.some((d) => d.dealId === newDeal.dealId);
       if (!exists) {
         this.purchases.servicesDeals?.push(newDeal);
+      }
+    },
+
+    updateDealSupplyContract(
+      dealId: number,
+      productType: string,
+      payload: { supplyContractNumber: string; supplyContractDate: string }
+    ) {
+      const list =
+        productType === "goods" ? this.purchases.goodsDeals : this.purchases.servicesDeals;
+      const deal = list?.find((d) => d.dealId === dealId);
+      if (deal) {
+        deal.supplyContractNumber = payload.supplyContractNumber;
+        deal.supplyContractDate = payload.supplyContractDate;
       }
     },
 

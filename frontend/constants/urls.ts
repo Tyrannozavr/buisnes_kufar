@@ -15,13 +15,19 @@ export const API_URLS = {
   
   //versions 
   CREATE_NEW_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions`,
+  GET_DEAL_VERSIONS: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions`,
   DELETE_LAST_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions/last`,
+  ACCEPT_DEAL_VERSION: (deal_id: number, version: number) => `/api/v1/purchases/deals/${deal_id}/versions/${version}/accept`,
+  REJECT_DEAL_VERSION: (deal_id: number, version: number) => `/api/v1/purchases/deals/${deal_id}/versions/${version}/reject`,
 
   // Documents
   GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
   UPLOAD_DOCUMENT_BY_DEAL_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents`,
   DOWNLOAD_DOCUMENT: (deal_id: number, document_id: number) => `/api/v1/purchases/deals/${deal_id}/documents/${document_id}/download`,
   DELETE_DOCUMENT: (deal_id: number, document_id: number) => `/api/v1/purchases/deals/${deal_id}/documents/${document_id}`,
+  GET_DOCUMENT_FORM: (deal_id: number, document_type: string) =>
+    `/api/v1/purchases/deals/${deal_id}/documents/form?document_type=${encodeURIComponent(document_type)}`,
+  PUT_DOCUMENT_FORM: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/documents/form`,
 
   // Companies
   COMPANIES: '/v1/companies/',

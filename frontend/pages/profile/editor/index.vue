@@ -5,7 +5,7 @@
 		<div class="flex gap-3">
 			<div>
 				<template v-if="activeTab === '0'">
-					<div>
+					<div id="order">
 						<A4Page>
 							<Order />
 						</A4Page>
@@ -13,7 +13,7 @@
 				</template>
 
 				<template v-if="activeTab === '1'">
-					<div>
+					<div id="bill">
 						<A4Page>
 							<Bill />
 						</A4Page>
@@ -28,32 +28,34 @@
 
 				<template v-if="activeTab === '3'">
 					<A4Page>
-
+						<AccompanyingDocuments />
 					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '4'">
 					<A4Page>
-
+						<Invoice />
 					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '5'">
 					<A4Page>
-
+						<DogovorUslug />
 					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '6'">
 					<A4Page>
-						<DogovorUslug />
+						<Act />
 					</A4Page>
 				</template>
 
 				<template v-if="activeTab === '7'">
-					<div>
-
-					</div>
+					<A4Page>
+						<div class="font-serif text-base text-gray-500 p-6 max-w-[210mm]">
+							<p>Раздел «Другие документы» — в разработке.</p>
+						</div>
+					</A4Page>
 				</template>
 			</div>
 
@@ -69,11 +71,18 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
+import AccompanyingDocuments from '~/components/templates/AccompanyingDocuments.vue'
+import Invoice from '~/components/templates/Invoice.vue'
+import Act from '~/components/templates/Act.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
 import { usePurchasesStore } from '~/stores/purchases'
 import { useSalesStore } from '~/stores/sales'
 import { useRouter } from 'vue-router'
+
+definePageMeta({
+  layout: 'profile'
+})
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const route = useRoute()

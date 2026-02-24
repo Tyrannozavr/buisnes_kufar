@@ -1,8 +1,79 @@
 <script setup lang="ts">
 import { TemplateElement } from '~/constants/keys'
+import { useRoute } from 'vue-router'
+import { usePurchasesStore } from '~/stores/purchases'
+import { useSalesStore } from '~/stores/sales'
+import { normalizeDate } from '~/utils/normalize'
+import { useDocumentForm } from '~/composables/useDocumentForm'
+import { computed } from 'vue'
 
 const html = useTemplateRef('html')
 const htmlSupplyContract = useTypedState(TemplateElement.SUPPLY_CONTRACT, () => ref(null))
+const route = useRoute()
+const purchasesStore = usePurchasesStore()
+const salesStore = useSalesStore()
+
+const dealId = computed(() => {
+	const q = route.query.dealId ?? route.query.deal_id
+	return q ? Number(q) : null
+})
+
+const initialPayload: Record<string, string> = {
+	buyerName: '',
+	buyerRepresentative: '',
+	supplierName: '',
+	contractAmount: '',
+	deliveryTerms: '',
+	contractSubject: '',
+}
+
+const {
+	payload,
+	loading,
+	saving,
+	error,
+	updatedAt,
+	save,
+} = useDocumentForm({
+	slot: 'supplyContract',
+	dealId,
+	initialPayload,
+})
+
+const supplyContractNumber = computed(() => {
+	const q = route.query
+	if (!q?.dealId || !q?.role || !q?.productType) return ''
+	const dealId = Number(q.dealId)
+	if (q.role === 'buyer') {
+		const deal = q.productType === 'goods'
+			? purchasesStore.findGoodsDeal(dealId)
+			: purchasesStore.findServicesDeal(dealId)
+		return deal?.supplyContractNumber ?? ''
+	}
+	const deal = q.productType === 'goods'
+		? salesStore.findGoodsDeal(dealId)
+		: salesStore.findServicesDeal(dealId)
+	return deal?.supplyContractNumber ?? ''
+})
+
+const supplyContractDateFormatted = computed(() => {
+	const q = route.query
+	if (!q?.dealId || !q?.role || !q?.productType) return '—'
+	const dealId = Number(q.dealId)
+	let dateStr = ''
+	if (q.role === 'buyer') {
+		const deal = q.productType === 'goods'
+			? purchasesStore.findGoodsDeal(dealId)
+			: purchasesStore.findServicesDeal(dealId)
+		dateStr = deal?.supplyContractDate ?? ''
+	} else {
+		const deal = q.productType === 'goods'
+			? salesStore.findGoodsDeal(dealId)
+			: salesStore.findServicesDeal(dealId)
+		dateStr = deal?.supplyContractDate ?? ''
+	}
+	return dateStr ? normalizeDate(dateStr) : '—'
+})
 
 onMounted(() => {
 	htmlSupplyContract.value = html.value
@@ -11,12 +82,25 @@ onMounted(() => {
 
 <template>
 	<div ref="html" class="font-serif text-l text-justify text-pretty w-full">
-		<h1 class="font-bold">Договор поставки № {НомерДокумента}</h1><br />
+		<div v-if="error" class="mb-2 text-red-600 text-sm">{{ error }}</div>
+		<div v-if="dealId" class="mb-4 flex gap-2 items-center">
+			<UButton
+				size="sm"
+				:loading="saving"
+				:disabled="loading"
+				@click="save()"
+			>
+				Сохранить документ
+			</UButton>
+			<span v-if="updatedAt" class="text-gray-500 text-sm">Сохранено: {{ updatedAt }}</span>
+		</div>
 
-		<p class="text-right"> {ДатаДокумента}</p><br />
-		<p>{НазваниеКонтр} именуемое в дальнейшем «Покупатель», в лице {КонтрВЛице}, действующего на основании Устава, с
+		<h1 class="font-bold">Договор поставки № {{ supplyContractNumber || '—' }}</h1><br />
+
+		<p class="text-right">{{ supplyContractDateFormatted }}</p><br />
+		<p>{{ payload.buyerName || '{НазваниеКонтр}' }} именуемое в дальнейшем «Покупатель», в лице {{ payload.buyerRepresentative || '{КонтрВЛице}' }}, действующего на основании Устава, с
 			одной
-			стороны, и ИП {ФИОИП}, именуемый в дальнейшем «Поставщик», с другой стороны, именуемые в дальнейшем Стороны,
+			стороны, и ИП {{ payload.supplierName || '{ФИОИП}' }}, именуемый в дальнейшем «Поставщик», с другой стороны, именуемые в дальнейшем Стороны,
 			заключили настоящий Договор о нижеследующем:</p>
 		<h2>1. Предмет договора</h2>
 		<p>1.1. В соответствии с настоящим Договором Поставщик обязуется поставить Покупателю (далее — Продукция) в
@@ -126,9 +210,11 @@ onMounted(() => {
 		<table class=" table-auto">
 
 			<thead>
-				<th class="w-1/5">Данные: </th>
-				<th class="w-1/5">Заказчик:</th>
-				<th class="w-1/5">Исполнитель:</th>
+				<tr>
+					<th class="w-1/5">Данные: </th>
+					<th class="w-1/5">Заказчик:</th>
+					<th class="w-1/5">Исполнитель:</th>
+				</tr>
 			</thead>
 
 			<tbody>

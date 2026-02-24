@@ -228,8 +228,9 @@ class DatabaseSeeder:
         """Очистка базы данных от существующих данных"""
         # Удаляем в правильном порядке (сначала зависимые таблицы)
         tables = [
-            "announcements", "products", "company_officials", 
-            "company_relations", "chat_participants", "messages", 
+            "order_documents", "order_history", "order_items", "orders",
+            "announcements", "products", "company_officials",
+            "company_relations", "chat_participants", "messages",
             "companies", "users"
         ]
         
@@ -251,7 +252,6 @@ class DatabaseSeeder:
                 last_name=last_name,
                 patronymic=random.choice(FIRST_NAMES) + "ович" if random.choice([True, False]) else None,
                 phone=f"+7 9{random.randint(10, 99)} {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}",
-                inn=f"{random.randint(1000000000, 9999999999)}",
                 position=random.choice(POSITIONS),
                 hashed_password=get_password_hash("password123"),
                 is_active=True
@@ -300,13 +300,16 @@ class DatabaseSeeder:
                 total_views=random.randint(0, 10000),
                 monthly_views=random.randint(0, 1000),
                 total_purchases=random.randint(0, 500),
-                user_id=user.id,
                 is_active=True
             )
             self.session.add(company)
             self.companies.append(company)
         
         await self.session.flush()
+        # Привязываем пользователей к компаниям (User.company_id)
+        for i, user in enumerate(self.users):
+            if i < len(self.companies):
+                user.company_id = self.companies[i].id
 
     async def _create_products(self):
         """Создание товаров"""

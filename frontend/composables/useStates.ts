@@ -66,16 +66,26 @@ export const useClearState = () => {
   };
 };
 
+export interface SaveOrderOptions {
+  createVersion?: boolean;
+  onComplete?: () => void;
+}
+
 export const useSaveState = () => {
   const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () => ref(false));
+  const saveOrderOptions = useTypedState(Editor.SAVE_ORDER_OPTIONS, () =>
+    ref<SaveOrderOptions>({})
+  );
 
-  const saveOrder = (): void => {
+  const saveOrder = (options?: SaveOrderOptions): void => {
+    saveOrderOptions.value = options ?? {};
     saveStateOrder.value = true;
     nextTick(() => (saveStateOrder.value = false));
   };
 
   return {
     saveOrder,
+    saveOrderOptions,
   };
 };
 

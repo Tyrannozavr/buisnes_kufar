@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -14,7 +14,9 @@ from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem,
-    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
+    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse,
+    DocumentFormSaveRequest, DocumentFormResponse, DOCUMENT_FORM_TYPES,
+    DealVersionItem,
 )
 from app.api.purchases.schemas import DealStatus, ItemType
 
@@ -139,53 +141,27 @@ async def get_seller_deals(
     "/deals/{deal_id}",
     response_model=DealResponse,
     tags=["deals", "orders", "detail"],
-    summary="Получение последней версии заказа по ID сделки",
+    summary="Получение заказа по ID сделки",
+    description="По умолчанию возвращается активная (согласованная обеими сторонами) версия. Параметр version — конкретная версия для просмотра/сравнения.",
     responses={
-        200: {
-            "description": "Возвращена последняя версия сделки",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 321,
-                        "version": 3,
-                        "buyer_company_id": 10,
-                        "seller_company_id": 20,
-                        "buyer_order_number": "00042",
-                        "seller_order_number": "00058",
-                        "status": "Активная",
-                        "deal_type": "Товары",
-                        "total_amount": 246.9,
-                        "comments": "latest version",
-                        "items": [],
-                        "created_at": "2026-02-19T10:00:00",
-                        "updated_at": "2026-02-19T11:00:00"
-                    }
-                }
-            }
-        },
+        200: {"description": "Возвращена версия сделки"},
         404: {"description": "Заказ не найден или компания пользователя не участвует в сделке"},
     },
 )
 async def get_deal(
     deal_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: deal_service_dep_annotated
+    version: Annotated[Optional[int], Query(description="Номер версии; если не указан — активная версия")] = None,
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
 ):
-    """
-    Получение конкретного заказа по ID сделки.
-
-    По умолчанию возвращает последнюю версию (`max(version)`).
-    Возвращает детальную информацию о заказе включая все позиции и документы.
-    Доступ только для участников сделки (покупателя или продавца).
-    """
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    
-    deal = await deal_service.get_deal_by_id(deal_id, company.id)
+
+    deal = await deal_service.get_deal_by_id(deal_id, company.id, version=version)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    
+
     return deal
 
 
@@ -458,6 +434,71 @@ async def delete_last_deal_version(
     )
 
 
+@router.get(
+    "/deals/{deal_id}/versions",
+    response_model=List[DealVersionItem],
+    tags=["deals", "orders", "versions", "list"],
+    summary="Список всех версий заказа",
+    description="Для выпадающего списка версий и сравнения. Версии не удаляются, только помечаются принятыми/отклонёнными.",
+)
+async def get_deal_versions(
+    deal_id: int = Path(..., gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    versions = await deal_service.get_deal_versions(deal_id, company.id)
+    if not versions and not await deal_service.has_deal_access(deal_id, company.id):
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return versions
+
+
+@router.post(
+    "/deals/{deal_id}/versions/{version}/accept",
+    response_model=DealResponse,
+    tags=["deals", "orders", "versions"],
+    summary="Принять версию заказа",
+    description="Текущая сторона помечает версию как принятую. После принятия обеими сторонами версия становится активной.",
+)
+async def accept_deal_version(
+    deal_id: int = Path(..., gt=0),
+    version: int = Path(..., ge=1),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    deal = await deal_service.accept_deal_version(deal_id, version, company.id)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal or version not found, or version already rejected")
+    return deal
+
+
+@router.post(
+    "/deals/{deal_id}/versions/{version}/reject",
+    response_model=DealResponse,
+    tags=["deals", "orders", "versions"],
+    summary="Отклонить версию заказа",
+    description="Версия помечается как отклонённая текущей стороной. Версия не удаляется, остаётся в истории.",
+)
+async def reject_deal_version(
+    deal_id: int = Path(..., gt=0),
+    version: int = Path(..., ge=1),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    deal = await deal_service.reject_deal_version(deal_id, version, company.id)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal or version not found")
+    return deal
+
+
 @router.post("/deals/{deal_id}/documents", tags=["documents", "upload", "files"])
 async def upload_document(
     deal_id: int,
@@ -672,6 +713,57 @@ async def create_bill(
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return BillResponse(bill_number=result[0], bill_date=result[1])
+
+
+@router.get(
+    "/deals/{deal_id}/documents/form",
+    response_model=DocumentFormResponse,
+    tags=["documents", "form", "editor"],
+    summary="Получить JSON формы документа",
+)
+async def get_document_form(
+    deal_id: int,
+    document_type: str = Query(..., description="Тип документа: bill, supply_contract, contract, other"),
+    version: str | None = Query(None, description="Версия (v1, v1.1); если не указана — последняя"),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Возвращает сохранённый payload формы документа для редактора (Счет, Договор поставки и т.д.)."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    if document_type not in DOCUMENT_FORM_TYPES:
+        raise HTTPException(status_code=400, detail=f"document_type must be one of: {DOCUMENT_FORM_TYPES}")
+    form = await deal_service.get_document_form(deal_id, company.id, document_type, version)
+    if form is None:
+        return DocumentFormResponse(payload={}, document_version="v1", updated_at=None, updated_by_company_id=None)
+    return form
+
+
+@router.put(
+    "/deals/{deal_id}/documents/form",
+    response_model=DocumentFormResponse,
+    tags=["documents", "form", "editor"],
+    summary="Сохранить JSON формы документа",
+)
+async def save_document_form(
+    deal_id: int,
+    body: DocumentFormSaveRequest,
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Сохраняет payload формы документа (версионирование: v1, v1.1 и т.д.)."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    if body.document_type not in DOCUMENT_FORM_TYPES:
+        raise HTTPException(status_code=400, detail=f"document_type must be one of: {DOCUMENT_FORM_TYPES}")
+    try:
+        return await deal_service.save_document_form(
+            deal_id, company.id, body.document_type, body.payload, body.version
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post(

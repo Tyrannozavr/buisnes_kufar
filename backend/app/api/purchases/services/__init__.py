@@ -5,7 +5,8 @@ from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, BuyerDealResponse,
     SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse,
-    DealStatus, ItemType,
+    DealStatus, ItemType, DocumentFormResponse, DocumentFormSaveRequest, DOCUMENT_FORM_TYPES,
+    DealVersionItem,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -52,9 +53,69 @@ class DealService:
         """Проверка существования заказа по ID без проверки доступа."""
         return await self.repository.get_order_by_id_only(deal_id)
 
-    async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
-        """Получение сделки по ID"""
-        order = await self.repository.get_order_by_id(deal_id, company_id)
+    async def get_deal_by_id(
+        self, deal_id: int, company_id: int, version: Optional[int] = None
+    ) -> Optional[DealResponse]:
+        """Получение сделки по ID. version=None — активная версия, version=N — конкретная версия."""
+        if version is not None:
+            order = await self.repository.get_order_by_id_and_version(deal_id, version, company_id)
+        else:
+            order = await self.repository.get_order_by_id(deal_id, company_id)
+        if not order:
+            return None
+        return await self._order_to_deal_response(order)
+
+    async def get_latest_deal(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
+        """Получение последней по номеру версии сделки (для отображения предложенной версии)."""
+        order = await self.repository.get_latest_order(deal_id, company_id)
+        if not order:
+            return None
+        return await self._order_to_deal_response(order)
+
+    async def get_deal_versions(self, deal_id: int, company_id: int) -> List[DealVersionItem]:
+        """Список всех версий сделки для dropdown и сравнения."""
+        orders = await self.repository.get_all_versions(deal_id, company_id)
+        result = []
+        for order in orders:
+            if getattr(order, "rejected_by_company_id", None) is not None:
+                status = "rejected"
+            elif (
+                getattr(order, "buyer_accepted_at", None) is not None
+                and getattr(order, "seller_accepted_at", None) is not None
+            ):
+                status = "accepted"
+            elif getattr(order, "proposed_by_company_id", None) is not None:
+                status = "pending"
+            else:
+                status = "accepted"
+            result.append(
+                DealVersionItem(
+                    version=order.version,
+                    version_status=status,
+                    proposed_by_company_id=getattr(order, "proposed_by_company_id", None),
+                    buyer_accepted_at=getattr(order, "buyer_accepted_at", None),
+                    seller_accepted_at=getattr(order, "seller_accepted_at", None),
+                    rejected_by_company_id=getattr(order, "rejected_by_company_id", None),
+                    created_at=order.created_at,
+                    updated_at=order.updated_at,
+                )
+            )
+        return result
+
+    async def accept_deal_version(
+        self, deal_id: int, version: int, company_id: int
+    ) -> Optional[DealResponse]:
+        """Принять версию заказа."""
+        order = await self.repository.accept_version(deal_id, version, company_id)
+        if not order:
+            return None
+        return await self._order_to_deal_response(order)
+
+    async def reject_deal_version(
+        self, deal_id: int, version: int, company_id: int
+    ) -> Optional[DealResponse]:
+        """Отклонить версию заказа (версия остаётся в БД с пометкой)."""
+        order = await self.repository.reject_version(deal_id, version, company_id)
         if not order:
             return None
         return await self._order_to_deal_response(order)
@@ -164,6 +225,40 @@ class DealService:
         """Генерация и присвоение номера и даты договора поставки."""
         return await self.repository.assign_supply_contract(deal_id, company_id, date)
 
+    async def get_document_form(
+        self, deal_id: int, company_id: int, document_type: str, version: Optional[str] = None
+    ) -> Optional[DocumentFormResponse]:
+        """Получение сохранённой формы документа (JSON payload)."""
+        raw = await self.repository.get_document_form(deal_id, company_id, document_type, version)
+        if not raw:
+            return None
+        payload, doc_version, updated_at, updated_by = raw
+        return DocumentFormResponse(
+            payload=payload,
+            document_version=doc_version,
+            updated_at=updated_at,
+            updated_by_company_id=updated_by,
+        )
+
+    async def save_document_form(
+        self,
+        deal_id: int,
+        company_id: int,
+        document_type: str,
+        payload: dict,
+        version: Optional[str] = None,
+    ) -> DocumentFormResponse:
+        """Сохранение формы документа (JSON). Версионирование: v1, v1.1 и т.д."""
+        payload_out, doc_version, updated_at, updated_by = await self.repository.save_document_form(
+            deal_id, company_id, document_type, payload, version
+        )
+        return DocumentFormResponse(
+            payload=payload_out,
+            document_version=doc_version,
+            updated_at=updated_at,
+            updated_by_company_id=updated_by,
+        )
+
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""
         return await self.repository.get_company_by_user_id(user_id)
@@ -246,6 +341,17 @@ class DealService:
             closing_docs = order.closing_documents if order.closing_documents is not None else []
             others_docs = order.others_documents if order.others_documents is not None else []
 
+            version_status = None
+            if getattr(order, "rejected_by_company_id", None) is not None:
+                version_status = "rejected"
+            elif (
+                getattr(order, "buyer_accepted_at", None) is not None
+                and getattr(order, "seller_accepted_at", None) is not None
+            ):
+                version_status = "accepted"
+            elif getattr(order, "proposed_by_company_id", None) is not None:
+                version_status = "pending"
+
             return DealResponse(
                 id=order.id,
                 version=order.version,
@@ -269,6 +375,11 @@ class DealService:
                 others_documents=others_docs,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
+                version_status=version_status,
+                proposed_by_company_id=getattr(order, "proposed_by_company_id", None),
+                buyer_accepted_at=getattr(order, "buyer_accepted_at", None),
+                seller_accepted_at=getattr(order, "seller_accepted_at", None),
+                rejected_by_company_id=getattr(order, "rejected_by_company_id", None),
                 items=items,
                 buyer_company=buyer_company_info,
                 seller_company=seller_company_info

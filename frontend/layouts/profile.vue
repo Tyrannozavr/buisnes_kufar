@@ -118,9 +118,11 @@ const pageTitle = computed(() => {
 	return typeof title === 'function' ? title() : title
 })
 
-const alternativeLayout = () => route.name === 'profile-purchases' || route.name === 'profile-sales' ? true : false
-
-watch(alternativeLayout, () => console.log(alternativeLayout()))
+// Полноширинный контент без бокового меню: Закупки, Продажи и Редактор документов
+const alternativeLayout = () =>
+  route.name === 'profile-purchases' ||
+  route.name === 'profile-sales' ||
+  route.path === '/profile/editor'
 
 </script>
 

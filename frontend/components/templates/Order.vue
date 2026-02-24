@@ -9,6 +9,10 @@ import { normalizeDate } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/stores/user';
+import type { DealResponse } from '~/types/dealResponse';
+import { usePurchasesApi } from '~/api/purchases';
+import numberToWordsRuPkg from 'number-to-words-ru';
+const numberToWordsRu = numberToWordsRuPkg.convert;
 
 const route = useRoute()
 const router = useRouter()
@@ -204,26 +208,39 @@ watch(
 //присвоение конкретного состояния и значений,в зависимости от состояния
 watch(() => insertState.value,
 	() => {
+		const toast = useToast()
 		if (insertState.value.purchasesGood) {
 			requestedData = RequestedType.PURCHASES_GOOD
 			goodsDeal = purchasesStore.lastGoodsDeal ?? undefined
 			servicesDeal = undefined
 			statePurchasesGood(false)
+			if (!goodsDeal) {
+				toast.add({ title: 'Нет данных', description: 'Нет последней закупки по товарам. Сначала откройте заказ из раздела «Мои закупки».', color: 'warning' })
+			}
 		} else if (insertState.value.purchasesService) {
 			requestedData = RequestedType.PURCHASES_SERVICE
 			servicesDeal = purchasesStore.lastServicesDeal ?? undefined
 			goodsDeal = undefined
 			statePurchasesService(false)
+			if (!servicesDeal) {
+				toast.add({ title: 'Нет данных', description: 'Нет последней закупки по услугам. Сначала откройте заказ из раздела «Мои закупки».', color: 'warning' })
+			}
 		} else if (insertState.value.salesGood) {
 			requestedData = RequestedType.SALES_GOOD
 			goodsDeal = salesStore.lastGoodsDeal ?? undefined
 			servicesDeal = undefined
 			stateSalesGood(false)
+			if (!goodsDeal) {
+				toast.add({ title: 'Нет данных', description: 'Нет последней продажи по товарам. Сначала откройте заказ из раздела «Мои продажи».', color: 'warning' })
+			}
 		} else if (insertState.value.salesService) {
 			requestedData = RequestedType.SALES_SERVICE
 			servicesDeal = salesStore.lastServicesDeal ?? undefined
 			goodsDeal = undefined
 			stateSalesService(false)
+			if (!servicesDeal) {
+				toast.add({ title: 'Нет данных', description: 'Нет последней продажи по услугам. Сначала откройте заказ из раздела «Мои продажи».', color: 'warning' })
+			}
 		}
 		fillOrderData()
 	},
@@ -231,54 +248,120 @@ watch(() => insertState.value,
 )
 
 const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
+const saveOrderOptions = useTypedState(Editor.SAVE_ORDER_OPTIONS, () => ref({}))
+const selectedOrderVersion = useTypedState(Editor.SELECTED_ORDER_VERSION, () => ref<number | null>(null))
+const { getDealById } = usePurchasesApi()
+
+function fillOrderDataFromDealResponse(deal: DealResponse, role: string) {
+  const products = (deal.items ?? []).map((item: any) => ({
+    name: item.product_name,
+    article: item.product_article ?? '',
+    quantity: item.quantity,
+    units: item.unit_of_measurement ?? 'шт',
+    price: item.price,
+    amount: item.amount ?? item.quantity * item.price,
+    type: deal.deal_type,
+  }))
+  const amountWord = numberToWordsRu(deal.total_amount ?? 0, { showNumberParts: { fractional: false }, showCurrency: { integer: false } })
+  orderData.value = {
+    orderNumber: role === 'seller' ? deal.seller_order_number : deal.buyer_order_number,
+    dealId: deal.id,
+    orderDate: deal.created_at ?? '',
+    comments: deal.comments ?? '',
+    amount: deal.total_amount ?? 0,
+    amountWord,
+    seller: {
+      companyId: deal.seller_company?.id,
+      sellerName: deal.seller_company?.name,
+      companyName: deal.seller_company?.company_name,
+      mobileNumber: deal.seller_company?.phone,
+      legalAddress: deal.seller_company?.legal_address,
+      inn: Number(deal.seller_company?.inn) || 0,
+    },
+    buyer: {
+      companyId: deal.buyer_company?.id,
+      buyerName: deal.buyer_company?.name,
+      companyName: deal.buyer_company?.company_name,
+      mobileNumber: deal.buyer_company?.phone,
+      legalAddress: deal.buyer_company?.legal_address,
+      inn: Number(deal.buyer_company?.inn) || 0,
+    },
+    products,
+  }
+}
+
+watch(
+  () => [selectedOrderVersion.value, route.query.dealId, route.query.role],
+  async () => {
+    const dealId = route.query.dealId ? Number(route.query.dealId) : null
+    const version = selectedOrderVersion.value
+    if (!dealId) return
+    if (version != null) {
+      const deal = await getDealById(dealId, version)
+      if (deal) {
+        const role = String(route.query.role ?? 'buyer')
+        fillOrderDataFromDealResponse(deal, role)
+      }
+    } else {
+      fillFromQuery()
+    }
+  },
+  { immediate: false }
+)
 
 watch(() => saveState.value,
 	async () => {
     if (!saveState.value) return
+		const opts = saveOrderOptions.value
+		const dealId = orderData.value.dealId
+
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
 			await purchasesStore.fullUpdateGoodsDeal(
-				orderData.value.dealId,
+				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-
-      orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
-      orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
-
+			orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
+			orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
 		} else if (requestedData === RequestedType.PURCHASES_SERVICE) {
 			await purchasesStore.fullUpdateServicesDeal(
-				orderData.value.dealId,
+				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-
-      orderData.value.amount = purchasesStore?.lastServicesDeal?.services.amountPrice
-      orderData.value.amountWord = purchasesStore?.lastServicesDeal?.services.amountWord
-
+			orderData.value.amount = purchasesStore?.lastServicesDeal?.services.amountPrice
+			orderData.value.amountWord = purchasesStore?.lastServicesDeal?.services.amountWord
 		} else if (requestedData === RequestedType.SALES_GOOD) {
 			await salesStore.fullUpdateGoodsDeal(
-				orderData.value.dealId,
+				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-
-      orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
-      orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
-
+			orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
+			orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
 		} else if (requestedData === RequestedType.SALES_SERVICE) {
 			await salesStore.fullUpdateServicesDeal(
-				orderData.value.dealId,
+				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-
-      orderData.value.amount = salesStore?.lastServicesDeal?.services.amountPrice
-      orderData.value.amountWord = salesStore?.lastServicesDeal?.services.amountWord
+			orderData.value.amount = salesStore?.lastServicesDeal?.services.amountPrice
+			orderData.value.amountWord = salesStore?.lastServicesDeal?.services.amountWord
 		}
+
+		if (opts?.createVersion && dealId) {
+			if (requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.PURCHASES_SERVICE) {
+				await purchasesStore.createNewDealVersion(dealId)
+			} else {
+				await salesStore.createNewDealVersion(dealId)
+			}
+		}
+		saveOrderOptions.value = {}
+		opts?.onComplete?.()
 	},
 	{ deep: true }
 )
@@ -303,7 +386,7 @@ const addProduct = () => {
 	orderData.value.products.push(product)
 }
 
-const isDisabled = useTypedState(Editor.IS_DISABLED)
+const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 
 //clear form button
 const clearState = useTypedState(Editor.CLEAR_STATE)
@@ -458,7 +541,7 @@ onMounted(() => {
 							<span class="">{{ product.amount }}</span>
 						</td>
 						<td>
-							<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
+							<span v-show="!isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
 								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400"
 									xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
 									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
@@ -471,7 +554,8 @@ onMounted(() => {
 						</td>
 
 					</tr>
-					<tr :hidden="isDisabled">
+					<!-- v-show вместо :hidden — избегаем hydration mismatch (isDisabled может отличаться на SSR и клиенте) -->
+					<tr v-show="!isDisabled">
 						<td colspan="7" class="border text-left">
 							<button
 								type="button"

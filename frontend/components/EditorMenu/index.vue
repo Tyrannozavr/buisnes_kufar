@@ -45,8 +45,27 @@
 					<OrderMenu :activeButtons :inDevelopment />
 				</div>
 
+				<div v-if="activeTab === '0' && dealIdForVersions" class="flex flex-col gap-2">
+					<p class="text-sm font-medium">Версия заказа</p>
+					<USelect
+						:model-value="selectedOrderVersion"
+						:items="versionOptions"
+						value-key="value"
+						label-key="label"
+						placeholder="Активная"
+						@update:model-value="onVersionSelect"
+					/>
+					<p v-if="pendingVersionLabel" class="text-amber-600 text-sm">{{ pendingVersionLabel }}</p>
+				</div>
+
 				<div v-if="activeTab === '1'">
 					<BillMenu />
+				</div>
+
+				<div v-if="activeTab === '2' && !currentDealHasSupplyContractNumber" class="flex flex-col gap-2">
+					<p class="text-sm text-gray-600">Номер договора присваивается по кнопке ниже или со вкладки «Заказ».</p>
+					<UButton label="Присвоить номер договора" color="neutral" variant="subtle" icon="i-lucide-file-plus"
+						@click="assignSupplyContractFromEditor()" />
 				</div>
 
 				<div class="flex flex-row justify-between gap-1 w-full">
@@ -109,8 +128,12 @@
         </div>
 
 				<div class="flex flex-row justify-between">
-					<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-						:disabled="!activeButtons || activeTab !== '0'" @click="saveChanges(), sendMessageToCounterpart()" />
+					<UTooltip :text="sendButtonTooltip" class="w-full">
+						<span class="inline-block w-full">
+							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
+								:disabled="!activeButtons || activeTab !== '0'" @click="saveChanges(), sendMessageToCounterpart()" />
+						</span>
+					</UTooltip>
 				</div>
 			</div>
 
@@ -141,11 +164,47 @@ const route = useRoute()
 const router = useRouter()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
-const { deleteLastDealVersion } = usePurchasesApi()
+const { getDealVersions, acceptDealVersion, rejectDealVersion, createSupplyContract: createSupplyContractApi, getDealById } = usePurchasesApi()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
+const selectedOrderVersion = useTypedState(Editor.SELECTED_ORDER_VERSION, () => ref<number | null>(null))
+
+const dealIdForVersions = computed(() => {
+  const q = route.query
+  if (!q?.dealId) return null
+  return Number(q.dealId)
+})
+
+const dealVersions = ref<{ version: number; version_status: string }[]>([])
+const versionOptions = computed(() => {
+  const opts = [{ value: null as number | null, label: 'Активная (согласованная)' }]
+  dealVersions.value.forEach((v) => {
+    const status = v.version_status === 'accepted' ? 'согласована' : v.version_status === 'rejected' ? 'отклонена' : 'на согласовании'
+    opts.push({ value: v.version, label: `Версия ${v.version} (${status})` })
+  })
+  return opts
+})
+
+const pendingVersionLabel = computed(() => {
+  const pending = dealVersions.value.find(v => v.version_status === 'pending')
+  if (!pending) return ''
+  return 'Контрагент предложил изменения — примите или отклоните выше.'
+})
+
+watch([() => activeTab.value, () => route.query.dealId], async () => {
+  if (activeTab.value !== '0' || !dealIdForVersions.value) {
+    dealVersions.value = []
+    return
+  }
+  const list = await getDealVersions(dealIdForVersions.value)
+  dealVersions.value = list ?? []
+}, { immediate: true })
+
+function onVersionSelect(value: number | null) {
+  selectedOrderVersion.value = value
+}
 
 
 const inDevelopment = () => {
@@ -154,6 +213,66 @@ const inDevelopment = () => {
 		title: 'Кнопка находиться в разработке...',
 		icon: 'i-lucide-git-compare',
 	})
+}
+
+const sendButtonTooltip = computed(() => {
+	if (activeTab.value !== '0') {
+		const tabNames: Record<string, string> = {
+			'1': 'Счет',
+			'2': 'Договор поставки',
+			'3': 'Сопроводительные документы',
+			'4': 'Счет-фактура',
+			'5': 'Договор',
+			'6': 'Акт',
+			'7': 'Другие документы',
+		}
+		const name = tabNames[activeTab.value] ?? 'этой вкладке'
+		return `«Отправить контрагенту и сохранить» пока только для заказа. На вкладке «${name}» сохранение через эту кнопку не реализовано — перейдите на вкладку «Заказ» для сохранения заказа.`
+	}
+	if (!activeButtons.value) {
+		return 'Нажмите «Редактировать», внесите изменения в заказ, затем нажмите эту кнопку — данные сохранятся и контрагент получит уведомление.'
+	}
+	return 'Сохранить изменения и отправить уведомление контрагенту в чат.'
+})
+
+const currentDealHasSupplyContractNumber = computed(() => {
+	const q = route.query
+	if (!q?.dealId || !q?.role || !q?.productType) return true
+	const dealId = Number(q.dealId)
+	if (q.role === 'buyer') {
+		const deal = q.productType === 'goods'
+			? purchasesStore.findGoodsDeal(dealId)
+			: purchasesStore.findServicesDeal(dealId)
+		return Boolean(deal?.supplyContractNumber)
+	}
+	const deal = q.productType === 'goods'
+		? salesStore.findGoodsDeal(dealId)
+		: salesStore.findServicesDeal(dealId)
+	return Boolean(deal?.supplyContractNumber)
+})
+
+function formatSupplyContractDate (value: string | unknown): string {
+	if (typeof value === 'string') return value
+	if (value && typeof value === 'object' && 'toString' in value) return String(value)
+	return ''
+}
+
+async function assignSupplyContractFromEditor () {
+	const dealId = Number(route.query.dealId)
+	const role = String(route.query.role ?? '')
+	const productType = String(route.query.productType ?? 'goods')
+	const response = await createSupplyContractApi(dealId)
+	if (response?.supply_contracts_number != null) {
+		const payload = {
+			supplyContractNumber: String(response.supply_contracts_number),
+			supplyContractDate: formatSupplyContractDate(response.supply_contracts_date ?? ''),
+		}
+		if (role === 'buyer') {
+			purchasesStore.updateDealSupplyContract(dealId, productType, payload)
+		} else {
+			salesStore.updateDealSupplyContract(dealId, productType, payload)
+		}
+	}
 }
 
 //Insert Button
@@ -363,31 +482,23 @@ const sendMessageToCounterpart = async (isConfirm?: boolean): Promise<void> => {
   }
 }
 
-const saveChanges = async (): Promise<void> => {
+const saveChanges = (): void => {
   if (activeTab.value !== '0') return
-  
-	try {
-    // Сначала создаем новую версию, чтобы исходная версия осталась нетронутой для reject.
-    if (route.query.role === 'seller') {
-      await salesStore.createNewDealVersion(Number(route.query.dealId))
-    } else if (route.query.role === 'buyer') {
-      await purchasesStore.createNewDealVersion(Number(route.query.dealId))
-    }
-		await saveOrder()
-    editButton()
-
-		useToast().add({
-			title: 'Изменения сохранены и отправлены контрагенту',
-			color: 'success',
-    })
-    
-	} catch (err) {
-		console.error('Ошибка при отправке контрагенту:', err)
-		useToast().add({
-			title: 'Ошибка при отправке сообщения контрагенту',
-			color: 'error',
-		})
-	}
+  // Сначала сохраняем форму заказа (fullUpdate), затем создаём версию для контрагента. Порядок важен: иначе в версию уходят старые данные из store.
+  saveOrder({
+    createVersion: true,
+    onComplete: () => {
+      editButton()
+      sendMessageToCounterpart().catch((err) => {
+        console.error('Ошибка при отправке контрагенту:', err)
+        useToast().add({ title: 'Ошибка при отправке сообщения контрагенту', color: 'error' })
+      })
+      useToast().add({
+        title: 'Изменения сохранены и отправлены контрагенту',
+        color: 'success',
+      })
+    },
+  })
 }
 
 // cancel button
@@ -418,7 +529,21 @@ watch(() => route.fullPath,
   confirmation.value = route.query.confirmation === 'true' ? true : false
 }, { immediate: true, deep: true})
 
-const confirm = () => {
+const confirm = async () => {
+  const dealId = Number(route.query.dealId)
+  if (!dealId) {
+    router.replace({ query: { ...route.query, confirmation: 'false' } })
+    sendMessageToCounterpart(true)
+    useToast().add({ title: 'Изменения приняты', color: 'success' })
+    return
+  }
+  const versions = await getDealVersions(dealId)
+  const pending = versions?.find(v => v.version_status === 'pending')
+  if (pending) {
+    await acceptDealVersion(dealId, pending.version)
+    await purchasesStore.getDeals()
+    await salesStore.getDeals()
+  }
   router.replace({ query: { ...route.query, confirmation: 'false' } })
   sendMessageToCounterpart(true)
   useToast().add({
@@ -433,11 +558,15 @@ const reject = async () => {
   const dealId = Number(route.query.dealId)
 
   if (dealId) {
-    await deleteLastDealVersion(dealId)
+    const versions = await getDealVersions(dealId)
+    const pending = versions?.find(v => v.version_status === 'pending')
+    if (pending) {
+      await rejectDealVersion(dealId, pending.version)
+    }
     await purchasesStore.getDeals()
     await salesStore.getDeals()
   }
-  
+  clearCurrentForm(activeTab)
 
   useToast().add({
     title: 'Изменения отклонены',

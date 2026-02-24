@@ -1,6 +1,6 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
-import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
+import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse, DealVersionItem } from "~/types/dealResponse"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
@@ -47,9 +47,12 @@ export const usePurchasesApi = () => {
 		}
 	}
 
-	const getDealById = async (deal_id: number): Promise<DealResponse | undefined> => {
+	const getDealById = async (deal_id: number, version?: number): Promise<DealResponse | undefined> => {
 		try {
-      const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id)))
+			const url = version != null
+				? `${normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id))}?version=${version}`
+				: normalizeApiPath(API_URLS.GET_DEAL_BY_ID(deal_id))
+			const response = await $api.get(url)
 			return response
 		} catch (error) {
 			console.log('ERROR GET DEAL BY ID: ', error)
@@ -183,6 +186,33 @@ export const usePurchasesApi = () => {
     }
   }
 
+  const getDealVersions = async (deal_id: number): Promise<DealVersionItem[] | undefined> => {
+    try {
+      const response = await $api.get(normalizeApiPath(API_URLS.GET_DEAL_VERSIONS(deal_id)))
+      return response
+    } catch (e) {
+      console.log("ERROR getDealVersions: ", e)
+    }
+  }
+
+  const acceptDealVersion = async (deal_id: number, version: number): Promise<DealResponse | undefined> => {
+    try {
+      const response = await $api.post(normalizeApiPath(API_URLS.ACCEPT_DEAL_VERSION(deal_id, version)))
+      return response
+    } catch (e) {
+      console.log("ERROR acceptDealVersion: ", e)
+    }
+  }
+
+  const rejectDealVersion = async (deal_id: number, version: number): Promise<DealResponse | undefined> => {
+    try {
+      const response = await $api.post(normalizeApiPath(API_URLS.REJECT_DEAL_VERSION(deal_id, version)))
+      return response
+    } catch (e) {
+      console.log("ERROR rejectDealVersion: ", e)
+    }
+  }
+
 	return {
     createDeal,
     getBuyerDeals,
@@ -197,5 +227,8 @@ export const usePurchasesApi = () => {
     deleteDealById,
     createNewDealVersion,
     deleteLastDealVersion,
+    getDealVersions,
+    acceptDealVersion,
+    rejectDealVersion,
   };
 }

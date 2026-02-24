@@ -84,15 +84,17 @@ export default defineNuxtConfig({
   },
   // Настройки для правильной генерации путей
   vite: {
-    // Proxy для dev режима - проксируем /api запросы на backend
     server: {
+      // HMR: при доступе через nginx (localhost:8080) клиент подключается к тому же хосту/порту
+      hmr: process.env.DEV_NGINX_PORT
+        ? { clientPort: Number(process.env.DEV_NGINX_PORT), host: 'localhost', protocol: 'ws' }
+        : true,
       proxy: {
         // Исключаем _nuxt_icon из прокси
         '^/api/(?!_nuxt_icon)': {
-          // Dev proxy target берём из .env, чтобы менять в одном месте.
-          // В docker обычно: http://backend:8000
-          // При запуске фронта на хосте: http://localhost:8002
-          target: process.env.NUXT_DEV_API_PROXY_TARGET || 'http://localhost:8002',
+          // Dev proxy: в docker — NUXT_DEV_API_PROXY_TARGET=http://backend:8000
+          // На хосте — http://localhost:8012 (порт бэкенда из DEV_BACKEND_PORT)
+          target: process.env.NUXT_DEV_API_PROXY_TARGET || `http://localhost:${process.env.DEV_BACKEND_PORT || 8012}`,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path

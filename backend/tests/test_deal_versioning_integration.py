@@ -139,14 +139,20 @@ async def test_deal_versioning_scenarios(client: AsyncClient, seeded_context: di
     assert version2["version"] == 2
     assert version2["comments"] == "created-from-version-endpoint"
 
-    # 3) GET by id returns latest version by default
-    get_latest_response = await client.get(f"/api/v1/purchases/deals/{deal_id}")
-    assert get_latest_response.status_code == 200, get_latest_response.text
-    latest = get_latest_response.json()
-    assert latest["id"] == deal_id
-    assert latest["version"] == 2
+    # 3) GET by id returns active version by default (v1); v2 доступна по ?version=2
+    get_active_response = await client.get(f"/api/v1/purchases/deals/{deal_id}")
+    assert get_active_response.status_code == 200, get_active_response.text
+    active = get_active_response.json()
+    assert active["id"] == deal_id
+    assert active["version"] == 1
 
-    # 4) PUT updates latest in-place (version remains 2)
+    get_v2_response = await client.get(f"/api/v1/purchases/deals/{deal_id}?version=2")
+    assert get_v2_response.status_code == 200, get_v2_response.text
+    latest = get_v2_response.json()
+    assert latest["version"] == 2
+    assert latest.get("comments") == "created-from-version-endpoint"
+
+    # 4) PUT updates latest version in-place (v2 remains, comments updated)
     update_payload = {"comments": "updated-latest"}
     put_response = await client.put(f"/api/v1/purchases/deals/{deal_id}", json=update_payload)
     assert put_response.status_code == 200, put_response.text
@@ -178,9 +184,9 @@ async def test_deal_versioning_scenarios(client: AsyncClient, seeded_context: di
 
     after_delete_last = await client.get(f"/api/v1/purchases/deals/{deal_id}")
     assert after_delete_last.status_code == 200, after_delete_last.text
-    reverted_latest = after_delete_last.json()
-    assert reverted_latest["version"] == 1
-    assert reverted_latest["comments"] == "initial"
+    reverted_active = after_delete_last.json()
+    assert reverted_active["version"] == 1
+    assert reverted_active["comments"] == "initial"
 
     # 6) DELETE /deals/{id} removes all versions
     delete_all_response = await client.delete(f"/api/v1/purchases/deals/{deal_id}")

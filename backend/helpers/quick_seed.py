@@ -52,7 +52,6 @@ async def quick_seed():
                 last_name=last_name,
                 patronymic=random.choice(FIRST_NAMES) + "ович" if random.choice([True, False]) else None,
                 phone=f"+7 9{random.randint(10, 99)} {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}",
-                inn=f"{random.randint(1000000000, 9999999999)}",
                 position=random.choice(POSITIONS),
                 hashed_password=get_password_hash("password123"),
                 is_active=True

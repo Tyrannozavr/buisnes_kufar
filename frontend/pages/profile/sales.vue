@@ -114,18 +114,24 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
 }
 
 
-const items = [
-  {
-    label: 'Товары',
-    description: 'Закладка товары',
-    slot: 'goods' as const
-  },
-  {
-    label: 'Услуги',
-    description: 'Закладка услуг',
-    slot: 'services' as const
-  }
-] satisfies TabsItem[]
+const items = computed<TabsItem[]>(() => {
+  const goodsCount = sales.value.goodsDeals?.length ?? 0
+  const servicesCount = sales.value.servicesDeals?.length ?? 0
+  return [
+    {
+      label: `Товары (${goodsCount})`,
+      description: 'Закладка товары',
+      slot: 'goods' as const,
+      badge: String(goodsCount)
+    },
+    {
+      label: `Услуги (${servicesCount})`,
+      description: 'Закладка услуг',
+      slot: 'services' as const,
+      badge: String(servicesCount)
+    }
+  ]
+})
 
 //goods table
 const columnsGoodsDeals: TableColumn<any>[] = [

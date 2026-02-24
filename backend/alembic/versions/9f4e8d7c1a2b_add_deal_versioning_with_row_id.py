@@ -113,7 +113,8 @@ def upgrade() -> None:
     op.drop_column("order_documents", "order_id")
 
     # 3) Orders: switch PK to row_id, keep stable business id and add (id, version) uniqueness.
-    op.execute("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_pkey")
+    # CASCADE drops FKs that depend on orders_pkey (e.g. deal_document_forms_deal_id_fkey)
+    op.execute("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_pkey CASCADE")
     op.create_primary_key("orders_pkey", "orders", ["row_id"])
     op.create_unique_constraint("uq_orders_id_version", "orders", ["id", "version"])
     op.create_index("ix_orders_row_id", "orders", ["row_id"], unique=False)

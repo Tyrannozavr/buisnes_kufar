@@ -77,6 +77,16 @@ class Order(Base):
     # Дополнительная информация
     comments: Mapped[Optional[str]] = mapped_column(Text)
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
+
+    # Согласование версии: кто предложил, кто принял, кто отклонил (версии не удаляются)
+    proposed_by_company_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+    )
+    buyer_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    seller_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_by_company_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+    )
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -85,6 +95,8 @@ class Order(Base):
     # Relationships
     buyer_company: Mapped["Company"] = relationship("Company", foreign_keys=[buyer_company_id], backref="buyer_orders")
     seller_company: Mapped["Company"] = relationship("Company", foreign_keys=[seller_company_id], backref="seller_orders")
+    proposed_by_company: Mapped[Optional["Company"]] = relationship("Company", foreign_keys=[proposed_by_company_id])
+    rejected_by_company: Mapped[Optional["Company"]] = relationship("Company", foreign_keys=[rejected_by_company_id])
     order_items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     order_history: Mapped[List["OrderHistory"]] = relationship("OrderHistory", back_populates="order", cascade="all, delete-orphan")
 
@@ -168,9 +180,15 @@ class OrderDocument(Base):
     document_number: Mapped[str] = mapped_column(String(50), nullable=False)  # Номер документа
     document_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # Дата документа
     
+    # Версионирование формы документа (v1, v1.1 и т.д.; готовность к истории версий)
+    document_version: Mapped[str] = mapped_column(String(20), nullable=False, default="v1")
+    
     # Содержимое документа
     document_content: Mapped[Optional[dict]] = mapped_column(JSON)  # Содержимое документа в JSON
     document_file_path: Mapped[Optional[str]] = mapped_column(String(500))  # Путь к файлу документа
+    
+    # Кто последний обновлял (для форм документов)
+    updated_by_company_id: Mapped[Optional[int]] = mapped_column(ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
     
     # Статус документа
     is_sent: Mapped[bool] = mapped_column(Boolean, default=False)  # Отправлен ли контрагенту

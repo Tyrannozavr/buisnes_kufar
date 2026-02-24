@@ -216,6 +216,13 @@ class DealResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # Согласование версии
+    version_status: Optional[str] = Field(None, description="accepted | pending | rejected")
+    proposed_by_company_id: Optional[int] = None
+    buyer_accepted_at: Optional[datetime] = None
+    seller_accepted_at: Optional[datetime] = None
+    rejected_by_company_id: Optional[int] = None
+
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)
     buyer_company: Optional[CompanyInDealResponse] = Field(None, description="Информация о компании-покупателе")
@@ -223,6 +230,18 @@ class DealResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DealVersionItem(BaseModel):
+    """Элемент списка версий заказа (для dropdown и сравнения)."""
+    version: int
+    version_status: str = Field(..., description="accepted | pending | rejected")
+    proposed_by_company_id: Optional[int] = None
+    buyer_accepted_at: Optional[datetime] = None
+    seller_accepted_at: Optional[datetime] = None
+    rejected_by_company_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class BuyerDealResponse(BaseModel):
@@ -329,6 +348,28 @@ class DocumentUpload(BaseModel):
     document_number: Optional[str] = Field(None, description="Номер документа")
     document_date: Optional[datetime] = Field(None, description="Дата документа")
     description: Optional[str] = Field(None, description="Описание документа")
+
+    class Config:
+        from_attributes = True
+
+
+# Типы документов для форм (редактор): bill, supply_contract, order, contract, other
+DOCUMENT_FORM_TYPES = ("order", "bill", "supply_contract", "contract", "other")
+
+
+class DocumentFormSaveRequest(BaseModel):
+    """Тело запроса на сохранение JSON-формы документа (Счет, Договор поставки и т.д.)."""
+    document_type: str = Field(..., description="Тип документа: bill, supply_contract, contract, other")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="JSON с полями формы")
+    version: Optional[str] = Field(None, description="Версия (v1, v1.1 и т.д.); если не указана — используется текущая/последняя")
+
+
+class DocumentFormResponse(BaseModel):
+    """Ответ API: форма документа (payload) + метаданные версии."""
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    document_version: str = Field(default="v1", description="Версия (v1, v1.1, …)")
+    updated_at: Optional[datetime] = None
+    updated_by_company_id: Optional[int] = None
 
     class Config:
         from_attributes = True

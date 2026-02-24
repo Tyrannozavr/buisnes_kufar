@@ -1,11 +1,23 @@
 <template>
 	<div class="font-sans text-l text-justify text-pretty w-full">
-		
+		<div v-if="error" class="mb-2 text-red-600 text-sm">{{ error }}</div>
+		<div v-if="dealId" class="mb-2 flex gap-2 items-center">
+			<UButton
+				size="sm"
+				:loading="saving"
+				:disabled="loading"
+				@click="save()"
+			>
+				Сохранить документ
+			</UButton>
+			<span v-if="updatedAt" class="text-gray-500 text-sm">Сохранено: {{ updatedAt }}</span>
+		</div>
+
 		<table class="p-3 w-full border-2 border-black">
 			<tbody>
 				<tr>
 					<td colspan="4" rowspan="1">
-						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full" v-model="payload.ofpCompany"/>
 						<br />
 						<br />
 						<br />
@@ -13,38 +25,38 @@
 					</td>
 					<td class="border">БИК</td>
 					<td>
-						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full" v-model="payload.bik"/>
 					</td>
 				</tr>
 
 				<tr class="border-b-2 black">
 					<td colspan="4" class="border">
-						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full" v-model="payload.bankName"/>
 					</td>
 					<td class="border">Сч. №</td>
 					<td>
-						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full" v-model="payload.accountNumber"/>
 					</td>
 				</tr>
 
 				<tr>
 					<td class="border">ИНН</td>
 					<td class="border">
-						<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full" v-model="payload.inn"/>
 					</td>
 					<td class="border">КПП</td>
 					<td class="border">
-						<textarea placeholder="КПП" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="КПП" :disabled="isDisabled" class="w-full" v-model="payload.kpp"/>
 					</td>
 					<td rowspan="3" class="border">Сч. №</td>
 					<td rowspan="3">
-						<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full" v-model="payload.settlementAccount"/>
 					</td>
 				</tr>
 
 				<tr>
 					<td colspan="4">
-						<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full" v-model="payload.companyName"/>
 						<br>
 						<br>
 						<br>
@@ -53,13 +65,13 @@
 
 				<tr>
 					<td colspan="4" class="border">
-						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full" v-model="payload.recipient"/>
 					</td>
 				</tr>
 			</tbody>
 		</table>
 
-		<h2 class="font-bold text-2xl">Счёт на оплату № ... от ... г.</h2>
+		<h2 class="font-bold text-2xl">Счёт на оплату № {{ billNumber || '—' }} от {{ billDateFormatted }} г.</h2>
 		<hr class="border-2">
 		<br>
 		<table>
@@ -71,7 +83,7 @@
 						(исполнитель):</p>
 				</td>
 				<td>
-					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full"/>
+					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full" v-model="payload.supplier"/>
 				</td>
 			</tr>
 			<tr>
@@ -81,7 +93,7 @@
 						(заказчик):</p>
 				</td>
 				<td>
-					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full"/>
+					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full" v-model="payload.buyer"/>
 				</td>
 			</tr>
 			<tr v-if="reason">
@@ -89,7 +101,7 @@
 					<p>Основание: </p>
 				</td>
 				<td>
-					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full"/>
+					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full" v-model="payload.reason"/>
 				</td>
 			</tr>
 			</tbody>
@@ -221,11 +233,11 @@
 				<tr>
 					<td>Руководитель</td>
 					<td class="w-2/5 max-w-3/4 border-b-1">
-						<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full" v-model="payload.leader"/>
 					</td>
 					<td>Бухгалтер</td>
 					<td class="w-2/5 max-w-3/4 border-b-1">
-						<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full"/>
+						<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full" v-model="payload.accountant"/>
 					</td>
 				</tr>
 			</tbody>
@@ -237,6 +249,85 @@
 <script setup lang="ts">
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { Editor } from '~/constants/keys';
+import { useRoute } from 'vue-router';
+import { usePurchasesStore } from '~/stores/purchases';
+import { useSalesStore } from '~/stores/sales';
+import { normalizeDate } from '~/utils/normalize';
+import { useDocumentForm } from '~/composables/useDocumentForm';
+import { computed } from 'vue';
+
+const route = useRoute();
+const purchasesStore = usePurchasesStore();
+const salesStore = useSalesStore();
+
+const dealId = computed(() => {
+	const q = route.query.dealId ?? route.query.deal_id;
+	return q ? Number(q) : null;
+});
+
+const initialPayload: Record<string, string> = {
+	ofpCompany: '',
+	bik: '',
+	bankName: '',
+	accountNumber: '',
+	inn: '',
+	kpp: '',
+	recipient: '',
+	companyName: '',
+	supplier: '',
+	buyer: '',
+	reason: '',
+	leader: '',
+	accountant: '',
+};
+
+const {
+	payload,
+	loading,
+	saving,
+	error,
+	updatedAt,
+	save,
+} = useDocumentForm({
+	slot: 'bill',
+	dealId,
+	initialPayload,
+});
+
+const billNumber = computed(() => {
+  const q = route.query;
+  if (!q?.dealId || !q?.role || !q?.productType) return '';
+  const dealId = Number(q.dealId);
+  if (q.role === 'buyer') {
+    const deal = q.productType === 'goods'
+      ? purchasesStore.findGoodsDeal(dealId)
+      : purchasesStore.findServicesDeal(dealId);
+    return deal?.billNumber ?? '';
+  }
+  const deal = q.productType === 'goods'
+    ? salesStore.findGoodsDeal(dealId)
+    : salesStore.findServicesDeal(dealId);
+  return deal?.billNumber ?? '';
+});
+
+const billDateFormatted = computed(() => {
+  const q = route.query;
+  if (!q?.dealId || !q?.role || !q?.productType) return '—';
+  const dealId = Number(q.dealId);
+  let dateStr = '';
+  if (q.role === 'buyer') {
+    const deal = q.productType === 'goods'
+      ? purchasesStore.findGoodsDeal(dealId)
+      : purchasesStore.findServicesDeal(dealId);
+    dateStr = deal?.billDate ?? '';
+  } else {
+    const deal = q.productType === 'goods'
+      ? salesStore.findGoodsDeal(dealId)
+      : salesStore.findServicesDeal(dealId);
+    dateStr = deal?.billDate ?? '';
+  }
+  return dateStr ? normalizeDate(dateStr) : '—';
+});
 
 const { generateDocxBill, downloadBlob } = useDocxGenerator()
 const reason = useTypedState(Editor.REASON)

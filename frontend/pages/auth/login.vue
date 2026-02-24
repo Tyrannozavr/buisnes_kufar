@@ -133,9 +133,11 @@ const handleSubmit = async () => {
     await userStore.login()
     console.log('✅ User store updated successfully')
 
-    // Redirect to profile
-    console.log('🔄 Redirecting to home page...')
-    navigateTo("/")
+    // Redirect to returnUrl (e.g. /checkout after session expired) or home
+    const returnUrl = useRoute().query.returnUrl
+    const target = typeof returnUrl === 'string' && returnUrl.startsWith('/') ? returnUrl : '/'
+    console.log('🔄 Redirecting to', target)
+    navigateTo(target)
   } catch (error: any) {
     console.error('❌ Login error:', error)
     console.error('📊 Error details:', {

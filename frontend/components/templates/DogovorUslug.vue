@@ -105,10 +105,12 @@ onMounted(() => {
 
 		<table class=" table-auto">
 
-			<thead >
-				<th class="w-1/5">Данные:	</th>
-				<th class="w-1/5">Заказчик:</th>
-				<th class="w-1/5">Исполнитель:</th>
+			<thead>
+				<tr>
+					<th class="w-1/5">Данные:	</th>
+					<th class="w-1/5">Заказчик:</th>
+					<th class="w-1/5">Исполнитель:</th>
+				</tr>
 			</thead>
 
 			<tbody>

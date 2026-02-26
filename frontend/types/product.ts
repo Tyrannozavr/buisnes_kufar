@@ -78,7 +78,6 @@ export interface ProductListPublicResponse {
 //интерфесы для страницы подтверждения
 export interface ProductInCheckout {
   slug: string;
-  type: string;
   productName: string;
   article: number;
   quantity: number;
@@ -93,7 +92,6 @@ export interface CompaniesAndProducts {
   companyId: number;
   companyName: string;
   goods: ProductInCheckout[];
-  services: ProductInCheckout[];
 }
 
 export interface Buyer {

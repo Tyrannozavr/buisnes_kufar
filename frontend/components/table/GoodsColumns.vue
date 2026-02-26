@@ -17,16 +17,20 @@ import type { GoodsDeal } from "~/types/dealState";
 import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
 
-defineProps<{
+const { type } = defineProps<{
   type: 'purchases' | 'sales'
 }>()
 
 const router = useRouter()
 const UButton = resolveComponent('UButton')
 const purchasesApi = usePurchasesApi()
+
 const purchasesStore = usePurchasesStore()
+const salesStore = useSalesStore()
 const { purchases } = storeToRefs(purchasesStore)
-const goodsDeals: Ref<GoodsDeal[]> = computed(() => purchases.value.goodsDeals)
+const { sales } = storeToRefs(salesStore)
+
+const goodsDeals: Ref<GoodsDeal[]> = computed(() => type === 'purchases' ? purchases.value.goodsDeals : sales.value.goodsDeals)
 const tablePurchasesGoods: Ref<BuyerTableItems[]> = ref([])
 const tableSalesGoods: Ref<SellerTableItems[]> = ref([])
 

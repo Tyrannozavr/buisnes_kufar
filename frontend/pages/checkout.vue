@@ -24,16 +24,14 @@
     </div>
 
 		<div v-for="cp in companiesAndProducts" :key="cp.companyId" class="mb-15 bg-neutral-50 shadow-sm rounded-lg p-8 px-16 m-5 mt-0">
-			
 			<h2>Заказ на поставку для <span>"{{ cp.companyName }}"</span></h2>
-			
 			<div class="flex-row space-y-5 mb-10">
 				<div v-if="cp.goods[0]">
+
 					<UTable sticky :data="cp.goods" :columns="columns"/>
-					
 					<p>Всего товаров - {{ cp.goods.length }}</p>
 					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.goods).toLocaleString('ru-RU') }} ₽</span></p>
-		
+
 					<div class="flex space-x-3 mt-3 mb-5">
 						<UButton
                 v-if="userStore.isAuthenticated"
@@ -59,39 +57,6 @@
             </UButton>
 					</div>
 				</div>
-
-
-				<div v-if="cp.services[0]">
-					<UTable sticky :data="cp.services" :columns="columns"/>
-					
-					<p>Количество услуг - {{ cp.services.length }}</p>
-					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.services).toLocaleString('ru-RU') }} ₽</span></p>
-		
-					<div class="flex space-x-3 mt-3 mb-10">
-						<UButton
-                v-if="userStore.isAuthenticated"
-                color="primary"
-                to=""
-								@click.prevent="handleOrderSubmit(cp, cp.services)"
-            >
-              Оформить заказ
-            </UButton>
-            <UButton
-                v-else
-                color="primary"
-                to="/auth/login"
-            >
-              Войти для оформления
-            </UButton>
-            <UButton
-                color="neutral"
-                variant="soft"
-                @click="removeItemsFromCart(cp.services)"
-            >
-              Очистить корзину
-            </UButton>
-					</div>
-				</div>
 			</div>
 
 		</div>
@@ -107,6 +72,7 @@ import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
 import { usePurchasesApi } from '~/api/purchases'
 import { useCompaniesApi } from '~/api/companies'
+import { useRouter } from 'vue-router'
 
 const { createChat, sendMessage } = useChatsApi()
 const { getCompanyById } = useCompaniesApi()
@@ -116,8 +82,9 @@ const products = cartStore.items
 const { createOrderFromCheckout } = usePurchasesApi()
 const companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 const toast = useToast()
-
+const router = useRouter()
 const companySlugCache = new Map<number, string>()
+
 const handleGetCompanySlug = async (companyId: number): Promise<string | null> => {
 	const cachedSlug = companySlugCache.get(companyId)
 	if (cachedSlug) return cachedSlug
@@ -159,7 +126,6 @@ const sortProducts = (products: any[]): void  => {
       slug: item.product.slug,
       description: item.product.description,
       logoUrl: item.product.logo_url,
-      type: item.product.type,
       productName: item.product.name,
       article: Number(item.product.article),
       quantity: item.quantity,
@@ -170,14 +136,13 @@ const sortProducts = (products: any[]): void  => {
 
     const companyProducts: CompaniesAndProducts | undefined = companiesAndProducts.value.find((el: CompaniesAndProducts) => el.companyId === item.product.company_id)
     if (companyProducts) {
-      const products: ProductInCheckout[] = item.product.type === 'Товар' ? companyProducts?.goods : companyProducts?.services
+      const products: ProductInCheckout[] = companyProducts?.goods
       products?.push(product)
     } else {
       companiesAndProducts.value.push({
         companyId: item.product.company_id,
         companyName: item.product.company_name,
-        goods: item.product.type === 'Товар' ? [product] : [],
-        services: item.product.type === 'Услуга' ? [product] : [],
+        goods: [product],
       })
     }
 	})
@@ -221,9 +186,16 @@ const messageToSaller = async (companyId: number, product: ProductInCheckout[]):
 	try {
 		const chatData = await createChat({ participantId: companyId })
 		if (!chatData?.id) return
-		const productList = product.map((p) => p.productName).join(', ')
+    const productList = product.map((p) => p.productName).join(', ')
+
+    const resolvedDealRoute = router.resolve({ path: '/profile/sales' })
+    const reviewUrl = process.client
+      ? new URL(resolvedDealRoute.href, window.location.origin).toString()
+      : resolvedDealRoute.href
+    const normalizedReviewUrl = String(await Promise.resolve(reviewUrl))
+
 		await sendMessage(chatData.id, {
-			content: `Здравствуйте, хочу приобрести у вас следующую продукцию: ${productList}. Перейти на страницу заказа: /checkout`,//FIXME: добавить ссылку на страницу заказа в редакторе 
+			content: `Здравствуйте, хочу приобрести у вас следующую продукцию: ${productList}. [Просмотр заказа](${normalizedReviewUrl})`,
 		})
 	} catch (err) {
 		console.error('Ошибка при создании чата/отправке сообщения:', err)

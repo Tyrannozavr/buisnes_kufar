@@ -409,12 +409,8 @@ class DealService:
             # Создаем заказы для каждого продавца
             created_deals = []
             for seller_id, seller_data in sellers.items():
-                # Определяем тип заказа (товары или услуги)
-                deal_type = "Товары"  # По умолчанию товары
-                for item in seller_data["items"]:
-                    if item.get("type") == "Услуга":
-                        deal_type = "Услуги"
-                        break
+                # Тип заказа по умолчанию — товары (раньше определялся по полю type в запросе)
+                deal_type = "Товары"
                 
                 # Преобразуем данные корзины в формат DealCreate
                 # Используем article из корзины для поиска продукта
@@ -435,13 +431,13 @@ class DealService:
                         # Если есть article, используем его для поиска продукта
                         deal_item["article"] = article
                     else:
-                        # Ручной ввод - все поля обязательны
+                        # Ручной ввод - все поля обязательны (type убран из API, по умолчанию "Товар")
                         deal_item.update({
                             "product_name": item.get("productName"),
                             "product_slug": item.get("slug"),
                             "product_description": item.get("description"),
                             "product_article": str(item.get("article", "")),
-                            "product_type": item.get("type"),
+                            "product_type": "Товар",
                             "logo_url": item.get("logoUrl"),
                             "unit_of_measurement": item.get("units"),
                             "price": item.get("price")

@@ -79,7 +79,6 @@ export interface ProductListPublicResponse {
 export interface ProductInCheckout {
   slug: string;
   type: string;
-  position: number;
   productName: string;
   article: number;
   quantity: number;
@@ -93,7 +92,7 @@ export interface ProductInCheckout {
 export interface CompaniesAndProducts {
   companyId: number;
   companyName: string;
-  products: ProductInCheckout[];
+  goods: ProductInCheckout[];
   services: ProductInCheckout[];
 }
 

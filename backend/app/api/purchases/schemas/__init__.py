@@ -442,7 +442,6 @@ class CheckoutItem(BaseModel):
     description: Optional[str]
     logoUrl: Optional[str]
     type: str
-    position: int
     productName: str
     article: int
     quantity: float

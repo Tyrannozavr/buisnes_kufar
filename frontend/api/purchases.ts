@@ -80,7 +80,6 @@ export const usePurchasesApi = () => {
 				description: product.description ?? null,
 				logoUrl: product.logoUrl ?? null,
 				type: String(product.type),
-				position: Number.isFinite(product.position) ? product.position : 1,
 				productName: String(product.productName),
 				// Backend currently validates `article` as int; fall back to 0 to keep payload valid.
 				article: Number.isFinite(product.article) ? product.article : 0,

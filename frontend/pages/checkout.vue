@@ -28,18 +28,18 @@
 			<h2>Заказ на поставку для <span>"{{ cp.companyName }}"</span></h2>
 			
 			<div class="flex-row space-y-5 mb-10">
-				<div v-if="cp.products[0]">
-					<UTable sticky :data="cp.products" :columns="columns"/>
+				<div v-if="cp.goods[0]">
+					<UTable sticky :data="cp.goods" :columns="columns"/>
 					
-					<p>Всего товаров - {{ cp.products.length }}</p>
-					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.products).toLocaleString('ru-RU') }} ₽</span></p>
+					<p>Всего товаров - {{ cp.goods.length }}</p>
+					<p>На сумму - <span class="font-bold">{{ productsAmount(cp.goods).toLocaleString('ru-RU') }} ₽</span></p>
 		
 					<div class="flex space-x-3 mt-3 mb-5">
 						<UButton
                 v-if="userStore.isAuthenticated"
                 color="primary"
                 to="/checkout"
-								@click.prevent="handleOrderSubmit(cp, cp.products)"
+								@click.prevent="handleOrderSubmit(cp, cp.goods)"
             >
               Оформить заказ
             </UButton>
@@ -53,7 +53,7 @@
             <UButton
                 color="neutral"
                 variant="soft"
-                @click="removeItemsFromCart(cp.products)"
+                @click="removeItemsFromCart(cp.goods)"
             >
               Очистить корзину
             </UButton>
@@ -101,7 +101,6 @@
 <script setup lang="ts">
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
-import { usePurchasesStore } from '~/stores/purchases'
 import type { TableColumn } from '@nuxt/ui'
 import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
@@ -109,17 +108,14 @@ import { useChatsApi } from '~/api/chats'
 import { usePurchasesApi } from '~/api/purchases'
 import { useCompaniesApi } from '~/api/companies'
 
-const purchasesStore = usePurchasesStore()
-
 const { createChat, sendMessage } = useChatsApi()
 const { getCompanyById } = useCompaniesApi()
-
 const userStore = useUserStore()
-
 const cartStore = useCartStore()
 const products = cartStore.items
-
 const { createOrderFromCheckout } = usePurchasesApi()
+const companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
+const toast = useToast()
 
 const companySlugCache = new Map<number, string>()
 const handleGetCompanySlug = async (companyId: number): Promise<string | null> => {
@@ -157,113 +153,47 @@ const handleOrderSubmit = async (cp: CompaniesAndProducts, items: ProductInCheck
 	showToast()
 }
 
-let companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
-
-watch(() => products, (newValue) => {
-	
-	companiesAndProducts = ref([])
-	sortProducts(newValue)	
-}, {deep: true})
-
-
 const sortProducts = (products: any[]): void  => {
+  products.forEach(item => {
+    const product: ProductInCheckout = {
+      slug: item.product.slug,
+      description: item.product.description,
+      logoUrl: item.product.logo_url,
+      type: item.product.type,
+      productName: item.product.name,
+      article: Number(item.product.article),
+      quantity: item.quantity,
+      units: item.product.unit_of_measurement,
+      price: item.product.price,
+      amount: Number(item.quantity) * Number(item.product.price)
+    }
 
-	products.forEach(item => {
-
-		const ProductInCheckout = companiesAndProducts.value.find((el: CompaniesAndProducts) => el.companyId === item.product.company_id)
-		//have Id
-		if (ProductInCheckout) {
-			//type = product
-			if (item.product.type === 'Товар')
-			{
-				ProductInCheckout!.products.push(
-					{
-					slug: item.product.slug,
-					description: item.product.description,
-					logoUrl: item.product.logo_url,
-					type: item.product.type,
-					position: ProductInCheckout!.products.length + 1,
-					productName: item.product.name,
-					article: Number(item.product.article),
-					quantity: item.quantity,
-					units: item.product.unit_of_measurement,
-					price: item.product.price,
-					amount: Number(item.quantity)*Number(item.product.price)
-			})
-			}
-			//type = service
-			else {
-				ProductInCheckout!.services.push(
-					{
-					slug: item.product.slug,
-					description: item.product.description,
-					logoUrl: item.product.logo_url,
-					type: item.product.type,
-					position: ProductInCheckout!.services.length + 1,
-					productName: item.product.name,
-					article: Number(item.product.article),
-					quantity: item.quantity,
-					units: item.product.unit_of_measurement,
-					price: item.product.price,
-					amount: Number(item.quantity)*Number(item.product.price)
-			})
-			}
-		}
-		// no Id
-		else {
-			//create products
-			if (item.product.type === 'Товар') 
-			{
-				companiesAndProducts.value.push(
-				{
-				companyId: item.product.company_id,
-				companyName: item.product.company_name,
-				services: [],
-				products: [{
-					slug: item.product.slug,
-					description: item.product.description,
-					logoUrl: item.product.logo_url,
-					type: item.product.type,
-					position: 1,
-					productName: item.product.name,
-					article: Number(item.product.article),
-					quantity: item.quantity,
-					units: item.product.unit_of_measurement,
-					price: item.product.price,
-					amount: Number(item.quantity)*Number(item.product.price)
-				}]
-			})
-			} 
-			//create services
-			else {
-				companiesAndProducts.value.push(
-				{
-				companyId: item.product.company_id,
-				companyName: item.product.company_name,
-				services: [{
-					slug: item.product.slug,
-					description: item.product.description,
-					logoUrl: item.product.logo_url,
-					type: item.product.type,
-					position: 1,
-					productName: item.product.name,
-					article: Number(item.product.article),
-					quantity: item.quantity,
-					units: item.product.unit_of_measurement,
-					price: item.product.price,
-					amount: Number(item.quantity)*Number(item.product.price)
-				}],
-				products: []
-			})
-			}
-		}
+    const companyProducts: CompaniesAndProducts | undefined = companiesAndProducts.value.find((el: CompaniesAndProducts) => el.companyId === item.product.company_id)
+    if (companyProducts) {
+      const products: ProductInCheckout[] = item.product.type === 'Товар' ? companyProducts?.goods : companyProducts?.services
+      products?.push(product)
+    } else {
+      companiesAndProducts.value.push({
+        companyId: item.product.company_id,
+        companyName: item.product.company_name,
+        goods: item.product.type === 'Товар' ? [product] : [],
+        services: item.product.type === 'Услуга' ? [product] : [],
+      })
+    }
 	})
 }
 
-sortProducts(products)
+watch(() => products, (newValue) => {
+  companiesAndProducts.value = []
+  sortProducts(newValue)
+}, { deep: true, immediate: true })
+
 
 const columns: TableColumn<ProductInCheckout>[] = reactive([
-  { accessorKey: 'position', header: '№'},
+  {
+    header: '№',
+    cell: ({row}) => row.index + 1 
+  },
   { accessorKey: 'productName', header: 'Название' },
   { accessorKey: 'article', header: 'Артикль' },
   { accessorKey: 'quantity', header: 'Количество' },
@@ -287,22 +217,19 @@ const removeItemsFromCart = (items: ProductInCheckout[]): void => {
 	itemsForRemove.forEach(slug => cartStore.removeFromCart(slug))
 }
 
-//отправляем сообщение продавцу о намерении совершить заказ
 const messageToSaller = async (companyId: number, product: ProductInCheckout[]): Promise<void> => {
 	try {
 		const chatData = await createChat({ participantId: companyId })
 		if (!chatData?.id) return
 		const productList = product.map((p) => p.productName).join(', ')
 		await sendMessage(chatData.id, {
-			content: `Здравствуйте, хочу приобрести у вас следующую продукцию: ${productList}`,
+			content: `Здравствуйте, хочу приобрести у вас следующую продукцию: ${productList}. Перейти на страницу заказа: /checkout`,//FIXME: добавить ссылку на страницу заказа в редакторе 
 		})
 	} catch (err) {
 		console.error('Ошибка при создании чата/отправке сообщения:', err)
 	}
 }
 
-//всплывающее уведомление
-const toast = useToast()
 const showToast = () => {
 	toast.add({
 		title: 'Готово',

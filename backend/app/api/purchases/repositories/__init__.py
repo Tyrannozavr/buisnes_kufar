@@ -84,11 +84,7 @@ class DealRepository:
                 seller_company_id=order_data.seller_company_id,
                 deal_type=order_deal_type,
                 status=OrderStatus.ACTIVE,
-                comments=order_data.comments,
-                proposed_by_company_id=None,
-                buyer_accepted_at=order_date,
-                seller_accepted_at=order_date,
-                rejected_by_company_id=None,
+                comments=order_data.comments
             )
             
             logger.debug("Добавляем заказ в сессию")
@@ -225,11 +221,7 @@ class DealRepository:
         return result.scalar_one_or_none()
 
     async def get_order_by_id(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Получение активной версии заказа (согласованной обеими сторонами, не отклонённой)."""
-        return await self.get_active_order(order_id, company_id)
-
-    async def get_latest_order(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Получение последней по номеру версии заказа (для редактирования и создания новой версии)."""
+        """Получение latest-версии заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
         query = (
             select(Order)
             .options(selectinload(Order.order_items), selectinload(Order.order_history))
@@ -240,40 +232,6 @@ class DealRepository:
                         Order.buyer_company_id == company_id,
                         Order.seller_company_id == company_id,
                     ),
-                )
-            )
-            .order_by(desc(Order.version))
-            .limit(1)
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    def _active_version_condition(self):
-        """Условие: версия не отклонена и принята обеими сторонами (или legacy — без полей согласования)."""
-        return and_(
-            Order.rejected_by_company_id.is_(None),
-            or_(
-                and_(
-                    Order.buyer_accepted_at.isnot(None),
-                    Order.seller_accepted_at.isnot(None),
-                ),
-                Order.proposed_by_company_id.is_(None),
-            ),
-        )
-
-    async def get_active_order(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Активная версия: последняя по номеру, согласованная обеими сторонами и не отклонённая."""
-        query = (
-            select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
-            .where(
-                and_(
-                    Order.id == order_id,
-                    or_(
-                        Order.buyer_company_id == company_id,
-                        Order.seller_company_id == company_id,
-                    ),
-                    self._active_version_condition(),
                 )
             )
             .order_by(desc(Order.version))
@@ -283,21 +241,15 @@ class DealRepository:
         return result.scalar_one_or_none()
 
     async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение активных версий заказов покупателя."""
-        count_query = select(func.count(func.distinct(Order.id))).where(
-            and_(Order.buyer_company_id == company_id, self._active_version_condition())
-        )
+        """Получение latest-версий заказов покупателя."""
+        # Общее количество (distinct deals)
+        count_query = select(func.count(func.distinct(Order.id))).where(Order.buyer_company_id == company_id)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
-        active_subquery = (
+        latest_subquery = (
             select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
-            .where(
-                and_(
-                    Order.buyer_company_id == company_id,
-                    self._active_version_condition(),
-                )
-            )
+            .where(Order.buyer_company_id == company_id)
             .group_by(Order.id)
             .subquery()
         )
@@ -305,10 +257,10 @@ class DealRepository:
         query = (
             select(Order)
             .join(
-                active_subquery,
+                latest_subquery,
                 and_(
-                    Order.id == active_subquery.c.deal_id,
-                    Order.version == active_subquery.c.max_version,
+                    Order.id == latest_subquery.c.deal_id,
+                    Order.version == latest_subquery.c.max_version,
                 ),
             )
             .options(
@@ -327,21 +279,15 @@ class DealRepository:
         return list(orders), total
 
     async def get_seller_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение активных версий заказов продавца."""
-        count_query = select(func.count(func.distinct(Order.id))).where(
-            and_(Order.seller_company_id == company_id, self._active_version_condition())
-        )
+        """Получение latest-версий заказов продавца."""
+        # Общее количество (distinct deals)
+        count_query = select(func.count(func.distinct(Order.id))).where(Order.seller_company_id == company_id)
         count_result = await self.session.execute(count_query)
         total = count_result.scalar()
 
-        active_subquery = (
+        latest_subquery = (
             select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
-            .where(
-                and_(
-                    Order.seller_company_id == company_id,
-                    self._active_version_condition(),
-                )
-            )
+            .where(Order.seller_company_id == company_id)
             .group_by(Order.id)
             .subquery()
         )
@@ -349,10 +295,10 @@ class DealRepository:
         query = (
             select(Order)
             .join(
-                active_subquery,
+                latest_subquery,
                 and_(
-                    Order.id == active_subquery.c.deal_id,
-                    Order.version == active_subquery.c.max_version,
+                    Order.id == latest_subquery.c.deal_id,
+                    Order.version == latest_subquery.c.max_version,
                 ),
             )
             .options(
@@ -372,7 +318,7 @@ class DealRepository:
 
     async def delete_order(self, order_id: int, company_id: int) -> bool:
         """Удаление всех версий заказа."""
-        latest_order = await self.get_latest_order(order_id, company_id)
+        latest_order = await self.get_order_by_id(order_id, company_id)
         if not latest_order:
             return False
 
@@ -397,8 +343,8 @@ class DealRepository:
         return True
 
     async def delete_last_order_version(self, order_id: int, company_id: int) -> Optional[int]:
-        """Удаление только последней версии заказа. Возвращает удаленную version. Оставлено для совместимости."""
-        order = await self.get_latest_order(order_id, company_id)
+        """Удаление только последней версии заказа. Возвращает удаленную version."""
+        order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
         deleted_version = order.version
@@ -407,16 +353,12 @@ class DealRepository:
         return deleted_version
 
     async def create_new_order_version(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Создание новой версии заказа по последней версии; создатель помечается как предложивший и автоматически принявший."""
-        latest_order = await self.get_latest_order(order_id, company_id)
+        """Создание новой версии заказа по latest snapshot."""
+        latest_order = await self.get_order_by_id(order_id, company_id)
         if not latest_order:
             return None
 
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
         new_version = latest_order.version + 1
-        is_buyer = company_id == latest_order.buyer_company_id
-
         new_order = Order(
             id=latest_order.id,
             version=new_version,
@@ -438,10 +380,6 @@ class DealRepository:
             others_documents=latest_order.others_documents,
             comments=latest_order.comments,
             total_amount=latest_order.total_amount,
-            proposed_by_company_id=company_id,
-            buyer_accepted_at=now if is_buyer else None,
-            seller_accepted_at=now if not is_buyer else None,
-            rejected_by_company_id=None,
         )
 
         self.session.add(new_order)
@@ -477,53 +415,9 @@ class DealRepository:
         await self.session.commit()
         return await self.get_order_by_id_and_version(order_id, new_version, company_id)
 
-    async def get_all_versions(self, order_id: int, company_id: int) -> List[Order]:
-        """Список всех версий заказа по ID сделки (для выпадающего списка и сравнения)."""
-        query = (
-            select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.buyer_company), selectinload(Order.seller_company), selectinload(Order.proposed_by_company))
-            .where(
-                and_(
-                    Order.id == order_id,
-                    or_(
-                        Order.buyer_company_id == company_id,
-                        Order.seller_company_id == company_id,
-                    ),
-                )
-            )
-            .order_by(desc(Order.version))
-        )
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-
-    async def accept_version(self, order_id: int, version: int, company_id: int) -> Optional[Order]:
-        """Принять версию (выставить принятие текущей стороной)."""
-        order = await self.get_order_by_id_and_version(order_id, version, company_id)
-        if not order or order.rejected_by_company_id is not None:
-            return None
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        if company_id == order.buyer_company_id:
-            order.buyer_accepted_at = now
-        else:
-            order.seller_accepted_at = now
-        await self.session.commit()
-        await self.session.refresh(order)
-        return order
-
-    async def reject_version(self, order_id: int, version: int, company_id: int) -> Optional[Order]:
-        """Отклонить версию (пометить отклонённой, версия не удаляется)."""
-        order = await self.get_order_by_id_and_version(order_id, version, company_id)
-        if not order:
-            return None
-        order.rejected_by_company_id = company_id
-        await self.session.commit()
-        await self.session.refresh(order)
-        return order
-
     async def update_order(self, order_id: int, order_data: DealUpdate, company_id: int) -> Optional[Order]:
-        """Обновление заказа (последней версии — та, что редактируется перед «сохранить и отправить»)."""
-        order = await self.get_latest_order(order_id, company_id)
+        """Обновление заказа"""
+        order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
         
@@ -696,8 +590,8 @@ class DealRepository:
         )
         
         await self.session.commit()
-        # Перезагружаем обновлённую последнюю версию (не активную), чтобы вернуть её в ответе
-        reloaded = await self.get_latest_order(order_id, company_id)
+        # Перезагружаем заказ с позициями для ответа (order.order_items иначе может быть пуст/устаревший)
+        reloaded = await self.get_order_by_id(order_id, company_id)
         return reloaded if reloaded else order
 
     async def add_document(self, order_id: int, document_data: dict, file_path: str, company_id: int) -> Optional[OrderDocument]:
@@ -773,145 +667,6 @@ class DealRepository:
         await self.session.delete(doc)
         await self.session.commit()
         return True
-
-    # --- Формы документов (JSON payload): Счет, Договор поставки и т.д., с версионированием ---
-    FORM_PLACEHOLDER_NUMBER = "-"
-
-    async def get_document_form(
-        self,
-        deal_id: int,
-        company_id: int,
-        document_type: str,
-        version: Optional[str] = None,
-    ) -> Optional[Tuple[dict, str, Optional[datetime], Optional[int]]]:
-        """
-        Получение сохранённой формы документа по сделке и типу.
-        Возвращает (payload, document_version, updated_at, updated_by_company_id) или None при отсутствии.
-        Запись формы: document_number='-', document_file_path IS NULL.
-        Если миграция с document_version/updated_by_company_id не применена — используется fallback-запрос без этих колонок.
-        """
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
-            return None
-        conditions_base = [
-            OrderDocument.order_row_id == order.row_id,
-            OrderDocument.document_type == document_type,
-            OrderDocument.document_number == self.FORM_PLACEHOLDER_NUMBER,
-            OrderDocument.document_file_path.is_(None),
-        ]
-        try:
-            conditions = list(conditions_base)
-            if version:
-                conditions.append(OrderDocument.document_version == version)
-            query = (
-                select(OrderDocument)
-                .where(and_(*conditions))
-                .order_by(desc(OrderDocument.updated_at))
-            )
-            result = await self.session.execute(query)
-            doc = result.scalar_one_or_none()
-            if not doc:
-                return None
-            payload = doc.document_content or {}
-            doc_version = getattr(doc, "document_version", "v1")
-            updated_at = getattr(doc, "updated_at", None)
-            updated_by = getattr(doc, "updated_by_company_id", None)
-            return (payload, doc_version, updated_at, updated_by)
-        except Exception as e:  # noqa: BLE001
-            err_msg = str(e).lower()
-            if "document_version" in err_msg or "updated_by_company_id" in err_msg or "does not exist" in err_msg:
-                logger.warning(
-                    "order_documents missing new columns (run migration add_document_form_version_and_updated_by): %s",
-                    e,
-                )
-                return await self._get_document_form_fallback(
-                    order.row_id, document_type,
-                )
-            raise
-
-    async def _get_document_form_fallback(
-        self,
-        order_row_id: int,
-        document_type: str,
-    ) -> Optional[Tuple[dict, str, Optional[datetime], Optional[int]]]:
-        """Запрос без колонок document_version/updated_by_company_id (до миграции)."""
-        conditions = [
-            OrderDocument.order_row_id == order_row_id,
-            OrderDocument.document_type == document_type,
-            OrderDocument.document_number == self.FORM_PLACEHOLDER_NUMBER,
-            OrderDocument.document_file_path.is_(None),
-        ]
-        query = (
-            select(OrderDocument.document_content, OrderDocument.updated_at)
-            .where(and_(*conditions))
-            .order_by(desc(OrderDocument.updated_at))
-        )
-        result = await self.session.execute(query)
-        row = result.one_or_none()
-        if not row:
-            return None
-        payload = row.document_content or {}
-        return (payload, "v1", row.updated_at, None)
-
-    async def save_document_form(
-        self,
-        deal_id: int,
-        company_id: int,
-        document_type: str,
-        payload: dict,
-        version: Optional[str] = None,
-    ) -> Tuple[dict, str, Optional[datetime], Optional[int]]:
-        """
-        Сохранение/обновление формы документа. Версионирование: одна запись на (order_row_id, document_type)
-        с document_version (по умолчанию v1). При необходимости в будущем можно создавать v1.1, v1.2.
-        Возвращает (payload, document_version, updated_at, updated_by_company_id).
-        """
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
-            raise ValueError("Deal not found or access denied")
-        use_version = version or "v1"
-        conditions = [
-            OrderDocument.order_row_id == order.row_id,
-            OrderDocument.document_type == document_type,
-            OrderDocument.document_number == self.FORM_PLACEHOLDER_NUMBER,
-            OrderDocument.document_file_path.is_(None),
-            OrderDocument.document_version == use_version,
-        ]
-        query = select(OrderDocument).where(and_(*conditions))
-        result = await self.session.execute(query)
-        doc = result.scalar_one_or_none()
-        now = datetime.utcnow()
-        if doc:
-            doc.document_content = payload
-            doc.updated_at = now
-            doc.updated_by_company_id = company_id
-            await self.session.commit()
-            await self.session.refresh(doc)
-            return (
-                doc.document_content or {},
-                getattr(doc, "document_version", "v1"),
-                doc.updated_at,
-                getattr(doc, "updated_by_company_id", None),
-            )
-        doc = OrderDocument(
-            order_row_id=order.row_id,
-            document_type=document_type,
-            document_number=self.FORM_PLACEHOLDER_NUMBER,
-            document_date=now,
-            document_version=use_version,
-            document_content=payload,
-            document_file_path=None,
-            updated_by_company_id=company_id,
-        )
-        self.session.add(doc)
-        await self.session.commit()
-        await self.session.refresh(doc)
-        return (
-            doc.document_content or {},
-            getattr(doc, "document_version", "v1"),
-            doc.updated_at,
-            getattr(doc, "updated_by_company_id", None),
-        )
 
     async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
         """Получение компании по ID пользователя"""

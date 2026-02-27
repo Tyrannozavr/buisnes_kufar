@@ -196,3 +196,5 @@ export const usePurchasesApi = () => {
     deleteLastDealVersion,
   };
 }
+
+export type PurchasesApi = ReturnType<typeof usePurchasesApi>

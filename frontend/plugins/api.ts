@@ -23,6 +23,12 @@ export default defineNuxtPlugin((nuxtApp) => {
     throw new Error('API base URL is not configured. Please set API_BASE_URL and VITE_PUBLIC_API_URL environment variables.')
   }
 
+  // Ensure base URL ends with /api (normalizeApiPath strips /api from paths like /api/v1/...)
+  const base = baseURL.replace(/\/$/, '')
+  if (!base.endsWith('/api')) {
+    baseURL = `${base}/api`
+  }
+
   // Create a custom fetch instance with base configuration
   const apiFetch = $fetch.create({
     baseURL,

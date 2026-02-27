@@ -301,12 +301,12 @@ const billNumber = computed(() => {
   if (q.role === 'buyer') {
     const deal = q.productType === 'goods'
       ? purchasesStore.findGoodsDeal(dealId)
-      : purchasesStore.findServicesDeal(dealId);
+      : purchasesStore.findGoodsDeal(dealId);
     return deal?.billNumber ?? '';
   }
   const deal = q.productType === 'goods'
     ? salesStore.findGoodsDeal(dealId)
-    : salesStore.findServicesDeal(dealId);
+    : salesStore.findGoodsDeal(dealId);
   return deal?.billNumber ?? '';
 });
 
@@ -318,12 +318,12 @@ const billDateFormatted = computed(() => {
   if (q.role === 'buyer') {
     const deal = q.productType === 'goods'
       ? purchasesStore.findGoodsDeal(dealId)
-      : purchasesStore.findServicesDeal(dealId);
+      : purchasesStore.findGoodsDeal(dealId);
     dateStr = deal?.billDate ?? '';
   } else {
     const deal = q.productType === 'goods'
       ? salesStore.findGoodsDeal(dealId)
-      : salesStore.findServicesDeal(dealId);
+      : salesStore.findGoodsDeal(dealId);
     dateStr = deal?.billDate ?? '';
   }
   return dateStr ? normalizeDate(dateStr) : '—';

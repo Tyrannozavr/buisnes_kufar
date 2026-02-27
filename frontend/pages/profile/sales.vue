@@ -15,6 +15,7 @@
 <script setup lang="ts">
 import type { TabsItem } from '@nuxt/ui'
 import { useSalesStore } from '~/stores/sales'
+import { usePurchasesApi } from '~/api/purchases'
 import GoodsColumns from '~/components/table/GoodsColumns.vue'
 
 definePageMeta({
@@ -22,9 +23,10 @@ definePageMeta({
 })
 
 const salesStore = useSalesStore()
+const purchasesApi = usePurchasesApi()
 const { sales } = storeToRefs(salesStore)
 
-salesStore.getDeals()
+salesStore.getDeals(purchasesApi)
 
 const items = computed<TabsItem[]>(() => {
   const goodsCount = sales.value.goodsDeals?.length ?? 0

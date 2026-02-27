@@ -9,12 +9,14 @@ import { normalizeDate } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/stores/user';
+import { usePurchasesApi } from '~/api/purchases';
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
+const purchasesApi = usePurchasesApi()
 const { statePurchasesGood, stateSalesGood } = useInsertState()
 
 const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
@@ -173,6 +175,7 @@ watch(() => saveState.value,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
+				purchasesApi,
 				orderData.value.comments)
 			orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
 			orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
@@ -182,6 +185,7 @@ watch(() => saveState.value,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
+				purchasesApi,
 				orderData.value.comments)
 			orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
 			orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
@@ -236,9 +240,9 @@ watch(() => clearState.value,
 //удаление сделки из store
 const removeDeal = (requestedData: string) => {
 	if (requestedData === RequestedType.PURCHASES_GOOD) {
-    purchasesStore.removeGoodsDeal(orderData.value.dealId)
+    purchasesStore.removeGoodsDeal(orderData.value.dealId, purchasesApi)
 	} else if (requestedData === RequestedType.SALES_GOOD) {
-		salesStore.removeGoodsDeal(orderData.value.dealId)
+		salesStore.removeGoodsDeal(orderData.value.dealId, purchasesApi)
 	} 
 
 	requestedData = ''

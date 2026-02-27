@@ -137,7 +137,7 @@ const route = useRoute()
 const router = useRouter()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
-const { deleteLastDealVersion } = usePurchasesApi()
+const purchasesApi = usePurchasesApi()
 const { purchases } = storeToRefs(purchasesStore)
 const { sales } = storeToRefs(salesStore)
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
@@ -331,9 +331,9 @@ const saveChanges = async (): Promise<void> => {
 	try {
     // Сначала создаем новую версию, чтобы исходная версия осталась нетронутой для reject.
     if (route.query.role === 'seller') {
-      await salesStore.createNewDealVersion(Number(route.query.dealId))
+      await salesStore.createNewDealVersion(Number(route.query.dealId), purchasesApi)
     } else if (route.query.role === 'buyer') {
-      await purchasesStore.createNewDealVersion(Number(route.query.dealId))
+      await purchasesStore.createNewDealVersion(Number(route.query.dealId), purchasesApi)
     }
 		await saveOrder()
     editButton()
@@ -385,9 +385,9 @@ const reject = async () => {
   const dealId = Number(route.query.dealId)
 
   if (dealId) {
-    await deleteLastDealVersion(dealId)
-    await purchasesStore.getDeals()
-    await salesStore.getDeals()
+    await purchasesApi.deleteLastDealVersion(dealId)
+    await purchasesStore.getDeals(purchasesApi)
+    await salesStore.getDeals(purchasesApi)
   }
   
 

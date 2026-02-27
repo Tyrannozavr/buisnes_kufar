@@ -13,6 +13,7 @@ import type { TableColumn } from "@nuxt/ui";
 import { normalizeDate } from "~/utils/normalize";
 import { useRouter } from "vue-router";
 import { usePurchasesStore } from "~/stores/purchases";
+import { useSalesStore } from "~/stores/sales";
 import type { GoodsDeal } from "~/types/dealState";
 import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
@@ -37,10 +38,11 @@ const tableSalesGoods: Ref<SellerTableItems[]> = ref([])
 
 //purchases
 const getDealIdByDealNumber = (dealNumber: string, productType: 'goods' | 'services'): number | undefined => {
+  const store = type === 'purchases' ? purchasesStore : salesStore
   if (productType === 'goods') {
-    return purchasesStore.findGoodsDealByDealNumber(dealNumber)?.dealId
+    return store.findGoodsDealByDealNumber(dealNumber)?.dealId
   } else if (productType === 'services') {
-    return purchasesStore.findServicesDealByDealNumber(dealNumber)?.dealId
+    return store.findGoodsDealByDealNumber(dealNumber)?.dealId
   }
   return undefined
 }

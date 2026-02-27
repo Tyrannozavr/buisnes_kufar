@@ -47,12 +47,12 @@ const supplyContractNumber = computed(() => {
 	if (q.role === 'buyer') {
 		const deal = q.productType === 'goods'
 			? purchasesStore.findGoodsDeal(dealId)
-			: purchasesStore.findServicesDeal(dealId)
+			: purchasesStore.findGoodsDeal(dealId)
 		return deal?.supplyContractNumber ?? ''
 	}
 	const deal = q.productType === 'goods'
 		? salesStore.findGoodsDeal(dealId)
-		: salesStore.findServicesDeal(dealId)
+		: salesStore.findGoodsDeal(dealId)
 	return deal?.supplyContractNumber ?? ''
 })
 
@@ -64,12 +64,12 @@ const supplyContractDateFormatted = computed(() => {
 	if (q.role === 'buyer') {
 		const deal = q.productType === 'goods'
 			? purchasesStore.findGoodsDeal(dealId)
-			: purchasesStore.findServicesDeal(dealId)
+			: purchasesStore.findGoodsDeal(dealId)
 		dateStr = deal?.supplyContractDate ?? ''
 	} else {
 		const deal = q.productType === 'goods'
 			? salesStore.findGoodsDeal(dealId)
-			: salesStore.findServicesDeal(dealId)
+			: salesStore.findGoodsDeal(dealId)
 		dateStr = deal?.supplyContractDate ?? ''
 	}
 	return dateStr ? normalizeDate(dateStr) : '—'

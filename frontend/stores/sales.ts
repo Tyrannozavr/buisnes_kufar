@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import type { GoodsDeal, EditPersonDeal, Product } from "~/types/dealState";
 import numberToWordsRuPkg from "number-to-words-ru";
 const numberToWordsRu = numberToWordsRuPkg.convert;
-import { usePurchasesApi } from "~/api/purchases";
+import type { PurchasesApi } from "~/api/purchases";
 import type { DealUpdate, OrderItemUpdate, SellerDealResponse } from "~/types/dealResponse";
 
 interface Sales {
@@ -84,14 +84,14 @@ export const useSalesStore = defineStore("sales", {
 			this.sales.goodsDeals = [];
 		},
 		//получение и заполнение списка сделок
-		async getDeals() {
+		async getDeals(api: PurchasesApi) {
 			await this.clearStore();
 
-			const { getDealById, getSellerDeals } = usePurchasesApi();
+			const { getDealById, getSellerDeals } = api;
 			const sellerDeals = await getSellerDeals();
 			const dealsIds: number[] = [
 				...new Set(
-					sellerDeals?.map((deal: SellerDealResponse) => deal.id) || [],
+					(sellerDeals?.map((deal: SellerDealResponse) => deal.id) ?? []) as number[],
 				),
 			];
 
@@ -153,8 +153,8 @@ export const useSalesStore = defineStore("sales", {
 			}
 		},
 
-		async createNewDealVersion(dealId: number) {
-			const { createNewDealVersion } = usePurchasesApi();
+		async createNewDealVersion(dealId: number, api: PurchasesApi) {
+			const { createNewDealVersion } = api;
 			const body = this.createBodyForUpdate(dealId);
 			await createNewDealVersion(dealId, body ?? {});
 		},
@@ -236,12 +236,12 @@ export const useSalesStore = defineStore("sales", {
 			}
 		},
 
-		removeGoodsDeal(dealId: number) {
+		removeGoodsDeal(dealId: number, api: PurchasesApi) {
 			if (!dealId) return;
 
 			const goodsDeal = this.findGoodsDeal(dealId);
 			const goodsDeals = this.sales.goodsDeals;
-			const { deleteDealById } = usePurchasesApi();
+			const { deleteDealById } = api;
 
 			if (!goodsDeal) return;
 
@@ -260,6 +260,7 @@ export const useSalesStore = defineStore("sales", {
 			seller: EditPersonDeal,
 			buyer: EditPersonDeal,
 			newGoodsList: Product[],
+			api: PurchasesApi,
 			comments?: string,
 		) {
 			this.amountInGoodsList();
@@ -272,7 +273,7 @@ export const useSalesStore = defineStore("sales", {
 				this.editGoodsComments(dealId, comments);
 			}
 
-			const { updateDealById } = usePurchasesApi();
+			const { updateDealById } = api;
 			const body = this.createBodyForUpdate(dealId);
 			if (body) {
 				await updateDealById(dealId, body);

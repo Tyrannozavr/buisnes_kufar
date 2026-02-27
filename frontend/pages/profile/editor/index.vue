@@ -79,6 +79,7 @@ import A4Page from '~/components/ui/A4-page.vue'
 import { usePurchasesStore } from '~/stores/purchases'
 import { useSalesStore } from '~/stores/sales'
 import { useRouter } from 'vue-router'
+import { usePurchasesApi } from '~/api/purchases'
 
 definePageMeta({
   layout: 'profile'
@@ -89,9 +90,10 @@ const route = useRoute()
 const router = useRouter()
 const purchasesStore = usePurchasesStore()
 const salesStore = useSalesStore()
+const purchasesApi = usePurchasesApi()
 
-purchasesStore.getDeals()
-salesStore.getDeals()
+purchasesStore.getDeals(purchasesApi)
+salesStore.getDeals(purchasesApi)
 
 const items = [
 	{

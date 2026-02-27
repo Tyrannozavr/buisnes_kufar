@@ -239,16 +239,16 @@ const loadDeals = async (): Promise<void> => {
 //функция, получающая данные сделки по selectedDealId из store и преобразующая их в массив объектов DocumentApiItem + генерация Blob для создания документа из таблицы
 const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem[]> => {
   if (dealTypeFilter.value === "purchases") {
-    await purchasesStore.getDeals();
+    await purchasesStore.getDeals(purchasesApi);
   } else if (dealTypeFilter.value === "sales") {
-    await salesStore.getDeals();
+    await salesStore.getDeals(purchasesApi);
   } else {
     return [];
   }
 
   const store = dealTypeFilter.value === "purchases" ? purchasesStore : salesStore;
 
-  const deal = store.findGoodsDeal(dealId) ?? store.findServicesDeal(dealId);
+  const deal = store.findGoodsDeal(dealId);
   if (!deal) return [];
 
   console.log('deal: ', deal);

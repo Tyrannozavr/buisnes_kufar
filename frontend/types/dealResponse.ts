@@ -87,25 +87,9 @@ export interface DealResponse {
   others_documents: unknown[];
   created_at: string;
   updated_at: string;
-  version_status?: "accepted" | "pending" | "rejected";
-  proposed_by_company_id?: number | null;
-  buyer_accepted_at?: string | null;
-  seller_accepted_at?: string | null;
-  rejected_by_company_id?: number | null;
   items: [ProductResponse[]];
   buyer_company: CompanyInDealResponse;
   seller_company: CompanyInDealResponse;
-}
-
-export interface DealVersionItem {
-  version: number;
-  version_status: "accepted" | "pending" | "rejected";
-  proposed_by_company_id?: number | null;
-  buyer_accepted_at?: string | null;
-  seller_accepted_at?: string | null;
-  rejected_by_company_id?: number | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface BuyerDealResponse {

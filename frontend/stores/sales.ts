@@ -126,8 +126,9 @@ export const useSalesStore = defineStore("sales", {
     },
     //получение и заполнение списка сделок
     async getDeals() {
-      const { getDealById, getSellerDeals } = usePurchasesApi();
       this.clearStore();
+
+      const { getDealById, getSellerDeals } = usePurchasesApi();
       const sellerDeals = await getSellerDeals();
       const dealsIds: number[] = [
         ...new Set(
@@ -268,20 +269,6 @@ export const useSalesStore = defineStore("sales", {
       );
       if (!exists) {
         this.sales.servicesDeals?.push(newDeal);
-      }
-    },
-
-    updateDealSupplyContract(
-      dealId: number,
-      productType: string,
-      payload: { supplyContractNumber: string; supplyContractDate: string }
-    ) {
-      const list =
-        productType === "goods" ? this.sales.goodsDeals : this.sales.servicesDeals;
-      const deal = list?.find((d) => d.dealId === dealId);
-      if (deal) {
-        deal.supplyContractNumber = payload.supplyContractNumber;
-        deal.supplyContractDate = payload.supplyContractDate;
       }
     },
 

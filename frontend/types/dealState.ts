@@ -25,7 +25,6 @@ export interface Product {
   units: string;
   price: number;
   amount: number;
-	type: string
 }
 
 export interface Goods {

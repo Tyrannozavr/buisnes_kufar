@@ -59,10 +59,6 @@ const fillQuery = () => {
     query.role = 'seller'
   }
 
-  if (orderData.value.products?.[0]?.type === 'Товары') {
-    query.productType = 'goods'
-  }
-
   router.replace({
     query,
     hash: '#order'
@@ -81,7 +77,6 @@ const fillOrderData = () => {
       units: product.units,
       price: product.price,
       amount: product.amount,
-      type: product.type,
     }))
     seller = {
       companyId: goodsDeal.value.seller.companyId,
@@ -118,7 +113,7 @@ const fillOrderData = () => {
 //заполнение формы по данным сделки из query
 const fillFromQuery = () => {
   const query = route.query
-  if (!query?.dealId || !query?.role || !query?.productType) return
+  if (!query?.dealId || !query?.role) return
 
   if (query.role === 'buyer') {
     requestedData = RequestedType.PURCHASES_GOOD
@@ -133,6 +128,7 @@ const fillFromQuery = () => {
 //заполнение формы из query при наличии данных в store
 watch(
   () => [
+    route.query.dealId,
     salesStore.sales?.goodsDeals?.length ?? 0,
     purchasesStore.purchases?.goodsDeals?.length ?? 0,
   ],
@@ -203,7 +199,6 @@ const addProduct = () => {
 		units: '',
     price: 0,
     amount: 0,
-		type: 'Товар'
 	}
 
 	orderData.value.products.push(product)

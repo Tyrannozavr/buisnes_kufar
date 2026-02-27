@@ -5,7 +5,7 @@ from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, BuyerDealResponse,
     SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse,
-    DealStatus, ItemType,
+    DealStatus,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -187,12 +187,10 @@ class DealService:
                 items.append(OrderItemResponse(
                     id=item.id,
                     order_id=order.id,
-                    product_id=item.product_id,
                     product_name=item.product_name,
                     product_slug=item.product_slug,
                     product_description=item.product_description,
                     product_article=item.product_article,
-                    product_type=item.product_type,
                     logo_url=item.logo_url,
                     quantity=item.quantity,
                     unit_of_measurement=item.unit_of_measurement,
@@ -254,7 +252,6 @@ class DealService:
                 buyer_order_number=order.buyer_order_number,
                 seller_order_number=order.seller_order_number,
                 status=DealStatus(order.status.value),
-                deal_type=ItemType(order.deal_type.value),
                 total_amount=order.total_amount,
                 comments=order.comments,
                 buyer_order_date=order.buyer_order_date,
@@ -298,9 +295,6 @@ class DealService:
             # Создаем заказы для каждого продавца
             created_deals = []
             for seller_id, seller_data in sellers.items():
-                # Тип заказа по умолчанию — товары (раньше определялся по полю type в запросе)
-                deal_type = "Товары"
-                
                 # Преобразуем данные корзины в формат DealCreate
                 # Используем article из корзины для поиска продукта
                 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
@@ -320,13 +314,12 @@ class DealService:
                         # Если есть article, используем его для поиска продукта
                         deal_item["article"] = article
                     else:
-                        # Ручной ввод - все поля обязательны (type убран из API, по умолчанию "Товар")
+                        # Ручной ввод - все поля обязательны
                         deal_item.update({
                             "product_name": item.get("productName"),
                             "product_slug": item.get("slug"),
                             "product_description": item.get("description"),
                             "product_article": str(item.get("article", "")),
-                            "product_type": "Товар",
                             "logo_url": item.get("logoUrl"),
                             "unit_of_measurement": item.get("units"),
                             "price": item.get("price")
@@ -334,13 +327,8 @@ class DealService:
                     
                     deal_items.append(deal_item)
                 
-                # Преобразуем deal_type_str в ItemType enum
-                from app.api.purchases.schemas import ItemType
-                deal_type_enum = ItemType.GOODS if deal_type == "Товары" else ItemType.SERVICES
-                
                 deal_data = DealCreate(
                     seller_company_id=seller_id,
-                    deal_type=deal_type_enum,
                     items=deal_items,
                     comments=checkout_data.get("comments")
                 )

@@ -16,7 +16,7 @@ from app.api.purchases.schemas import (
     CheckoutRequest, CheckoutItem,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
 )
-from app.api.purchases.schemas import DealStatus, ItemType
+from app.api.purchases.schemas import DealStatus
 
 router = APIRouter(
     tags=["purchases", "orders", "deals", "documents", "business"]
@@ -81,7 +81,6 @@ async def get_buyer_deals(
             buyer_order_number=deal.buyer_order_number,
             seller_order_number=deal.seller_order_number,
             status=deal.status,
-            deal_type=deal.deal_type,
             total_amount=deal.total_amount,
             created_at=deal.created_at,
             updated_at=deal.updated_at,
@@ -123,7 +122,6 @@ async def get_seller_deals(
             buyer_order_number=deal.buyer_order_number,
             seller_order_number=deal.seller_order_number,
             status=deal.status,
-            deal_type=deal.deal_type,
             total_amount=deal.total_amount,
             created_at=deal.created_at,
             updated_at=deal.updated_at,
@@ -153,7 +151,6 @@ async def get_seller_deals(
                         "buyer_order_number": "00042",
                         "seller_order_number": "00058",
                         "status": "Активная",
-                        "deal_type": "Товары",
                         "total_amount": 246.9,
                         "comments": "latest version",
                         "items": [],
@@ -207,7 +204,6 @@ async def get_deal(
                         "buyer_order_number": "00042",
                         "seller_order_number": "00058",
                         "status": "Активная",
-                        "deal_type": "Товары",
                         "total_amount": 246.9,
                         "comments": "updated latest version",
                         "items": [],
@@ -360,7 +356,6 @@ async def delete_deal(
                         "buyer_order_number": "00042",
                         "seller_order_number": "00058",
                         "status": "Активная",
-                        "deal_type": "Товары",
                         "total_amount": 246.9,
                         "comments": "copied from previous version",
                         "items": [],

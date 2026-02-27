@@ -33,46 +33,8 @@ class DealRepository:
 
             order_date = datetime.utcnow()
             
-            # Проверяем соответствие типа заказа типам продуктов
-            from app.api.purchases.schemas import ItemType
-            from app.api.products.models.product import Product, ProductType
-            
-            # Преобразуем deal_type из ItemType enum в OrderType enum
-            if order_data.deal_type == ItemType.GOODS:
-                order_deal_type = OrderType.GOODS
-                expected_product_type = ProductType.GOOD
-            else:
-                order_deal_type = OrderType.SERVICES
-                expected_product_type = ProductType.SERVICE
-            
-            # Проверяем все продукты на соответствие типу заказа
-            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-            products_repo = CompanyProductsRepository(self.session)
-            
-            product_types_found = set()
-            for item_data in order_data.items:
-                if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
-                    if product:
-                        product_types_found.add(product.type)
-                        # Проверяем соответствие типа продукта типу заказа
-                        if product.type != expected_product_type:
-                            raise ValueError(
-                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
-                                f"but order type is '{order_data.deal_type.value}'. "
-                                f"All products must be of type '{expected_product_type.value}' for this order type."
-                            )
-            
-            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
-            if len(product_types_found) > 1:
-                types_str = ", ".join([pt.value for pt in product_types_found])
-                raise ValueError(
-                    f"Cannot mix different product types in one order. Found types: {types_str}. "
-                    f"All products in an order must be of the same type (either all goods or all services)."
-                )
-            
             # Создаем заказ (version starts at 1 for a new deal id)
-            logger.debug("Создаем объект Order с типом %s", order_deal_type.value)
+            logger.debug("Создаем объект Order")
             order = Order(
                 id=await self._generate_deal_id(),
                 version=1,
@@ -82,7 +44,7 @@ class DealRepository:
                 seller_order_date=order_date,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
-                deal_type=order_deal_type,
+                deal_type=OrderType.GOODS,
                 status=OrderStatus.ACTIVE,
                 comments=order_data.comments
             )
@@ -96,24 +58,26 @@ class DealRepository:
             # Добавляем позиции заказа
             logger.debug("Добавляем %s позиций заказа", len(order_data.items))
             total_amount = 0
-            
+
+            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+            products_repo = CompanyProductsRepository(self.session)
+
             for i, item_data in enumerate(order_data.items, 1):
                 position = item_data.position if item_data.position else i
-                
+
                 # Если article указан, получаем данные из БД
                 product_id = None
                 if item_data.article:
                     product = await products_repo.get_by_article(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
-                    
+
                     product_id = product.id
                     # Используем данные из БД
                     product_name = product.name
                     product_slug = product.slug
                     product_description = product.description
                     product_article = product.article
-                    product_type = product.type.value  # Enum -> str
                     logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
                     unit_of_measurement = product.unit_of_measurement or "шт"
                     price = product.price if product.price is not None else 0.0
@@ -126,22 +90,21 @@ class DealRepository:
                         raise ValueError("price is required when article is not specified")
                     if not item_data.unit_of_measurement:
                         raise ValueError("unit_of_measurement is required when article is not specified")
-                    
+
                     product_name = item_data.product_name
                     product_slug = item_data.product_slug
                     product_description = item_data.product_description
                     product_article = item_data.product_article
-                    product_type = item_data.product_type
                     logo_url = item_data.logo_url
                     unit_of_measurement = item_data.unit_of_measurement
                     price = item_data.price
                     quantity = item_data.quantity
-                
+
                 amount = quantity * price
                 total_amount += amount
 
                 logger.debug("Обрабатываем позицию %s: %s (qty=%s, price=%s)", position, product_name, quantity, price)
-                
+
                 order_item = OrderItem(
                     order_row_id=order.row_id,
                     product_id=product_id,
@@ -149,7 +112,7 @@ class DealRepository:
                     product_slug=product_slug,
                     product_description=product_description,
                     product_article=product_article,
-                    product_type=product_type,
+                    product_type=None,
                     logo_url=logo_url,
                     quantity=quantity,
                     unit_of_measurement=unit_of_measurement,
@@ -167,8 +130,8 @@ class DealRepository:
             logger.debug("Добавляем запись в историю")
             self._add_order_history(
                 order.row_id,
-                buyer_company_id, 
-                "created", 
+                buyer_company_id,
+                "created",
                 "Заказ создан покупателем",
                 None,
                 order_data.dict()
@@ -468,40 +431,9 @@ class DealRepository:
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
-            # Проверяем соответствие типов продуктов типу заказа
-            from app.api.products.models.product import Product, ProductType
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
             products_repo = CompanyProductsRepository(self.session)
-            
-            # Определяем ожидаемый тип продукта на основе типа заказа
-            if order.deal_type == OrderType.GOODS:
-                expected_product_type = ProductType.GOOD
-            else:
-                expected_product_type = ProductType.SERVICE
-            
-            # Проверяем все продукты на соответствие типу заказа
-            product_types_found = set()
-            for item_data in order_data.items:
-                if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
-                    if product:
-                        product_types_found.add(product.type)
-                        # Проверяем соответствие типа продукта типу заказа
-                        if product.type != expected_product_type:
-                            raise ValueError(
-                                f"Product with article '{item_data.article}' is of type '{product.type.value}', "
-                                f"but order type is '{order.deal_type.value}'. "
-                                f"All products must be of type '{expected_product_type.value}' for this order type."
-                            )
-            
-            # Проверяем, что все продукты одного типа (нельзя смешивать товары и услуги)
-            if len(product_types_found) > 1:
-                types_str = ", ".join([pt.value for pt in product_types_found])
-                raise ValueError(
-                    f"Cannot mix different product types in one order. Found types: {types_str}. "
-                    f"All products in an order must be of the same type (either all goods or all services)."
-                )
-            
+
             # Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
             order.order_items.clear()
             await self.session.flush()
@@ -521,7 +453,6 @@ class DealRepository:
                     product_slug = product.slug
                     product_description = product.description
                     product_article = product.article
-                    product_type = product.type.value
                     logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
                     unit_of_measurement = product.unit_of_measurement or "шт"
                     price = product.price if product.price is not None else 0.0
@@ -538,7 +469,6 @@ class DealRepository:
                     product_slug = item_data.product_slug or None
                     product_description = item_data.product_description or None
                     product_article = item_data.product_article or None
-                    product_type = item_data.product_type or None
                     logo_url = item_data.logo_url or None
                     unit_of_measurement = item_data.unit_of_measurement or "шт"
                     price = float(item_data.price)
@@ -553,7 +483,7 @@ class DealRepository:
                     product_slug=product_slug,
                     product_description=product_description,
                     product_article=product_article,
-                    product_type=product_type,
+                    product_type=None,
                     logo_url=logo_url,
                     quantity=item_data.quantity,
                     unit_of_measurement=unit_of_measurement,

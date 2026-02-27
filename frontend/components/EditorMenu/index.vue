@@ -24,8 +24,6 @@
 									</div>
 									<UButton label="Товар" color="neutral" variant="subtle" class="w-full justify-center mb-2"
 										@click="insertLastPurchasesGood" />
-									<UButton label="Услуга" color="neutral" variant="subtle" class="w-full justify-center mb-2"
-										@click="insertLastPurchasesService" />
 								</div>
 								<div class="flex gap-2">
 									<div>
@@ -33,8 +31,6 @@
 									</div>
 									<UButton label="Товар" color="neutral" variant="subtle" class="w-full justify-center"
 										@click="insertLastSalesGood" />
-									<UButton label="Услуга" color="neutral" variant="subtle" class="w-full justify-center"
-										@click="insertLastSalesService" />
 								</div>
 							</div>
 						</template>
@@ -109,12 +105,8 @@
         </div>
 
 				<div class="flex flex-row justify-between">
-					<UTooltip :text="sendButtonTooltip" class="w-full">
-						<span class="inline-block w-full">
-							<UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-								:disabled="!activeButtons || activeTab !== '0'" @click="saveChanges(), sendMessageToCounterpart()" />
-						</span>
-					</UTooltip>
+          <UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
+            :disabled="!activeButtons || activeTab !== '0'" @click="saveChanges(), sendMessageToCounterpart()" />
 				</div>
 			</div>
 
@@ -160,28 +152,9 @@ const inDevelopment = () => {
 	})
 }
 
-const sendButtonTooltip = computed(() => {
-	if (activeTab.value !== '0') {
-		const tabNames: Record<string, string> = {
-			'1': 'Счет',
-			'2': 'Договор поставки',
-			'3': 'Сопроводительные документы',
-			'4': 'Счет-фактура',
-			'5': 'Договор',
-			'6': 'Акт',
-			'7': 'Другие документы',
-		}
-		const name = tabNames[activeTab.value] ?? 'этой вкладке'
-		return `«Отправить контрагенту и сохранить» пока только для заказа. На вкладке «${name}» сохранение через эту кнопку не реализовано — перейдите на вкладку «Заказ» для сохранения заказа.`
-	}
-	if (!activeButtons.value) {
-		return 'Нажмите «Редактировать», внесите изменения в заказ, затем нажмите эту кнопку — данные сохранятся и контрагент получит уведомление.'
-	}
-	return 'Сохранить изменения и отправить уведомление контрагенту в чат.'
-})
 
 //Insert Button
-const { statePurchasesGood, statePurchasesService, stateSalesGood, stateSalesService } = useInsertState()
+const { statePurchasesGood, stateSalesGood } = useInsertState()
 const insertState = useTypedState(Editor.INSERT_STATE)
 
 const insertLastPurchasesGood = (): void => {
@@ -189,18 +162,8 @@ const insertLastPurchasesGood = (): void => {
 	doubleReversDisable()
 }
 
-const insertLastPurchasesService = (): void => {
-	statePurchasesService(true)
-	doubleReversDisable()
-}
-
 const insertLastSalesGood = (): void => {
 	stateSalesGood(true)
-	doubleReversDisable()
-}
-
-const insertLastSalesService = (): void => {
-	stateSalesService(true)
 	doubleReversDisable()
 }
 
@@ -214,26 +177,16 @@ let billDocxBlob: Blob | null = null
 watch(
 	insertState,
 	async (insert) => {
-		if (purchases.value.goodsDeals && insert.purchasesGood) {
-			if (purchasesStore.lastGoodsDeal) {
-				orderDocxBlob = await generateDocxOrder(purchasesStore.lastGoodsDeal)
-			}
+    if (purchases.value.goodsDeals && insert.purchasesGood) {
+      if (purchasesStore.lastGoodsDeal) {
+        orderDocxBlob = await generateDocxOrder(purchasesStore.lastGoodsDeal)
+      }
 
-		} else if (purchases.value.servicesDeals && insert.purchasesService) {
-			if (purchasesStore.lastServicesDeal) {
-				orderDocxBlob = await generateDocxOrder(purchasesStore.lastServicesDeal)
-			}
-
-		} else if (sales.value.goodsDeals && insert.salesGood) {
-			if (salesStore.lastGoodsDeal) {
-				orderDocxBlob = await generateDocxOrder(salesStore.lastGoodsDeal)
-			}
-
-		} else if (sales.value.servicesDeals && insert.salesGood) {
-			if (salesStore.lastServicesDeal) {
-				orderDocxBlob = await generateDocxOrder(salesStore.lastServicesDeal)
-			}
-		}
+    } else if (sales.value.goodsDeals && insert.salesGood) {
+      if (salesStore.lastGoodsDeal) {
+        orderDocxBlob = await generateDocxOrder(salesStore.lastGoodsDeal)
+      }
+    }
 	},
 	{ immediate: false, deep: true }
 )
@@ -317,30 +270,15 @@ const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber
 	const query = route.query
 	const dealId = Number(query?.dealId)
 	const role = query?.role
-  const productType = query?.productType
-  
-	if (!dealId || !role || !productType) return null
+	if (!dealId || !role) return null
 
 	if (role === 'buyer') {
-		if (productType === 'goods') {
 			const deal = purchasesStore.findGoodsDeal(dealId)
       return { companyId: deal?.seller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
-      
-		} else if (productType === 'services') {
-			const deal = purchasesStore.findServicesDeal(dealId)
-			return { companyId: deal?.seller?.companyId ?? 0, dealNumber: deal?.sellerOrderNumber ?? '' }
-		}
   }
-  
 	if (role === 'seller') {
-		if (productType === 'goods') {
 			const deal = salesStore.findGoodsDeal(dealId)
       return { companyId: deal?.buyer?.companyId ?? 0, dealNumber: deal?.buyerOrderNumber ?? '' }
-      
-		} else if (productType === 'services') {
-			const deal = salesStore.findServicesDeal(dealId)
-			return { companyId: deal?.buyer?.companyId ?? 0, dealNumber: deal?.buyerOrderNumber ?? '' }
-		}
 	}
 	return null
 }
@@ -348,21 +286,21 @@ const getCounterpartCompanyIdAndDealNumber = (): { companyId: number, dealNumber
 const sendMessageToCounterpart = async (isConfirm?: boolean): Promise<void> => {
   const dealId = route.query.dealId
   const role = route.query.role === 'seller' ? 'buyer' : 'seller'//меняем роль на противоположную
-  const productType = route.query.productType
   const counterpartData = getCounterpartCompanyIdAndDealNumber()
+
   if (!counterpartData) {
     useToast().add({ title: 'Нет данных о контрагенте', color: 'error' })
     return
   }
   const orderNumber = String(await Promise.resolve(counterpartData.dealNumber ?? ''))
   const chatData = await createChat({ participantId: counterpartData.companyId })
+
   if (chatData?.id) {
     const resolvedDealRoute = router.resolve({
       path: route.path,
       query: {
         dealId: dealId,
         role: role,
-        productType: productType,
         confirmation: isConfirm === undefined ? 'true' : 'false', //выставляем true если изменения приняты или отклонены, false если мы отправляем сообщение об изменениях 
       },
     })
@@ -399,7 +337,6 @@ const saveChanges = async (): Promise<void> => {
     }
 		await saveOrder()
     editButton()
-
 		useToast().add({
 			title: 'Изменения сохранены и отправлены контрагенту',
 			color: 'success',
@@ -417,20 +354,11 @@ const saveChanges = async (): Promise<void> => {
 // cancel button
 const cancelChanges = (activeTab: string) => {
   const role = route.query.role
-  const productType = route.query.productType
 
   if (role === 'seller') {
-    if (productType === 'goods') {
-      insertLastSalesGood()
-    } else if (productType === 'services') {
-      insertLastSalesService()
-    }
+    insertLastSalesGood()
   } else if (role === 'buyer') {
-    if (productType === 'goods') {
-      insertLastPurchasesGood()
-    } else if (productType === 'services') {
-      insertLastPurchasesService()
-    }
+    insertLastPurchasesGood()
   }
 }
 
@@ -444,7 +372,7 @@ watch(() => route.fullPath,
 
 const confirm = () => {
   router.replace({ query: { ...route.query, confirmation: 'false' } })
-  sendMessageToCounterpart(true)
+  sendMessageToCounterpart(true) //true если изменения приняты
   useToast().add({
     title: 'Изменения приняты',
     color: 'success',
@@ -453,7 +381,7 @@ const confirm = () => {
 
 const reject = async () => {
   router.replace({ query: { ...route.query, confirmation: 'false' } })
-  sendMessageToCounterpart(false)
+  sendMessageToCounterpart(false) //false если изменения отклонены
   const dealId = Number(route.query.dealId)
 
   if (dealId) {

@@ -9,18 +9,12 @@ class DealStatus(str, Enum):
     COMPLETED = "Завершенная"
 
 
-class ItemType(str, Enum):
-    GOODS = "Товары"
-    SERVICES = "Услуги"
-
-
 class OrderItemBase(BaseModel):
     """Базовая схема для позиции заказа"""
     product_name: str = Field(..., description="Наименование товара/услуги")
     product_slug: Optional[str] = Field(None, description="Slug продукта")
     product_description: Optional[str] = Field(None, description="Описание продукта")
     product_article: Optional[str] = Field(None, description="Артикул")
-    product_type: Optional[str] = Field(None, description="Тип продукта")
     logo_url: Optional[str] = Field(None, description="URL логотипа")
     quantity: float = Field(..., gt=0, description="Количество")
     unit_of_measurement: str = Field(..., description="Единица измерения")
@@ -52,7 +46,6 @@ class OrderItemCreate(BaseModel):
     product_slug: Optional[str] = Field(None, description="Slug продукта")
     product_description: Optional[str] = Field(None, description="Описание продукта")
     product_article: Optional[str] = Field(None, description="Артикул")
-    product_type: Optional[str] = Field(None, description="Тип продукта")
     logo_url: Optional[str] = Field(None, description="URL логотипа")
     unit_of_measurement: Optional[str] = Field(
         None, 
@@ -108,7 +101,6 @@ class OrderItemUpdate(BaseModel):
     product_slug: Optional[str] = Field(None, description="Slug продукта")
     product_description: Optional[str] = Field(None, description="Описание продукта")
     product_article: Optional[str] = Field(None, description="Артикул")
-    product_type: Optional[str] = Field(None, description="Тип продукта")
     logo_url: Optional[str] = Field(None, description="URL логотипа")
     unit_of_measurement: Optional[str] = Field(None, description="Единица измерения")
     price: Optional[float] = Field(None, ge=0, description="Цена за единицу")
@@ -145,13 +137,8 @@ class OrderItemResponse(OrderItemBase):
 
 
 class DealCreate(BaseModel):
-    """Схема для создания заказа
-    
-    Тип заказа (deal_type) обязателен. Проверяется соответствие всех продуктов указанному типу.
-    Запрещено смешивать товары и услуги в одном заказе.
-    """
+    """Схема для создания заказа между покупателем и продавцом."""
     seller_company_id: int = Field(..., description="ID компании-продавца")
-    deal_type: ItemType = Field(..., description="Тип заказа (товары/услуги). Все продукты должны соответствовать этому типу")
     items: List[OrderItemCreate] = Field(..., min_items=1, description="Позиции заказа")
     comments: Optional[str] = Field(None, description="Комментарии к заказу")
 
@@ -200,7 +187,6 @@ class DealResponse(BaseModel):
     buyer_order_number: str
     seller_order_number: str
     status: DealStatus
-    deal_type: ItemType
     total_amount: float
     comments: Optional[str]
     buyer_order_date: Optional[datetime] = None
@@ -234,7 +220,6 @@ class BuyerDealResponse(BaseModel):
     buyer_order_number: str
     seller_order_number: str
     status: DealStatus
-    deal_type: ItemType
     total_amount: float
     created_at: datetime
     updated_at: datetime
@@ -257,7 +242,6 @@ class SellerDealResponse(BaseModel):
     buyer_order_number: str
     seller_order_number: str
     status: DealStatus
-    deal_type: ItemType
     total_amount: float
     created_at: datetime
     updated_at: datetime

@@ -12,7 +12,6 @@ export const API_URLS = {
 	CREATE_ORDER_FROM_CHECKOUT: '/api/v1/purchases/checkout',
 	GET_UNITS_MEASUREMENT: '/api/v1/purchases/units',
   DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`,//удаляет все версии сделки
-  
   //versions 
   CREATE_NEW_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions`,
   DELETE_LAST_DEAL_VERSION: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/versions/last`,

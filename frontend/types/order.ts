@@ -5,7 +5,6 @@ export interface ProductsInOrder {
   units: string;
   price: number;
   amount: number;
-	type: string;
 }
 
 interface Company {

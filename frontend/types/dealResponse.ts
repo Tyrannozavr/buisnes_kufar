@@ -2,7 +2,6 @@ export interface DealPurchaseResponse {
   buyer_company_id: number;
   buyer_order_number: string;
   created_at: string;
-  deal_type: "Товары" | "Услуги";
   id: number;
   seller_company_id: number;
   seller_order_number: string;
@@ -19,7 +18,6 @@ export interface ProductResponse {
   product_slug: string;
   product_description?: string;
   product_article: string;
-  product_type: string;
   logo_url?: string;
   quantity: number;
   unit_of_measurement?: string;
@@ -72,7 +70,6 @@ export interface DealResponse {
   buyer_order_number: string;
   seller_order_number: string;
   status: "Активная" | "Завершенная";
-  deal_type: "Товары" | "Услуги";
   total_amount: number;
   comments: string;
   buyer_order_date: string | null;
@@ -99,7 +96,6 @@ export interface BuyerDealResponse {
   buyer_order_number: string,
   seller_order_number: string,
   status: "Активная" | "Завершенная",
-  deal_type: "Товары" | "Услуги",
   total_amount: number,
   created_at: string,
   updated_at: string,
@@ -115,7 +111,6 @@ export interface SellerDealResponse {
   buyer_order_number: string,
   seller_order_number: string,
   status: "Активная" | "Завершенная",
-  deal_type: "Товары" | "Услуги",
   total_amount: number,
   created_at: string,
   updated_at: string,

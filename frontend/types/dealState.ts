@@ -35,13 +35,6 @@ export interface Goods {
 	comments?: string 
 }
 
-export interface Services {
-	servicesList: Product[]
-	amountPrice: number 
-	amountWord: string
-	comments?: string 
-}
-
 export interface GoodsDeal {
   dealId: number;
   buyerOrderNumber?: string;
@@ -58,25 +51,6 @@ export interface GoodsDeal {
   supplyContractNumber?: string
   supplyContractDate?: string
   closingDocuments?: unknown[]
-  othersDocuments?: unknown[]
-}
-
-export interface ServicesDeal {
-  dealId: number;
-  buyerOrderNumber?: string;
-  sellerOrderNumber?: string;
-  services: Services;
-  date: string;
-  seller: Company;
-  buyer: Company;
-  status: "Активная" | "Завершенная";
-  billNumber?: string
-  billDate?: string
-	contractNumber?: string
-	contractDate?: string
-	supplyContractNumber?: string
-	supplyContractDate?: string
-	closingDocuments?: unknown[]
   othersDocuments?: unknown[]
 }
 

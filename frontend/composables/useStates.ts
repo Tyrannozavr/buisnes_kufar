@@ -5,9 +5,7 @@ export const useInsertState = () => {
   const insertState = useState(Editor.INSERT_STATE, () =>
     ref({
       purchasesGood: false,
-      purchasesService: false,
       salesGood: false,
-      salesService: false,
     })
   );
 
@@ -15,23 +13,13 @@ export const useInsertState = () => {
     nextTick(() => (insertState.value.purchasesGood = newVal));
   };
 
-  const statePurchasesService = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.purchasesService = newVal));
-  };
-
   const stateSalesGood = (newVal: boolean): void => {
     nextTick(() => (insertState.value.salesGood = newVal));
   };
 
-  const stateSalesService = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.salesService = newVal));
-  };
-
   return {
     statePurchasesGood,
-    statePurchasesService,
     stateSalesGood,
-    stateSalesService,
   };
 };
 
@@ -66,26 +54,17 @@ export const useClearState = () => {
   };
 };
 
-export interface SaveOrderOptions {
-  createVersion?: boolean;
-  onComplete?: () => void;
-}
 
 export const useSaveState = () => {
   const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () => ref(false));
-  const saveOrderOptions = useTypedState(Editor.SAVE_ORDER_OPTIONS, () =>
-    ref<SaveOrderOptions>({})
-  );
 
-  const saveOrder = (options?: SaveOrderOptions): void => {
-    saveOrderOptions.value = options ?? {};
+  const saveOrder = (): void => {
     saveStateOrder.value = true;
     nextTick(() => (saveStateOrder.value = false));
   };
 
   return {
     saveOrder,
-    saveOrderOptions,
   };
 };
 

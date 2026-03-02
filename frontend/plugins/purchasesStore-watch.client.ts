@@ -8,13 +8,8 @@ export default defineNuxtPlugin(() => {
     () => purchases,
     () => {
       purchasesStore.amountInGoodsList();
-      purchasesStore.amountInServicesList();
-
       purchasesStore.amountPriceInGoods();
-      purchasesStore.amountPriceInServices();
-
       purchasesStore.amountWordGoods();
-      purchasesStore.amountWordServices();
     },
     { immediate: true, deep: true }
   );

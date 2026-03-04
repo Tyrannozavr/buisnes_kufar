@@ -8,7 +8,8 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
     '@nuxt/image',
-    '@nuxt/icon'
+    '@nuxt/icon',
+    '@pinia/colada-nuxt'
   ],
   css: ['~/assets/css/main.css'],
   future: {

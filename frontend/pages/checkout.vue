@@ -70,16 +70,15 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
-import { usePurchasesApi } from '~/api/purchases'
 import { useCompaniesApi } from '~/api/companies'
 import { useRouter } from 'vue-router'
+import { useCreateOrderFromCheckoutQuery } from '~/queries/purchases'
 
 const { createChat, sendMessage } = useChatsApi()
 const { getCompanyById } = useCompaniesApi()
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const products = cartStore.items
-const { createOrderFromCheckout } = usePurchasesApi()
 const companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 const toast = useToast()
 const router = useRouter()
@@ -106,7 +105,9 @@ const handleCreateOrder = async (cp: CompaniesAndProducts, items: ProductInCheck
 	const companySlug = await handleGetCompanySlug(cp.companyId)
 	if (!companySlug) return
 
-	await createOrderFromCheckout(items, {
+	const { orderFromCheckout } = useCreateOrderFromCheckoutQuery()
+
+	orderFromCheckout(items, {
 		companyId: cp.companyId,
 		companyName: cp.companyName,
 		companySlug,

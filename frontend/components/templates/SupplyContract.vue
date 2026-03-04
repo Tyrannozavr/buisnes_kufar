@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { TemplateElement } from '~/constants/keys'
 import { useRoute } from 'vue-router'
-import { usePurchasesStore } from '~/stores/purchases'
-import { useSalesStore } from '~/stores/sales'
+import { useDealsStore } from '~/stores/deals'
 import { normalizeDate } from '~/utils/normalize'
 import { useDocumentForm } from '~/composables/useDocumentForm'
 import { computed } from 'vue'
@@ -10,8 +9,7 @@ import { computed } from 'vue'
 const html = useTemplateRef('html')
 const htmlSupplyContract = useTypedState(TemplateElement.SUPPLY_CONTRACT, () => ref(null))
 const route = useRoute()
-const purchasesStore = usePurchasesStore()
-const salesStore = useSalesStore()
+const dealsStore = useDealsStore()
 
 const dealId = computed(() => {
 	const q = route.query.dealId ?? route.query.deal_id
@@ -42,36 +40,22 @@ const {
 
 const supplyContractNumber = computed(() => {
 	const q = route.query
-	if (!q?.dealId || !q?.role || !q?.productType) return ''
+	if (!q?.dealId) return ''
+
 	const dealId = Number(q.dealId)
-	if (q.role === 'buyer') {
-		const deal = q.productType === 'goods'
-			? purchasesStore.findGoodsDeal(dealId)
-			: purchasesStore.findGoodsDeal(dealId)
-		return deal?.supplyContractNumber ?? ''
-	}
-	const deal = q.productType === 'goods'
-		? salesStore.findGoodsDeal(dealId)
-		: salesStore.findGoodsDeal(dealId)
+	const deal = dealsStore.findDeal(dealId)
+
 	return deal?.supplyContractNumber ?? ''
 })
 
 const supplyContractDateFormatted = computed(() => {
 	const q = route.query
-	if (!q?.dealId || !q?.role || !q?.productType) return '—'
+	if (!q?.dealId) return '—'
 	const dealId = Number(q.dealId)
-	let dateStr = ''
-	if (q.role === 'buyer') {
-		const deal = q.productType === 'goods'
-			? purchasesStore.findGoodsDeal(dealId)
-			: purchasesStore.findGoodsDeal(dealId)
-		dateStr = deal?.supplyContractDate ?? ''
-	} else {
-		const deal = q.productType === 'goods'
-			? salesStore.findGoodsDeal(dealId)
-			: salesStore.findGoodsDeal(dealId)
-		dateStr = deal?.supplyContractDate ?? ''
-	}
+
+	const deal = dealsStore.findDeal(dealId)
+	const dateStr = deal?.supplyContractDate ?? ''
+
 	return dateStr ? normalizeDate(dateStr) : '—'
 })
 

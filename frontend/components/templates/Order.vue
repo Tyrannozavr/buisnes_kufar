@@ -1,22 +1,20 @@
 <script setup lang="ts">
 import type { OrderData, ProductsInOrder } from '~/types/order';
-import { usePurchasesStore } from '~/stores/purchases';
-import { useSalesStore } from '~/stores/sales';
-import type { Product, GoodsDeal } from '~/types/dealState';
+import { useDealsStore } from '~/stores/deals';
+import type { Deal, ProductItem } from '~/types/dealState';
 import { Editor, RequestedType, TemplateElement } from '~/constants/keys';
 import { useInsertState } from '~/composables/useStates';
 import { normalizeDate } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/stores/user';
-import { usePurchasesApi } from '~/api/purchases';
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const purchasesStore = usePurchasesStore()
-const salesStore = useSalesStore()
-const purchasesApi = usePurchasesApi()
+
+const dealsStore = useDealsStore()
+const { deals } = storeToRefs(dealsStore)
 const { statePurchasesGood, stateSalesGood } = useInsertState()
 
 const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
@@ -28,7 +26,7 @@ const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
 const insertState = useTypedState(Editor.INSERT_STATE)
-const goodsDeal: Ref<GoodsDeal | undefined> = ref(undefined)
+const deal: Ref<Deal | undefined> = ref(undefined) //сделка для заполнения формы
 let requestedData = ''
 
 let products: ProductsInOrder[] = []
@@ -69,41 +67,43 @@ const fillQuery = () => {
 
 //заполнение формы по данным сделки
 const fillOrderData = () => {
-  if ((requestedData === RequestedType.PURCHASES_GOOD || requestedData === RequestedType.SALES_GOOD)
-    && goodsDeal.value) {
+	if (deal.value) {
 
-    products = (goodsDeal.value.goods.goodsList ?? []).map((product: Product): ProductsInOrder => ({
+		const productList = deal.value.product.productList ?? []
+    products = productList.map((product: ProductItem): ProductsInOrder => ({
       name: product.name,
       article: product.article,
-      quantity: product.quantity,
-      units: product.units,
-      price: product.price,
-      amount: product.amount,
-    }))
+      quantity: product.quantity ?? 0,
+      units: product.units ?? '',
+      price: product.price ?? 0,
+      amount: product.amount ?? 0,
+		}))
+		const sellerData = deal.value.seller ?? {}
     seller = {
-      companyId: goodsDeal.value.seller.companyId,
-      sellerName: goodsDeal.value.seller.sellerName,
-      companyName: goodsDeal.value.seller.companyName,
-      mobileNumber: goodsDeal.value.seller.phone,
-      legalAddress: goodsDeal.value.seller.legalAddress,
-      inn: Number(goodsDeal.value.seller.inn) || 0,
-    }
+      companyId: sellerData.companyId,
+      sellerName: sellerData.sellerName,
+      companyName: sellerData.companyName,
+      mobileNumber: sellerData.phone,
+      legalAddress: sellerData.legalAddress,
+      inn: Number(sellerData.inn) || 0,
+		}
+		const buyerData = deal.value.buyer ?? {}
     buyer = {
-      companyId: goodsDeal.value.buyer.companyId,
-      buyerName: goodsDeal.value.buyer.buyerName,
-      companyName: goodsDeal.value.buyer.companyName,
-      mobileNumber: goodsDeal.value.buyer.phone,
-      legalAddress: goodsDeal.value.buyer.legalAddress,
-      inn: Number(goodsDeal.value.buyer.inn) || 0,
+      companyId: buyerData.companyId,
+      buyerName: buyerData.buyerName,
+      companyName: buyerData.companyName,
+      mobileNumber: buyerData.phone,
+      legalAddress: buyerData.legalAddress,
+      inn: Number(buyerData.inn) || 0,
     }
 
     orderData.value = {
-      orderNumber: requestedData === RequestedType.PURCHASES_GOOD ? goodsDeal.value.buyerOrderNumber || '' : goodsDeal.value.sellerOrderNumber || '',
-      dealId: goodsDeal.value.dealId,
-      orderDate: goodsDeal.value.date,
-      comments: goodsDeal.value.goods.comments,
-      amount: goodsDeal.value.goods.amountPrice,
-      amountWord: goodsDeal.value.goods.amountWord,
+      orderNumber: requestedData === RequestedType.PURCHASES_GOOD ? deal.value.buyerOrderNumber || '' : deal.value.sellerOrderNumber || '',
+      dealId: deal.value.dealId,
+      orderDate: deal.value.date,
+      comments: deal.value.product.comments,
+      amount: deal.value.product.amountPrice,
+      amountWord: deal.value.product.amountWord,
       seller,
       buyer,
       products: [...products],
@@ -117,22 +117,22 @@ const fillFromQuery = () => {
   const query = route.query
   if (!query?.dealId || !query?.role) return
 
+	deal.value = dealsStore.findDeal(Number(query.dealId)) ?? undefined
+
   if (query.role === 'buyer') {
     requestedData = RequestedType.PURCHASES_GOOD
-    goodsDeal.value = purchasesStore.findGoodsDeal(Number(query.dealId)) ?? undefined
   } else if (query.role === 'seller') {
     requestedData = RequestedType.SALES_GOOD
-    goodsDeal.value = salesStore.findGoodsDeal(Number(query.dealId)) ?? undefined
-  }
-  fillOrderData()
+	}
+
+	fillOrderData()
 }
 
 //заполнение формы из query при наличии данных в store
 watch(
   () => [
     route.query.dealId,
-    salesStore.sales?.goodsDeals?.length ?? 0,
-    purchasesStore.purchases?.goodsDeals?.length ?? 0,
+    dealsStore.deals?.length ?? 0,
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }
@@ -145,16 +145,16 @@ watch(() => insertState.value,
     
 		if (insertState.value.purchasesGood) {
 			requestedData = RequestedType.PURCHASES_GOOD
-			goodsDeal.value = purchasesStore.lastGoodsDeal ?? undefined
+			deal.value = dealsStore.lastDeal?.purchases ?? undefined
 			statePurchasesGood(false)
-			if (!goodsDeal.value) {
+			if (!deal.value) {
 				toast.add({ title: 'Нет данных', description: 'Нет последней закупки по товарам. Сначала откройте заказ из раздела «Мои закупки».', color: 'warning' })
 			}
 		} else if (insertState.value.salesGood) {
 			requestedData = RequestedType.SALES_GOOD
-			goodsDeal.value = salesStore.lastGoodsDeal ?? undefined
+			deal.value = dealsStore.lastDeal?.sales ?? undefined
 			stateSalesGood(false)
-			if (!goodsDeal.value) {
+			if (!deal.value) {
 				toast.add({ title: 'Нет данных', description: 'Нет последней продажи по товарам. Сначала откройте заказ из раздела «Мои продажи».', color: 'warning' })
 			}
 		} 
@@ -170,25 +170,23 @@ watch(() => saveState.value,
 		const dealId = orderData.value.dealId
 
 		if (requestedData === RequestedType.PURCHASES_GOOD) {
-			await purchasesStore.fullUpdateGoodsDeal(
+			await dealsStore.fullUpdateDeal(
 				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
-				purchasesApi,
 				orderData.value.comments)
-			orderData.value.amount = purchasesStore?.lastGoodsDeal?.goods.amountPrice
-			orderData.value.amountWord = purchasesStore?.lastGoodsDeal?.goods.amountWord
+			orderData.value.amount = dealsStore?.lastDeal?.purchases?.product.amountPrice
+			orderData.value.amountWord = dealsStore?.lastDeal?.purchases?.product.amountWord
 		} else if (requestedData === RequestedType.SALES_GOOD) {
-			await salesStore.fullUpdateGoodsDeal(
+			await dealsStore.fullUpdateDeal(
 				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
-				purchasesApi,
 				orderData.value.comments)
-			orderData.value.amount = salesStore?.lastGoodsDeal?.goods.amountPrice
-			orderData.value.amountWord = salesStore?.lastGoodsDeal?.goods.amountWord
+			orderData.value.amount = dealsStore?.lastDeal?.sales?.product.amountPrice
+			orderData.value.amountWord = dealsStore?.lastDeal?.sales?.product.amountWord
 		}
 	},
 	{ deep: true }
@@ -238,15 +236,9 @@ watch(() => clearState.value,
 )
 
 //удаление сделки из store
-const removeDeal = (requestedData: string) => {
-	if (requestedData === RequestedType.PURCHASES_GOOD) {
-    purchasesStore.removeGoodsDeal(orderData.value.dealId, purchasesApi)
-	} else if (requestedData === RequestedType.SALES_GOOD) {
-		salesStore.removeGoodsDeal(orderData.value.dealId, purchasesApi)
-	} 
-
-	requestedData = ''
-	goodsDeal.value = undefined
+const removeDeal = () => {
+	dealsStore.removeDeal(orderData.value.dealId)
+	deal.value = undefined
 	clearForm()
 }
 
@@ -254,7 +246,7 @@ const removeDeal = (requestedData: string) => {
 watch(() => removeDealState.value,
 	() => {
 		if (removeDealState.value) {
-			removeDeal(requestedData)
+			removeDeal()
 		}
 	},
 	{ deep: true }

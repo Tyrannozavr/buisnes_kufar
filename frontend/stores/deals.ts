@@ -255,6 +255,11 @@ export const useDealsStore = defineStore("deals", () => {
 		await createNewDealVersion(dealId, body ?? {})
 	}
 
+	const deleteLastDealVersion = async (dealId: number) => {
+		const { deleteLastDealVersion } = usePurchasesApi()
+		await deleteLastDealVersion(dealId)
+	}
+
 	const fullUpdateDeal = async (
 		dealId: number,
 		seller: EditPersonCompany,
@@ -290,6 +295,7 @@ export const useDealsStore = defineStore("deals", () => {
 		clearStore,
 		getDeals,
 		createNewDealVersion,
+		deleteLastDealVersion,
 		addNewDeal,
 		amountPriceInProductItem,
 		amountPriceInProduct,

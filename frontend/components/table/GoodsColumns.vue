@@ -1,7 +1,7 @@
 <template>
   <UTable 
   sticky 
-  :data="type === 'purchases' ? tablePurchasesGoods : tableSalesGoods" 
+  :data="type === 'purchases' ? purchasesTable : salesTable" 
   :columns="type === 'purchases' ? columnsPurchasesGoodsDeals : columnsSalesGoodsDeals"
   class="max-h-100 overflow-y-auto overscroll-auto " 
   />
@@ -12,9 +12,8 @@ import { storeToRefs } from "pinia";
 import type { TableColumn } from "@nuxt/ui";
 import { normalizeDate } from "~/utils/normalize";
 import { useRouter } from "vue-router";
-import { usePurchasesStore } from "~/stores/purchases";
-import { useSalesStore } from "~/stores/sales";
-import type { GoodsDeal } from "~/types/dealState";
+import { useDealsStore } from "~/stores/deals";
+import type { Deal } from "~/types/dealState";
 import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
 
@@ -26,29 +25,21 @@ const router = useRouter()
 const UButton = resolveComponent('UButton')
 const purchasesApi = usePurchasesApi()
 
-const purchasesStore = usePurchasesStore()
-const salesStore = useSalesStore()
-const { purchases } = storeToRefs(purchasesStore)
-const { sales } = storeToRefs(salesStore)
+const dealsStore = useDealsStore()
+const { deals } = storeToRefs(dealsStore)
 
-const goodsDeals: Ref<GoodsDeal[]> = computed(() => type === 'purchases' ? purchases.value.goodsDeals : sales.value.goodsDeals)
-const tablePurchasesGoods: Ref<BuyerTableItems[]> = ref([])
-const tableSalesGoods: Ref<SellerTableItems[]> = ref([])
+const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? deals.value.filter(deal => deal.role === 'buyer') : deals.value.filter(deal => deal.role === 'seller'))
+const purchasesTable: Ref<BuyerTableItems[]> = ref([])
+const salesTable: Ref<SellerTableItems[]> = ref([])
 
 
 //purchases
-const getDealIdByDealNumber = (dealNumber: string, productType: 'goods' | 'services'): number | undefined => {
-  const store = type === 'purchases' ? purchasesStore : salesStore
-  if (productType === 'goods') {
-    return store.findGoodsDealByDealNumber(dealNumber)?.dealId
-  } else if (productType === 'services') {
-    return store.findGoodsDealByDealNumber(dealNumber)?.dealId
-  }
-  return undefined
+const getDealIdByDealNumber = (dealNumber: string, role: 'buyer' | 'seller'): number | undefined => {
+  return dealsStore.findDealByDealNumber(dealNumber, role)?.dealId
 }
 
-watch(goodsDeals, () => {
-  tablePurchasesGoods.value = [...goodsDeals.value.map(deal => ({
+watch(dealsList, () => {
+  purchasesTable.value = [...dealsList.value.map(deal => ({
     dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
@@ -82,7 +73,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
       )
     },
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
@@ -93,7 +84,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
             if (dealId != null) {
               router.push({
                 path: '/profile/editor',
-                query: { dealId: String(dealId), role: 'buyer', productType: 'goods' },
+                query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#order'
               })
             }
@@ -183,7 +174,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'bill',
     header: 'Счет',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
@@ -194,7 +185,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
             if (dealId != null) {
               router.push({
                 path: '/profile/editor',
-                query: { dealId: String(dealId), role: 'buyer', productType: 'goods' },
+                query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#bill'
               })
             }
@@ -206,7 +197,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'supplyContract',
     header: 'Договор поставки',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
@@ -217,7 +208,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
             if (dealId != null) {
               router.push({
                 path: '/profile/editor',
-                query: { dealId: String(dealId), role: 'buyer', productType: 'goods' },
+                query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#supplyContract'
               })
             }
@@ -229,7 +220,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'closingDocuments',
     header: 'Закрывающие документы',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
@@ -240,7 +231,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
             if (dealId != null) {
               router.push({
                 path: '/profile/editor',
-                query: { dealId: String(dealId), role: 'buyer', productType: 'goods' },
+                query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#accompanyingDocuments'
               })
             }
@@ -252,7 +243,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')
+      	const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
@@ -263,7 +254,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
             if (dealId != null) {
               router.push({
                 path: '/profile/editor',
-                query: { dealId: String(dealId), role: 'buyer', productType: 'goods' },
+                query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#othersDocument'
               })
             }
@@ -275,8 +266,8 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
 ////////////////////////////////////////////////////////////
 
 //sales
-const editSalesDocument = async (productType: 'goods' | 'services', documentType: 'order' | 'bill' | 'supplyContract' | 'closingDocuments' | 'othersDocument', dealNumber: string) => {
-  const dealId = getDealIdByDealNumber(dealNumber, productType)
+const editSalesDocument = async (documentType: 'order' | 'bill' | 'supplyContract' | 'closingDocuments' | 'othersDocument', dealNumber: string) => {
+  const dealId = getDealIdByDealNumber(dealNumber, 'seller')
 
   if (dealId) {
     if (documentType === 'order') {
@@ -284,8 +275,7 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         path: '/profile/editor',
         query: {
           dealId: dealId.toString(),
-          role: 'seller',
-          productType
+          role: 'seller'
         },
         hash: '#order'
       })
@@ -297,7 +287,6 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         query: {
           dealId: dealId.toString(),
           role: 'seller',
-          productType
         },
         hash: '#bill'
       })
@@ -308,7 +297,6 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         query: {
           dealId: dealId.toString(),
           role: 'sales',
-          productType
         },
         hash: '#supplyContract'
       })
@@ -318,7 +306,6 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         query: {
           dealId: dealId.toString(),
           role: 'seller',
-          productType
         },
         hash: '#closingDocuments'
       })
@@ -328,7 +315,6 @@ const editSalesDocument = async (productType: 'goods' | 'services', documentType
         query: {
           dealId: dealId.toString(),
           role: 'seller',
-          productType
         },
         hash: '#othersDocument'
       })
@@ -365,7 +351,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           label: `№ ${row.getValue('dealNumber')}`,
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            editSalesDocument('goods', 'order', row.getValue('dealNumber'))
+            editSalesDocument('order', row.getValue('dealNumber'))
           }
         })
     }
@@ -459,7 +445,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('bill') === 'Создать счет') {
-              editSalesDocument('goods', 'bill', row.getValue('dealNumber'))
+              editSalesDocument('bill', row.getValue('dealNumber'))
             }
           }
         })
@@ -477,7 +463,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (row.getValue('supplyContract') === 'Создать договор поставки') {
-              editSalesDocument('goods', 'supplyContract', row.getValue('dealNumber'))
+              editSalesDocument('supplyContract', row.getValue('dealNumber'))
               router.push('/profile/editor#supplyContract')
             }
           }
@@ -495,7 +481,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('closingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            editSalesDocument('goods', 'closingDocuments', row.getValue('dealNumber'))
+            editSalesDocument('closingDocuments', row.getValue('dealNumber'))
           }
         })
     }
@@ -513,7 +499,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           onClick: () => {
             router.push({
               path: '/profile/documents',
-              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'goods')?.toString() }
+              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'seller')?.toString() }
             })
           }
         })
@@ -521,8 +507,8 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
   },
 ]
 
-watch(goodsDeals, () => {
-  tableSalesGoods.value = [...goodsDeals.value.map(deal => ({
+watch(dealsList, () => {
+  salesTable.value = [...dealsList.value.map(deal => ({
     dealNumber: deal.sellerOrderNumber || '',
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',

@@ -47,5 +47,3 @@ const createContract = async () => {
   router.replace({...route, hash: '#contract'})
 }
 </script>
-
-<style scoped></style>

@@ -99,23 +99,18 @@ import BillMenu from './BillMenu.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
-import { usePurchasesStore } from '~/stores/purchases';
-import { useSalesStore } from '~/stores/sales';
+import { useDealsStore } from '~/stores/deals';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { useIsDisableState, useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
 import { useRoute } from 'vue-router';
-import { usePurchasesApi } from '~/api/purchases';
 import { getCounterpartData, sendMessageToCounterpart } from '~/utils/counterpart';
 import type { CounterpartData } from '~/utils/counterpart';
 
 const modalIsOpen = ref(false)
 const route = useRoute()
 const router = useRouter()
-const purchasesStore = usePurchasesStore()
-const salesStore = useSalesStore()
-const purchasesApi = usePurchasesApi()
-const { purchases } = storeToRefs(purchasesStore)
-const { sales } = storeToRefs(salesStore)
+const dealsStore = useDealsStore()
+const { deals } = storeToRefs(dealsStore)
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
 const insertState = useTypedState(Editor.INSERT_STATE)
@@ -139,14 +134,14 @@ let billDocxBlob: Blob | null = null
 watch(
   insertState,
   async (insert) => {
-    if (purchases.value.goodsDeals && insert.purchasesGood) {
-      if (purchasesStore.lastGoodsDeal) {
-        orderDocxBlob = await generateDocxOrder(purchasesStore.lastGoodsDeal)
+    if (deals && insert.purchasesGood) {
+      if (dealsStore.lastDeal?.purchases) {
+        orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.purchases)
       }
 
-    } else if (sales.value.goodsDeals && insert.salesGood) {
-      if (salesStore.lastGoodsDeal) {
-        orderDocxBlob = await generateDocxOrder(salesStore.lastGoodsDeal)
+    } else if (deals && insert.salesGood) {
+      if (dealsStore.lastDeal?.sales) {
+        orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.sales)
       }
     }
   },
@@ -234,13 +229,10 @@ const saveChanges = async (): Promise<void> => {
 
   try {
     // Сначала создаем новую версию, чтобы исходная версия осталась нетронутой для reject.
-    if (route.query.role === 'seller') {
-      await salesStore.createNewDealVersion(Number(route.query.dealId), purchasesApi)
-    } else if (route.query.role === 'buyer') {
-      await purchasesStore.createNewDealVersion(Number(route.query.dealId), purchasesApi)
-    }
+		await dealsStore.createNewDealVersion(Number(route.query.dealId))
     await saveOrder()
-    editButton()
+		editButton()
+		
     useToast().add({
       title: 'Изменения сохранены и отправлены контрагенту',
       color: 'success',
@@ -257,20 +249,20 @@ const saveChanges = async (): Promise<void> => {
 
 // cancel button
 const isCancelChanges: Ref<{
-  salesGood: boolean
-  purchasesGood: boolean
+  sales: boolean
+  purchases: boolean
 }> = ref({
-  salesGood: false,
-  purchasesGood: false,
+  sales: false,
+  purchases: false,
 })
 
 const cancelChanges = (activeTab: string) => {
   const role = route.query.role
 
   if (role === 'seller') {
-    isCancelChanges.value.salesGood = !isCancelChanges.value.salesGood  
+    isCancelChanges.value.sales = !isCancelChanges.value.sales  
   } else if (role === 'buyer') {
-    isCancelChanges.value.purchasesGood = !isCancelChanges.value.purchasesGood
+    isCancelChanges.value.purchases = !isCancelChanges.value.purchases
   }
 }
 
@@ -298,9 +290,8 @@ const reject = async () => {
   const dealId = Number(route.query.dealId)
 
   if (dealId) {
-    await purchasesApi.deleteLastDealVersion(dealId)
-    await purchasesStore.getDeals(purchasesApi)
-    await salesStore.getDeals(purchasesApi)
+    await dealsStore.deleteLastDealVersion(dealId)
+    await dealsStore.getDeals()
   }
 
 

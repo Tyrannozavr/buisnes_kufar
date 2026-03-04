@@ -23,7 +23,7 @@ export const useInsertState = () => {
   };
 };
 
-//манипуляции с состоянием кнопки вставки данных
+//манипуляции с состоянием кнопки вставки данных(редактирования???)
 export const useIsDisableState = () => {
   const disabldeState = useTypedState(Editor.IS_DISABLED, () => ref(true));
 

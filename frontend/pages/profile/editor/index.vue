@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<UTabs v-model="activeTab" color="neutral" :items="items" size="lg" variant="pill" class="max-h-[100%] overflow-y-hidden w-full" />
+		<UTabs v-model="activeTab" color="neutral" :items="items" size="lg" variant="pill" class="max-h-full overflow-y-hidden w-full" />
 
 		<div class="flex gap-3">
 			<div>
@@ -59,7 +59,7 @@
 				</template>
 			</div>
 
-			<div class="w-[23rem] justify-end">
+			<div class="w-92 justify-end">
 				<EditorMenu/>
 			</div>
 		</div>
@@ -76,10 +76,8 @@ import Invoice from '~/components/templates/Invoice.vue'
 import Act from '~/components/templates/Act.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
-import { usePurchasesStore } from '~/stores/purchases'
-import { useSalesStore } from '~/stores/sales'
+import { useDealsStore } from '~/stores/deals'
 import { useRouter } from 'vue-router'
-import { usePurchasesApi } from '~/api/purchases'
 
 definePageMeta({
   layout: 'profile'
@@ -88,12 +86,9 @@ definePageMeta({
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const route = useRoute()
 const router = useRouter()
-const purchasesStore = usePurchasesStore()
-const salesStore = useSalesStore()
-const purchasesApi = usePurchasesApi()
+const dealsStore = useDealsStore()
 
-purchasesStore.getDeals(purchasesApi)
-salesStore.getDeals(purchasesApi)
+dealsStore.getDeals()
 
 const items = [
 	{

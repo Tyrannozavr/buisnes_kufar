@@ -90,8 +90,7 @@ import {
   type OrderOption,
 } from "~/types/documents";
 import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse";
-import { usePurchasesStore } from "~/stores/purchases";
-import { useSalesStore } from "~/stores/sales";
+import { useDealsStore } from "~/stores/deals";
 import { useDocxGenerator } from "~/composables/useDocxGenerator";
 import { useRoute, useRouter } from "vue-router";
 import FileViewer from "~/components/ui/File-viewer.vue";
@@ -108,8 +107,7 @@ const purchasesApi = usePurchasesApi();
 const UButton = resolveComponent("UButton");
 const USelect = resolveComponent("USelect");
 const UDropdownMenu = resolveComponent("UDropdownMenu");
-const purchasesStore = usePurchasesStore();
-const salesStore = useSalesStore();
+const dealsStore = useDealsStore();
 const { generateDocxOrder, generateDocxBill, downloadBlob } = useDocxGenerator();
 
 const dealTypeFilter = ref<DealTypeFilter>("purchases");
@@ -238,17 +236,8 @@ const loadDeals = async (): Promise<void> => {
 
 //функция, получающая данные сделки по selectedDealId из store и преобразующая их в массив объектов DocumentApiItem + генерация Blob для создания документа из таблицы
 const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem[]> => {
-  if (dealTypeFilter.value === "purchases") {
-    await purchasesStore.getDeals(purchasesApi);
-  } else if (dealTypeFilter.value === "sales") {
-    await salesStore.getDeals(purchasesApi);
-  } else {
-    return [];
-  }
-
-  const store = dealTypeFilter.value === "purchases" ? purchasesStore : salesStore;
-
-  const deal = store.findGoodsDeal(dealId);
+  await dealsStore.getDeals();
+  const deal = dealsStore.findDeal(dealId);
   if (!deal) return [];
 
   console.log('deal: ', deal);
@@ -492,8 +481,6 @@ const columns: TableColumn<DocumentTableRow>[] = [
                   query: {
                     dealId: rowData.dealId,
                     role: dealTypeFilter.value === "purchases" ? "buyer" : "seller",
-                    productType: purchasesStore.findGoodsDeal(rowData.dealId) ? "goods" : "services",
-
                   }
                 })
                 return;

@@ -14,28 +14,25 @@
 
 <script setup lang="ts">
 import type { TabsItem } from '@nuxt/ui'
-import { useSalesStore } from '~/stores/sales'
-import { usePurchasesApi } from '~/api/purchases'
+import { useDealsStore } from '~/stores/deals'
 import GoodsColumns from '~/components/table/GoodsColumns.vue'
 
 definePageMeta({
   layout: 'profile'
 })
 
-const salesStore = useSalesStore()
-const purchasesApi = usePurchasesApi()
-const { sales } = storeToRefs(salesStore)
-
-salesStore.getDeals(purchasesApi)
+const dealsStore = useDealsStore()
+dealsStore.getDeals()
+const { deals } = storeToRefs(dealsStore)
 
 const items = computed<TabsItem[]>(() => {
-  const goodsCount = sales.value.goodsDeals?.length ?? 0
+  const goodsCount = deals.value.filter(deal => deal.role === 'seller').length ?? 0
   return [
     {
       label: `Товары (${goodsCount})`,
       description: 'Закладка товары',
       slot: 'goods' as const,
-      badge: String(goodsCount)
+      // badge: String(goodsCount)
     },
   ]
 })

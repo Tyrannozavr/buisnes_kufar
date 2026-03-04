@@ -4,8 +4,8 @@ import { useInsertState, useIsDisableState} from '~/composables/useStates';
 const { activeButtons, isCancelChanges } = defineProps<{
   activeButtons: boolean
   isCancelChanges: {
-    salesGood: boolean
-    purchasesGood: boolean
+    sales: boolean
+    purchases: boolean
   }
 }>()
 
@@ -24,10 +24,10 @@ const insertLastSalesGood = (): void => {
 
 watch(() => isCancelChanges,
   () => {
-    if (isCancelChanges.salesGood) {
+    if (isCancelChanges.sales) {
       insertLastSalesGood()
     }
-    if (isCancelChanges.purchasesGood) {
+    if (isCancelChanges.purchases) {
       insertLastPurchasesGood()
     }
   }, { deep: true }

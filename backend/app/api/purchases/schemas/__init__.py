@@ -178,6 +178,11 @@ class CompanyInDealResponse(BaseModel):
         from_attributes = True
 
 
+class DealRole(str, Enum):
+    BUYER = "buyer"
+    SELLER = "seller"
+
+
 class DealResponse(BaseModel):
     """Полная схема заказа для ответа"""
     id: int
@@ -201,6 +206,11 @@ class DealResponse(BaseModel):
     others_documents: List[Any] = Field(default_factory=list, description="Прочие документы (пока пустой список)")
     created_at: datetime
     updated_at: datetime
+
+    role: Optional[DealRole] = Field(
+        default=None,
+        description="Роль текущей компании относительно сделки (buyer/seller)",
+    )
 
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)

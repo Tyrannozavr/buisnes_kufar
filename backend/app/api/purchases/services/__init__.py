@@ -3,9 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
-    DealCreate, DealUpdate, DealResponse, BuyerDealResponse,
-    SellerDealResponse, OrderItemResponse, DocumentUpload, CompanyInDealResponse,
+    DealCreate,
+    DealUpdate,
+    DealResponse,
+    BuyerDealResponse,
+    SellerDealResponse,
+    OrderItemResponse,
+    DocumentUpload,
+    CompanyInDealResponse,
     DealStatus,
+    DealRole,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -24,7 +31,7 @@ class DealService:
         from sqlalchemy.exc import IntegrityError
         try:
             order = await self.repository.create_order(deal_data, buyer_company_id)
-            return await self._order_to_deal_response(order)
+            return await self._order_to_deal_response(order, buyer_company_id)
         except IntegrityError as e:
             await self.session.rollback()
             logger.exception("Database integrity error creating deal: %s", e)
@@ -57,7 +64,7 @@ class DealService:
         order = await self.repository.get_order_by_id(deal_id, company_id)
         if not order:
             return None
-        return await self._order_to_deal_response(order)
+        return await self._order_to_deal_response(order, company_id)
 
     async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
         """Проверка существования сделки и доступа без тяжелой сериализации."""
@@ -78,7 +85,7 @@ class DealService:
             order = await self.repository.update_order(deal_id, deal_data, company_id)
             if not order:
                 return None
-            return await self._order_to_deal_response(order)
+            return await self._order_to_deal_response(order, company_id)
         except Exception as e:
             await self.session.rollback()
             logger.exception("Error updating deal: %s", e)
@@ -99,7 +106,7 @@ class DealService:
                 if updated_order:
                     order = updated_order
 
-            return await self._order_to_deal_response(order)
+            return await self._order_to_deal_response(order, company_id)
         except Exception as e:
             await self.session.rollback()
             logger.exception("Error creating new deal version: %s", e)
@@ -172,8 +179,8 @@ class DealService:
         """Получение единиц измерения"""
         return await self.repository.get_units_of_measurement()
 
-    async def _order_to_deal_response(self, order: Order) -> DealResponse:
-        """Преобразование Order в DealResponse"""
+    async def _order_to_deal_response(self, order: Order, company_id: Optional[int] = None) -> DealResponse:
+        """Преобразование Order в DealResponse с учетом роли компании (buyer/seller)"""
         logger.debug("_order_to_deal_response для заказа %s", order.id)
         
         try:
@@ -244,6 +251,13 @@ class DealService:
             closing_docs = order.closing_documents if order.closing_documents is not None else []
             others_docs = order.others_documents if order.others_documents is not None else []
 
+            role: Optional[DealRole] = None
+            if company_id is not None:
+                if company_id == order.buyer_company_id:
+                    role = DealRole.BUYER
+                elif company_id == order.seller_company_id:
+                    role = DealRole.SELLER
+
             return DealResponse(
                 id=order.id,
                 version=order.version,
@@ -266,6 +280,7 @@ class DealService:
                 others_documents=others_docs,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
+                role=role,
                 items=items,
                 buyer_company=buyer_company_info,
                 seller_company=seller_company_info

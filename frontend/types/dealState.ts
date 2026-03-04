@@ -18,7 +18,7 @@ export interface Company {
   legalAddress?: string;
 }
 
-export interface Product {
+export interface ProductItem {
   name: string;
   article: string;
   quantity: number;
@@ -27,18 +27,19 @@ export interface Product {
   amount: number;
 }
 
-export interface Goods {
-	goodsList: Product[]
+export interface Product {
+	productList: ProductItem[]
 	amountPrice: number 
 	amountWord: string
 	comments?: string 
 }
 
-export interface GoodsDeal {
+export interface Deal {
   dealId: number;
   buyerOrderNumber?: string;
   sellerOrderNumber?: string;
-  goods: Goods;
+  role?: "buyer" | "seller";
+  product: Product;
   date: string;
   seller: Company;
   buyer: Company;
@@ -53,7 +54,7 @@ export interface GoodsDeal {
   othersDocuments?: unknown[]
 }
 
-export interface EditPersonDeal {
+export interface EditPersonCompany {
   name?: string;
   mobileNumber?: string;
   companyName?: string;

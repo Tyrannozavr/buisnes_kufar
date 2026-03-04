@@ -1,11 +1,25 @@
 {
-		"git.ignoreLimitWarning": true,
-		//напиши настройки, чтобы применялись изменения пр инажатии TAB
-		"editor.tabSize": 2,
-		"editor.insertSpaces": false,
-		"editor.detectIndentation": false,
-		"editor.formatOnSave": true,
-		"editor.formatOnPaste": true,
-		"editor.formatOnType": true,
-		"editor.formatOnSaveMode": "modifications",
+	"git.ignoreLimitWarning": true,
+	//напиши настройки, чтобы применялись изменения пр инажатии TAB
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+	"editor.formatOnSave": true,
+	"editor.formatOnPaste": true,
+	"editor.formatOnType": true,
+	"editor.formatOnSaveMode": "modifications",
+
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[vue]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"prettier.semi": false,
+	"prettier.trailingComma": "none",
+	"prettier.useTabs": true,
+	"prettier.tabWidth": 1
 }

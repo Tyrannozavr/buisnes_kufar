@@ -1,16 +1,16 @@
-import { usePurchasesStore } from "~/stores/purchases";
+import { useDealsStore } from "~/stores/deals"
 
 export default defineNuxtPlugin(() => {
-  const purchasesStore = usePurchasesStore();
-  const { purchases } = storeToRefs(purchasesStore);
+	const dealsStore = useDealsStore()
+	const { deals } = storeToRefs(dealsStore)
 
-  watch(
-    () => purchases,
-    () => {
-      purchasesStore.amountInGoodsList();
-      purchasesStore.amountPriceInGoods();
-      purchasesStore.amountWordGoods();
-    },
-    { immediate: true, deep: true }
-  );
-});
+	watch(
+		() => deals,
+		() => {
+			dealsStore.amountPriceInProduct()
+			dealsStore.amountPriceInProductItem()
+			dealsStore.amountWordProduct()
+		},
+		{ immediate: true, deep: true }
+	)
+})

@@ -63,8 +63,8 @@ export interface DealUpdate {
 }
 
 export interface DealResponse {
-  id: number;
-  version: number;
+	id: number;
+	role: "buyer" | "seller";
   buyer_company_id: number;
   seller_company_id: number;
   buyer_order_number: string;
@@ -84,7 +84,7 @@ export interface DealResponse {
   others_documents: unknown[];
   created_at: string;
   updated_at: string;
-  items: [ProductResponse[]];
+  items: ProductResponse[];
   buyer_company: CompanyInDealResponse;
   seller_company: CompanyInDealResponse;
 }

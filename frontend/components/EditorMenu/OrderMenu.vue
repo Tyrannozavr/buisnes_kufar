@@ -1,13 +1,13 @@
 <template>
 	<div class="flex flex-col gap-2">
 		<UButton label="СЧЕТ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-			:disabled="activeButtons" @click="createBill()" />
+			:disabled="!isDisabled" @click="createBill()" />
 		<UButton label="ДОГОВОР ПОСТАВКИ на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-			:disabled="activeButtons" @click="createSupplyContract()" />
+			:disabled="!isDisabled" @click="createSupplyContract()" />
     <UButton label="ДОГОВОР на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-      :disabled="activeButtons" @click="createContract()" />
+      :disabled="!isDisabled" @click="createContract()" />
 		<UButton label="Сопроводительные документы на основании" color="neutral" variant="subtle" icon="i-lucide-file-plus"
-			:disabled="activeButtons" @click="inDevelopment()" />
+			:disabled="!isDisabled" @click="inDevelopment()" />
 	</div>
 </template>
 
@@ -20,9 +20,9 @@ const route = useRoute()
 const router = useRouter()
 const { createBill: createBillApi, createSupplyContract: createSupplyContractApi, createContract: createContractApi } = usePurchasesApi()
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 defineProps<{
-	activeButtons: boolean
 	inDevelopment: () => any
 }>()
 

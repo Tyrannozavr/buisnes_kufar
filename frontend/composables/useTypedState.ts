@@ -1,12 +1,6 @@
 //From constant/keys
-interface RequestedType {
-	purchasesGood: boolean
-	salesGood: boolean
-}
-
 interface StateMap {
   //Editor
-  insertState: RequestedType;
   saveStateOrder: boolean;
   isDisabled: boolean;
   clearState: boolean;

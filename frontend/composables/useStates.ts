@@ -1,46 +1,6 @@
 import { Editor } from "~/constants/keys";
 import { useTypedState } from "~/composables/useTypedState";
 
-export const useInsertState = () => {
-  const insertState = useState(Editor.INSERT_STATE, () =>
-    ref({
-      purchasesGood: false,
-      salesGood: false,
-    })
-  );
-
-  const statePurchasesGood = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.purchasesGood = newVal));
-  };
-
-  const stateSalesGood = (newVal: boolean): void => {
-    nextTick(() => (insertState.value.salesGood = newVal));
-  };
-
-  return {
-    statePurchasesGood,
-    stateSalesGood,
-  };
-};
-
-//манипуляции с состоянием кнопки вставки данных(редактирования???)
-export const useIsDisableState = () => {
-  const disabldeState = useTypedState(Editor.IS_DISABLED, () => ref(true));
-
-  const reversDisable = (): void => {
-    disabldeState.value = !disabldeState.value;
-  };
-
-  const doubleReversDisable = (): void => {
-    reversDisable();
-    nextTick(() => reversDisable());
-  };
-
-  return {
-    reversDisable,
-    doubleReversDisable,
-  };
-};
 
 export const useClearState = () => {
   const clearState = useTypedState(Editor.CLEAR_STATE, () => ref(false));

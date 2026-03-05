@@ -1,34 +1,33 @@
 <script setup lang="ts">
-import { useInsertState, useIsDisableState} from '~/composables/useStates';
+import { useRouter, useRoute } from 'nuxt/app'; 
+import { Editor } from '~/constants/keys';
 
-const { activeButtons, isCancelChanges } = defineProps<{
-  activeButtons: boolean
+const router = useRouter()
+const route = useRoute()
+const isDisabled = useTypedState(Editor.IS_DISABLED)
+
+const { isCancelChanges } = defineProps<{
   isCancelChanges: {
     sales: boolean
     purchases: boolean
   }
 }>()
 
-const { statePurchasesGood, stateSalesGood } = useInsertState()
-const { doubleReversDisable } = useIsDisableState()
-
-const insertLastPurchasesGood = (): void => {
-  statePurchasesGood(true)
-  doubleReversDisable()
+const insertLastPurchases = (): void => {
+	router.replace({ query: { ...route.query, role: 'buyer' } })
 }
 
-const insertLastSalesGood = (): void => {
-  stateSalesGood(true)
-  doubleReversDisable()
+const insertLastSales = (): void => {
+	router.replace({ query: { ...route.query, role: 'seller' } })
 }
 
 watch(() => isCancelChanges,
   () => {
     if (isCancelChanges.sales) {
-      insertLastSalesGood()
+      insertLastSales()
     }
     if (isCancelChanges.purchases) {
-      insertLastPurchasesGood()
+      insertLastPurchases()
     }
   }, { deep: true }
 )
@@ -38,17 +37,17 @@ watch(() => isCancelChanges,
   <div class="w-full">
     <UCollapsible>
       <UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center"
-        :disabled="activeButtons" />
+        :disabled="!isDisabled" />
 
       <template #content>
         <div class="flex gap-2 mt-4 justify-center">
           <div class="w-1/2">
             <UButton label="Последняя закупка" color="neutral" variant="subtle" class="w-full justify-center py-2"
-              @click="insertLastPurchasesGood" />
+              @click="insertLastPurchases" />
           </div>
           <div class="w-1/2">
             <UButton label="Последняя продажа" color="neutral" variant="subtle" class="w-full justify-center py-2"
-              @click="insertLastSalesGood" />
+              @click="insertLastSales" />
           </div>
         </div>
       </template>

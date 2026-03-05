@@ -12,10 +12,10 @@
 
       <div v-else class="flex flex-col justify-between gap-5">
 
-        <InsertButtons :activeButtons="activeButtons" :isCancelChanges="isCancelChanges" />
+        <InsertButtons :isCancelChanges="isCancelChanges" />
 
         <div v-if="activeTab === '0'">
-          <OrderMenu :activeButtons :inDevelopment />
+          <OrderMenu :inDevelopment />
         </div>
 
         <div v-if="activeTab === '1'">
@@ -38,15 +38,15 @@
           </UCollapsible>
 
           <UButton label="Печать" @click="printCurrentDocument(activeTab, orderElement)" icon="i-lucide-printer"
-            class="p-1 w-[97px] h-10 text-sm" :disabled="activeButtons" />
+            class="p-1 w-[97px] h-10 text-sm" :disabled="!isDisabled" />
           <UButton label="DOC" @click="downloadCurrentDocxBlob(activeTab)" icon="i-lucide-dock"
-            class="p-1 w-[81px] h-10 text-sm" :disabled="activeButtons" />
+            class="p-1 w-[81px] h-10 text-sm" :disabled="!isDisabled" />
           <UButton label="PDF" @click="downloadCurrentPdf(activeTab, orderElement)" icon="i-lucide-dock"
-            class="p-1 w-[77px] h-10 text-sm" :disabled="activeButtons" />
+            class="p-1 w-[77px] h-10 text-sm" :disabled="!isDisabled" />
         </div>
 
         <div class="flex flex-col gap-2">
-          <UButton :disabled="activeButtons" @click="editButton()" label="Редактировать" icon="i-lucide-file-pen"
+          <UButton :disabled="!isDisabled" @click="editButton()" label="Редактировать" icon="i-lucide-file-pen"
             color="neutral" variant="subtle" class="active:bg-green-500" />
 
           <div class="flex gap-2">
@@ -71,17 +71,17 @@
         <div class="flex flex-col gap-2 text-center ">
           <p>Фото/Сканы документа</p>
           <UButton label="Выберите файл" icon="i-lucide-folder-search" color="neutral" variant="subtle" size="xl"
-            class="justify-center" :disabled="activeButtons" @click="inDevelopment()" />
+            class="justify-center" :disabled="!isDisabled" @click="inDevelopment()" />
         </div>
 
-        <div v-if="activeButtons" class="">
+        <div v-if="!isDisabled" class="">
           <UButton label="Отменить изменения" size="lg" class="w-full justify-center" color="neutral" variant="subtle"
-            :disabled="!activeButtons" @click="cancelChanges(activeTab), editButton()" />
+            :disabled="isDisabled" @click="cancelChanges(activeTab), editButton()" />
         </div>
 
         <div class="flex flex-row justify-between">
           <UButton label="Отправить контрагенту и сохранить" size="xl" class="w-full justify-center"
-          :disabled="!activeButtons || activeTab !== '0'" 
+          :disabled="isDisabled" 
           @click="
             saveChanges(),
             sendMessageToCounterpart(Number(route.query.dealId), route.query.role as 'buyer' | 'seller', counterpartData as CounterpartData)"
@@ -101,7 +101,7 @@ import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
 import { useDealsStore } from '~/stores/deals';
 import { Editor, TemplateElement } from '~/constants/keys';
-import { useIsDisableState, useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
+import { useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
 import { useRoute } from 'vue-router';
 import { getCounterpartData, sendMessageToCounterpart } from '~/utils/counterpart';
 import type { CounterpartData } from '~/utils/counterpart';
@@ -113,7 +113,7 @@ const dealsStore = useDealsStore()
 const { deals } = storeToRefs(dealsStore)
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
-const insertState = useTypedState(Editor.INSERT_STATE)
+const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 
 const inDevelopment = () => {
   const toast = useToast()
@@ -132,14 +132,14 @@ let billDocxBlob: Blob | null = null
 
 //присвоение корректного Blob в зависимости от выбранной сделки
 watch(
-  insertState,
-  async (insert) => {
-    if (deals && insert.purchasesGood) {
+  route.query,
+  async () => {
+    if (deals && route.query.dealType === 'purchases') {
       if (dealsStore.lastDeal?.purchases) {
         orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.purchases)
       }
 
-    } else if (deals && insert.salesGood) {
+    } else if (deals && route.query.dealType === 'sales') {
       if (dealsStore.lastDeal?.sales) {
         orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.sales)
       }
@@ -195,12 +195,9 @@ const searchInCurrentDocument = (activeTab: string, orderElement: HTMLElement | 
 }
 
 //Button edit
-const { reversDisable, doubleReversDisable } = useIsDisableState()
-const activeButtons: Ref<boolean> = ref(false)
 
 const editButton = () => {
-  reversDisable()
-  activeButtons.value = !activeButtons.value
+  isDisabled.value = !isDisabled.value
 }
 
 //Button clearForm

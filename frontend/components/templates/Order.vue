@@ -2,8 +2,7 @@
 import type { OrderData, ProductsInOrder } from '~/types/order';
 import { useDealsStore } from '~/stores/deals';
 import type { Deal, ProductItem } from '~/types/dealState';
-import { Editor, RequestedType, TemplateElement } from '~/constants/keys';
-import { useInsertState } from '~/composables/useStates';
+import { Editor, TemplateElement } from '~/constants/keys';
 import { normalizeDate } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
@@ -14,18 +13,15 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const dealsStore = useDealsStore()
-const { deals } = storeToRefs(dealsStore)
-const { statePurchasesGood, stateSalesGood } = useInsertState()
 
 const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
-const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 
 const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
-const insertState = useTypedState(Editor.INSERT_STATE)
 const deal: Ref<Deal | undefined> = ref(undefined) //сделка для заполнения формы
 let requestedData = ''
 
@@ -54,9 +50,9 @@ const fillQuery = () => {
   }
 
   if (userStore.companyId === orderData.value.buyer.companyId) {
-    query.role = 'buyer'
+		query.role = 'buyer'
   } else if (userStore.companyId === orderData.value.seller.companyId) {
-    query.role = 'seller'
+		query.role = 'seller'
   }
 
   router.replace({
@@ -98,7 +94,7 @@ const fillOrderData = () => {
     }
 
     orderData.value = {
-      orderNumber: requestedData === RequestedType.PURCHASES_GOOD ? deal.value.buyerOrderNumber || '' : deal.value.sellerOrderNumber || '',
+      orderNumber: route.query.role === 'buyer' ? deal.value.buyerOrderNumber || '' : deal.value.sellerOrderNumber || '',
       dealId: deal.value.dealId,
       orderDate: deal.value.date,
       comments: deal.value.product.comments,
@@ -114,16 +110,10 @@ const fillOrderData = () => {
 
 //заполнение формы по данным сделки из query
 const fillFromQuery = () => {
-  const query = route.query
-  if (!query?.dealId || !query?.role) return
+	const query = route.query
+	if (!query?.dealId || !query?.role || !query?.dealType) return
 
 	deal.value = dealsStore.findDeal(Number(query.dealId)) ?? undefined
-
-  if (query.role === 'buyer') {
-    requestedData = RequestedType.PURCHASES_GOOD
-  } else if (query.role === 'seller') {
-    requestedData = RequestedType.SALES_GOOD
-	}
 
 	fillOrderData()
 }
@@ -138,29 +128,22 @@ watch(
   { immediate: true, deep: true }
 )
 
-//присвоение конкретного состояния и значений,в зависимости от выбранного типа заполнения данных через меню
-watch(() => insertState.value,
+//присвоение конкретной сделки в зависимости от нажатой кнопки в меню "заполненить данными"
+watch(() => [
+	route.query.role,
+	dealsStore.deals?.length ?? 0,
+],
 	() => {
-    const toast = useToast()
-    
-		if (insertState.value.purchasesGood) {
-			requestedData = RequestedType.PURCHASES_GOOD
+		if (route.query.role === 'buyer') {
 			deal.value = dealsStore.lastDeal?.purchases ?? undefined
-			statePurchasesGood(false)
-			if (!deal.value) {
-				toast.add({ title: 'Нет данных', description: 'Нет последней закупки по товарам. Сначала откройте заказ из раздела «Мои закупки».', color: 'warning' })
-			}
-		} else if (insertState.value.salesGood) {
-			requestedData = RequestedType.SALES_GOOD
+
+		} else if (route.query.role === 'seller') {
 			deal.value = dealsStore.lastDeal?.sales ?? undefined
-			stateSalesGood(false)
-			if (!deal.value) {
-				toast.add({ title: 'Нет данных', description: 'Нет последней продажи по товарам. Сначала откройте заказ из раздела «Мои продажи».', color: 'warning' })
-			}
+
 		} 
 		fillOrderData()
 	},
-	{ deep: true }
+	{ immediate: true, deep: true }
 )
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
@@ -169,7 +152,7 @@ watch(() => saveState.value,
     if (!saveState.value) return
 		const dealId = orderData.value.dealId
 
-		if (requestedData === RequestedType.PURCHASES_GOOD) {
+		if (route.query.role === 'buyer') {
 			await dealsStore.fullUpdateDeal(
 				dealId,
 				orderData.value.seller,
@@ -178,7 +161,7 @@ watch(() => saveState.value,
 				orderData.value.comments)
 			orderData.value.amount = dealsStore?.lastDeal?.purchases?.product.amountPrice
 			orderData.value.amountWord = dealsStore?.lastDeal?.purchases?.product.amountWord
-		} else if (requestedData === RequestedType.SALES_GOOD) {
+		} else if (route.query.role === 'seller') {
 			await dealsStore.fullUpdateDeal(
 				dealId,
 				orderData.value.seller,

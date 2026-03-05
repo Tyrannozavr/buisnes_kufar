@@ -9,13 +9,8 @@ export const injectionKeys = {
 	>,
 }
 
-export const enum RequestedType {
-	PURCHASES_GOOD = 'purchasesGood',
-	SALES_GOOD = 'salesGood',
-}
 
 export const enum Editor {
-	INSERT_STATE = 'insertState',
 	SAVE_STATE_ORDER = 'saveStateOrder',
 	IS_DISABLED = 'isDisabled',
 	CLEAR_STATE = 'clearState',

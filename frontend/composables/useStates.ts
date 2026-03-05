@@ -1,7 +1,6 @@
 import { Editor } from "~/constants/keys";
 import { useTypedState } from "~/composables/useTypedState";
 
-
 export const useClearState = () => {
   const clearState = useTypedState(Editor.CLEAR_STATE, () => ref(false));
 
@@ -13,7 +12,6 @@ export const useClearState = () => {
     applyClearState,
   };
 };
-
 
 export const useSaveState = () => {
   const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () => ref(false));

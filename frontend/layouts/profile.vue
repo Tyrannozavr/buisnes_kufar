@@ -62,34 +62,28 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
         },
         {
           label: 'Документы',
-          icon: 'i-heroicons-document',
+          icon: 'i-heroicons-document-text',
           to: '/profile/documents',
           active: route.path === '/profile/documents'
         },
         {
           label: 'Редактор документов',
-          icon: 'i-heroicons-document-text',
+          icon: 'i-heroicons-pencil-square',
           to: '/profile/editor',
           active: route.path === '/profile/editor'
         },
         {
-          label: 'Продажи',
-          icon: 'i-heroicons-currency-dollar',
-          to: '/profile/sales',
-          active: route.path === '/profile/sales'
-        },
-        {
-          label: 'Закупки',
+          label: 'Товары',
           icon: 'i-heroicons-shopping-bag',
-          to: '/profile/purchases',
-          active: route.path === '/profile/purchases'
+          to: '/profile/deals',
+          active: route.path === '/profile/deals'
         }
       ],
-      [
-        {
-          label: 'Коммуникации',
-          type: 'label'
-        },
+			[
+				{
+					label: 'Управление',
+					type: 'label'
+				},
         {
           label: 'Сообщения',
           icon: 'i-heroicons-chat-bubble-left-right',
@@ -140,7 +134,7 @@ const alternativeLayout = () =>
 					<slot />
 				</div>
 				<!-- Navigation Sidebar -->
-				<div class="w-128 md:w-full flex-shrink-0 order-1">
+				<div class="w-lg md:w-full shrink-0 order-1">
 					<!-- <UNavigationMenu arrow orientation="horizontal" content-orientation="vertical" :items="alternativeNavigationItems" /> -->
 				</div>
 			</div>
@@ -151,7 +145,7 @@ const alternativeLayout = () =>
 					<slot />
 				</div>
 				<!-- Navigation Sidebar -->
-				<div class="w-full md:w-64 flex-shrink-0 md:pl-0 md:pr-4">
+				<div class="w-full md:w-64 shrink-0 md:pl-0 md:pr-4">
 					<UCard class="sticky top-8 md:w-64 w-full">
 						<UNavigationMenu orientation="vertical" :items="navigationItems"
 							class="data-[orientation=vertical]:w-full" />

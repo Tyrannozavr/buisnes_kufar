@@ -1,10 +1,14 @@
 <template>
   <div class="max-w-full">
     <div class="bg-white shadow rounded-lg pt-4">
-      <h2 class="text-lg font-medium text-gray-900 mb-2 ml-4">Продажи</h2>
+      <h2 class="text-lg font-medium text-gray-900 mb-2 ml-4">Товары</h2>
 
       <UTabs :items="items" variant="link">
-        <template #goods>
+        <template #purchases>
+          <GoodsColumns :type="'purchases'" />
+        </template>
+
+				<template #sales>
           <GoodsColumns :type="'sales'" />
         </template>
       </UTabs>
@@ -26,15 +30,19 @@ dealsStore.getDeals()
 const { deals } = storeToRefs(dealsStore)
 
 const items = computed<TabsItem[]>(() => {
-  const goodsCount = deals.value.filter(deal => deal.role === 'seller').length ?? 0
+  const purchasesCount = deals.value.filter(deal => deal.role === 'buyer').length ?? 0
+  const salesCount = deals.value.filter(deal => deal.role === 'seller').length ?? 0
   return [
     {
-      label: `Товары (${goodsCount})`,
+      label: `Закупки (${purchasesCount})`,
       description: 'Закладка товары',
-      slot: 'goods' as const,
-      // badge: String(goodsCount)
+      slot: 'purchases' as const,
+		},
+		  {
+      label: `Продажи (${salesCount})`,
+      description: 'Закладка товары',
+      slot: 'sales' as const,
     },
   ]
 })
-
 </script>

@@ -3,7 +3,6 @@ import { useRouter, useRoute } from 'nuxt/app';
 import { Editor } from '~/constants/keys';
 
 const router = useRouter()
-const route = useRoute()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const { isCancelChanges } = defineProps<{
@@ -14,11 +13,11 @@ const { isCancelChanges } = defineProps<{
 }>()
 
 const insertLastPurchases = (): void => {
-	router.replace({ query: { ...route.query, role: 'buyer' } })
+	router.replace({ query: { role: 'buyer' } })
 }
 
 const insertLastSales = (): void => {
-	router.replace({ query: { ...route.query, role: 'seller' } })
+	router.replace({ query: { role: 'seller' } })
 }
 
 watch(() => isCancelChanges,

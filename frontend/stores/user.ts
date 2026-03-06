@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import { useAuthApi } from "~/api/auth";
 import { useDealsStore } from "~/stores/deals";
+import { useQueryCache } from "@pinia/colada";
 
 interface UserState {
   isAuthenticated: boolean
@@ -91,6 +92,9 @@ export const useUserStore = defineStore('user', {
       // Clear deals store
       const dealsStore = useDealsStore()
 			dealsStore.clearStore()
+
+			const queryCache = useQueryCache()
+			queryCache.invalidateQueries({}, 'all')
 
       console.log('✅ Logout completed - cookie, localStorage and stores cleared')
     }

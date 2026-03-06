@@ -189,7 +189,7 @@ const messageToSaller = async (companyId: number, product: ProductInCheckout[]):
 		if (!chatData?.id) return
     const productList = product.map((p) => p.productName).join(', ')
 
-    const resolvedDealRoute = router.resolve({ path: '/profile/sales' })
+    const resolvedDealRoute = router.resolve({ path: '/profile/deals' })
     const reviewUrl = process.client
       ? new URL(resolvedDealRoute.href, window.location.origin).toString()
       : resolvedDealRoute.href
@@ -213,7 +213,7 @@ const showToast = () => {
 			label: 'Перейти к закупкам',
 			color: 'success',
 			variant: 'link',
-			to: '/profile/purchases'
+			to: '/profile/deals'
 		}]
 	}
 	)

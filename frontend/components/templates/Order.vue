@@ -111,7 +111,7 @@ const fillOrderData = () => {
 //заполнение формы по данным сделки из query
 const fillFromQuery = () => {
 	const query = route.query
-	if (!query?.dealId || !query?.role || !query?.dealType) return
+	if (!query?.dealId || !query?.role) return
 
 	deal.value = dealsStore.findDeal(Number(query.dealId)) ?? undefined
 
@@ -128,23 +128,6 @@ watch(
   { immediate: true, deep: true }
 )
 
-//присвоение конкретной сделки в зависимости от нажатой кнопки в меню "заполненить данными"
-watch(() => [
-	route.query.role,
-	dealsStore.deals?.length ?? 0,
-],
-	() => {
-		if (route.query.role === 'buyer') {
-			deal.value = dealsStore.lastDeal?.purchases ?? undefined
-
-		} else if (route.query.role === 'seller') {
-			deal.value = dealsStore.lastDeal?.sales ?? undefined
-
-		} 
-		fillOrderData()
-	},
-	{ immediate: true, deep: true }
-)
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
 watch(() => saveState.value,

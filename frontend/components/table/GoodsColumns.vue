@@ -27,8 +27,9 @@ const purchasesApi = usePurchasesApi()
 
 const dealsStore = useDealsStore()
 const { deals } = storeToRefs(dealsStore)
+const list = deals?.value ?? []
 
-const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? deals.value.filter(deal => deal.role === 'buyer') : deals.value.filter(deal => deal.role === 'seller'))
+const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? list.filter(deal => deal.role === 'buyer') : list.filter(deal => deal.role === 'seller'))
 const purchasesTable: Ref<BuyerTableItems[]> = ref([])
 const salesTable: Ref<SellerTableItems[]> = ref([])
 

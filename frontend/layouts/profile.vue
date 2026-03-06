@@ -114,8 +114,7 @@ const pageTitle = computed(() => {
 
 // Полноширинный контент без бокового меню: Закупки, Продажи и Редактор документов
 const alternativeLayout = () =>
-  route.name === 'profile-purchases' ||
-  route.name === 'profile-sales' ||
+  route.path === '/profile/deals' ||
   route.path === '/profile/editor'
 
 </script>

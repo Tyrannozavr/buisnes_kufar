@@ -5,34 +5,134 @@ import type {
 	DealResponse,
 	DealUpdate,
 	OrderItemUpdate,
-	ProductResponse
+	ProductResponse,
+	SellerDealResponse
 } from "~/types/dealResponse"
 import numberToWordsRuPkg from "number-to-words-ru"
 import { usePurchasesApi } from "~/api/purchases"
+import {
+	buyerDealsQuery,
+	sellerDealsQuery,
+	dealByIdQuery
+} from "~/queries/purchases"
+import { useQueryCache } from "@pinia/colada"
+import { QueryKeys } from "~/constants/queryKeys"
 
 const numberToWordsRu = numberToWordsRuPkg.convert
 
 export const useDealsStore = defineStore("deals", () => {
 	const deals = ref<Deal[]>([])
 
-	const lastDeal = computed<{
-		sales: Deal | undefined,
-		purchases: Deal | undefined
-	} | undefined>(() => {
+	const queryCache = useQueryCache()
+	const { data: buyerDeals, refresh: refreshBuyerDeals } = useQuery(() =>
+		buyerDealsQuery({})
+	)
+	const { data: sellerDeals, refresh: refreshSellerDeals } = useQuery(() =>
+		sellerDealsQuery({})
+	)
+	const loadingIds = ref(new Set<number>())
+	const isDealLoading = computed(() => loadingIds.value.size > 0)
+
+	const useDealByIdQuery = (dealId: number) => {
+		loadingIds.value.add(dealId)
+		const { data, status } = useQuery(() => dealByIdQuery({ dealId }))
+
+		watch(
+			status,
+			() => {
+				if (status.value === "success") {
+					loadingIds.value.delete(dealId)
+				}
+			},
+			{ deep: true, immediate: true }
+		)
+
+		watch(
+			data,
+			(newData) => {
+				if (newData) {
+					addNewDeal(responseToDeal(newData as DealResponse))
+				}
+			},
+			{ deep: true, immediate: true }
+		)
+	}
+
+	const runDealByIdForList = (
+		list: BuyerDealResponse[] | SellerDealResponse[] | undefined
+	) => {
+		list?.forEach((deal) => useDealByIdQuery(deal.id))
+	}
+
+	watch(buyerDeals, runDealByIdForList, { deep: true, immediate: true })
+	watch(sellerDeals, runDealByIdForList, { deep: true, immediate: true })
+
+	const refreshDeals = () => {
+		refreshBuyerDeals()
+		refreshSellerDeals()
+	}
+
+	const lastDeal = computed<
+		| {
+				sales: Deal | undefined
+				purchases: Deal | undefined
+		  }
+		| undefined
+	>(() => {
 		if (!deals.value?.[0]) return undefined
 
 		let maxDealIdSales = 0
 		let maxDealIdPurchases = 0
 
 		deals.value?.forEach((deal) => {
-			if (deal.dealId > maxDealIdSales && deal.role === "seller") maxDealIdSales = deal.dealId
-			if (deal.dealId > maxDealIdPurchases && deal.role === "buyer") maxDealIdPurchases = deal.dealId
+			if (deal.dealId > maxDealIdSales && deal.role === "seller")
+				maxDealIdSales = deal.dealId
+			if (deal.dealId > maxDealIdPurchases && deal.role === "buyer")
+				maxDealIdPurchases = deal.dealId
 		})
 
 		return {
 			sales: deals.value?.find((deal) => deal.dealId === maxDealIdSales),
 			purchases: deals.value?.find((deal) => deal.dealId === maxDealIdPurchases)
 		}
+	})
+
+	const amountPriceInProductItem = () => {
+		deals.value?.forEach((deal) => {
+			deal.product.productList?.forEach((p: ProductItem) => {
+				p.amount = p.price * p.quantity
+			})
+		})
+	}
+
+	const amountPriceInProduct = () => {
+		deals.value?.forEach((deal) => {
+			deal.product.amountPrice = Number(
+				deal.product.productList?.reduce(
+					(acc: number, p: ProductItem) => p.amount + acc,
+					0
+				)
+			)
+		})
+	}
+
+	const amountWordProduct = () => {
+		deals.value?.forEach((deal) => {
+			deal.product.amountWord = numberToWordsRu(deal.product.amountPrice, {
+				showNumberParts: {
+					fractional: false
+				},
+				showCurrency: {
+					integer: false
+				}
+			})
+		})
+	}
+
+	watchEffect(() => {
+		amountPriceInProductItem()
+		amountPriceInProduct()
+		amountWordProduct()
 	})
 
 	const findDeal = (dealId: number) => {
@@ -83,40 +183,13 @@ export const useDealsStore = defineStore("deals", () => {
 		}
 	}
 
-	const amountPriceInProductItem = () => {
-		deals.value?.forEach((deal) => {
-			deal.product.productList?.forEach((p: ProductItem) => {
-				p.amount = p.price * p.quantity
-			})
-		})
-	}
-
-	const amountPriceInProduct = () => {
-		deals.value?.forEach((deal) => {
-			deal.product.amountPrice = Number(
-				deal.product.productList?.reduce(
-					(acc: number, p: ProductItem) => p.amount + acc,
-					0
-				)
-			)
-		})
-	}
-
-	const amountWordProduct = () => {
-		deals.value?.forEach((deal) => {
-			deal.product.amountWord = numberToWordsRu(deal.product.amountPrice, {
-				showNumberParts: {
-					fractional: false
-				},
-				showCurrency: {
-					integer: false
-				}
-			})
-		})
-	}
-
-	const findDealByDealNumber = (dealNumber: string, role: "seller" | "buyer") => {
-		return deals.value?.find((d) => d.buyerOrderNumber === dealNumber && d.role === role)
+	const findDealByDealNumber = (
+		dealNumber: string,
+		role: "seller" | "buyer"
+	) => {
+		return deals.value?.find(
+			(d) => d.buyerOrderNumber === dealNumber && d.role === role
+		)
 	}
 
 	const addNewProduct = (dealId: number, newProduct: ProductItem) => {
@@ -175,6 +248,7 @@ export const useDealsStore = defineStore("deals", () => {
 		if (index !== -1 && typeof index !== "undefined") {
 			deals.value?.splice(index, 1)
 			deleteDealById(dealId)
+			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
 		}
 	}
 
@@ -230,25 +304,6 @@ export const useDealsStore = defineStore("deals", () => {
 		}
 	}
 
-	const getDeals = async () => {
-		await clearStore()
-
-		const { getDealById, getBuyerDeals } = usePurchasesApi()
-		const buyerDeals = await getBuyerDeals()
-
-		const dealsIds: number[] = [
-			...new Set(
-				(buyerDeals?.map((deal: BuyerDealResponse) => deal.id) ?? []) as number[]
-			)
-		]
-
-		for (const dealId of dealsIds) {
-			const dealResponse = await getDealById(dealId)
-			if (!dealResponse) continue
-			addNewDeal(responseToDeal(dealResponse))
-		}
-	}
-
 	const createNewDealVersion = async (dealId: number) => {
 		const { createNewDealVersion } = usePurchasesApi()
 		const body = createBodyForUpdate(dealId)
@@ -267,9 +322,6 @@ export const useDealsStore = defineStore("deals", () => {
 		newProductList: ProductItem[],
 		comments?: string
 	) => {
-		amountPriceInProductItem()
-		amountPriceInProduct()
-		amountWordProduct()
 		editSellerCompany(dealId, seller)
 		editBuyerCompany(dealId, buyer)
 		editProductList(dealId, newProductList)
@@ -288,12 +340,15 @@ export const useDealsStore = defineStore("deals", () => {
 
 	return {
 		deals,
+		useDealByIdQuery,
+		isDealLoading,
+		refreshDeals,
+		responseToDeal,
 		findDealByDealNumber,
 		findDeal,
 		lastDeal,
 		createBodyForUpdate,
 		clearStore,
-		getDeals,
 		createNewDealVersion,
 		deleteLastDealVersion,
 		addNewDeal,

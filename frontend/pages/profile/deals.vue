@@ -26,13 +26,13 @@ definePageMeta({
 })
 
 const dealsStore = useDealsStore()
-dealsStore.getDeals()
 const { deals } = storeToRefs(dealsStore)
 
 const items = computed<TabsItem[]>(() => {
-  const purchasesCount = deals.value.filter(deal => deal.role === 'buyer').length ?? 0
-  const salesCount = deals.value.filter(deal => deal.role === 'seller').length ?? 0
-  return [
+	const list = deals?.value ?? []
+	const purchasesCount = list.filter(deal => deal.role === 'buyer').length
+	const salesCount = list.filter(deal => deal.role === 'seller').length
+	return [
     {
       label: `Закупки (${purchasesCount})`,
       description: 'Закладка товары',

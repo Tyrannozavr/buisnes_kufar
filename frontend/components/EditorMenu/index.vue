@@ -288,7 +288,7 @@ const reject = async () => {
 
   if (dealId) {
     await dealsStore.deleteLastDealVersion(dealId)
-    await dealsStore.getDeals()
+    // await dealsStore.getDeals()
   }
 
 

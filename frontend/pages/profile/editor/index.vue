@@ -88,7 +88,9 @@ const route = useRoute()
 const router = useRouter()
 const dealsStore = useDealsStore()
 
-dealsStore.getDeals()
+onMounted(() => {
+	dealsStore.refreshDeals()
+})
 
 const items = [
 	{

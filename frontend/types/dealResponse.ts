@@ -64,6 +64,7 @@ export interface DealUpdate {
 
 export interface DealResponse {
 	id: number;
+	version: number;
 	role: "buyer" | "seller";
   buyer_company_id: number;
   seller_company_id: number;

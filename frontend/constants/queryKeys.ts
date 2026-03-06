@@ -1,0 +1,15 @@
+export const enum QueryKeys {
+	BUYER_DEALS = 'buyer-deals',
+	SELLER_DEALS = 'seller-deals',
+	DEAL_BY_ID = 'deal-by-id',
+	UPDATE_DEAL_BY_ID = 'update-deal-by-id',
+	UNITS_OF_MEASUREMENT = 'units-of-measurement',
+	CREATE_BILL = 'create-bill',
+	CREATE_CONTRACT = 'create-contract',
+	CREATE_SUPPLY_CONTRACT = 'create-supply-contract',
+	CREATE_ORDER_FROM_CHECKOUT = 'create-order-from-checkout',
+	GET_UNITS_MEASUREMENT = 'get-units-measurement',
+	DELETE_DEAL_BY_ID = 'delete-deal-by-id',
+	CREATE_NEW_DEAL_VERSION = 'create-new-deal-version',
+	DELETE_LAST_DEAL_VERSION = 'delete-last-deal-version',
+}

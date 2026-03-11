@@ -76,7 +76,7 @@ import Invoice from '~/components/templates/Invoice.vue'
 import Act from '~/components/templates/Act.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
-import { useDealsStore } from '~/stores/deals'
+import { useDeals } from '~/composables/useDeals'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
@@ -86,11 +86,9 @@ definePageMeta({
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const route = useRoute()
 const router = useRouter()
-const dealsStore = useDealsStore()
+const { getDeals } = useDeals()
 
-onMounted(() => {
-	dealsStore.refreshDeals()
-})
+getDeals()
 
 const items = [
 	{

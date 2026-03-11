@@ -1,9 +1,10 @@
 import { defineMutation, defineQueryOptions, useMutation } from "@pinia/colada";
 import { usePurchasesApi } from "~/api/purchases";
 import { QueryKeys } from "~/constants/queryKeys";
-import type { DealUpdate } from "~/types/dealResponse";
+import type { DealResponse, DealUpdate } from "~/types/dealResponse";
 import type { Buyer, ProductInCheckout } from "~/types/product";
 import { useQueryCache } from "@pinia/colada";
+import { useDeals } from "~/composables/useDeals";
 
 export const buyerDealsQuery = defineQueryOptions(
 	({ skip = 0, limit = 100 }: { skip?: number; limit?: number }) => ({
@@ -22,6 +23,13 @@ export const dealByIdQuery = defineQueryOptions(
 	({ dealId }: { dealId: number }) => ({
 		key: [QueryKeys.DEAL_BY_ID, dealId],
 		query: () => usePurchasesApi().getDealById(dealId)
+	})
+)
+
+export const dealsByIdsQuery = defineQueryOptions(
+	({ ids }: { ids: number[] }) => ({
+		key: [QueryKeys.DEALS_BY_IDS, ids],
+		query: () => usePurchasesApi().getDealsByIds(ids)
 	})
 )
 
@@ -77,7 +85,8 @@ export const useCreateSupplyContractQuery = defineMutation(() => {
 
 export const useCreateOrderFromCheckoutQuery = defineMutation(() => {
 	const queryCache = useQueryCache()
-	const { mutate, ...mutation } = useMutation({
+	const { addNewDeal } = useDeals()
+	const { mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_ORDER_FROM_CHECKOUT],
 		mutation: ({
 			products,
@@ -85,17 +94,21 @@ export const useCreateOrderFromCheckoutQuery = defineMutation(() => {
 		}: {
 			products: ProductInCheckout[];
 			buyer: Buyer;
-		}) => usePurchasesApi().createOrderFromCheckout(products, buyer),
-		onSettled: () => {
-			//TODO: существующий кэш сделок покупателя сохранить и перезаписать после пришедшего ответа с сервера
-			queryCache.refresh(queryCache.ensure(buyerDealsQuery({})))
-			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID] })
-		},
-	});
+			}) => usePurchasesApi().createOrderFromCheckout(products, buyer),
+		onSuccess: (newDeal: DealResponse) => {
+			const deal = responseToDeal(newDeal)
+			addNewDeal(deal)
+			queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
+		}
+	})
+
+	const orderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
+		await mutateAsync({ products, buyer })
+	}
 
 	return {
 		...mutation,
-		orderFromCheckout: (products: ProductInCheckout[], buyer: Buyer) => mutate({ products, buyer }),
+		orderFromCheckout,
 	}
 })
 

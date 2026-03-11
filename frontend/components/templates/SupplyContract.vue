@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TemplateElement } from '~/constants/keys'
 import { useRoute } from 'vue-router'
-import { useDealsStore } from '~/stores/deals'
+import { useDeals } from '~/composables/useDeals'
 import { normalizeDate } from '~/utils/normalize'
 import { useDocumentForm } from '~/composables/useDocumentForm'
 import { computed } from 'vue'
@@ -9,7 +9,7 @@ import { computed } from 'vue'
 const html = useTemplateRef('html')
 const htmlSupplyContract = useTypedState(TemplateElement.SUPPLY_CONTRACT, () => ref(null))
 const route = useRoute()
-const dealsStore = useDealsStore()
+const { findDeal } = useDeals()
 
 const dealId = computed(() => {
 	const q = route.query.dealId ?? route.query.deal_id
@@ -43,7 +43,7 @@ const supplyContractNumber = computed(() => {
 	if (!q?.dealId) return ''
 
 	const dealId = Number(q.dealId)
-	const deal = dealsStore.findDeal(dealId)
+	const deal = findDeal(dealId)
 
 	return deal?.supplyContractNumber ?? ''
 })
@@ -53,7 +53,7 @@ const supplyContractDateFormatted = computed(() => {
 	if (!q?.dealId) return '—'
 	const dealId = Number(q.dealId)
 
-	const deal = dealsStore.findDeal(dealId)
+	const deal = findDeal(dealId)
 	const dateStr = deal?.supplyContractDate ?? ''
 
 	return dateStr ? normalizeDate(dateStr) : '—'

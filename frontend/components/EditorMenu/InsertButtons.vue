@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useRouter } from 'nuxt/app'; 
 import { Editor } from '~/constants/keys';
-import { useDealsStore } from '~/stores/deals';
+import { useDeals } from '~/composables/useDeals';
 
-const dealsStore = useDealsStore()
 const toast = useToast()
 const router = useRouter()
+const { lastDeal } = useDeals()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const { isCancelChanges } = defineProps<{
@@ -16,7 +16,7 @@ const { isCancelChanges } = defineProps<{
 }>()
 
 const insertLastPurchases = (): void => {
-	const lastDealId = dealsStore.lastDeal?.purchases?.dealId
+	const lastDealId = lastDeal?.value?.purchases?.dealId
 	router.replace({ query: { role: 'buyer', dealId: String(lastDealId) } })
 
 	if (!lastDealId) {
@@ -29,7 +29,7 @@ const insertLastPurchases = (): void => {
 }
 
 const insertLastSales = (): void => {
-	const lastDealId = dealsStore.lastDeal?.sales?.dealId
+	const lastDealId = lastDeal?.value?.sales?.dealId
 	router.replace({ query: { role: 'seller', dealId: String(lastDealId) } })
 
 	if (!lastDealId) {

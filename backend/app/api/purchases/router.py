@@ -12,6 +12,7 @@ from app.api.purchases.dependencies import deal_service_dep_annotated
 from app.api.purchases.services import DealService
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
+    DealIdsBody,
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
@@ -131,6 +132,53 @@ async def get_seller_deals(
         ))
     
     return seller_deals
+
+
+@router.post(
+    "/deals/by-ids",
+    response_model=List[DealResponse],
+    tags=["deals", "orders", "batch"],
+    summary="Получение сделок по списку ID",
+    description="Принимает массив id в теле запроса. Возвращает массив сделок в том же формате, что и GET /deals/{deal_id}. Сделки без доступа пропускаются.",
+    responses={
+        200: {
+            "description": "Массив сделок (в том же формате, что и GET /deals/{deal_id})",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": 321,
+                            "version": 1,
+                            "buyer_company_id": 10,
+                            "seller_company_id": 20,
+                            "buyer_order_number": "00042",
+                            "seller_order_number": "00058",
+                            "status": "Активная",
+                            "total_amount": 246.9,
+                            "comments": None,
+                            "items": [],
+                            "created_at": "2026-02-19T10:00:00",
+                            "updated_at": "2026-02-19T11:00:00"
+                        }
+                    ]
+                }
+            }
+        },
+        404: {"description": "Компания пользователя не найдена"},
+    },
+)
+async def get_deals_by_ids(
+    body: DealIdsBody = Body(example={"ids": [1, 2, 3]}),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    """Получение сделок по массиву ID (последние версии)."""
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    deals = await deal_service.get_deals_by_ids(body.ids, company.id)
+    return deals
 
 
 @router.get(

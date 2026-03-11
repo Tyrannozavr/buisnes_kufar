@@ -250,13 +250,13 @@
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { Editor } from '~/constants/keys';
 import { useRoute } from 'vue-router';
-import { useDealsStore } from '~/stores/deals';
+import { useDeals } from '~/composables/useDeals';
 import { normalizeDate } from '~/utils/normalize';
 import { useDocumentForm } from '~/composables/useDocumentForm';
 import { computed } from 'vue';
 
 const route = useRoute();
-const dealsStore = useDealsStore();
+const { findDeal } = useDeals();
 
 const dealId = computed(() => {
 	const q = route.query.dealId ?? route.query.deal_id;
@@ -296,7 +296,7 @@ const billNumber = computed(() => {
   const q = route.query;
   if (!q?.dealId) return '';
   const dealId = Number(q.dealId);
-  const deal = dealsStore.findDeal(dealId);
+  const deal = findDeal(dealId);
   return deal?.billNumber ?? '';
 });
 
@@ -305,7 +305,7 @@ const billDateFormatted = computed(() => {
   if (!q?.dealId) return '—';
   const dealId = Number(q.dealId);
   let dateStr = '';
-  const deal = dealsStore.findDeal(dealId);
+  const deal = findDeal(dealId);
   dateStr = deal?.billDate ?? '';
   return dateStr ? normalizeDate(dateStr) : '—';
 });

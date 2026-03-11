@@ -90,7 +90,7 @@ import {
   type OrderOption,
 } from "~/types/documents";
 import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse";
-import { useDealsStore } from "~/stores/deals";
+import { useDeals } from "~/composables/useDeals";
 import { useDocxGenerator } from "~/composables/useDocxGenerator";
 import { useRoute, useRouter } from "vue-router";
 import FileViewer from "~/components/ui/File-viewer.vue";
@@ -107,7 +107,7 @@ const purchasesApi = usePurchasesApi();
 const UButton = resolveComponent("UButton");
 const USelect = resolveComponent("USelect");
 const UDropdownMenu = resolveComponent("UDropdownMenu");
-const dealsStore = useDealsStore();
+const { findDeal, getDeals } = useDeals();
 const { generateDocxOrder, generateDocxBill, downloadBlob } = useDocxGenerator();
 
 const dealTypeFilter = ref<DealTypeFilter>("purchases");
@@ -236,8 +236,8 @@ const loadDeals = async (): Promise<void> => {
 
 //функция, получающая данные сделки по selectedDealId из store и преобразующая их в массив объектов DocumentApiItem + генерация Blob для создания документа из таблицы
 const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem[]> => {
-  await dealsStore.getDeals();
-  const deal = dealsStore.findDeal(dealId);
+  await getDeals();
+  const deal = findDeal(dealId);
   if (!deal) return [];
 
   console.log('deal: ', deal);

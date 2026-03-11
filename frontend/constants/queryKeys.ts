@@ -1,6 +1,7 @@
 export const enum QueryKeys {
 	BUYER_DEALS = 'buyer-deals',
 	SELLER_DEALS = 'seller-deals',
+	DEALS_BY_IDS = 'deals-by-ids',
 	DEAL_BY_ID = 'deal-by-id',
 	UPDATE_DEAL_BY_ID = 'update-deal-by-id',
 	UNITS_OF_MEASUREMENT = 'units-of-measurement',

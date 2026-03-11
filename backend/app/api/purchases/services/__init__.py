@@ -66,6 +66,15 @@ class DealService:
             return None
         return await self._order_to_deal_response(order, company_id)
 
+    async def get_deals_by_ids(self, deal_ids: List[int], company_id: int) -> List[DealResponse]:
+        """Получение сделок по списку ID. Возвращает список в том же формате, что и get_deal_by_id."""
+        result: List[DealResponse] = []
+        for deal_id in deal_ids:
+            deal = await self.get_deal_by_id(deal_id, company_id)
+            if deal:
+                result.append(deal)
+        return result
+
     async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
         """Проверка существования сделки и доступа без тяжелой сериализации."""
         order = await self.repository.get_order_by_id(deal_id, company_id)

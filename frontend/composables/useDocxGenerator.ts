@@ -1,4 +1,4 @@
-import type { GoodsDeal, ServicesDeal } from "~/types/dealState";
+import type { Deal } from "~/types/dealState";
 
 export const useDocxGenerator = () => {
   const ensureClient = () => {
@@ -17,7 +17,7 @@ export const useDocxGenerator = () => {
     URL.revokeObjectURL(url);
   };
 
-  const generateDocxOrder = async (orderDealData: GoodsDeal | ServicesDeal): Promise<Blob> => {
+  const generateDocxOrder = async (orderDealData: Deal): Promise<Blob> => {
     ensureClient();
     const { generateDocxOrder: generateOrder } = await import('~/public/templates/docxOrder');
     return await generateOrder(orderDealData);

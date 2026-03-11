@@ -83,6 +83,7 @@ const companiesAndProducts: Ref<CompaniesAndProducts[]> = ref([])
 const toast = useToast()
 const router = useRouter()
 const companySlugCache = new Map<number, string>()
+const { orderFromCheckout } = useCreateOrderFromCheckoutQuery()
 
 const handleGetCompanySlug = async (companyId: number): Promise<string | null> => {
 	const cachedSlug = companySlugCache.get(companyId)
@@ -105,9 +106,8 @@ const handleCreateOrder = async (cp: CompaniesAndProducts, items: ProductInCheck
 	const companySlug = await handleGetCompanySlug(cp.companyId)
 	if (!companySlug) return
 
-	const { orderFromCheckout } = useCreateOrderFromCheckoutQuery()
 
-	orderFromCheckout(items, {
+	await orderFromCheckout(items, {
 		companyId: cp.companyId,
 		companyName: cp.companyName,
 		companySlug,

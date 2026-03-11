@@ -99,21 +99,21 @@ import BillMenu from './BillMenu.vue';
 import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { usePdfGenerator } from '~/composables/usePdfGenerator';
 import { useSearch } from '~/composables/useSearch';
-import { useDealsStore } from '~/stores/deals';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { useClearState, useSaveState, useRemoveDealState } from '~/composables/useStates';
 import { useRoute } from 'vue-router';
 import { getCounterpartData, sendMessageToCounterpart } from '~/utils/counterpart';
 import type { CounterpartData } from '~/utils/counterpart';
+import { useDeals } from '~/composables/useDeals';
 
 const modalIsOpen = ref(false)
 const route = useRoute()
 const router = useRouter()
-const dealsStore = useDealsStore()
-const { deals } = storeToRefs(dealsStore)
+const { deals, lastDeal } = useDeals()
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
+const { createNewDealVersion, deleteLastDealVersion } = useDeals()
 
 const inDevelopment = () => {
   const toast = useToast()
@@ -122,7 +122,6 @@ const inDevelopment = () => {
     icon: 'i-lucide-git-compare',
   })
 }
-
 
 //DOCX
 const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
@@ -135,13 +134,13 @@ watch(
   route.query,
   async () => {
     if (deals && route.query.dealType === 'purchases') {
-      if (dealsStore.lastDeal?.purchases) {
-        orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.purchases)
+      if (lastDeal?.value?.purchases) {
+        orderDocxBlob = await generateDocxOrder(lastDeal?.value?.purchases)
       }
 
     } else if (deals && route.query.dealType === 'sales') {
-      if (dealsStore.lastDeal?.sales) {
-        orderDocxBlob = await generateDocxOrder(dealsStore.lastDeal?.sales)
+      if (lastDeal?.value?.sales) {
+        orderDocxBlob = await generateDocxOrder(lastDeal?.value?.sales)
       }
     }
   },
@@ -226,7 +225,7 @@ const saveChanges = async (): Promise<void> => {
 
   try {
     // Сначала создаем новую версию, чтобы исходная версия осталась нетронутой для reject.
-		await dealsStore.createNewDealVersion(Number(route.query.dealId))
+		await createNewDealVersion(Number(route.query.dealId))
     await saveOrder()
 		editButton()
 		
@@ -287,8 +286,7 @@ const reject = async () => {
   const dealId = Number(route.query.dealId)
 
   if (dealId) {
-    await dealsStore.deleteLastDealVersion(dealId)
-    // await dealsStore.getDeals()
+    await deleteLastDealVersion(dealId)
   }
 
 

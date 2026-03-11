@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OrderData, ProductsInOrder } from '~/types/order';
-import { useDealsStore } from '~/stores/deals';
+import { useDeals } from '~/composables/useDeals';
 import type { Deal, ProductItem } from '~/types/dealState';
 import { Editor, TemplateElement } from '~/constants/keys';
 import { normalizeDate } from '~/utils/normalize';
@@ -11,9 +11,11 @@ import { useUserStore } from '~/stores/user';
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { deals } = useDeals()
 
-const dealsStore = useDealsStore()
 
+const { findDeal, fullUpdateDeal, lastDeal } = useDeals()
+const { deleteDeal } = useDeals()
 const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
@@ -23,7 +25,6 @@ const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
 const deal: Ref<Deal | undefined> = ref(undefined) //сделка для заполнения формы
-let requestedData = ''
 
 let products: ProductsInOrder[] = []
 let seller: OrderData['seller'] = {}
@@ -113,7 +114,7 @@ const fillFromQuery = () => {
 	const query = route.query
 	if (!query?.dealId || !query?.role) return
 
-	deal.value = dealsStore.findDeal(Number(query.dealId)) ?? undefined
+	deal.value = findDeal(Number(query.dealId)) ?? undefined
 
 	fillOrderData()
 }
@@ -122,7 +123,7 @@ const fillFromQuery = () => {
 watch(
   () => [
     route.query.dealId,
-    dealsStore.deals?.length ?? 0,
+    deals?.value?.length ?? 0,
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }
@@ -136,23 +137,23 @@ watch(() => saveState.value,
 		const dealId = orderData.value.dealId
 
 		if (route.query.role === 'buyer') {
-			await dealsStore.fullUpdateDeal(
+			await fullUpdateDeal(
 				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-			orderData.value.amount = dealsStore?.lastDeal?.purchases?.product.amountPrice
-			orderData.value.amountWord = dealsStore?.lastDeal?.purchases?.product.amountWord
+			orderData.value.amount = lastDeal?.value?.purchases?.product.amountPrice
+			orderData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord
 		} else if (route.query.role === 'seller') {
-			await dealsStore.fullUpdateDeal(
+			await fullUpdateDeal(
 				dealId,
 				orderData.value.seller,
 				orderData.value.buyer,
 				orderData.value.products,
 				orderData.value.comments)
-			orderData.value.amount = dealsStore?.lastDeal?.sales?.product.amountPrice
-			orderData.value.amountWord = dealsStore?.lastDeal?.sales?.product.amountWord
+			orderData.value.amount = lastDeal?.value?.sales?.product.amountPrice
+			orderData.value.amountWord = lastDeal?.value?.sales?.product.amountWord
 		}
 	},
 	{ deep: true }
@@ -201,14 +202,14 @@ watch(() => clearState.value,
 	{ deep: true }
 )
 
-//удаление сделки из store
+//удаление сделки из store и сервера
 const removeDeal = () => {
-	dealsStore.removeDeal(orderData.value.dealId)
+	deleteDeal(orderData.value.dealId)
 	deal.value = undefined
 	clearForm()
 }
 
-//удаление сделки из store при нажатии на кнопку удаления в меню
+//удаление сделки при нажатии на кнопку удаления в меню
 watch(() => removeDealState.value,
 	() => {
 		if (removeDealState.value) {

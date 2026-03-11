@@ -12,7 +12,7 @@ import { storeToRefs } from "pinia";
 import type { TableColumn } from "@nuxt/ui";
 import { normalizeDate } from "~/utils/normalize";
 import { useRouter } from "vue-router";
-import { useDealsStore } from "~/stores/deals";
+import { useDeals } from "~/composables/useDeals";
 import type { Deal } from "~/types/dealState";
 import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
@@ -25,8 +25,7 @@ const router = useRouter()
 const UButton = resolveComponent('UButton')
 const purchasesApi = usePurchasesApi()
 
-const dealsStore = useDealsStore()
-const { deals } = storeToRefs(dealsStore)
+const { deals, findDealByDealNumber } = useDeals()
 const list = deals?.value ?? []
 
 const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? list.filter(deal => deal.role === 'buyer') : list.filter(deal => deal.role === 'seller'))
@@ -36,7 +35,7 @@ const salesTable: Ref<SellerTableItems[]> = ref([])
 
 //purchases
 const getDealIdByDealNumber = (dealNumber: string, role: 'buyer' | 'seller'): number | undefined => {
-  return dealsStore.findDealByDealNumber(dealNumber, role)?.dealId
+  return findDealByDealNumber(dealNumber, role)?.dealId
 }
 
 watch(dealsList, () => {

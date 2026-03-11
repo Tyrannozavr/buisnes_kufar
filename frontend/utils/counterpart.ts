@@ -1,4 +1,4 @@
-import { useDealsStore } from "~/stores/deals"
+import { useDeals } from "~/composables/useDeals"
 import { useChatsApi } from "~/api/chats"
 import { useRouter } from "vue-router"
 
@@ -19,8 +19,8 @@ export const getCounterpartData = (
 ): CounterpartData | null => {
 	if (!dealId || !role) return null
 
-	const dealsStore = useDealsStore()
-	const deal = dealsStore.findDeal(dealId)
+	const { findDeal } = useDeals()
+	const deal = findDeal(dealId)
 
 	if (role === "buyer") {
 		return {

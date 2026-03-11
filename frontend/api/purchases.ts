@@ -55,6 +55,15 @@ export const usePurchasesApi = () => {
 			console.log('ERROR GET DEAL BY ID: ', error)
 		}
 	}
+
+	const getDealsByIds = async (ids: number[]): Promise<DealResponse[] | undefined> => {
+		try {
+			const response = await $api.post(normalizeApiPath(API_URLS.GET_DEALS_BY_IDS), { ids })
+			return response
+		} catch (error) {
+			console.log('ERROR GET DEALS BY IDS: ', error)
+		}
+	}
 	
 	const updateDealById = async (deal_id: number, body: DealUpdate | Record<string, unknown> = {}) => {
 		try {
@@ -185,6 +194,7 @@ export const usePurchasesApi = () => {
     getBuyerDeals,
     getSellerDeals,
     getDealById,
+    getDealsByIds,
     updateDealById,
     createBill,
     createContract,

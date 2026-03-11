@@ -1,77 +1,20 @@
 import { defineStore } from "pinia"
 import type { Deal, EditPersonCompany, ProductItem } from "~/types/dealState"
-import type {
-	BuyerDealResponse,
-	DealResponse,
-	DealUpdate,
-	OrderItemUpdate,
-	ProductResponse,
-	SellerDealResponse
-} from "~/types/dealResponse"
 import numberToWordsRuPkg from "number-to-words-ru"
-import { usePurchasesApi } from "~/api/purchases"
-import {
-	buyerDealsQuery,
-	sellerDealsQuery,
-	dealByIdQuery
-} from "~/queries/purchases"
-import { useQueryCache } from "@pinia/colada"
-import { QueryKeys } from "~/constants/queryKeys"
 
 const numberToWordsRu = numberToWordsRuPkg.convert
 
 export const useDealsStore = defineStore("deals", () => {
 	const deals = ref<Deal[]>([])
 
-	const queryCache = useQueryCache()
-	const { data: buyerDeals, refresh: refreshBuyerDeals } = useQuery(() =>
-		buyerDealsQuery({})
-	)
-	const { data: sellerDeals, refresh: refreshSellerDeals } = useQuery(() =>
-		sellerDealsQuery({})
-	)
-	const loadingIds = ref(new Set<number>())
-	const isDealLoading = computed(() => loadingIds.value.size > 0)
+	/**
+	 * ids сделок в store
+	 */
+	const storedIds = computed<number[]>(() => deals.value.map((deal) => deal.dealId))
 
-	const useDealByIdQuery = (dealId: number) => {
-		loadingIds.value.add(dealId)
-		const { data, status } = useQuery(() => dealByIdQuery({ dealId }))
-
-		watch(
-			status,
-			() => {
-				if (status.value === "success") {
-					loadingIds.value.delete(dealId)
-				}
-			},
-			{ deep: true, immediate: true }
-		)
-
-		watch(
-			data,
-			(newData) => {
-				if (newData) {
-					addNewDeal(responseToDeal(newData as DealResponse))
-				}
-			},
-			{ deep: true, immediate: true }
-		)
-	}
-
-	const runDealByIdForList = (
-		list: BuyerDealResponse[] | SellerDealResponse[] | undefined
-	) => {
-		list?.forEach((deal) => useDealByIdQuery(deal.id))
-	}
-
-	watch(buyerDeals, runDealByIdForList, { deep: true, immediate: true })
-	watch(sellerDeals, runDealByIdForList, { deep: true, immediate: true })
-
-	const refreshDeals = () => {
-		refreshBuyerDeals()
-		refreshSellerDeals()
-	}
-
+	/**
+	 * последняя сделка в store
+	 */
 	const lastDeal = computed<
 		| {
 				sales: Deal | undefined
@@ -97,6 +40,9 @@ export const useDealsStore = defineStore("deals", () => {
 		}
 	})
 
+	/**
+	 * стоймость одного товара
+	 */
 	const amountPriceInProductItem = () => {
 		deals.value?.forEach((deal) => {
 			deal.product.productList?.forEach((p: ProductItem) => {
@@ -105,6 +51,9 @@ export const useDealsStore = defineStore("deals", () => {
 		})
 	}
 
+	/**
+	 * стоимость всех товаров
+	 */
 	const amountPriceInProduct = () => {
 		deals.value?.forEach((deal) => {
 			deal.product.amountPrice = Number(
@@ -116,6 +65,9 @@ export const useDealsStore = defineStore("deals", () => {
 		})
 	}
 
+	/**
+	 * стоимость всех товаров словами
+	 */
 	const amountWordProduct = () => {
 		deals.value?.forEach((deal) => {
 			deal.product.amountWord = numberToWordsRu(deal.product.amountPrice, {
@@ -135,44 +87,28 @@ export const useDealsStore = defineStore("deals", () => {
 		amountWordProduct()
 	})
 
+	/**
+	 * поиск сделки по id
+	 * @param dealId - id сделки
+	 * @returns сделка или undefined
+	 */
 	const findDeal = (dealId: number) => {
 		return deals.value?.find((d) => d.dealId === dealId)
 	}
 
-	const createBodyForUpdate = (dealId: number): DealUpdate | null => {
-		const deal: Deal | undefined = findDeal(dealId)
-
-		if (!deal) return null
-
-		const products = deal.product.productList
-
-		const itemsList: OrderItemUpdate[] = (products ?? []).map(
-			(p: ProductItem) => ({
-				product_name: p.name.trim() || "—",
-				quantity: p.quantity,
-				unit_of_measurement: p.units.trim() || "шт",
-				price: p.price
-			})
-		)
-
-		const body: DealUpdate = {
-			items: itemsList,
-			comments: deal.product.comments ?? undefined
-		}
-
-		if (deal.status) body.status = deal.status
-		if (deal.contractNumber) body.contract_number = deal.contractNumber
-		if (deal.billNumber) body.bill_number = deal.billNumber
-		if (deal.supplyContractNumber)
-			body.supply_contracts_number = deal.supplyContractNumber
-
-		return body
-	}
-
+	/**
+	 * очистка store
+	 * @returns void
+	 */
 	const clearStore = () => {
 		deals.value = []
 	}
 
+	/**
+	 * добавление новой сделки в store
+	 * @param newDeal - новая сделка
+	 * @returns void
+	 */
 	const addNewDeal = (newDeal: Deal) => {
 		if (!newDeal) return
 
@@ -183,6 +119,12 @@ export const useDealsStore = defineStore("deals", () => {
 		}
 	}
 
+	/**
+	 * поиск сделки по номеру заказа
+	 * @param dealNumber - номер заказа
+	 * @param role - роль (seller или buyer)
+	 * @returns сделка или undefined
+	 */
 	const findDealByDealNumber = (
 		dealNumber: string,
 		role: "seller" | "buyer"
@@ -192,6 +134,12 @@ export const useDealsStore = defineStore("deals", () => {
 		)
 	}
 
+	/**
+	 * добавление нового товара в сделку
+	 * @param dealId - id сделки
+	 * @param newProduct - новый товар
+	 * @returns void
+	 */
 	const addNewProduct = (dealId: number, newProduct: ProductItem) => {
 		const productList = findDeal(dealId)?.product.productList
 		if (!productList) return
@@ -199,6 +147,12 @@ export const useDealsStore = defineStore("deals", () => {
 		productList.push(newProduct)
 	}
 
+	/**
+	 * редактирование компании продавца
+	 * @param dealId - id сделки
+	 * @param newSellerCompany - новая компания продавца
+	 * @returns void
+	 */
 	const editSellerCompany = (
 		dealId: number,
 		newSellerCompany: EditPersonCompany
@@ -209,6 +163,12 @@ export const useDealsStore = defineStore("deals", () => {
 		Object.assign(sellerCompany, newSellerCompany)
 	}
 
+	/**
+	 * редактирование компании покупателя
+	 * @param dealId - id сделки
+	 * @param newBuyerCompany - новая компания покупателя
+	 * @returns void
+	 */
 	const editBuyerCompany = (
 		dealId: number,
 		newBuyerCompany: EditPersonCompany
@@ -219,6 +179,12 @@ export const useDealsStore = defineStore("deals", () => {
 		Object.assign(buyerCompany, newBuyerCompany)
 	}
 
+	/**
+	 * редактирование списка товаров в сделке
+	 * @param dealId - id сделки
+	 * @param newProductList - новый список товаров
+	 * @returns void
+	 */
 	const editProductList = (dealId: number, newProductList: ProductItem[]) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
@@ -226,6 +192,12 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.product.productList = [...newProductList]
 	}
 
+	/**
+	 * редактирование комментариев к сделке
+	 * @param dealId - id сделки
+	 * @param comments - новые комментарии
+	 * @returns void
+	 */
 	const editProductComments = (dealId: number, comments: string) => {
 		const product = findDeal(dealId)?.product
 		if (!product) return
@@ -233,88 +205,28 @@ export const useDealsStore = defineStore("deals", () => {
 		product.comments = comments
 	}
 
+	/**
+	 * удаление сделки из store
+	 * @param dealId - id сделки
+	 * @returns void
+	 */
 	const removeDeal = (dealId: number) => {
 		if (!dealId) return
-
 		const deal = findDeal(dealId)
-		const { deleteDealById } = usePurchasesApi()
-
 		if (!deal) return
 
-		const index = deals.value?.findIndex((d: Deal) => {
-			return d.dealId === deal.dealId
-		})
-
-		if (index !== -1 && typeof index !== "undefined") {
-			deals.value?.splice(index, 1)
-			deleteDealById(dealId)
-			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
-		}
+		deals.value = deals.value?.filter((deal: Deal) => deal.dealId !== dealId)
 	}
 
-	const responseToDeal = (dealResponse: DealResponse): Deal => {
-		return {
-			dealId: dealResponse.id,
-			buyerOrderNumber: dealResponse.buyer_order_number,
-			sellerOrderNumber: dealResponse.seller_order_number,
-			role: dealResponse.role,
-			date: dealResponse.created_at,
-			product: {
-				productList: dealResponse.items.map((item: ProductResponse) => ({
-					name: item.product_name,
-					article: item.product_article,
-					quantity: item.quantity,
-					units: item.unit_of_measurement ?? "",
-					price: item.price,
-					amount: item.amount
-				})),
-				amountPrice: 0,
-				amountWord: "",
-				comments: dealResponse.comments ?? ""
-			},
-			seller: {
-				sellerName: dealResponse.seller_company.name,
-				companyName: dealResponse.seller_company.company_name,
-				phone: dealResponse.seller_company.phone,
-				slug: dealResponse.seller_company.slug,
-				companyId: dealResponse.seller_company.id,
-				email: dealResponse.seller_company.email,
-				inn: dealResponse.seller_company.inn,
-				legalAddress: dealResponse.seller_company.legal_address
-			},
-			buyer: {
-				buyerName: dealResponse.buyer_company.name,
-				companyName: dealResponse.buyer_company.company_name,
-				phone: dealResponse.buyer_company.phone,
-				slug: dealResponse.buyer_company.slug,
-				companyId: dealResponse.buyer_company.id,
-				email: dealResponse.buyer_company.email,
-				inn: dealResponse.buyer_company.inn,
-				legalAddress: dealResponse.buyer_company.legal_address
-			},
-			status: dealResponse.status,
-			billNumber: dealResponse.bill_number || "",
-			billDate: dealResponse.bill_date || "",
-			contractNumber: dealResponse.contract_number || "",
-			contractDate: dealResponse.contract_date || "",
-			supplyContractNumber: dealResponse.supply_contracts_number || "",
-			supplyContractDate: dealResponse.supply_contracts_date || "",
-			closingDocuments: dealResponse.closing_documents || [],
-			othersDocuments: dealResponse.others_documents || []
-		}
-	}
-
-	const createNewDealVersion = async (dealId: number) => {
-		const { createNewDealVersion } = usePurchasesApi()
-		const body = createBodyForUpdate(dealId)
-		await createNewDealVersion(dealId, body ?? {})
-	}
-
-	const deleteLastDealVersion = async (dealId: number) => {
-		const { deleteLastDealVersion } = usePurchasesApi()
-		await deleteLastDealVersion(dealId)
-	}
-
+	/**
+	 * полное обновление сделки
+	 * @param dealId - id сделки
+	 * @param seller - компания продавца
+	 * @param buyer - компания покупателя
+	 * @param newProductList - новый список товаров
+	 * @param comments - новые комментарии
+	 * @returns void
+	 */
 	const fullUpdateDeal = async (
 		dealId: number,
 		seller: EditPersonCompany,
@@ -329,28 +241,15 @@ export const useDealsStore = defineStore("deals", () => {
 		if (comments !== undefined) {
 			editProductComments(dealId, comments)
 		}
-
-		const { updateDealById } = usePurchasesApi()
-		const body = createBodyForUpdate(dealId)
-
-		if (!body) return
-
-		await updateDealById(dealId, body)
 	}
 
 	return {
 		deals,
-		useDealByIdQuery,
-		isDealLoading,
-		refreshDeals,
-		responseToDeal,
+		storedIds,
 		findDealByDealNumber,
 		findDeal,
 		lastDeal,
-		createBodyForUpdate,
 		clearStore,
-		createNewDealVersion,
-		deleteLastDealVersion,
 		addNewDeal,
 		amountPriceInProductItem,
 		amountPriceInProduct,

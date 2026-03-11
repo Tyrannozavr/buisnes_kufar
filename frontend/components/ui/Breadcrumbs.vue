@@ -25,13 +25,12 @@ function getLabel(path: string): string {
     'partners': 'Партнеры',
     'suppliers': 'Поставщики',
     'buyers': 'Покупатели',
-    'contracts': 'Договоры',
-    'sales': 'Продажи',
-    'purchases': 'Закупки',
+    'documents': 'Документы',
+    'deals': 'Товары',
     'messages': 'Сообщения',
     'auth': 'Авторизация',
     'create': 'Создание',
-    'edit': 'Редактирование',
+    'editor': 'Редактор документов',
   }
 
   return labels[path] || path
@@ -56,7 +55,7 @@ async function updateBreadcrumbs() {
     if (i === pathsToProcess.length - 1 && props.currentPageTitle) {
       items.push({ label: props.currentPageTitle, path: fullPath })
     } else {
-      let label = getLabel(path)
+      let label = getLabel(path ?? '')
       items.push({ label, path: fullPath })
     }
   }

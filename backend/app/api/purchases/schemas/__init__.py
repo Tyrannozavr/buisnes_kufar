@@ -146,6 +146,13 @@ class DealCreate(BaseModel):
         from_attributes = True
 
 
+class DealIdsBody(BaseModel):
+	"""Тело запроса для получения сделок по списку ID."""
+	ids: List[int] = Field(..., min_length=1, description="Массив ID сделок")
+
+	model_config = {"json_schema_extra": {"examples": [{"ids": [1, 2, 3]}]}}
+
+
 class DealUpdate(BaseModel):
     """Схема для обновления заказа (PUT /deals/{deal_id}). Все поля опциональны. items — в формате OrderItemUpdate (допускаются quantity, price >= 0)."""
     status: Optional[DealStatus] = Field(None, description="Статус заказа")

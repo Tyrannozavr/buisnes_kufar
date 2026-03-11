@@ -18,20 +18,22 @@
 
 <script setup lang="ts">
 import type { TabsItem } from '@nuxt/ui'
-import { useDealsStore } from '~/stores/deals'
+import { useDeals } from '~/composables/useDeals'
 import GoodsColumns from '~/components/table/GoodsColumns.vue'
 
 definePageMeta({
   layout: 'profile'
 })
 
-const dealsStore = useDealsStore()
-const { deals } = storeToRefs(dealsStore)
+const { deals, getDeals } = useDeals()
+
+getDeals()
 
 const items = computed<TabsItem[]>(() => {
 	const list = deals?.value ?? []
 	const purchasesCount = list.filter(deal => deal.role === 'buyer').length
 	const salesCount = list.filter(deal => deal.role === 'seller').length
+	
 	return [
     {
       label: `Закупки (${purchasesCount})`,

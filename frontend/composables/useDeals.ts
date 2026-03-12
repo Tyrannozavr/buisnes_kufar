@@ -19,10 +19,7 @@ import { storeToRefs } from "pinia"
 export const useDeals = () => {
 	const queryCache = useQueryCache()
 	const dealsStore = useDealsStore()
-	const {
-		storedIds,
-		deals,
-		lastDeal } = storeToRefs(dealsStore)
+	const { storedIds, deals, lastDeal } = storeToRefs(dealsStore)
 	const {
 		findDealByDealNumber,
 		findDeal,
@@ -34,53 +31,55 @@ export const useDeals = () => {
 		editProductList,
 		editProductComments,
 		removeDeal,
-		fullUpdateDeal } = dealsStore
+		fullUpdateDeal
+	} = dealsStore
 
-	/**
-	 * Получение списка сделок и заполнение ими store
+	/** 
+	 * Получение сделок с сервера и сохранение в store
 	 */
 	const getDeals = (): void => {
-		const ids = ref<number[]>([])
-
-		const { data: buyerDeals, status: buyerDealsStatus } = useQuery(() =>buyerDealsQuery({}))
-		const { data: sellerDeals, status: sellerDealsStatus } = useQuery(() =>sellerDealsQuery({}))
-		const isReadyToGetDealsByIds = computed<boolean>(() => buyerDealsStatus.value === "success" && sellerDealsStatus.value === "success" && ids.value.length > 0)
-		const { data: dealsByIds } = useQuery(() => ({
-			...dealsByIdsQuery({ids: ids.value}),
-			enabled: isReadyToGetDealsByIds.value
-			})
+		const { data: buyerDeals, status: buyerDealsStatus } = useQuery(() =>
+			buyerDealsQuery({})
+		)
+		const { data: sellerDeals, status: sellerDealsStatus } = useQuery(() =>
+			sellerDealsQuery({})
 		)
 
-		watch(() => buyerDealsStatus.value,
-			(status) => {
-				if (status === "success") {
-					buyerDeals.value?.forEach((deal) => {
-						ids.value.push(deal.id)
-					})
-				}
+		const ids = computed<number[]>(() => {
+			const set = new Set<number>()
+			if (buyerDealsStatus.value === "success" && buyerDeals.value) {
+				buyerDeals.value.forEach((d) => set.add(d.id))
+			}
+			if (sellerDealsStatus.value === "success" && sellerDeals.value) {
+				sellerDeals.value.forEach((d) => set.add(d.id))
+			}
+			return Array.from(set)
+		})
+
+		const isReadyToGetDealsByIds = computed(
+			() =>
+				buyerDealsStatus.value === "success" &&
+				sellerDealsStatus.value === "success" &&
+				ids.value.length > 0
+		)
+
+		watch(
+			[isReadyToGetDealsByIds, ids],
+			async ([ready, idList]) => {
+				if (!ready || !idList?.length) return
+
+				const opts = dealsByIdsQuery({ ids: idList })
+				const entry = queryCache.ensure(opts)
+				const { data } = await queryCache.fetch(entry)
+				
+				data?.forEach((deal) => {
+					if (!storedIds.value.includes(deal.id)) {
+						dealsStore.addNewDeal(responseToDeal(deal))
+					}
+				})
 			},
-			{ deep: true, immediate: true, flush: "sync" }
+			{ immediate: true, deep: true }
 		)
-
-		watch(() => sellerDealsStatus.value,
-			(status) => {
-				if (status === "success") {
-					sellerDeals.value?.forEach((deal) => {
-						ids.value.push(deal.id)
-					})
-				}
-			},
-			{ deep: true, immediate: true, flush: "sync" }
-		)
-
-		watch(() => dealsByIds.value, () => {
-			console.log('DEALS BY IDS: ', dealsByIds.value)
-			dealsByIds.value?.forEach((deal) => {
-				if (!storedIds.value.includes(deal.id)) {
-					dealsStore.addNewDeal(responseToDeal(deal))
-				}
-			})
-		}, { deep: true, immediate: false, flush: "sync" })
 	}
 
 	/**

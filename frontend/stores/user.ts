@@ -94,7 +94,8 @@ export const useUserStore = defineStore('user', {
 			clearStore()
 			//Clear query cache
 			const queryCache = useQueryCache()
-			queryCache.invalidateQueries({}, 'all')
+			const entries = queryCache.getEntries()
+			entries.forEach(entry => queryCache.remove(entry))
 
       console.log('✅ Logout completed - cookie, localStorage and stores cleared')
     }

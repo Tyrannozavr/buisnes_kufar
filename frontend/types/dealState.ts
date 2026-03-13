@@ -34,6 +34,24 @@ export interface Product {
 	comments?: string 
 }
 
+export interface Bill {
+	number: string
+	ofpCompany: string
+	bik: string
+	bankName: string
+	accountNumber: string
+	inn: string
+	kpp: string
+	recipient: string
+	companyName: string
+	supplier: string
+	buyer: string
+	reason: string
+	person1: string
+	person2: string
+	person3: string
+}
+
 export interface Deal {
   dealId: number;
   buyerOrderNumber?: string;
@@ -44,12 +62,9 @@ export interface Deal {
   seller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная"
-  billNumber?: string
-  billDate?: string
+  bill?: Bill
   contractNumber?: string
-  contractDate?: string
   supplyContractNumber?: string
-  supplyContractDate?: string
   closingDocuments?: unknown[]
   othersDocuments?: unknown[]
 }

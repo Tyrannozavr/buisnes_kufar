@@ -4,63 +4,16 @@ import { useNuxtApp } from "nuxt/app";
 import type {
   DocumentApiItem,
   DocumentDownloadResponse,
-  DocumentUploadResponse,
+	DocumentUploadResponse,
+	DocumentFormResponse,
+	DocumentTypeResponse,
 } from "~/types/documents";
 
-/** Маппинг слотов вкладок редактора на тип документа для API getDocument/saveDocument. */
-export const SLOT_TO_DOCUMENT_TYPE: Record<
-  string,
-  "order" | "bill" | "supply_contract" | "contract" | "other"
-> = {
-  order: "order",
-  bill: "bill",
-  supplyContract: "supply_contract",
-  accompanyingDocuments: "other",
-  invoice: "other",
-  contract: "contract",
-  act: "other",
-  othersDocument: "other",
-};
-
-export type DocumentType =
-  (typeof SLOT_TO_DOCUMENT_TYPE)[keyof typeof SLOT_TO_DOCUMENT_TYPE];
-
-export interface DocumentFormResponse {
-  payload?: Record<string, unknown>;
-  document_version?: string;
-  updated_by_company_id?: number | null;
-  updated_at?: string | null;
-}
-
+/**
+ * API для работы с документами, которые не создаются в редакторе документов
+ */
 export const useDocumentsApi = () => {
   const { $api } = useNuxtApp();
-
-  /** Получение payload формы документа по сделке и типу (GET /deals/{id}/documents/form). */
-  const getDocument = async (
-    dealId: number,
-    documentType: string,
-    version?: string,
-  ): Promise<DocumentFormResponse> => {
-    const url = normalizeApiPath(
-      API_URLS.GET_DOCUMENT_FORM(dealId, documentType) +
-        (version ? `&version=${encodeURIComponent(version)}` : ""),
-    );
-    const response = await $api.get(url);
-    return response as DocumentFormResponse;
-  };
-
-  /** Сохранение payload формы документа (PUT /deals/{id}/documents/form). Версионирование: version опционально (v1, v1.1). */
-  const saveDocument = async (
-    dealId: number,
-    documentType: string,
-    payload: Record<string, unknown>,
-    version?: string,
-  ): Promise<DocumentFormResponse> => {
-    const url = normalizeApiPath(API_URLS.PUT_DOCUMENT_FORM(dealId));
-    const body = { document_type: documentType, payload, ...(version ? { version } : {}) };
-    const response = await $api.put(url, body);
-    return response as DocumentFormResponse;
-  };
 
   const getDocumentsByDealId = async (
     deal_id: number,
@@ -71,7 +24,7 @@ export const useDocumentsApi = () => {
       );
       return response;
     } catch (error) {
-      console.log("ERROR: ", error);
+      console.log("ERROR getDocumentsByDealId: ", error);
     }
   };
 
@@ -124,8 +77,6 @@ export const useDocumentsApi = () => {
   };
 
   return {
-    getDocument,
-    saveDocument,
     getDocumentsByDealId,
     uploadDocumentById,
     downloadDocument,

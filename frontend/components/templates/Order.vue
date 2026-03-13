@@ -3,7 +3,7 @@ import type { OrderData, ProductsInOrder } from '~/types/order';
 import { useDeals } from '~/composables/useDeals';
 import type { Deal, ProductItem } from '~/types/dealState';
 import { Editor, TemplateElement } from '~/constants/keys';
-import { normalizeDate } from '~/utils/normalize';
+import { normalizeDate, normalizePrice } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/stores/user';
@@ -335,7 +335,7 @@ onMounted(() => {
     </table>
 
 		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму:
-				<span v-if="orderData.amount">{{ orderData.amount }} </span>
+				<span v-if="orderData.amount">{{ normalizePrice(orderData.amount) }} </span>
 				p.</span></p>
 		<p><span class="underline underline-offset-4">{{ orderData.amountWord }}</span></p>
 		<br />

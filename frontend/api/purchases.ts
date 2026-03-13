@@ -75,8 +75,6 @@ export const usePurchasesApi = () => {
 		}
 	}
 
-
-
 	const createOrderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
 		if (!products?.length) return
 
@@ -117,6 +115,8 @@ export const usePurchasesApi = () => {
     }
   }
   
+	//FIXME: добавить логику при которой будет создаваться поля в объекте Deal.bill
+	// эти 3 апи создают номера документов (счет, договор, договор поставки), аналогичные номеру заказа продавца seller_order_number
 	const createBill = async (dealId: number, date?: string) => {
 		try {
 			const body = date ? { date } : {}
@@ -206,5 +206,3 @@ export const usePurchasesApi = () => {
     deleteLastDealVersion,
   };
 }
-
-export type PurchasesApi = ReturnType<typeof usePurchasesApi>

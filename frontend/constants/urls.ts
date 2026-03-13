@@ -1,3 +1,5 @@
+import type { DocumentTypeResponse } from "~/types/documents";
+
 // API URLs
 export const API_URLS = {
 	//Purchases
@@ -8,28 +10,21 @@ export const API_URLS = {
 	GET_DEALS_BY_IDS: "/api/v1/purchases/deals/by-ids",
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
-	CREATE_CONTRACT: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/contract`,
-	CREATE_SUPPLY_CONTRACT: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/supply-contract`,
+	CREATE_CONTRACT: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/contract`,
+	CREATE_SUPPLY_CONTRACT: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/supply-contract`,
 	CREATE_ORDER_FROM_CHECKOUT: "/api/v1/purchases/checkout",
 	GET_UNITS_MEASUREMENT: "/api/v1/purchases/units",
 	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //удаляет все версии сделки
+	
 	//versions
-	CREATE_NEW_DEAL_VERSION: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/versions`,
-	DELETE_LAST_DEAL_VERSION: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/versions/last`,
+	CREATE_NEW_DEAL_VERSION: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/versions`,
+	DELETE_LAST_DEAL_VERSION: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/versions/last`,
 
 	// Documents
-	GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/documents`,
-	UPLOAD_DOCUMENT_BY_DEAL_ID: (deal_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/documents`,
-	DOWNLOAD_DOCUMENT: (deal_id: number, document_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/documents/${document_id}/download`,
-	DELETE_DOCUMENT: (deal_id: number, document_id: number) =>
-		`/api/v1/purchases/deals/${deal_id}/documents/${document_id}`,
+	GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents`,
+	UPLOAD_DOCUMENT_BY_DEAL_ID: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents`,
+	DOWNLOAD_DOCUMENT: (deal_id: number, document_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents/${document_id}/download`,
+	DELETE_DOCUMENT: (deal_id: number, document_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents/${document_id}`,
 
 	// Companies
 	COMPANIES: "/v1/companies/",

@@ -6,7 +6,8 @@ import { useCookie } from 'nuxt/app'
 export const getMyCompany = async (): Promise<CompanyResponse> => {
   const { $api } = useNuxtApp()
   try {
-    return await $api.get('/v1/company/me')
+    const response = await $api.get('/v1/company/me')
+    return response
   } catch (error: any) {
     if (error.response?.status === 404) {
       throw new Error('COMPANY_NOT_FOUND')

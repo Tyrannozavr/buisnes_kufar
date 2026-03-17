@@ -28,7 +28,7 @@ async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup: создаём таблицы если их нет (bootstrap при пустой БД)
     print("🔧 Creating database tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

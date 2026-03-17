@@ -11,17 +11,16 @@ export const injectionKeys = {
 
 
 export const enum Editor {
-	SAVE_STATE_ORDER = 'saveStateOrder',
+	SAVE_STATE = 'saveState',
 	IS_DISABLED = 'isDisabled',
 	CLEAR_STATE = 'clearState',
 	REMOVE_DEAL = 'removeDealState',
 	ACTIVE_TAB = 'activeTab',
-	REASON = 'reason',
+	REASON_CHECK = 'reasonCheck',
 	DUE_DATE_CHECK = 'dueDateCheck',
 	DUE_DATE = 'dueDate',
 	ADDITIOANAL_INFO = 'additionalInfo',
 	VAT_RATE_CHECK = 'vatRateCheck',
-	VAT_RATE = 'vatRate',
 }
 
 export const enum TemplateElement {

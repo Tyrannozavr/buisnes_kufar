@@ -31,8 +31,6 @@ class DealRepository:
             seller_order_number = await self._generate_order_number(order_data.seller_company_id, "seller")
             logger.debug("Номер продавца: %s", seller_order_number)
 
-            order_date = datetime.utcnow()
-            
             # Создаем заказ (version starts at 1 for a new deal id)
             logger.debug("Создаем объект Order")
             order = Order(
@@ -40,8 +38,6 @@ class DealRepository:
                 version=1,
                 buyer_order_number=buyer_order_number,
                 seller_order_number=seller_order_number,
-                buyer_order_date=order_date,
-                seller_order_date=order_date,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
                 deal_type=OrderType.GOODS,
@@ -331,12 +327,11 @@ class DealRepository:
             status=latest_order.status,
             buyer_company_id=latest_order.buyer_company_id,
             seller_company_id=latest_order.seller_company_id,
-            buyer_order_date=self._normalize_datetime(latest_order.buyer_order_date),
-            seller_order_date=self._normalize_datetime(latest_order.seller_order_date),
             contract_number=latest_order.contract_number,
             contract_date=self._normalize_datetime(latest_order.contract_date),
             bill_number=latest_order.bill_number,
             bill_date=self._normalize_datetime(latest_order.bill_date),
+            bill_officials=latest_order.bill_officials,
             supply_contracts_number=latest_order.supply_contracts_number,
             supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
             closing_documents=latest_order.closing_documents,
@@ -378,7 +373,9 @@ class DealRepository:
         await self.session.commit()
         return await self.get_order_by_id_and_version(order_id, new_version, company_id)
 
-    async def update_order(self, order_id: int, order_data: DealUpdate, company_id: int) -> Optional[Order]:
+    async def update_order(
+        self, order_id: int, order_data: DealUpdate, company_id: int, *, apply_date_fields: bool = False
+    ) -> Optional[Order]:
         """Обновление заказа"""
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
@@ -393,41 +390,67 @@ class DealRepository:
             "bill_date": order.bill_date,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
-            "buyer_order_date": order.buyer_order_date,
-            "seller_order_date": order.seller_order_date,
         }
+
+        # Извлекаем из объектного формата (bill, contract, supply_contracts) — совместимость с фронтендом
+        effective_contract_number = None
+        effective_contract_date = getattr(order_data, "contract_date", None)
+        effective_bill_number = None
+        effective_bill_date = getattr(order_data, "bill_date", None)
+        effective_supply_number = None
+        effective_supply_date = getattr(order_data, "supply_contracts_date", None)
+        if order_data.bill is not None and order_data.bill.number:
+            effective_bill_number = order_data.bill.number
+        if order_data.contract and len(order_data.contract) > 0:
+            c0 = order_data.contract[0]
+            effective_contract_number = c0.number
+            effective_contract_date = c0.date
+        if order_data.supply_contracts and len(order_data.supply_contracts) > 0:
+            s0 = order_data.supply_contracts[0]
+            effective_supply_number = s0.number
+            effective_supply_date = s0.date
 
         # Обновляем поля
         if order_data.status is not None:
             order.status = order_data.status
         if order_data.comments is not None:
             order.comments = order_data.comments
-        if order_data.contract_number is not None:
-            order.contract_number = order_data.contract_number
-        if order_data.buyer_order_date is not None:
-            order.buyer_order_date = order_data.buyer_order_date
-        if order_data.seller_order_date is not None:
-            order.seller_order_date = order_data.seller_order_date
+        if effective_contract_number is not None:
+            order.contract_number = effective_contract_number
+        if apply_date_fields and effective_contract_date is not None:
+            order.contract_date = effective_contract_date
 
-        # bill_number / bill_date: при установке bill_date без bill_number — генерируем номер
-        if order_data.bill_date is not None:
-            order.bill_date = order_data.bill_date
-            if order_data.bill_number is not None:
-                order.bill_number = order_data.bill_number
+        # bill_number / bill_date: bill_date обновляется только через POST /deals/{id}/versions (apply_date_fields=True)
+        if apply_date_fields and effective_bill_date is not None:
+            order.bill_date = effective_bill_date
+            if effective_bill_number is not None:
+                order.bill_number = effective_bill_number
             elif not order.bill_number:
-                order.bill_number = await self._generate_bill_number(order.seller_company_id)
-        elif order_data.bill_number is not None:
-            order.bill_number = order_data.bill_number
+                order.bill_number = order.seller_order_number
+        elif effective_bill_number is not None:
+            order.bill_number = effective_bill_number
 
-        # supply_contracts_number / supply_contracts_date: при установке date без number — генерируем
-        if order_data.supply_contracts_date is not None:
-            order.supply_contracts_date = order_data.supply_contracts_date
-            if order_data.supply_contracts_number is not None:
-                order.supply_contracts_number = order_data.supply_contracts_number
+        # bill.officials — сохраняем только при обновлении с клиента
+        if order_data.bill is not None and order_data.bill.officials is not None:
+            order.bill_officials = [
+                {"id": o.id, "full_name": o.full_name, "position": o.position}
+                for o in order_data.bill.officials
+            ]
+
+        # supply_contracts_number / supply_contracts_date: supply_contracts_date обновляется только через POST /deals/{id}/versions
+        if apply_date_fields and effective_supply_date is not None:
+            order.supply_contracts_date = effective_supply_date
+            if effective_supply_number is not None:
+                order.supply_contracts_number = effective_supply_number
             elif not order.supply_contracts_number:
                 order.supply_contracts_number = await self._generate_supply_contract_number(order.seller_company_id)
-        elif order_data.supply_contracts_number is not None:
-            order.supply_contracts_number = order_data.supply_contracts_number
+        elif effective_supply_number is not None:
+            order.supply_contracts_number = effective_supply_number
+
+        if order_data.closing_documents is not None:
+            order.closing_documents = order_data.closing_documents
+        if order_data.others_documents is not None:
+            order.others_documents = order_data.others_documents
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
@@ -506,8 +529,6 @@ class DealRepository:
             "bill_date": order.bill_date,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
-            "buyer_order_date": order.buyer_order_date,
-            "seller_order_date": order.seller_order_date,
         }
         
         self._add_order_history(
@@ -617,6 +638,12 @@ class DealRepository:
     async def get_company_by_id(self, company_id: int) -> Optional[Company]:
         """Получение компании по ID"""
         query = select(Company).where(Company.id == company_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_company_with_officials(self, company_id: int) -> Optional[Company]:
+        """Получение компании по ID с загрузкой должностных лиц"""
+        query = select(Company).options(selectinload(Company.officials)).where(Company.id == company_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
@@ -792,13 +819,13 @@ class DealRepository:
         return f"{next_number:05d}"
 
     async def assign_bill(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату счета заказу. Возвращает (bill_number, bill_date)."""
+        """Генерирует и присваивает номер и дату счета заказу. bill_number привязан к seller_order_number — счёт выставляет продавец, его номер = номер заказа продавца."""
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
         bill_date = date or datetime.utcnow()
         if not order.bill_number:
-            order.bill_number = await self._generate_bill_number(order.seller_company_id)
+            order.bill_number = order.seller_order_number
         order.bill_date = bill_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(

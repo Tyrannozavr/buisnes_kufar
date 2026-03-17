@@ -13,4 +13,5 @@ export const enum QueryKeys {
 	DELETE_DEAL_BY_ID = 'delete-deal-by-id',
 	CREATE_NEW_DEAL_VERSION = 'create-new-deal-version',
 	DELETE_LAST_DEAL_VERSION = 'delete-last-deal-version',
+	GET_MY_COMPANY = 'get-my-company',
 }

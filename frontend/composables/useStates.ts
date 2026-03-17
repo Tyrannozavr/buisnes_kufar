@@ -14,15 +14,15 @@ export const useClearState = () => {
 };
 
 export const useSaveState = () => {
-  const saveStateOrder = useTypedState(Editor.SAVE_STATE_ORDER, () => ref(false));
+  const saveState = useTypedState(Editor.SAVE_STATE, () => ref(false))
 
-  const saveOrder = (): void => {
-    saveStateOrder.value = true;
-    nextTick(() => (saveStateOrder.value = false));
-  };
+		const save = (): void => {
+			saveState.value = true
+			nextTick(() => (saveState.value = false))
+		}
 
   return {
-    saveOrder,
+    save,
   };
 };
 

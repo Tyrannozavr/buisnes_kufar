@@ -463,6 +463,16 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
           Нажмите Enter для сохранения произвольного названия города
         </p>
       </UFormField>
+
+			 <UFormField label="Индекс" required help="Почтовый индекс">
+        <UInput
+            maxlength="6"
+            :model-value="formState.index"
+            placeholder="Например: 620000"
+            class="min-w-1/2"
+            @update:model-value="value => updateField('index', value)"
+        />
+      </UFormField>
     </div>
   </div>
 </template> 

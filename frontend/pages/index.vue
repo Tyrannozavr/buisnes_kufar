@@ -5,13 +5,20 @@ import { computed } from 'vue'
 import { getLatestCompaniesSSR } from '~/api/companies'
 import { getLatestAnnouncementsSSR } from '~/api/announcements'
 
-// Use SSR functions for server-side data fetching
-const announcementsData = await getLatestAnnouncementsSSR(6)
+let announcementsData: Awaited<ReturnType<typeof getLatestAnnouncementsSSR>> = null
+let response: Awaited<ReturnType<typeof getLatestCompaniesSSR>> = null
+try {
+	announcementsData = await getLatestAnnouncementsSSR(6)
+} catch (e) {
+	console.error('Failed to fetch announcements', e)
+}
+try {
+	response = await getLatestCompaniesSSR(6)
+} catch (e) {
+	console.error('Failed to fetch companies', e)
+}
 
-// Use SSR function for companies
-const response = await getLatestCompaniesSSR(6)
-
-const companies = computed(() => response?.data || [])
+const companies = computed(() => response?.data ?? [])
 
 // Format date for display
 const formatDate = (dateString: string) => {

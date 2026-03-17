@@ -168,7 +168,8 @@ export const usePurchasesApi = () => {
   };
 
   const createNewDealVersion = async (deal_id: number, body: DealUpdate): Promise<DealResponse | undefined> => {
-    try {
+		try {
+			console.log('body', body)
       const response = await $api.post(
         normalizeApiPath(API_URLS.CREATE_NEW_DEAL_VERSION(deal_id)),
         body

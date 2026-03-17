@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import type { Deal, EditPersonCompany, ProductItem } from "~/types/dealState"
 import numberToWordsRuPkg from "number-to-words-ru"
+import type { OfficialBill } from "~/types/bill"
 
 const numberToWordsRu = numberToWordsRuPkg.convert
 
@@ -219,6 +220,18 @@ export const useDealsStore = defineStore("deals", () => {
 	}
 
 	/**
+	 * редактирование списка должностных лиц в счете
+	 * @param dealId - id сделки
+	 * @param persons - новый список должностных лиц
+	 * @returns void
+	 */
+	const editOfficialsBill = (dealId: number, officials: OfficialBill[]) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.officials = [...officials]
+	}
+
+	/**
 	 * полное обновление сделки
 	 * @param dealId - id сделки
 	 * @param seller - компания продавца
@@ -232,11 +245,15 @@ export const useDealsStore = defineStore("deals", () => {
 		seller: EditPersonCompany,
 		buyer: EditPersonCompany,
 		newProductList: ProductItem[],
-		comments?: string
+		comments?: string,
+		officials?: OfficialBill[],
 	) => {
 		editSellerCompany(dealId, seller)
 		editBuyerCompany(dealId, buyer)
 		editProductList(dealId, newProductList)
+		if (officials) {
+			editOfficialsBill(dealId, officials)
+		}
 
 		if (comments !== undefined) {
 			editProductComments(dealId, comments)

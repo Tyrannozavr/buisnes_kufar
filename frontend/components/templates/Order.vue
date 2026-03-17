@@ -14,9 +14,8 @@ const userStore = useUserStore()
 const { deals } = useDeals()
 
 
-const { findDeal, fullUpdateDeal, lastDeal } = useDeals()
-const { deleteDeal } = useDeals()
-const saveState = useTypedState(Editor.SAVE_STATE_ORDER)
+const { findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
+const saveState = useTypedState(Editor.SAVE_STATE)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
@@ -24,7 +23,8 @@ const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
-const deal: Ref<Deal | undefined> = ref(undefined) //сделка для заполнения формы
+ //сделка для заполнения формы
+const deal: Ref<Deal | undefined> = ref(undefined)
 
 let products: ProductsInOrder[] = []
 let seller: OrderData['seller'] = {}
@@ -78,18 +78,18 @@ const fillOrderData = () => {
 		const sellerData = deal.value.seller ?? {}
     seller = {
       companyId: sellerData.companyId,
-      sellerName: sellerData.sellerName,
+      ownerName: sellerData.ownerName,
       companyName: sellerData.companyName,
-      mobileNumber: sellerData.phone,
+      phone: sellerData.phone,
       legalAddress: sellerData.legalAddress,
       inn: Number(sellerData.inn) || 0,
 		}
 		const buyerData = deal.value.buyer ?? {}
     buyer = {
       companyId: buyerData.companyId,
-      buyerName: buyerData.buyerName,
+      ownerName: buyerData.ownerName,
       companyName: buyerData.companyName,
-      mobileNumber: buyerData.phone,
+      phone: buyerData.phone,
       legalAddress: buyerData.legalAddress,
       inn: Number(buyerData.inn) || 0,
     }
@@ -128,7 +128,6 @@ watch(
   () => fillFromQuery(),
   { immediate: true, deep: true }
 )
-
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
 watch(() => saveState.value,
@@ -244,7 +243,7 @@ onMounted(() => {
 							v-model.lazy="orderData.seller.companyName" /><br />
 						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.seller.legalAddress" /><br />
 						<input :disabled="isDisabled" placeholder="Контактный телефон"
-							v-model.trim.lazy="orderData.seller.mobileNumber" />
+							v-model.trim.lazy="orderData.seller.phone" />
 					</td>
 				</tr>
 				<tr>
@@ -256,7 +255,7 @@ onMounted(() => {
 							v-model.lazy="orderData.buyer.companyName" /><br />
 						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
 						<input :disabled="isDisabled" placeholder="Контактный телефон"
-							v-model.lazy="orderData.buyer.mobileNumber" /><br />
+							v-model.lazy="orderData.buyer.phone" /><br />
 					</td>
 				</tr>
 			</tbody>
@@ -345,11 +344,11 @@ onMounted(() => {
         <tr>
           <td>Менеджер</td>
           <td class="w-2/6">
-            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.seller.sellerName"  />
+            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.seller.ownerName"  />
           </td>
           <td>Покупатель</td>
           <td class="w-2/6">
-            <input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.buyerName" />
+            <input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.ownerName" />
           </td>
         </tr>
       </tbody>

@@ -5,6 +5,7 @@
 			<!-- left -->
 			<UFormField label="Номер расчетного счёта">
 				<UInput
+					  maxlength="20"
             :model-value="formState.currentAccountNumber"
             class="min-w-4/5"
             @update:model-value="value => updateField('currentAccountNumber', value)"
@@ -13,6 +14,7 @@
 			<!-- right -->
 			<UFormField label="БИК Банка">
 				<UInput
+						maxlength="9"
             :model-value="formState.bic"
             class="min-w-4/5"
             @update:model-value="value => updateField('bic', value)"
@@ -31,6 +33,7 @@
 			<!-- right -->
 			<UFormField label="Корр. счет банка">
 				<UInput
+						maxlength="20"
             :model-value="formState.correspondentBankAccount"
             class="min-w-4/5"
             @update:model-value="value => updateField('correspondentBankAccount', value)"

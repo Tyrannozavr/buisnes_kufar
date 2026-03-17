@@ -1,21 +1,20 @@
-export interface Person {
-  name: string;
-  mobileNumber?: string;
-  companyName: string;
-  legalAddress?: string;
-  inn: number;
-}
+import type { OfficialBill } from "./bill";
 
 export interface Company {
-  sellerName?: string;
-  buyerName?: string;
-  companyName?: string;
+  ownerName?: string;
+	companyName?: string;
   slug?: string;
-  companyId: number;
-  inn?: string;
+  companyId?: number;
   phone?: string;
   email?: string;
-  legalAddress?: string;
+	legalAddress?: string; // Юридический адрес
+	index?: string; // Индекс
+  inn?: number; // ИНН
+	kpp?: string; // КПП
+	accountNumber?: string; // Расчетный счет
+	bankName?: string; // Наименование банка
+	bic?: string; // БИК
+	vatRate?: number; // Ставка НДС
 }
 
 export interface ProductItem {
@@ -36,37 +35,28 @@ export interface Product {
 
 export interface Bill {
 	number: string
-	ofpCompany: string
-	bik: string
-	bankName: string
-	accountNumber: string
-	inn: string
-	kpp: string
-	recipient: string
-	companyName: string
-	supplier: string
-	buyer: string
 	reason: string
-	person1: string
-	person2: string
-	person3: string
+	officials: OfficialBill[]
 }
 
 export interface Deal {
   dealId: number;
-  buyerOrderNumber?: string;
-  sellerOrderNumber?: string;
-  role?: "buyer" | "seller";
+  buyerOrderNumber: string;
+  sellerOrderNumber: string;
+  role: "buyer" | "seller";
   product: Product;
   date: string;
   seller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная"
-  bill?: Bill
-  contractNumber?: string
-  supplyContractNumber?: string
-  closingDocuments?: unknown[]
-  othersDocuments?: unknown[]
+	bill: Bill
+	billDate: string
+  contract: unknown[]
+  contractDate: string
+  supplyContracts: unknown[]
+  supplyContractsDate: string
+  closingDocuments: unknown[]
+  othersDocuments: unknown[]
 }
 
 export interface EditPersonCompany {

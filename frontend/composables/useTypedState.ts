@@ -1,17 +1,16 @@
 //From constant/keys
 interface StateMap {
   //Editor
-  saveStateOrder: boolean;
+  saveState: boolean;
   isDisabled: boolean;
   clearState: boolean;
   removeDealState: boolean;
   activeTab: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7";
-  reason: string;
+  reasonCheck: boolean;
   dueDateCheck: boolean;
   dueDate: string;
   additionalInfo: boolean;
   vatRateCheck: boolean;
-  vatRate: "0" | "5" | "7" | "10" | "18" | "25";
   //TemplateElement
   htmlOrder: HTMLElement | null;
   htmlBill: HTMLElement | null;

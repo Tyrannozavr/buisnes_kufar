@@ -124,13 +124,14 @@ export const useDeleteDealByIdQuery = defineMutation(() => {
 })
 
 export const useCreateNewDealVersionQuery = defineMutation(() => {
-	const { mutate, ...mutation } = useMutation({
+	const { mutate, mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_NEW_DEAL_VERSION],
 		mutation: ({ dealId, body }: { dealId: number, body: DealUpdate }) => usePurchasesApi().createNewDealVersion(dealId, body),
 	})
 	return {
 		...mutation,
 		createNewDealVersion: (dealId: number, body: DealUpdate) => mutate({ dealId, body }),
+		createNewDealVersionAsync: (dealId: number, body: DealUpdate) => mutateAsync({ dealId, body }),
 	}
 })
 

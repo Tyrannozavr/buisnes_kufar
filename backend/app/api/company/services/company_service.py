@@ -23,7 +23,9 @@ class CompanyService:
     async def get_company_by_user_id(self, user_id: int) -> CompanyProfileResponse:
         """Get company profile data for user. If company doesn't exist, returns user data with default values."""
         user = await self.user_repository.get_user_by_id(user_id)
-        if not user or not user.company_id:
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        if not user.company_id:
             return CompanyProfileResponse.create_default(user)
 
         company = await self.company_repository.get_by_id(user.company_id)
@@ -55,7 +57,7 @@ class CompanyService:
         )
         await self.db.commit()
         
-        return CompanyResponse.model_validate(company.__dict__)
+        return CompanyResponse.model_validate(company)
 
     async def create_inactive_company(self, user: User) -> CompanyResponse:
         """Создает неактивную компанию при регистрации пользователя"""
@@ -71,7 +73,7 @@ class CompanyService:
         )
 
         company = await self.company_repository.create_inactive(company_data, user.id)
-        return CompanyResponse.model_validate(company.__dict__)
+        return CompanyResponse.model_validate(company)
 
     async def update_company(self, user: User, company_data: CompanyUpdate) -> CompanyResponse:
         if not user.company_id:
@@ -183,8 +185,7 @@ class CompanyService:
         # Проверяем, можно ли активировать компанию (все обязательные поля заполнены)
         if not company.is_active and self._can_activate_company(updated_company):
             updated_company = await self.company_repository.activate_company(company.id)
-        print(updated_company.__dict__)
-        return CompanyResponse.model_validate(updated_company.__dict__)
+        return CompanyResponse.model_validate(updated_company)
 
     def _can_activate_company(self, company) -> bool:
         """Проверяет, можно ли активировать компанию (все обязательные поля заполнены)"""
@@ -267,7 +268,7 @@ class CompanyService:
                 detail="Company not found after logo update"
             )
 
-        return CompanyResponse.model_validate(updated_company.__dict__)
+        return CompanyResponse.model_validate(updated_company)
 
     async def get_full_company(self, user_id: int) -> CompanyResponse:
         """Get full company data for user."""
@@ -284,4 +285,4 @@ class CompanyService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
-        return CompanyResponse.model_validate(company.__dict__)
+        return CompanyResponse.model_validate(company)

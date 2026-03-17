@@ -7,25 +7,24 @@ export interface ProductsInOrder {
   amount: number;
 }
 
-interface Company {
-  companyId?: number;
-  sellerName?: string;
-  buyerName?: string;
-  mobileNumber?: string;
-  companyName?: string;
-  legalAddress?: string;
-  inn?: number;
+interface CompanyOrder {
+	companyId?: number
+	ownerName?: string
+	phone?: string
+	companyName?: string
+	legalAddress?: string
+	inn?: number
 }
 
 export interface OrderData {
-	seller: Company
-	buyer: Company
-  orderNumber: string; // номер заказа "00001"
-  dealId: number; // id заказа 1
-  orderDate?: string;
-  comments?: string;
-  amount?: number ;
-  amountWord?: string;
+	seller: CompanyOrder
+	buyer: CompanyOrder
+	orderNumber: string // номер заказа "00001"
+	dealId: number // id заказа 1
+	orderDate?: string
+	comments?: string
+	amount?: number
+	amountWord?: string
 
-  products: ProductsInOrder[];
+	products: ProductsInOrder[]
 }

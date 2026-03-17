@@ -39,6 +39,7 @@ class CompanyBase(BaseModel):
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None
+    index: Optional[str] = None
 
     # Contact information
     phone: constr(min_length=10, max_length=20)
@@ -133,6 +134,7 @@ class CompanyUpdate(BaseModel):
     registration_date: Optional[datetime] = None
     legal_address: Optional[str] = None
     production_address: Optional[str] = None
+    index: Optional[str] = None
 
     # Contact information
     phone: Optional[constr(min_length=10, max_length=20)] = None
@@ -201,6 +203,7 @@ class CompanyResponse(CompanyLogoUrlMixin):
     registration_date: datetime
     legal_address: str
     production_address: Optional[str] = None
+    index: Optional[str] = None
     phone: str
     email: str
     website: Optional[str] = None

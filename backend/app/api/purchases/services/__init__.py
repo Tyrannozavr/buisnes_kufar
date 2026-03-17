@@ -13,6 +13,10 @@ from app.api.purchases.schemas import (
     CompanyInDealResponse,
     DealStatus,
     DealRole,
+    BillInDealResponse,
+    OfficialsInBillResponse,
+    SupplyContractItem,
+    ContractItem,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -110,8 +114,11 @@ class DealService:
                 return None
 
             # If request body contains fields, apply them to the newly created latest version.
+            # apply_date_fields=True: bill_date, contract_date, supply_contracts_date обновляются только здесь
             if deal_data and deal_data.model_dump(exclude_none=True):
-                updated_order = await self.repository.update_order(deal_id, deal_data, company_id)
+                updated_order = await self.repository.update_order(
+                    deal_id, deal_data, company_id, apply_date_fields=True
+                )
                 if updated_order:
                     order = updated_order
 
@@ -206,7 +213,7 @@ class DealService:
                     product_name=item.product_name,
                     product_slug=item.product_slug,
                     product_description=item.product_description,
-                    product_article=item.product_article,
+                    product_article=item.product_article or "",
                     logo_url=item.logo_url,
                     quantity=item.quantity,
                     unit_of_measurement=item.unit_of_measurement,
@@ -222,39 +229,34 @@ class DealService:
             buyer_company_info = None
             seller_company_info = None
             
-            # Загружаем компании отдельно
+            # Загружаем компании
             logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
             buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
             logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
             seller_company = await self.repository.get_company_by_id(order.seller_company_id)
-        
-            if buyer_company:
-                # Получаем имя владельца компании
-                buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id)
-                buyer_company_info = CompanyInDealResponse(
-                    id=buyer_company.id,
-                    company_name=buyer_company.name,
-                    name=buyer_owner_name or "",
-                    slug=buyer_company.slug,
-                    inn=buyer_company.inn,
-                    phone=buyer_company.phone,
-                    email=buyer_company.email,
-                    legal_address=buyer_company.legal_address
+
+            def _make_company_info(company, owner_name: str) -> CompanyInDealResponse:
+                return CompanyInDealResponse(
+                    id=company.id,
+                    company_name=company.name,
+                    name=owner_name or "",
+                    slug=company.slug or "",
+                    inn=company.inn,
+                    phone=company.phone or "",
+                    email=company.email or "",
+                    legal_address=company.legal_address or "",
+                    index=getattr(company, "index", None),
+                    kpp=company.kpp,
+                    current_account_number=company.current_account_number,
+                    bank_name=company.bank_name,
+                    bic=company.bic,
+                    vat_rate=company.vat_rate,
                 )
-            
-            if seller_company:
-                # Получаем имя владельца компании
-                seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id)
-                seller_company_info = CompanyInDealResponse(
-                    id=seller_company.id,
-                    company_name=seller_company.name,
-                    name=seller_owner_name or "",
-                    slug=seller_company.slug,
-                    inn=seller_company.inn,
-                    phone=seller_company.phone,
-                    email=seller_company.email,
-                    legal_address=seller_company.legal_address
-                )
+
+            buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
+            seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
+            buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
+            seller_company_info = _make_company_info(seller_company, seller_owner_name) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
             
             logger.debug("Создаем DealResponse")
             closing_docs = order.closing_documents if order.closing_documents is not None else []
@@ -267,6 +269,34 @@ class DealService:
                 elif company_id == order.seller_company_id:
                     role = DealRole.SELLER
 
+            # bill — объект для фронтенда (number, reason, officials). officials только из order.bill_officials (с клиента при update)
+            officials_list = []
+            stored = getattr(order, "bill_officials", None)
+            if stored and isinstance(stored, list):
+                officials_list = [
+                    OfficialsInBillResponse(
+                        id=o.get("id") if isinstance(o, dict) else getattr(o, "id", None),
+                        full_name=o.get("full_name") or o.get("name", "") if isinstance(o, dict) else getattr(o, "full_name", ""),
+                        position=o.get("position", "") if isinstance(o, dict) else getattr(o, "position", ""),
+                    )
+                    for o in stored
+                ]
+            bill_obj = BillInDealResponse(
+                number=order.bill_number or "",
+                reason=order.comments or "",
+                officials=officials_list,
+            )
+            supply_contracts_list = []
+            if order.supply_contracts_number or order.supply_contracts_date:
+                supply_contracts_list.append(
+                    SupplyContractItem(number=order.supply_contracts_number, date=order.supply_contracts_date)
+                )
+            contract_list = []
+            if order.contract_number or order.contract_date:
+                contract_list.append(
+                    ContractItem(number=order.contract_number, date=order.contract_date)
+                )
+
             return DealResponse(
                 id=order.id,
                 version=order.version,
@@ -276,20 +306,18 @@ class DealService:
                 seller_order_number=order.seller_order_number,
                 status=DealStatus(order.status.value),
                 total_amount=order.total_amount,
-                comments=order.comments,
-                buyer_order_date=order.buyer_order_date,
-                seller_order_date=order.seller_order_date,
-                contract_number=order.contract_number,
+                comments=order.comments or "",
                 contract_date=order.contract_date,
-                bill_number=order.bill_number,
                 bill_date=order.bill_date,
-                supply_contracts_number=order.supply_contracts_number,
                 supply_contracts_date=order.supply_contracts_date,
                 closing_documents=closing_docs,
                 others_documents=others_docs,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
-                role=role,
+                role=role or DealRole.BUYER,
+                contract=contract_list,
+                bill=bill_obj,
+                supply_contracts=supply_contracts_list,
                 items=items,
                 buyer_company=buyer_company_info,
                 seller_company=seller_company_info

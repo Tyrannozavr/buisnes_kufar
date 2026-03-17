@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, AliasChoices
 from enum import Enum
 
 
@@ -95,14 +95,15 @@ class OrderItemCreate(BaseModel):
 
 class OrderItemUpdate(BaseModel):
     """Схема позиции заказа для обновления (допускает quantity/price >= 0)."""
+    model_config = {"extra": "ignore", "from_attributes": True}
     article: Optional[str] = Field(None, description="Артикул продукта из каталога")
     quantity: float = Field(..., ge=0, description="Количество")
-    product_name: Optional[str] = Field(None, description="Наименование товара/услуги")
-    product_slug: Optional[str] = Field(None, description="Slug продукта")
-    product_description: Optional[str] = Field(None, description="Описание продукта")
-    product_article: Optional[str] = Field(None, description="Артикул")
-    logo_url: Optional[str] = Field(None, description="URL логотипа")
-    unit_of_measurement: Optional[str] = Field(None, description="Единица измерения")
+    product_name: Optional[str] = Field(None, description="Наименование товара/услуги", validation_alias=AliasChoices("product_name", "productName"))
+    product_slug: Optional[str] = Field(None, description="Slug продукта", validation_alias=AliasChoices("product_slug", "productSlug"))
+    product_description: Optional[str] = Field(None, description="Описание продукта", validation_alias=AliasChoices("product_description", "productDescription"))
+    product_article: Optional[str] = Field(None, description="Артикул", validation_alias=AliasChoices("product_article", "productArticle"))
+    logo_url: Optional[str] = Field(None, description="URL логотипа", validation_alias=AliasChoices("logo_url", "logoUrl"))
+    unit_of_measurement: Optional[str] = Field(None, description="Единица измерения", validation_alias=AliasChoices("unit_of_measurement", "unitOfMeasurement"))
     price: Optional[float] = Field(None, ge=0, description="Цена за единицу")
 
     @model_validator(mode='after')
@@ -116,9 +117,6 @@ class OrderItemUpdate(BaseModel):
             if not self.unit_of_measurement:
                 raise ValueError("unit_of_measurement is required when article is not specified")
         return self
-
-    class Config:
-        from_attributes = True
 
 
 class OrderItemResponse(OrderItemBase):
@@ -153,36 +151,85 @@ class DealIdsBody(BaseModel):
 	model_config = {"json_schema_extra": {"examples": [{"ids": [1, 2, 3]}]}}
 
 
+class ContractItem(BaseModel):
+	"""Элемент договора в массиве contract"""
+	model_config = {"extra": "ignore", "from_attributes": True}
+	number: Optional[str] = Field(None, description="Номер договора", validation_alias=AliasChoices("number", "contract_number"))
+	date: Optional[datetime] = Field(None, description="Дата договора", validation_alias=AliasChoices("date", "contract_date"))
+
+
+class SupplyContractItem(BaseModel):
+	"""Элемент договора поставки в массиве supply_contracts"""
+	model_config = {"extra": "ignore", "from_attributes": True}
+	number: Optional[str] = Field(None, description="Номер договора поставки", validation_alias=AliasChoices("number", "supply_contracts_number"))
+	date: Optional[datetime] = Field(None, description="Дата договора поставки", validation_alias=AliasChoices("date", "supply_contracts_date"))
+
+
+class OfficialsInBillResponse(BaseModel):
+    """Должностное лицо для счёта (соответствует фронтенду OfficialsResponse)"""
+    model_config = {"extra": "ignore", "from_attributes": True}
+    id: Optional[int] = Field(None, description="ID сотрудника (в ответе — всегда, при создании — может отсутствовать)")
+    full_name: str = Field(..., description="ФИО", validation_alias=AliasChoices("full_name", "name"))
+    position: str = Field("", description="Должность")
+
+
+class BillUpdateInDeal(BaseModel):
+    """Счёт для обновления (соответствует фронтенду BillResponse)"""
+    model_config = {"extra": "ignore", "from_attributes": True}
+    number: str = Field("", description="Номер счёта")
+    reason: Optional[str] = Field("", description="Основание")
+    officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
+
+
 class DealUpdate(BaseModel):
-    """Схема для обновления заказа (PUT /deals/{deal_id}). Все поля опциональны. items — в формате OrderItemUpdate (допускаются quantity, price >= 0)."""
+    """Схема для обновления заказа (PUT /deals/{deal_id}, POST /deals/{id}/versions). Совместима с фронтендом DealUpdate."""
+    model_config = {"from_attributes": True, "populate_by_name": True, "extra": "ignore"}
+
     status: Optional[DealStatus] = Field(None, description="Статус заказа")
     items: Optional[List[OrderItemUpdate]] = Field(None, description="Обновлённые позиции (OrderItemUpdate: quantity >= 0, price >= 0)")
     comments: Optional[str] = Field(None, description="Комментарии")
-    contract_number: Optional[str] = Field(None, description="Номер договора")
-    bill_number: Optional[str] = Field(None, description="Номер счета на оплату")
-    bill_date: Optional[datetime] = Field(None, description="Дата счета на оплату")
-    supply_contracts_number: Optional[str] = Field(None, description="Номер договора поставки")
-    supply_contracts_date: Optional[datetime] = Field(None, description="Дата договора поставки")
-    buyer_order_date: Optional[datetime] = Field(None, description="Дата заказа покупателя")
-    seller_order_date: Optional[datetime] = Field(None, description="Дата заказа продавца")
+    updated_at: Optional[str] = Field(None, description="Метка времени (игнорируется на сервере, для клиентского кэша)")
+    total_amount: Optional[float] = Field(None, description="Общая сумма сделки")
 
-    class Config:
-        from_attributes = True
+    # Плоские поля (snake_case) — даты обновляются только через POST /deals/{id}/versions
+    contract_date: Optional[datetime] = Field(None, description="Дата договора")
+    bill_date: Optional[datetime] = Field(None, description="Дата счета на оплату")
+    supply_contracts_date: Optional[datetime] = Field(None, description="Дата договора поставки")
+
+    # Объектные поля (формат фронтенда)
+    contract: Optional[List[ContractItem]] = Field(None, description="Массив договоров [{number, date}]")
+    bill: Optional["BillUpdateInDeal"] = Field(None, description="Счёт {number, reason, officials}")
+    supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
+    closing_documents: Optional[List[Any]] = Field(None, description="Закрывающие документы")
+    others_documents: Optional[List[Any]] = Field(None, description="Прочие документы")
+
+
+class BillInDealResponse(BaseModel):
+    """Счёт в ответе сделки (соответствует фронтенду BillResponse)"""
+    model_config = {"from_attributes": True}
+    number: str = Field("", description="Номер счёта")
+    reason: str = Field("", description="Основание")
+    officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
 class CompanyInDealResponse(BaseModel):
-    """Схема компании в контексте сделки"""
-    id: int = Field(..., description="ID компании")
+    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, account_number)"""
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+    id: int = Field(..., description="ID компании", serialization_alias="company_id")
     company_name: str = Field(..., description="Название компании")
-    name: str = Field(..., description="Имя владельца компании")
+    name: str = Field(..., description="Имя владельца компании", serialization_alias="owner_name")
     slug: str = Field(..., description="Slug компании")
     inn: Optional[str] = Field(None, description="ИНН компании")
-    phone: str = Field(..., description="Телефон компании")
-    email: str = Field(..., description="Email компании")
-    legal_address: str = Field(..., description="Юридический адрес компании")
-
-    class Config:
-        from_attributes = True
+    phone: str = Field("", description="Телефон компании")
+    email: str = Field("", description="Email компании")
+    legal_address: str = Field("", description="Юридический адрес компании")
+    index: Optional[str] = Field(None, description="Почтовый индекс")
+    kpp: Optional[str] = Field(None, description="КПП")
+    current_account_number: Optional[str] = Field(None, description="Расчётный счёт", serialization_alias="account_number")
+    bank_name: Optional[str] = Field(None, description="Наименование банка")
+    bic: Optional[str] = Field(None, description="БИК")
+    vat_rate: Optional[int] = Field(None, description="Ставка НДС")
 
 
 class DealRole(str, Enum):
@@ -201,13 +248,8 @@ class DealResponse(BaseModel):
     status: DealStatus
     total_amount: float
     comments: Optional[str]
-    buyer_order_date: Optional[datetime] = None
-    seller_order_date: Optional[datetime] = None
-    contract_number: Optional[str] = None
     contract_date: Optional[datetime] = None
-    bill_number: Optional[str] = None
     bill_date: Optional[datetime] = None
-    supply_contracts_number: Optional[str] = None
     supply_contracts_date: Optional[datetime] = None
     closing_documents: List[Any] = Field(default_factory=list, description="Закрывающие документы (пока пустой список)")
     others_documents: List[Any] = Field(default_factory=list, description="Прочие документы (пока пустой список)")
@@ -218,6 +260,11 @@ class DealResponse(BaseModel):
         default=None,
         description="Роль текущей компании относительно сделки (buyer/seller)",
     )
+
+    # Поля для совместимости с фронтендом (DealResponse)
+    contract: List["ContractItem"] = Field(default_factory=list, description="Массив договоров [{number, date}]")
+    bill: Optional["BillInDealResponse"] = Field(None, description="Счёт на оплату (number, reason, officials)")
+    supply_contracts: List["SupplyContractItem"] = Field(default_factory=list, description="Договоры поставки [{number, date}]")
 
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)

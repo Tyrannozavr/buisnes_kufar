@@ -57,16 +57,13 @@ class Order(Base):
     # Стороны сделки
     buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
-    
-    # Даты заказов
-    buyer_order_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата заказа покупателя
-    seller_order_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата заказа продавца
 
     # Связанные документы (номера)
     contract_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора
     contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора
     bill_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета на оплату
     bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
+    bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
     supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
     supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
 

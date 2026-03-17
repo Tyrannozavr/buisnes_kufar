@@ -98,10 +98,11 @@ export const useDeals = () => {
 	/**
 	 * Создание новой версии сделки(при внесении изменений в сделку)
 	 * @param dealId - id сделки
+	 * @returns Promise, резолвится после завершения запроса
 	 */
-	const createNewDealVersion = (dealId: number): void => {
-		const { createNewDealVersion } = useCreateNewDealVersionQuery()
-		createNewDealVersion(dealId, createBodyForUpdate(dealId) ?? {})
+	const createNewDealVersion = async (dealId: number): Promise<void> => {
+		const { createNewDealVersionAsync } = useCreateNewDealVersionQuery()
+		await createNewDealVersionAsync(dealId, createBodyForUpdate(dealId))
 		queryCache.invalidateQueries({ key: [QueryKeys.DEALS_BY_IDS] })
 	}
 
@@ -121,7 +122,7 @@ export const useDeals = () => {
 	 */
 	const updateDeal = (dealId: number): void => {
 		const { updateDealById } = useUpdateDealByIdQuery()
-		updateDealById(dealId, createBodyForUpdate(dealId) ?? {})
+		updateDealById(dealId, createBodyForUpdate(dealId) ?? { updated_at: new Date().toISOString() })
 		queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
 	}
 

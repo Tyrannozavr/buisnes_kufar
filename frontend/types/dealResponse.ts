@@ -13,32 +13,38 @@ export interface DealPurchaseResponse {
   updated_at: string;
 }
 
-export interface ProductResponse {
-  product_name: string;
-  product_slug: string;
-  product_description?: string;
-  product_article: string;
-  logo_url?: string;
-  quantity: number;
-  unit_of_measurement?: string;
-  price: number;
-  position: number;
-  id: number;
-  order_id: number;
-  amount: number;
-  created_at: string;
-  updated_at: string;
+export interface ProductItemResponse {
+	product_name: string
+	product_slug: string
+	product_description?: string
+	product_article: string
+	logo_url?: string
+	quantity: number
+	unit_of_measurement?: string
+	price: number
+	position: number
+	id: number
+	order_id: number
+	amount: number
+	created_at: string
+	updated_at: string
 }
 
 export interface CompanyInDealResponse {
-  name: string; // имя владельца компании
-  company_name: string; // название компании
-  slug: string;
-  id: number;
-  inn: string;
-  phone: string;
-  email: string;
-  legal_address: string;
+	owner_name?: string // имя владельца компании
+	company_name: string
+	slug: string
+	company_id: number
+	phone: string
+	email: string
+	legal_address: string // Юридический адрес
+	index: string // Индекс
+	inn: number // ИНН
+	kpp: string // КПП
+	account_number: string // Расчетный счет
+	bank_name: string // Наименование банка
+	bic: string // БИК
+	vat_rate: number // Ставка НДС
 }
 
 export interface OrderItemUpdate {
@@ -50,44 +56,59 @@ export interface OrderItemUpdate {
 }
 
 export interface DealUpdate {
-  status?: "Активная" | "Завершенная";
-  items?: OrderItemUpdate[];
-  comments?: string;
-  contract_number?: string | null;
-  bill_number?: string | null;
-  bill_date?: string | null;
-  supply_contracts_number?: string | null;
-  supply_contracts_date?: string | null;
-  buyer_order_date?: string | null;
-  seller_order_date?: string | null;
+	status?: "Активная" | "Завершенная"
+	items?: OrderItemUpdate[]
+	comments?: string
+	updated_at: string
+	total_amount?: number // общая сумма сделки c учетом ндс
+	bill?: BillResponse
+	bill_date?: string
+	contract?: unknown[]
+	contract_date?: string
+	supply_contracts?: unknown[]
+	supply_contracts_date?: string
+	closing_documents?: unknown[]
+	others_documents?: unknown[]
+	buyer_company?: CompanyInDealResponse
+	seller_company?: CompanyInDealResponse
+}
+
+export interface BillResponse {
+	number: string
+	reason: string
+	officials: OfficialsResponse[]
+}
+
+export interface OfficialsResponse {
+	id: number
+	full_name: string
+	position: string
 }
 
 export interface DealResponse {
-	id: number;
-	version: number;
-	role: "buyer" | "seller";
-  buyer_company_id: number;
-  seller_company_id: number;
-  buyer_order_number: string;
-  seller_order_number: string;
-  status: "Активная" | "Завершенная";
-  total_amount: number;
-  comments: string;
-  buyer_order_date: string | null;
-  seller_order_date: string | null;
-  contract_number: string | null;
-  contract_date: string | null;
-  bill_number: string | null;
-  bill_date: string | null;
-  supply_contracts_number: string | null;
-  supply_contracts_date: string | null;
-  closing_documents: unknown[];
-  others_documents: unknown[];
-  created_at: string;
-  updated_at: string;
-  items: ProductResponse[];
-  buyer_company: CompanyInDealResponse;
-  seller_company: CompanyInDealResponse;
+	id: number
+	version?: number
+	role: "buyer" | "seller"
+	buyer_company_id: number
+	seller_company_id: number
+	buyer_order_number: string
+	seller_order_number: string
+	status: "Активная" | "Завершенная"
+	created_at: string
+	updated_at: string
+	total_amount: number
+	comments: string
+	bill: BillResponse
+	bill_date: string
+	contract: unknown[]
+	contract_date: string
+	supply_contracts: unknown[]
+	supply_contracts_date: string
+	closing_documents: unknown[]
+	others_documents: unknown[]
+	items: ProductItemResponse[]
+	buyer_company: CompanyInDealResponse
+	seller_company: CompanyInDealResponse
 }
 
 export interface BuyerDealResponse {

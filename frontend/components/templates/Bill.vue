@@ -4,7 +4,7 @@
 			<tbody>
 				<tr>
 					<td colspan="4" rowspan="1">
-						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full" v-model="billData.ofpCompany"/>
+						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full" v-model="billData.buyer.companyName"/>
 						<br />
 						<br />
 						<br />
@@ -12,38 +12,38 @@
 					</td>
 					<td class="border">БИК</td>
 					<td>
-						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full" v-model="billData.bik"/>
+						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full" v-model="billData.buyer.bic"/>
 					</td>
 				</tr>
 
 				<tr class="border-b-2 black">
 					<td colspan="4" class="border">
-						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full" v-model="billData.bankName"/>
+						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full" v-model="billData.buyer.bankName"/>
 					</td>
 					<td class="border">Сч. №</td>
 					<td>
-						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full" v-model="billData.accountNumber"/>
+						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full" v-model="billData.buyer.accountNumber"/>
 					</td>
 				</tr>
 
 				<tr>
 					<td class="border w-12">ИНН</td>
 					<td class="border">
-						<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full" v-model="billData.inn"/>
+						<textarea placeholder="ИНН" :disabled="isDisabled" class="w-full" v-model="billData.seller.inn"/>
 					</td>
-					<td class="border">КПП</td>
+					<td class="border w-12">КПП</td>
 					<td class="border">
-						<textarea placeholder="КПП" :disabled="isDisabled" class="w-full" v-model="billData.kpp"/>
+						<textarea placeholder="КПП" :disabled="isDisabled" class="w-full" v-model="billData.seller.kpp"/>
 					</td>
 					<td rowspan="3" class="border">Сч. №</td>
 					<td rowspan="3">
-						<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full" v-model="billData.accountNumber"/>
+						<textarea placeholder="Расчетный счёт" :disabled="isDisabled" class="w-full" v-model="billData.seller.accountNumber"/>
 					</td>
 				</tr>
 
 				<tr>
 					<td colspan="4">
-						<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full" v-model="billData.companyName"/>
+						<textarea placeholder="ОФП, Название компании" :disabled="isDisabled" class="w-full" v-model="billData.seller.companyName"/>
 						<br>
 						<br>
 						<br>
@@ -52,7 +52,7 @@
 
 				<tr>
 					<td colspan="4" class="border">
-						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full" v-model="billData.recipient"/>
+						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full" v-model="billData.buyer.companyName"/>
 					</td>
 				</tr>
 			</tbody>
@@ -70,7 +70,7 @@
 						(исполнитель):</p>
 				</td>
 				<td>
-					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full" v-model="billData.supplier"/>
+					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full font-bold" :value="billData.seller.companyName ? `${billData.seller.companyName}, ${billData.seller.inn}, ${billData.seller.kpp}, ${billData.seller.index}, ${billData.seller.legalAddress}` : ''"/>
 				</td>
 			</tr>
 			<tr>
@@ -80,15 +80,15 @@
 						(заказчик):</p>
 				</td>
 				<td>
-					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full" v-model="billData.buyer"/>
+					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full font-bold" :value="billData.buyer.companyName ? `${billData.buyer.companyName}, ${billData.buyer.inn}, ${billData.buyer.kpp}, ${billData.buyer.index}, ${billData.buyer.legalAddress}` : ''"/>
 				</td>
 			</tr>
-			<tr v-if="reason">
+			<tr v-if="reasonCheck">
 				<td>
 					<p>Основание: </p>
 				</td>
 				<td>
-					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full" v-model="billData.reason" value="Заказ №00000 от 00.00.0000"/>
+					<textarea placeholder="Основание" :disabled="isDisabled" class="w-full font-bold" v-model="billData.reason"/>
 				</td>
 			</tr>
 			</tbody>
@@ -110,9 +110,9 @@
 				</tr>
 			</thead>
 			<tbody>
-				<!-- <tr v-for="product in orderData.products">
+				<tr v-for="product in billData.products">
 					<td class="border">
-						<span>{{ orderData.products.indexOf(product) + 1 }}</span>
+						<span>{{ billData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
 						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
@@ -147,34 +147,34 @@
 							</svg>
 						</span>
 					</td>
-				</tr> -->
+				</tr> 
 
-				<!-- <tr :hidden="isDisabled">
+				<tr :hidden="isDisabled">
 					<td @click="addProduct()" colspan="7"
 						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
-				</tr> -->
+				</tr>
 
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2" >Итого:</td>
-					<td>
-						<!-- товары * кол-во -->
+					<td >
+						<span class="font-bold">{{ normalizePrice(billData.products.reduce((acc, product) => acc + product.amount, 0)) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
-						<!-- итого * %НДС -->
+						<span class="font-bold">{{ vatRateCheck ? normalizePrice(billData.amount * (billData.seller.vatRate ?? 0) / 100) : '0' }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">Всего к оплате:</td>
 					<td>
-						<!-- итого + НДС -->
+						<span class="font-bold">{{ normalizePrice(amount) }}</span>
 					</td>
 				</tr>
 				
@@ -183,17 +183,19 @@
 
 		<p>
 			<span>
-				Всего наименований: , на сумму:
-				<span > 
-					<!-- price -->
-					{{  }} 
+				Всего наименований: 
+				<span class="font-bold">
+					{{ billData.products.length }}
 				</span>
-				p.
+				, на сумму:
+				<span class="font-bold">
+					{{ normalizePrice(amount) }} p.
+				</span> 
 			</span>
 		</p>
 		<div>
 			<span class="underline underline-offset-4">
-				<!-- {{ amountWord }} -->
+				<span class="font-bold">{{ billData.amountWord }}</span>
 			</span>
 			<p v-if="dueDateCheck">
 				<span>Срок оплаты: {{ dueDate }}</span>
@@ -203,28 +205,46 @@
 		<br>
 
 		<p>
-		<textarea v-if="additionalInfo" class="w-full h-30 p-1">
-Внимание!
-Оплата данного счета означает согласие с условиями поставки товара.
+		<p v-if="additionalInfo" class="w-full h-42 p-1 font-bold">
+<span>Внимание!</span><br>
+<span>Оплата данного счета означает согласие с условиями поставки товара.</span><br>
+<span>Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.</span><br>
+<span>Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.</span><br>
 Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
 Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.
-		</textarea>
+		</p>
 		</p>
 
 		<br>
 		<hr class="border-2">
 		<br>
-
-		<table class="w-full">
-			<tbody>
-				<tr>
-					<td>Руководитель</td>
-					<td class="w-2/5 max-w-3/4 border-b">
-						<textarea placeholder="Руководитель" :disabled="isDisabled" class="w-full" v-model="billData.person1"/>
+		<table class="w-full border-separate border-spacing-y-3 border-spacing-x-0">
+			<tbody >
+				<tr v-for="official in billData.officials" :key="official.id" class="w-full">
+					<td class="w-1/3">
+						<input :disabled="isDisabled" class="w-full" placeholder="Должность" v-model="official.position"/>
 					</td>
-					<td>Бухгалтер</td>
-					<td class="w-2/5 max-w-3/4 border-b">
-						<textarea placeholder="Бухгалтер" :disabled="isDisabled" class="w-full" v-model="billData.person2"/>
+					<td class="w-1/3">
+						<input :disabled="isDisabled" class="w-full pb-0 pt-2" placeholder="Имя" v-model="official.name"/>
+					</td>
+					<td class="border-b w-full">
+					</td>
+					<td>
+						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removePerson(official)">
+							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
+								width="32" height="32" viewBox="0 0 24 24">
+								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
+									stroke-linejoin="round" stroke-width="3">
+									<circle cx="12" cy="12" r="10" />
+									<path d="m15 9l-6 6m0-6l6 6" />
+								</g>
+							</svg>
+						</span>
+					</td>
+				</tr>
+				<tr v-if="officials.length < 3" :hidden="isDisabled" class="w-full">
+					<td colspan="4">
+						<PersonSelector :isDisabled="isDisabled" @addPerson="addPerson($event)" />
 					</td>
 				</tr>
 			</tbody>
@@ -234,44 +254,292 @@
 </template>
 
 <script setup lang="ts">
-import { useDocxGenerator } from '~/composables/useDocxGenerator';
 import { Editor } from '~/constants/keys';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useDeals } from '~/composables/useDeals';
 import { normalizeDate } from '~/utils/normalize';
-import type { Bill } from '~/types/dealState';
+import type { BillData } from '~/types/bill';
+import { TemplateElement } from '~/constants/keys';
+import type { Deal } from '~/types/dealState';
+import { useUserStore } from '~/stores/user';
+import type { ProductItem } from '~/types/dealState';
+import type { ProductsInOrder } from '~/types/order';
+import type { OfficialBill } from '~/types/bill';
+import PersonSelector from '~/components/tables/PersonSelector.vue';
 
-const billData = ref({
-	date: '',
-	number: '',
-	ofpCompany: '',
-	bik: '',
-	bankName: '',
-	accountNumber: '',
-	inn: '',
-	kpp: '',
-	recipient: '',
-	companyName: '',
-	supplier: '',
-	buyer: '',
-	reason: '',
-	person1: '',
-	person2: '',
-	person3: ''
-})
-const { deals } = useDeals()
-const { generateDocxBill, downloadBlob } = useDocxGenerator()
-const reason = useTypedState(Editor.REASON)
+const { deals, findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
+const reasonCheck = useTypedState(Editor.REASON_CHECK)
 const dueDateCheck = useTypedState(Editor.DUE_DATE_CHECK)
 const dueDate = useTypedState(Editor.DUE_DATE)
 const additionalInfo = useTypedState(Editor.ADDITIOANAL_INFO)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
-const vatRate = useTypedState(Editor.VAT_RATE)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
-const data = {}
 
-const docxBill = await generateDocxBill(data)
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const saveState = useTypedState(Editor.SAVE_STATE)
+const clearState = useTypedState(Editor.CLEAR_STATE)
+const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 
+const html = useTemplateRef('html')
+const htmlBill = useTypedState(TemplateElement.BILL, () => ref(null))
+
+//сделка для заполнения формы
+const deal: Ref<Deal | undefined> = ref(undefined) 
+
+let seller: BillData['seller'] = {}
+let buyer: BillData['buyer'] = {}
+let products: BillData['products'] = []
+let officials: BillData['officials'] = []
+
+const reasonText = computed<string>(() => {
+	const id = route.query.dealId
+	if (!id) return ''
+	const deal = findDeal(Number(id))
+	if (!deal) return ''
+	return `Заказ №${deal?.sellerOrderNumber || ''} от ${normalizeDate(deal?.date || '')} г.`
+})
+
+const amount = computed<number>(() => {
+	if (vatRateCheck.value) {
+		return billData.value.amount + (billData.value.amount * (billData.value.seller.vatRate ?? 0) / 100)
+	}
+	return billData.value.amount
+})
+
+const billData = ref<BillData>({
+	dealId: 0,
+	number: '',
+	date: '',
+	amount: 0,
+	amountWord: '',
+	seller,
+	buyer,
+	reason: reasonText.value,
+	products,
+	officials,
+})
+
+//добавление должностного лица в счет
+const addPerson = (person: OfficialBill) => {
+	if (billData.value.officials.some((p: OfficialBill) => p.id === person.id)) return
+	billData.value.officials.push(person)
+}
+
+//удаление должностного лица из счета
+const removePerson = (person: OfficialBill) => {
+	billData.value.officials = billData.value.officials.filter((p: OfficialBill) => p.id !== person.id)
+}
+
+//заполнение query параметров по данным в форме
+const fillQuery = () => {
+  const query: Record<string, any> = {...route.query}
+
+  if (billData.value.dealId) {
+    query.dealId = String(billData.value.dealId)
+  }
+
+  if (userStore.companyId === billData.value.buyer.companyId) {
+		query.role = 'buyer'
+  } else if (userStore.companyId === billData.value.seller.companyId) {
+		query.role = 'seller'
+  }
+
+  router.replace({
+    query,
+    hash: '#bill'
+  })
+} 
+
+//заполнение формы по данным сделки
+const fillBillData = () => {
+	if (deal.value) {
+
+		const productList = deal.value.product.productList ?? []
+    products = productList.map((product: ProductItem): ProductsInOrder => ({
+      name: product.name,
+      article: product.article,
+      quantity: product.quantity ?? 0,
+      units: product.units ?? '',
+      price: product.price ?? 0,
+      amount: product.amount ?? 0,
+		}))
+		const sellerData = deal.value.seller ?? {}
+    seller = {
+      ownerName: sellerData.ownerName,
+      companyName: sellerData.companyName,
+      companyId: sellerData.companyId,
+      phone: sellerData.phone,
+			legalAddress: sellerData.legalAddress,
+			index: sellerData.index,
+			inn: Number(sellerData.inn) || 0,
+			kpp: sellerData.kpp,
+			accountNumber: sellerData.accountNumber,
+			bankName: sellerData.bankName,
+			bic: sellerData.bic,
+			vatRate: sellerData.vatRate,
+		}
+		const buyerData = deal.value.buyer ?? {}
+    buyer = {
+      ownerName: buyerData.ownerName,
+      companyName: buyerData.companyName,
+			companyId: buyerData.companyId,
+			phone: buyerData.phone,
+			legalAddress: buyerData.legalAddress,
+			index: buyerData.index,
+			inn: Number(buyerData.inn) || 0,
+			kpp: buyerData.kpp,
+			accountNumber: buyerData.accountNumber,
+			bankName: buyerData.bankName,
+			bic: buyerData.bic,
+			vatRate: buyerData.vatRate,
+		}
+		const officialsData = deal.value.bill.officials ?? []
+		officials = officialsData.map((official: OfficialBill): OfficialBill => ({
+			id: official.id ,
+			position: official.position,
+			name: official.name,
+		}))
+
+    billData.value = {
+      number: route.query.role === 'buyer' ? deal.value.buyerOrderNumber || '' : deal.value.sellerOrderNumber || '',
+      dealId: deal.value.dealId,
+      date: deal.value.date,
+      reason: reasonText.value,
+      amount: deal.value.product.amountPrice,
+      amountWord: deal.value.product.amountWord,
+      seller,
+      buyer,
+      products: [...products],
+      officials: [...officials],
+    }
+	} 
+  fillQuery()
+}
+
+//заполнение формы по данным сделки из query
+const fillFromQuery = () => {
+	const query = route.query
+	if (!query?.dealId || !query?.role) return
+
+	deal.value = findDeal(Number(query.dealId)) ?? undefined
+
+	fillBillData()
+}
+
+//заполнение формы из query при наличии данных в store
+watch(
+  () => [
+    route.query.dealId,
+    deals?.value?.length ?? 0,
+  ],
+  () => fillFromQuery(),
+  { immediate: true, deep: true }
+)
+
+//сохранение заказа в store при нажатии на кнопку сохранения в меню
+watch(() => saveState.value,
+	async () => {
+    if (!saveState.value) return
+		const dealId = billData.value.dealId
+
+		if (route.query.role === 'buyer') {
+			await fullUpdateDeal(
+				dealId,
+				billData.value.seller,
+				billData.value.buyer,
+				billData.value.products,
+				billData.value.reason,
+				billData.value.officials)
+				billData.value.amount = lastDeal?.value?.purchases?.product.amountPrice ?? 0
+				billData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord ?? ''
+			} else if (route.query.role === 'seller') {
+			await fullUpdateDeal(
+				dealId,
+				billData.value.seller,
+				billData.value.buyer,
+				billData.value.products,
+				billData.value.reason,
+				billData.value.officials)
+			billData.value.amount = lastDeal?.value?.sales?.product.amountPrice ?? 0
+			billData.value.amountWord = lastDeal?.value?.sales?.product.amountWord ?? ''
+		}
+	},
+	{ deep: true }
+)
+
+//добавление товара в счет в компоненте
+const addProduct = () => {
+	const product: ProductsInOrder = {
+		name: '',
+		article: '',
+		quantity: 0,
+		units: '',
+		price: 0,
+		amount: 0,
+	}
+	billData.value.products.push(product)
+}
+
+//очистка формы
+const clearForm = () => {
+	products = []
+  seller = {}
+	buyer = {}
+	officials = []
+
+	billData.value = {
+		number: '',
+		dealId: 0,
+		amount: 0,
+		amountWord: '',
+		date: '',
+		reason: '',
+		seller,
+		buyer,
+		products,
+		officials,
+	}
+}
+
+//очистка формы при нажатии на кнопку очистки в меню
+watch(() => clearState.value,
+	() => {
+		if (clearState.value) {
+			clearForm()
+		}
+	},
+	{ deep: true }
+)
+
+//удаление сделки из store и сервера
+const removeDeal = () => {
+	deleteDeal(billData.value.dealId)
+	deal.value = undefined
+	clearForm()
+}
+
+//удаление сделки при нажатии на кнопку удаления в меню
+watch(() => removeDealState.value,
+	() => {
+		if (removeDealState.value) {
+			removeDeal()
+		}
+	},
+	{ deep: true }
+)
+
+//удаление товара из счета в компоненте
+const removeProduct = (product: ProductsInOrder): void => {
+	const index = billData.value.products.indexOf(product)
+	billData.value.products.splice(index, 1)
+}
+
+//заполнение htmlBill
+onMounted(() => {
+	htmlBill.value = html.value
+})
 </script>
 
 <style lang="css" scoped>

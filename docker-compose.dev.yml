@@ -75,6 +75,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile.dev
+    entrypoint: []  # Переопределяем entrypoint.sh (CRLF/путь) при монтировании ./backend:/app
     env_file:
       - ./.env
     environment:

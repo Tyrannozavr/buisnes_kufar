@@ -154,6 +154,7 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       correspondentBankAccount: undefined,
       bankName: undefined,
       vatRate: undefined,
+      index: undefined,
     }
   }
 
@@ -184,8 +185,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
 		bic: bicValue,
     vat_rate: vatRateValue,
 		correspondent_bank_account: correspondentBankAccountValue,
-		bank_name: bankNameValue
-
+		bank_name: bankNameValue,
+		index: indexValue
   } = companyData
 
   // Для локации создаем объекты LocationItem из строковых значений
@@ -223,7 +224,8 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
     bic: bicValue ?? undefined,
     vatRate: vatRateValue ?? undefined,
     correspondentBankAccount: correspondentBankAccountValue ?? undefined,
-    bankName: bankNameValue ?? undefined
+    bankName: bankNameValue ?? undefined,
+    index: indexValue ?? undefined
   }
 }
 
@@ -255,7 +257,8 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
     bic: bicValue,
     vatRate: vatRateValue,
     correspondentBankAccount: correspondentBankAccountValue,
-    bankName: bankNameValue
+    bankName: bankNameValue,
+    index: indexValue
   } = formData
 
   return {
@@ -284,7 +287,8 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
     bic: bicValue,
     vat_rate: vatRateValue,
     correspondent_bank_account: correspondentBankAccountValue,
-    bank_name: bankNameValue
+    bank_name: bankNameValue,
+    index: indexValue
   }
 }
 

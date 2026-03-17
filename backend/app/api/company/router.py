@@ -29,11 +29,19 @@ async def get_my_company(
         company_service: company_service_dep
 ):
     """Get company data for current user. Returns full company data if exists, otherwise returns profile data."""
-    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
-    if company.is_company_created:
-        # Если компания создана, всегда возвращаем полные данные
-        return await company_service.get_full_company(token_data.user_id)
-    return company
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+        if company.is_company_created:
+            # Если компания создана, всегда возвращаем полные данные
+            return await company_service.get_full_company(token_data.user_id)
+        return company
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error in get_my_company: %s", e)
+        raise
 
 
 @router.put("/me", response_model=CompanyResponse)

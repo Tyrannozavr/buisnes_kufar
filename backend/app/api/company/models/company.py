@@ -65,6 +65,7 @@ class Company(Base):
     registration_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     legal_address: Mapped[str] = mapped_column(String(255), nullable=False)
     production_address: Mapped[Optional[str]] = mapped_column(String(255))
+    index: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # почтовый индекс
 
     # Contact information
     phone: Mapped[str] = mapped_column(String(20), nullable=False)

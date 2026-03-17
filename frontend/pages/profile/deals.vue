@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import type { TabsItem } from '@nuxt/ui'
 import { useDeals } from '~/composables/useDeals'
-import GoodsColumns from '~/components/table/GoodsColumns.vue'
+import GoodsColumns from '~/components/tables/GoodsColumns.vue'
 
 definePageMeta({
   layout: 'profile'

@@ -1,13 +1,14 @@
-import type { DealResponse, DealUpdate, OrderItemUpdate, ProductResponse } from "~/types/dealResponse"
+import type { OfficialsResponse, DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse } from "~/types/dealResponse"
 import type { Deal, ProductItem } from "~/types/dealState"
+import type { OfficialBill } from "~/types/bill"
 import { useDeals } from '~/composables/useDeals'
 
 
-export const createBodyForUpdate = (dealId: number): DealUpdate | null => {
+export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	const { findDeal } = useDeals()
 	const deal: Deal | undefined = findDeal(dealId)
 
-	if (!deal) return null
+	if (!deal) return { updated_at: new Date().toISOString() }
 
 	const products = deal.product.productList
 	
@@ -22,14 +23,28 @@ export const createBodyForUpdate = (dealId: number): DealUpdate | null => {
 
 	const body: DealUpdate = {
 		items: itemsList,
-		comments: deal.product.comments ?? undefined
+		comments: deal.product.comments ?? undefined,
+		updated_at: new Date().toISOString()
 	}
 
 	if (deal.status) body.status = deal.status
-	if (deal.contractNumber) body.contract_number = deal.contractNumber
-	if (deal.billNumber) body.bill_number = deal.billNumber
-	if (deal.supplyContractNumber)
-		body.supply_contracts_number = deal.supplyContractNumber
+	if (deal.contract.length > 0) body.contract = deal.contract
+	if (deal.contractDate) body.contract_date = deal.contractDate
+	if (deal.billDate) body.bill_date = deal.billDate
+	if (deal.supplyContractsDate) body.supply_contracts_date = deal.supplyContractsDate
+	if (deal.bill) body.bill = {
+		number: deal.bill.number,
+		reason: deal.bill.reason,
+		officials: deal.bill.officials.map((official: OfficialBill) => ({
+			id: official.id,
+			full_name: official.name,
+			position: official.position
+		} satisfies OfficialsResponse))
+	}
+	if (deal.contract) body.contract = deal.contract
+	if (deal.supplyContracts) body.supply_contracts = deal.supplyContracts
+	if (deal.closingDocuments) body.closing_documents = deal.closingDocuments
+	if (deal.othersDocuments) body.others_documents = deal.othersDocuments
 
 	return body
 }
@@ -39,10 +54,10 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		dealId: dealResponse.id,
 		buyerOrderNumber: dealResponse.buyer_order_number,
 		sellerOrderNumber: dealResponse.seller_order_number,
-		role: dealResponse.role,
+		role: dealResponse.role as "buyer" | "seller",
 		date: dealResponse.created_at,
 		product: {
-			productList: dealResponse.items.map((item: ProductResponse) => ({
+			productList: dealResponse.items.map((item: ProductItemResponse) => ({
 				name: item.product_name,
 				article: item.product_article,
 				quantity: item.quantity,
@@ -55,32 +70,52 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			comments: dealResponse.comments ?? ""
 		},
 		seller: {
-			sellerName: dealResponse.seller_company.name,
+			ownerName: dealResponse.seller_company.owner_name,
 			companyName: dealResponse.seller_company.company_name,
 			phone: dealResponse.seller_company.phone,
 			slug: dealResponse.seller_company.slug,
-			companyId: dealResponse.seller_company.id,
+			companyId: dealResponse.seller_company.company_id,
 			email: dealResponse.seller_company.email,
 			inn: dealResponse.seller_company.inn,
-			legalAddress: dealResponse.seller_company.legal_address
+			legalAddress: dealResponse.seller_company.legal_address,
+			index: dealResponse.seller_company.index,
+			kpp: dealResponse.seller_company.kpp,
+			accountNumber: dealResponse.seller_company.account_number,
+			bankName: dealResponse.seller_company.bank_name,
+			bic: dealResponse.seller_company.bic,
+			vatRate: dealResponse.seller_company.vat_rate
 		},
 		buyer: {
-			buyerName: dealResponse.buyer_company.name,
+			ownerName: dealResponse.buyer_company.owner_name,
 			companyName: dealResponse.buyer_company.company_name,
 			phone: dealResponse.buyer_company.phone,
 			slug: dealResponse.buyer_company.slug,
-			companyId: dealResponse.buyer_company.id,
+			companyId: dealResponse.buyer_company.company_id,
 			email: dealResponse.buyer_company.email,
 			inn: dealResponse.buyer_company.inn,
-			legalAddress: dealResponse.buyer_company.legal_address
+			legalAddress: dealResponse.buyer_company.legal_address,
+			index: dealResponse.buyer_company.index,
+			kpp: dealResponse.buyer_company.kpp,
+			accountNumber: dealResponse.buyer_company.account_number,
+			bankName: dealResponse.buyer_company.bank_name,
+			bic: dealResponse.buyer_company.bic,
+			vatRate: dealResponse.buyer_company.vat_rate
 		},
 		status: dealResponse.status,
-		billNumber: dealResponse.bill_number || "",
-		billDate: dealResponse.bill_date || "",
-		contractNumber: dealResponse.contract_number || "",
-		contractDate: dealResponse.contract_date || "",
-		supplyContractNumber: dealResponse.supply_contracts_number || "",
-		supplyContractDate: dealResponse.supply_contracts_date || "",
+		bill: {
+			number: dealResponse.bill.number,
+			reason: dealResponse.bill.reason,
+			officials: dealResponse.bill.officials.map((official: OfficialsResponse) => ({
+				id: official.id,
+				name: official.full_name,
+				position: official.position
+			}))
+		},
+		billDate: dealResponse.bill_date,
+		contract: dealResponse.contract || [],
+		contractDate: dealResponse.contract_date,
+		supplyContracts: dealResponse.supply_contracts || [],
+		supplyContractsDate: dealResponse.supply_contracts_date,
 		closingDocuments: dealResponse.closing_documents || [],
 		othersDocuments: dealResponse.others_documents || []
 	}

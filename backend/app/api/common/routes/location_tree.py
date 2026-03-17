@@ -54,7 +54,7 @@ async def get_federal_districts(
         country = country_result.scalar_one_or_none()
         
         if not country:
-            raise HTTPException(status_code=404, detail="Страна не найдена")
+            return LocationResponse(items=[], total=0)
         
         # Получаем федеральные округа
         result = await db.execute(
@@ -91,7 +91,7 @@ async def get_regions(
         country = country_result.scalar_one_or_none()
         
         if not country:
-            raise HTTPException(status_code=404, detail="Страна не найдена")
+            return LocationResponse(items=[], total=0)
         
         # Строим запрос
         query = select(Region).where(Region.country_id == country.id, Region.is_active == True)
@@ -150,7 +150,7 @@ async def get_cities(
             country = country_result.scalar_one_or_none()
         
         if not country:
-            raise HTTPException(status_code=404, detail="Страна не найдена")
+            return LocationResponse(items=[], total=0)
         
         logger.info(f"🔍 DEBUG: Найдена страна {country.name} с ID {country.id}")
         

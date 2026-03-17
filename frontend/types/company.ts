@@ -39,6 +39,7 @@ export interface Company {
 	correspondentBankAccount?: string | null
 	bankName?: string
 	vatRate?: number
+	index?: string
 }
 
 // Base type for company officials
@@ -183,6 +184,7 @@ export interface CompanyResponse {
 	correspondent_bank_account?: string | null
 	bank_name?: string
 	vat_rate?: number
+	index?: string
 }
 
 export interface CompanyDataFormState {
@@ -214,6 +216,7 @@ export interface CompanyDataFormState {
 	correspondentBankAccount?: string
 	bankName?: string
 	vatRate?: number
+	index?: string
 }
 
 export interface CompanyDataFormProps {
@@ -249,6 +252,7 @@ export interface CompanyUpdate {
 	correspondent_bank_account?: string | null
 	bank_name?: string
 	vat_rate?: number
+	index?: string
 }
 
 export interface CompanyProfile {

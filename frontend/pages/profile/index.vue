@@ -61,6 +61,7 @@ const loadCompany = async () => {
         bic: '',
         correspondent_bank_account: '',
         bank_name: '',
+        index: '',
       } as CompanyResponse
       return
     }
@@ -165,6 +166,7 @@ const getFieldDisplayName = (field: string): string => {
 		"correspondent_bank_account": "Корр. счет банка",
 		"bank_name": "Наименование банка",
 		"vat_rate": "Ставка НДС",
+		"index": "Индекс",
   }
   
   return fieldNames[field] || field

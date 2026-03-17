@@ -86,7 +86,7 @@ import {
   type DealTypeFilter,
   type DocumentApiItem,
   type DocumentTableRow,
-  type DocumentTypeCode,
+  type DocumentType,
   type OrderOption,
 } from "~/types/documents";
 import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse";
@@ -126,7 +126,7 @@ const dataForFileViewer = ref<{ name: string; dealId: number; documentId: number
 const isFileViewerModalOpen = ref(false);
 
 const uploadForm = reactive<{
-  documentType: DocumentTypeCode | null;
+  documentType: DocumentType | null;
   documentNumber: string;
   file: File | null;
 }>({
@@ -176,13 +176,13 @@ const handleSelectDeal = (dealId: number): void => {
   selectedDealId.value = dealId;
 };
 
-const handleSelectDocumentType = (documentType: DocumentTypeCode): void => {
+const handleSelectDocumentType = (documentType: DocumentType): void => {
   console.log('documentType: ', documentType);
   uploadForm.documentType = documentType;
 };
 
 const getDocumentTypeLabel = (documentType: string): string => {
-  return DOCUMENT_TYPE_LABELS[documentType] || documentType;
+  return DOCUMENT_TYPE_LABELS[documentType as keyof typeof DOCUMENT_TYPE_LABELS] || documentType;
 };
 
 const getFileFormat = (path: string | null): string => {
@@ -258,17 +258,17 @@ const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem
       blob: blob,
     });
   }
-  if (deal.billNumber) {
+  if (deal.bill) {
     const blob = await generateDocxBill(deal);
     docs.push({
       document_id: deal.dealId + 1_000_000,
       deal_id: deal.dealId,
       document_type: "bill",
-      document_number: deal.billNumber ?? null,
-      document_date: deal.billDate ?? null,
+      document_number: deal.bill.number ?? null,
+      document_date: deal.date,
       document_file_path: null,
-      created_at: deal.billDate ?? deal.date,
-      updated_at: deal.billDate ?? deal.date,
+      created_at: deal.date,
+      updated_at: deal.date,
       blob: blob,
     });
   }
@@ -309,7 +309,7 @@ const loadDocuments = async (): Promise<void> => {
 
 //очищение формы перед открытием модального окна
 const handleOpenUploadModal = (): void => {
-  uploadForm.documentType = DOCUMENT_TYPE_OPTIONS[0]?.value || null;
+  uploadForm.documentType = DOCUMENT_TYPE_OPTIONS[0]?.value as DocumentType | null;
   uploadForm.documentNumber = "";
   uploadForm.file = null;
   isUploadModalOpen.value = true;

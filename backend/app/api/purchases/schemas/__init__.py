@@ -183,13 +183,24 @@ class BillUpdateInDeal(BaseModel):
 
 class DealUpdate(BaseModel):
     """Схема для обновления заказа (PUT /deals/{deal_id}, POST /deals/{id}/versions). Совместима с фронтендом DealUpdate."""
-    model_config = {"from_attributes": True, "populate_by_name": True, "extra": "ignore"}
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+        "extra": "ignore",
+        "json_schema_extra": {
+            "examples": [
+                {"comments": "Обновление", "amount_with_vat_rate": True},
+                {"status": "Активная", "amount_with_vat_rate": False},
+            ]
+        },
+    }
 
     status: Optional[DealStatus] = Field(None, description="Статус заказа")
     items: Optional[List[OrderItemUpdate]] = Field(None, description="Обновлённые позиции (OrderItemUpdate: quantity >= 0, price >= 0)")
     comments: Optional[str] = Field(None, description="Комментарии")
     updated_at: Optional[str] = Field(None, description="Метка времени (игнорируется на сервере, для клиентского кэша)")
     total_amount: Optional[float] = Field(None, description="Общая сумма сделки")
+    amount_with_vat_rate: Optional[bool] = Field(None, description="Если true — total_amount пересчитывается с учётом НДС (seller_company.vat_rate). Меняется при POST /deals/{id}/versions.")
 
     # Плоские поля (snake_case) — даты обновляются только через POST /deals/{id}/versions
     contract_date: Optional[datetime] = Field(None, description="Дата договора")
@@ -247,6 +258,7 @@ class DealResponse(BaseModel):
     seller_order_number: str
     status: DealStatus
     total_amount: float
+    amount_with_vat_rate: bool = Field(False, description="Если true — total_amount включает НДС (seller_company.vat_rate)")
     comments: Optional[str]
     contract_date: Optional[datetime] = None
     bill_date: Optional[datetime] = None

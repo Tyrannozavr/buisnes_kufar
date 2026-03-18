@@ -11,7 +11,9 @@ export const useDealsStore = defineStore("deals", () => {
 	/**
 	 * ids сделок в store
 	 */
-	const storedIds = computed<number[]>(() => deals.value.map((deal) => deal.dealId))
+	const storedIds = computed<number[]>(() =>
+		deals.value.map((deal) => deal.dealId)
+	)
 
 	/**
 	 * последняя сделка в store
@@ -53,16 +55,32 @@ export const useDealsStore = defineStore("deals", () => {
 	}
 
 	/**
-	 * стоимость всех товаров
+	 * стоимость всех товаров с учетом НДС(всего к оплате)
+	 */
+	const amountPriceInProductWithoutVat = () => {
+		deals.value?.forEach((deal) => {
+			if (deal.amountWithVatRate) {
+				deal.product.amountPrice = Number(
+					deal.product.productList?.reduce((acc: number, p: ProductItem) => {
+						return p.amount + (p.amount * (deal.seller.vatRate ?? 0)) / 100 + acc
+					}, 0)
+				)
+			}
+		})
+	}
+
+	/**
+	 * стоимость всех товаров без учета НДС
 	 */
 	const amountPriceInProduct = () => {
 		deals.value?.forEach((deal) => {
-			deal.product.amountPrice = Number(
-				deal.product.productList?.reduce(
-					(acc: number, p: ProductItem) => p.amount + acc,
-					0
+			if (!deal.amountWithVatRate) {
+				deal.product.amountPrice = Number(
+					deal.product.productList?.reduce((acc: number, p: ProductItem) => {
+						return p.amount + acc
+					}, 0)
 				)
-			)
+			}
 		})
 	}
 
@@ -73,10 +91,14 @@ export const useDealsStore = defineStore("deals", () => {
 		deals.value?.forEach((deal) => {
 			deal.product.amountWord = numberToWordsRu(deal.product.amountPrice, {
 				showNumberParts: {
-					fractional: false
+					fractional: true
+				},
+				convertNumberToWords: {
+					fractional: true
 				},
 				showCurrency: {
-					integer: false
+					integer: true,
+					fractional: true
 				}
 			})
 		})
@@ -84,6 +106,7 @@ export const useDealsStore = defineStore("deals", () => {
 
 	watchEffect(() => {
 		amountPriceInProductItem()
+		amountPriceInProductWithoutVat()
 		amountPriceInProduct()
 		amountWordProduct()
 	})
@@ -222,13 +245,57 @@ export const useDealsStore = defineStore("deals", () => {
 	/**
 	 * редактирование списка должностных лиц в счете
 	 * @param dealId - id сделки
-	 * @param persons - новый список должностных лиц
+	 * @param officials - новый список должностных лиц
 	 * @returns void
 	 */
 	const editOfficialsBill = (dealId: number, officials: OfficialBill[]) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.bill.officials = [...officials]
+	}
+
+	/**
+	 * обновление даты и номера счёта после createBill
+	 * @param dealId - id сделки
+	 * @param date - дата счёта (bill_date)
+	 * @param number - номер счёта (bill.number)
+	 */
+	const editBillFields = (dealId: number, date: string, number: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.billDate = date
+		deal.bill.number = number
+	}
+
+	/**
+	 * обновление даты договора после createContract
+	 * @param dealId - id сделки
+	 * @param date - дата договора (contract_date)
+	 */
+	const editContractDate = (dealId: number, date: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.contractDate = date
+	}
+
+	/**
+	 * обновление даты договора поставки после createSupplyContract
+	 * @param dealId - id сделки
+	 * @param date - дата договора поставки (supply_contracts_date)
+	 */
+	const editSupplyContractsDate = (dealId: number, date: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContractsDate = date
+	}
+
+	/**
+	 * переключение «Сумма с учётом НДС» для сделки
+	 */
+	const editAmountWithVatRate = (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.amountWithVatRate = value
 	}
 
 	/**
@@ -247,6 +314,7 @@ export const useDealsStore = defineStore("deals", () => {
 		newProductList: ProductItem[],
 		comments?: string,
 		officials?: OfficialBill[],
+		amountWithVatRate?: boolean
 	) => {
 		editSellerCompany(dealId, seller)
 		editBuyerCompany(dealId, buyer)
@@ -257,6 +325,9 @@ export const useDealsStore = defineStore("deals", () => {
 
 		if (comments !== undefined) {
 			editProductComments(dealId, comments)
+		}
+		if (amountWithVatRate !== undefined) {
+			editAmountWithVatRate(dealId, amountWithVatRate)
 		}
 	}
 
@@ -269,6 +340,7 @@ export const useDealsStore = defineStore("deals", () => {
 		clearStore,
 		addNewDeal,
 		amountPriceInProductItem,
+		amountPriceInProductWithoutVat,
 		amountPriceInProduct,
 		amountWordProduct,
 		addNewProduct,
@@ -277,6 +349,10 @@ export const useDealsStore = defineStore("deals", () => {
 		editProductList,
 		editProductComments,
 		removeDeal,
-		fullUpdateDeal
+		fullUpdateDeal,
+		editBillFields,
+		editContractDate,
+		editSupplyContractsDate,
+		editAmountWithVatRate
 	}
 })

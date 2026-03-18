@@ -49,6 +49,7 @@ export interface Deal {
   seller: Company;
   buyer: Company;
   status: "Активная" | "Завершенная"
+	amountWithVatRate: boolean
 	bill: Bill
 	billDate: string
   contract: unknown[]

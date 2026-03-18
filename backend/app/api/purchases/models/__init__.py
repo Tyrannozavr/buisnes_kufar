@@ -74,7 +74,8 @@ class Order(Base):
     # Дополнительная информация
     comments: Mapped[Optional[str]] = mapped_column(Text)
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
-    
+    amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=False)  # Сумма с учётом НДС
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

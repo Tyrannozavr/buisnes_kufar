@@ -83,44 +83,66 @@ definePageMeta({
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const route = useRoute()
 const router = useRouter()
-const { getDeals } = useDeals()
+const { getDeals, deals, findDeal } = useDeals()
 
 getDeals()
 
-const items = [
+const isItemDisabled = ref({
+		bill: false,
+		contract: false,
+	})
+
+watch(() => [
+	deals.value,
+	route.query.dealId,
+], () => {
+	const deal = findDeal(Number(route.query.dealId))
+	isItemDisabled.value.bill = !deal?.billDate
+	isItemDisabled.value.contract = !deal?.contractDate
+}, { immediate: true, deep: true })
+
+const items = computed(() => [
 	{
 		label: 'Заказ',
 		slot: 'order' as const,
+		disabled: false,
 	},
 	{
 		label: 'Счет',
 		slot: 'bill' as const,
+		disabled: isItemDisabled.value.bill,
 	},
 	{
 		label: 'Договор поставки',
 		slot: 'supplyContract' as const,
+		disabled: true,
 	},
 	{
 		label: 'Сопроводительные документы',
 		slot: 'accompanyingDocuments' as const,
+		disabled: true,
 	},
 	{
 		label: 'Счет-фактура',
 		slot: 'invoice' as const,
+		disabled: true,
 	},
 	{
 		label: 'Договор',
-		slot: 'contract' as const
+		slot: 'contract' as const,
+		disabled: true,
 	},
 	{
 		label: 'Акт',
-		slot: 'act' as const
+		slot: 'act' as const,
+		disabled: true,
 	},
 	{
 		label: 'Другие документы',
 		slot: 'othersDocument' as const,
+		disabled: true,
 	},
-]
+])
 
 watch(
 	() => route.fullPath,

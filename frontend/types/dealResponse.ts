@@ -44,7 +44,7 @@ export interface CompanyInDealResponse {
 	account_number: string // Расчетный счет
 	bank_name: string // Наименование банка
 	bic: string // БИК
-	vat_rate: number // Ставка НДС
+	vat_rate: number // Ставка НДС 0, 10, 20
 }
 
 export interface OrderItemUpdate {
@@ -61,6 +61,7 @@ export interface DealUpdate {
 	comments?: string
 	updated_at: string
 	total_amount?: number // общая сумма сделки c учетом ндс
+	amount_with_vat_rate?: boolean
 	bill?: BillResponse
 	bill_date?: string
 	contract?: unknown[]
@@ -97,6 +98,7 @@ export interface DealResponse {
 	created_at: string
 	updated_at: string
 	total_amount: number
+	amount_with_vat_rate?: boolean
 	comments: string
 	bill: BillResponse
 	bill_date: string

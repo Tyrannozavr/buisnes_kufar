@@ -5,7 +5,10 @@ import {
 	useCreateNewDealVersionQuery,
 	useDeleteDealByIdQuery,
 	useDeleteLastDealVersionQuery,
-	useUpdateDealByIdQuery
+	useUpdateDealByIdQuery,
+	useCreateBillQuery,
+	useCreateContractQuery,
+	useCreateSupplyContractQuery
 } from "~/queries/purchases"
 import { useDealsStore } from "~/stores/deals"
 import { QueryKeys } from "~/constants/queryKeys"
@@ -31,7 +34,11 @@ export const useDeals = () => {
 		editProductList,
 		editProductComments,
 		removeDeal,
-		fullUpdateDeal
+		fullUpdateDeal,
+		editBillFields,
+		editContractDate,
+		editSupplyContractsDate,
+		editAmountWithVatRate,
 	} = dealsStore
 
 	/** 
@@ -126,8 +133,36 @@ export const useDeals = () => {
 		queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
 	}
 
+	/**
+	 * Создание счета на основании сделки
+	 * @param dealId - id сделки
+	 */
+	const createBill = (dealId: number): void => {
+		const { createBill } = useCreateBillQuery()
+		createBill(dealId)
+
+	}
+
+	/**
+	 * Создание договора на основании сделки
+	 * @param dealId - id сделки
+	 */
+	const createContract = (dealId: number): void => {
+		const { createContract } = useCreateContractQuery()
+		createContract(dealId)
+	}
+
+	/**
+	 * Создание договора поставки на основании сделки
+	 * @param dealId - id сделки
+	 */
+	const createSupplyContract = (dealId: number): void => {
+		const { createSupplyContract } = useCreateSupplyContractQuery()
+		createSupplyContract(dealId)
+	}
+
 	return {
-		//store refs
+		//store functions
 		deals,
 		lastDeal,
 		findDealByDealNumber,
@@ -141,11 +176,18 @@ export const useDeals = () => {
 		editProductComments,
 		removeDeal,
 		fullUpdateDeal,
-		//server+store functions
+		editBillFields,
+		editContractDate,
+		editSupplyContractsDate,
+		editAmountWithVatRate,
+		//server functions
 		getDeals,
 		deleteDeal,
 		createNewDealVersion,
 		deleteLastDealVersion,
-		updateDeal
+		updateDeal,
+		createBill,
+		createContract,
+		createSupplyContract
 	}
 }

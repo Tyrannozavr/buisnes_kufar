@@ -23,12 +23,12 @@
 			<div v-else class="flex flex-col justify-between gap-5">
 				<InsertButtons :isCancelChanges="isCancelChanges" />
 
-				<div v-if="activeTab === '0'">
+				<div :hidden="isHiddenForBuyer" v-if="activeTab === '0'">
 					<OrderMenu :inDevelopment />
 				</div>
 
-				<div v-if="activeTab === '1'">
-					<BillMenu />
+				<div :hidden="isHiddenForBuyer" v-if="activeTab === '1'">
+					<BillMenu  />
 				</div>
 
 				<div class="flex flex-row justify-between gap-1 w-full">
@@ -234,6 +234,11 @@ const inDevelopment = () => {
 	})
 }
 
+//Hidden buttons for buyer
+const isHiddenForBuyer = computed(() => {
+	return route.query.role === "buyer"
+})
+
 //DOCX
 const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
 
@@ -313,7 +318,6 @@ const searchInCurrentDocument = (
 }
 
 //Button edit
-
 const editButton = () => {
 	isDisabled.value = !isDisabled.value
 }

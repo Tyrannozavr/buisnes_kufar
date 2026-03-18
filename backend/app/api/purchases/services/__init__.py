@@ -306,6 +306,7 @@ class DealService:
                 seller_order_number=order.seller_order_number,
                 status=DealStatus(order.status.value),
                 total_amount=order.total_amount,
+                amount_with_vat_rate=getattr(order, "amount_with_vat_rate", False),
                 comments=order.comments or "",
                 contract_date=order.contract_date,
                 bill_date=order.bill_date,

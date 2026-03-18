@@ -338,6 +338,7 @@ class DealRepository:
             others_documents=latest_order.others_documents,
             comments=latest_order.comments,
             total_amount=latest_order.total_amount,
+            amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", False),
         )
 
         self.session.add(new_order)
@@ -390,6 +391,7 @@ class DealRepository:
             "bill_date": order.bill_date,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
+            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),
         }
 
         # Извлекаем из объектного формата (bill, contract, supply_contracts) — совместимость с фронтендом
@@ -443,7 +445,7 @@ class DealRepository:
             if effective_supply_number is not None:
                 order.supply_contracts_number = effective_supply_number
             elif not order.supply_contracts_number:
-                order.supply_contracts_number = await self._generate_supply_contract_number(order.seller_company_id)
+                order.supply_contracts_number = order.seller_order_number
         elif effective_supply_number is not None:
             order.supply_contracts_number = effective_supply_number
 
@@ -451,6 +453,17 @@ class DealRepository:
             order.closing_documents = order_data.closing_documents
         if order_data.others_documents is not None:
             order.others_documents = order_data.others_documents
+
+        if order_data.amount_with_vat_rate is not None:
+            order.amount_with_vat_rate = order_data.amount_with_vat_rate
+            if order_data.items is None:
+                seller_company = await self.get_company_by_id(order.seller_company_id)
+                vat_rate = (seller_company.vat_rate or 0) if seller_company else 0
+                old_flag = old_data.get("amount_with_vat_rate", False)
+                if old_flag and not order.amount_with_vat_rate:
+                    order.total_amount = order.total_amount / (1 + vat_rate / 100) if vat_rate else order.total_amount
+                elif not old_flag and order.amount_with_vat_rate:
+                    order.total_amount = order.total_amount * (1 + vat_rate / 100)
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
@@ -517,6 +530,10 @@ class DealRepository:
                 order.order_items.append(order_item)
 
             order.total_amount = total_amount
+            if order.amount_with_vat_rate:
+                seller_company = await self.get_company_by_id(order.seller_company_id)
+                vat_rate = (seller_company.vat_rate or 0) if seller_company else 0
+                order.total_amount = order.total_amount * (1 + vat_rate / 100)
         
         order.updated_at = datetime.utcnow()
         
@@ -529,6 +546,7 @@ class DealRepository:
             "bill_date": order.bill_date,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
+            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),
         }
         
         self._add_order_history(
@@ -837,13 +855,13 @@ class DealRepository:
         return (order.bill_number, order.bill_date)
 
     async def assign_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату договора заказу. Возвращает (contract_number, contract_date)."""
+        """Генерирует и присваивает номер и дату договора заказу. contract_number = seller_order_number. Возвращает (contract_number, contract_date)."""
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
         contract_date = date or datetime.utcnow()
         if not order.contract_number:
-            order.contract_number = await self._generate_contract_number(order.seller_company_id)
+            order.contract_number = order.seller_order_number
         order.contract_date = contract_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(
@@ -855,13 +873,13 @@ class DealRepository:
         return (order.contract_number, order.contract_date)
 
     async def assign_supply_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату договора поставки заказу. Возвращает (supply_contracts_number, supply_contracts_date)."""
+        """Генерирует и присваивает номер и дату договора поставки заказу. supply_contracts_number = seller_order_number. Возвращает (supply_contracts_number, supply_contracts_date)."""
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
         supply_date = date or datetime.utcnow()
         if not order.supply_contracts_number:
-            order.supply_contracts_number = await self._generate_supply_contract_number(order.seller_company_id)
+            order.supply_contracts_number = order.seller_order_number
         order.supply_contracts_date = supply_date
         order.updated_at = datetime.utcnow()
         self._add_order_history(

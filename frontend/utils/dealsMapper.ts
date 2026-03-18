@@ -24,14 +24,12 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	const body: DealUpdate = {
 		items: itemsList,
 		comments: deal.product.comments ?? undefined,
-		updated_at: new Date().toISOString()
+		updated_at: new Date().toISOString(),
+		amount_with_vat_rate: deal.amountWithVatRate ?? undefined
 	}
 
 	if (deal.status) body.status = deal.status
 	if (deal.contract.length > 0) body.contract = deal.contract
-	if (deal.contractDate) body.contract_date = deal.contractDate
-	if (deal.billDate) body.bill_date = deal.billDate
-	if (deal.supplyContractsDate) body.supply_contracts_date = deal.supplyContractsDate
 	if (deal.bill) body.bill = {
 		number: deal.bill.number,
 		reason: deal.bill.reason,
@@ -65,7 +63,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				price: item.price,
 				amount: item.amount
 			})),
-			amountPrice: 0,
+			amountPrice: dealResponse.amount_with_vat_rate ? dealResponse.total_amount + (dealResponse.total_amount * (dealResponse.seller_company.vat_rate ?? 0) / 100) : dealResponse.total_amount,
 			amountWord: "",
 			comments: dealResponse.comments ?? ""
 		},
@@ -102,6 +100,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			vatRate: dealResponse.buyer_company.vat_rate
 		},
 		status: dealResponse.status,
+		amountWithVatRate: dealResponse.amount_with_vat_rate as boolean,
 		bill: {
 			number: dealResponse.bill.number,
 			reason: dealResponse.bill.reason,

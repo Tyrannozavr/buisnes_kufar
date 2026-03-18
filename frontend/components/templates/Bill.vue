@@ -160,21 +160,21 @@
 					<td colspan="4"></td>
 					<td colspan="2" >Итого:</td>
 					<td >
-						<span class="font-bold">{{ normalizePrice(billData.products.reduce((acc, product) => acc + product.amount, 0)) }}</span>
+						<span class="font-bold">{{ normalizePrice(billData.products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
-						<span class="font-bold">{{ vatRateCheck ? normalizePrice(billData.amount * (billData.seller.vatRate ?? 0) / 100) : '0' }}</span>
+						<span class="font-bold">{{ normalizePrice(amount.amountVatRate) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">Всего к оплате:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(amount) }}</span>
+						<span class="font-bold">{{ normalizePrice(amount.amount) }}</span>
 					</td>
 				</tr>
 				
@@ -189,13 +189,13 @@
 				</span>
 				, на сумму:
 				<span class="font-bold">
-					{{ normalizePrice(amount) }} p.
+					{{ normalizePrice(amount.amount) }} p.
 				</span> 
 			</span>
 		</p>
 		<div>
 			<span class="underline underline-offset-4">
-				<span class="font-bold">{{ billData.amountWord }}</span>
+				<span class="font-bold">{{ amountWord }}</span>
 			</span>
 			<p v-if="dueDateCheck">
 				<span>Срок оплаты: {{ dueDate }}</span>
@@ -266,6 +266,7 @@ import type { ProductItem } from '~/types/dealState';
 import type { ProductsInOrder } from '~/types/order';
 import type { OfficialBill } from '~/types/bill';
 import PersonSelector from '~/components/tables/PersonSelector.vue';
+import numberToWordsRu from 'number-to-words-ru';
 
 const { deals, findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
@@ -301,13 +302,6 @@ const reasonText = computed<string>(() => {
 	return `Заказ №${deal?.sellerOrderNumber || ''} от ${normalizeDate(deal?.date || '')} г.`
 })
 
-const amount = computed<number>(() => {
-	if (vatRateCheck.value) {
-		return billData.value.amount + (billData.value.amount * (billData.value.seller.vatRate ?? 0) / 100)
-	}
-	return billData.value.amount
-})
-
 const billData = ref<BillData>({
 	dealId: 0,
 	number: '',
@@ -319,6 +313,53 @@ const billData = ref<BillData>({
 	reason: reasonText.value,
 	products,
 	officials,
+})
+
+const amount = computed<{amount: number, amountVatRate: number}>((): {amount: number, amountVatRate: number} => {
+	const dealAmount = findDeal(Number(route.query.dealId))?.product.amountPrice ?? 0
+	const amountTable = products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)
+	const isAmountWithVatRate = findDeal(Number(route.query.dealId))?.amountWithVatRate ?? false
+
+	if (vatRateCheck.value && isAmountWithVatRate) {
+		return {
+			amount: dealAmount,
+			amountVatRate: dealAmount - amountTable
+		}
+	}
+	if (!vatRateCheck.value && !isAmountWithVatRate) {
+		return {
+			amount: dealAmount,
+			amountVatRate: 0
+		}
+	}
+	if (vatRateCheck.value && !isAmountWithVatRate) {
+		return {
+			amount: dealAmount + (dealAmount * (billData.value.seller.vatRate ?? 0) / 100),
+			amountVatRate: dealAmount * (billData.value.seller.vatRate ?? 0) / 100
+		}
+	}
+	if (!vatRateCheck.value && isAmountWithVatRate) {
+		return {
+			amount: dealAmount - (dealAmount - amountTable),
+			amountVatRate: 0
+		}
+	}
+	return {amount: 0, amountVatRate: 0}
+})
+
+const amountWord = computed<string>(() => {
+	return numberToWordsRu.convert(amount.value.amount, {
+		showNumberParts: {
+			fractional: true
+		},
+		convertNumberToWords: {
+			fractional: true
+		},
+		showCurrency: {
+			integer: true,
+			fractional: true
+		}
+	})
 })
 
 //добавление должностного лица в счет
@@ -451,9 +492,11 @@ watch(() => saveState.value,
 				billData.value.buyer,
 				billData.value.products,
 				billData.value.reason,
-				billData.value.officials)
-				billData.value.amount = lastDeal?.value?.purchases?.product.amountPrice ?? 0
-				billData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord ?? ''
+				billData.value.officials,
+			)
+			billData.value.amount = lastDeal?.value?.purchases?.product.amountPrice ?? 0
+			billData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord ?? ''
+				
 			} else if (route.query.role === 'seller') {
 			await fullUpdateDeal(
 				dealId,
@@ -461,7 +504,9 @@ watch(() => saveState.value,
 				billData.value.buyer,
 				billData.value.products,
 				billData.value.reason,
-				billData.value.officials)
+				billData.value.officials,
+				vatRateCheck.value
+			)
 			billData.value.amount = lastDeal?.value?.sales?.product.amountPrice ?? 0
 			billData.value.amountWord = lastDeal?.value?.sales?.product.amountWord ?? ''
 		}

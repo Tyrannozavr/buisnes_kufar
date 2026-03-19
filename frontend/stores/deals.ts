@@ -177,7 +177,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param newSellerCompany - новая компания продавца
 	 * @returns void
 	 */
-	const editSellerCompany = (
+	const editSellerCompany = async (
 		dealId: number,
 		newSellerCompany: EditPersonCompany
 	) => {
@@ -193,7 +193,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param newBuyerCompany - новая компания покупателя
 	 * @returns void
 	 */
-	const editBuyerCompany = (
+	const editBuyerCompany = async(
 		dealId: number,
 		newBuyerCompany: EditPersonCompany
 	) => {
@@ -209,7 +209,10 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param newProductList - новый список товаров
 	 * @returns void
 	 */
-	const editProductList = (dealId: number, newProductList: ProductItem[]) => {
+	const editProductList = async (
+		dealId: number,
+		newProductList: ProductItem[]
+	) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 
@@ -222,7 +225,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param comments - новые комментарии
 	 * @returns void
 	 */
-	const editProductComments = (dealId: number, comments: string) => {
+	const editProductComments = async (dealId: number, comments: string) => {
 		const product = findDeal(dealId)?.product
 		if (!product) return
 
@@ -248,7 +251,10 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param officials - новый список должностных лиц
 	 * @returns void
 	 */
-	const editOfficialsBill = (dealId: number, officials: OfficialBill[]) => {
+	const editOfficialsBill = async (
+		dealId: number,
+		officials: OfficialBill[]
+	) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.bill.officials = [...officials]
@@ -260,7 +266,11 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param date - дата счёта (bill_date)
 	 * @param number - номер счёта (bill.number)
 	 */
-	const editBillFields = (dealId: number, date: string, number: string) => {
+	const editBillFields = async (
+		dealId: number,
+		date: string,
+		number: string
+	) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.billDate = date
@@ -272,7 +282,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param dealId - id сделки
 	 * @param date - дата договора (contract_date)
 	 */
-	const editContractDate = (dealId: number, date: string) => {
+	const editContractDate = async (dealId: number, date: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.contractDate = date
@@ -283,7 +293,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param dealId - id сделки
 	 * @param date - дата договора поставки (supply_contracts_date)
 	 */
-	const editSupplyContractsDate = (dealId: number, date: string) => {
+	const editSupplyContractsDate = async (dealId: number, date: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.supplyContractsDate = date
@@ -292,41 +302,89 @@ export const useDealsStore = defineStore("deals", () => {
 	/**
 	 * переключение «Сумма с учётом НДС» для сделки
 	 */
-	const editAmountWithVatRate = (dealId: number, value: boolean) => {
+	const editAmountWithVatRate = async (dealId: number, value: boolean) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
 		deal.amountWithVatRate = value
 	}
 
+	const editBillReason = async (dealId: number, reason: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.reason = reason
+	}
+
 	/**
-	 * полное обновление сделки
+	 * редактирование срока оплаты в счете
+	 * @param dealId - id сделки
+	 * @param paymentTerms - новый срок оплаты
+	 * @returns void
+	 */
+	const editPaymentTerms = async (dealId: number, paymentTerms: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.paymentTerms = paymentTerms
+	}
+
+	/**
+	 * редактирование дополнительной информации в счете
+	 * @param dealId - id сделки
+	 * @param additionalInfo - новая дополнительная информация
+	 * @returns void
+	 */
+	const editAdditionalInfo = async (dealId: number, additionalInfo: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.additionalInfo = additionalInfo
+	}
+
+	//FIXME: Удалить и заменить в компонентах на точечные функции
+	/**
+	 * обновление сделки
 	 * @param dealId - id сделки
 	 * @param seller - компания продавца
 	 * @param buyer - компания покупателя
 	 * @param newProductList - новый список товаров
-	 * @param comments - новые комментарии
+	 * @param comments - комментарии
+	 * @param paymentTerms - сроки оплаты
+	 * @param additionalInfo - дополнительная информация в счете
+	 * @param officials - список должностных лиц
+	 * @param amountWithVatRate - режим расчета суммыс учетом НДС продавца
 	 * @returns void
 	 */
 	const fullUpdateDeal = async (
 		dealId: number,
-		seller: EditPersonCompany,
-		buyer: EditPersonCompany,
-		newProductList: ProductItem[],
+		seller?: EditPersonCompany,
+		buyer?: EditPersonCompany,
+		newProductList?: ProductItem[],
 		comments?: string,
+		paymentTerms?: string,
+		additionalInfo?: string,
 		officials?: OfficialBill[],
-		amountWithVatRate?: boolean
+		amountWithVatRate?: boolean,
 	) => {
-		editSellerCompany(dealId, seller)
-		editBuyerCompany(dealId, buyer)
-		editProductList(dealId, newProductList)
+		if (seller) {
+			editSellerCompany(dealId, seller)
+		}
+		if (buyer) {
+			editBuyerCompany(dealId, buyer)
+		}
+		if (newProductList) {
+			editProductList(dealId, newProductList)
+		}
+		if (paymentTerms) {
+			editPaymentTerms(dealId, paymentTerms)
+		}
+		if (additionalInfo) {
+			editAdditionalInfo(dealId, additionalInfo)
+		}
 		if (officials) {
 			editOfficialsBill(dealId, officials)
 		}
-
-		if (comments !== undefined) {
+		if (comments) {
 			editProductComments(dealId, comments)
 		}
-		if (amountWithVatRate !== undefined) {
+		if (amountWithVatRate) {
 			editAmountWithVatRate(dealId, amountWithVatRate)
 		}
 	}
@@ -353,6 +411,10 @@ export const useDealsStore = defineStore("deals", () => {
 		editBillFields,
 		editContractDate,
 		editSupplyContractsDate,
-		editAmountWithVatRate
+		editAmountWithVatRate,
+		editPaymentTerms,
+		editAdditionalInfo,
+		editOfficialsBill,
+		editBillReason,
 	}
 })

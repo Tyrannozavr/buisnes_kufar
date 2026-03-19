@@ -10,15 +10,15 @@
 		</div>
 
 		<div>
-			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="dueDateCheck" size="xl" class="mt-2" @change="console.log(dueDate)" />
-			<div class="flex gap-1" v-if="dueDateCheck">
+			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" @change="console.log(paymentTerms)" />
+			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="dueDate">
+				<input :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms">
 			</div>
 		</div>
 
 		<div>
-			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfo" size="xl" class="mt-2" />
+			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" class="mt-2" />
 		</div>
 	</div>
 </template>
@@ -36,9 +36,13 @@ const typeOfDocumentOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет-оферта', id: 'bill-offert'}
 ])
 const typeOfDocument = ref()
-const dueDate = useState(Editor.DUE_DATE, () => ref())
-const initialVatRateCheck = ref(false)
+const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => ref(''))
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+//initial values for checkboxes
+const initialVatRateCheck = ref(false)
+const initialAdditionalInfoCheck = ref(false)
+const initialPaymentTermsCheck = ref(false)
+const initialReasonCheck = ref(false)
 
 watch(() => [
 	route.query.dealId,
@@ -46,14 +50,19 @@ watch(() => [
 ], () => {
 	const deal = deals.value?.find((deal) => deal.dealId === Number(route.query.dealId))
 	if (!deal) return
+
 	initialVatRateCheck.value = deal.amountWithVatRate
-	console.log(initialVatRateCheck.value)
+	initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
+	initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
+	initialReasonCheck.value = deal.bill.reason !== '' ? true : false
 }, { immediate: true, deep: true })
 
+
+
 //checkBoxes
-const reasonCheck = useTypedState(Editor.REASON_CHECK, () => ref(false))
-const dueDateCheck = useTypedState(Editor.DUE_DATE_CHECK, () => ref(false))
-const additionalInfo = useTypedState(Editor.ADDITIOANAL_INFO, () => ref(false))
+const reasonCheck = useTypedState(Editor.REASON_CHECK, () => initialReasonCheck)
+const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK, () => initialPaymentTermsCheck)
+const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK, () => initialAdditionalInfoCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
 
 

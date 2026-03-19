@@ -197,22 +197,19 @@
 			<span class="underline underline-offset-4">
 				<span class="font-bold">{{ amountWord }}</span>
 			</span>
-			<p v-if="dueDateCheck">
-				<span>Срок оплаты: {{ dueDate }}</span>
+			<p v-if="paymentTermsCheck">
+				<span>Срок оплаты: 
+					<span class="font-bold">
+						{{ paymentTerms }}
+					</span>
+				</span>
 			</p>
 		</div>
 
 		<br>
 
-		<p>
-		<p v-if="additionalInfo" class="w-full h-42 p-1 font-bold">
-<span>Внимание!</span><br>
-<span>Оплата данного счета означает согласие с условиями поставки товара.</span><br>
-<span>Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.</span><br>
-<span>Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.</span><br>
-Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
-Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.
-		</p>
+		<p v-if="additionalInfoCheck">
+		<textarea class="w-full h-50 overflow-hidden resize-none" v-model="billData.additionalInfo" />
 		</p>
 
 		<br>
@@ -267,54 +264,81 @@ import type { ProductsInOrder } from '~/types/order';
 import type { OfficialBill } from '~/types/bill';
 import PersonSelector from '~/components/tables/PersonSelector.vue';
 import numberToWordsRu from 'number-to-words-ru';
+import { useSaveDeals } from '~/composables/useSaveDeals';
 
-const { deals, findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
-const dueDateCheck = useTypedState(Editor.DUE_DATE_CHECK)
-const dueDate = useTypedState(Editor.DUE_DATE)
-const additionalInfo = useTypedState(Editor.ADDITIOANAL_INFO)
+const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK)
+const paymentTerms = useTypedState(Editor.PAYMENT_TERMS)
+const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const saveState = useTypedState(Editor.SAVE_STATE)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
+const { completeSave, saveState } = useSaveDeals()
 
 const html = useTemplateRef('html')
 const htmlBill = useTypedState(TemplateElement.BILL, () => ref(null))
-
-//сделка для заполнения формы
-const deal: Ref<Deal | undefined> = ref(undefined) 
 
 let seller: BillData['seller'] = {}
 let buyer: BillData['buyer'] = {}
 let products: BillData['products'] = []
 let officials: BillData['officials'] = []
 
-const reasonText = computed<string>(() => {
-	const id = route.query.dealId
-	if (!id) return ''
-	const deal = findDeal(Number(id))
-	if (!deal) return ''
-	return `Заказ №${deal?.sellerOrderNumber || ''} от ${normalizeDate(deal?.date || '')} г.`
-})
-
 const billData = ref<BillData>({
-	dealId: 0,
-	number: '',
-	date: '',
-	amount: 0,
-	amountWord: '',
-	seller,
-	buyer,
-	reason: reasonText.value,
-	products,
-	officials,
+		dealId: 0,
+		number: '',
+		date: '',
+		amount: 0,
+		amountWord: '',
+		seller,
+		buyer,
+		paymentTerms: '',
+		additionalInfo: '',
+		reason: '',
+		products,
+		officials,
 })
 
+//заполнение основания
+watch(reasonCheck, () => {
+	const deal = findDeal(Number(route.query.dealId))
+	const dealReason = deal?.bill.reason
+	if (reasonCheck.value && dealReason) {
+		billData.value.reason = dealReason
+		return dealReason
+	} else if (reasonCheck.value && !dealReason) {
+		const reason = `Заказ №${deal?.sellerOrderNumber || ''} от ${normalizeDate(deal?.date || '')} г.`
+		billData.value.reason = reason
+		return reason
+	}
+})
+
+//заполнение дополнительной информации
+watch(additionalInfoCheck, () => { 
+	const deal = findDeal(Number(route.query.dealId))
+	const dealAdditionalInfo = deal?.bill.additionalInfo
+
+	if (additionalInfoCheck.value && dealAdditionalInfo) {
+		billData.value.additionalInfo = dealAdditionalInfo
+		 return dealAdditionalInfo
+	} else if (additionalInfoCheck.value && !dealAdditionalInfo) {
+		const additionalInfo = `Внимание!
+Оплата данного счета означает согласие с условиями поставки товара.
+Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
+Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.
+Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
+Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.`
+		billData.value.additionalInfo = additionalInfo
+		return additionalInfo
+	}
+})
+
+//рассчет суммы и суммы НДС
 const amount = computed<{amount: number, amountVatRate: number}>((): {amount: number, amountVatRate: number} => {
 	const dealAmount = findDeal(Number(route.query.dealId))?.product.amountPrice ?? 0
 	const amountTable = products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)
@@ -325,28 +349,26 @@ const amount = computed<{amount: number, amountVatRate: number}>((): {amount: nu
 			amount: dealAmount,
 			amountVatRate: dealAmount - amountTable
 		}
-	}
-	if (!vatRateCheck.value && !isAmountWithVatRate) {
-		return {
-			amount: dealAmount,
-			amountVatRate: 0
-		}
-	}
-	if (vatRateCheck.value && !isAmountWithVatRate) {
+	} else if (vatRateCheck.value && !isAmountWithVatRate) {
 		return {
 			amount: dealAmount + (dealAmount * (billData.value.seller.vatRate ?? 0) / 100),
 			amountVatRate: dealAmount * (billData.value.seller.vatRate ?? 0) / 100
 		}
-	}
-	if (!vatRateCheck.value && isAmountWithVatRate) {
+	} else if (!vatRateCheck.value && isAmountWithVatRate) {
 		return {
 			amount: dealAmount - (dealAmount - amountTable),
+			amountVatRate: 0
+		}
+	} else if (!vatRateCheck.value && !isAmountWithVatRate) {
+		return {
+			amount: dealAmount,
 			amountVatRate: 0
 		}
 	}
 	return {amount: 0, amountVatRate: 0}
 })
 
+//рассчет суммы словами
 const amountWord = computed<string>(() => {
 	return numberToWordsRu.convert(amount.value.amount, {
 		showNumberParts: {
@@ -395,9 +417,10 @@ const fillQuery = () => {
 
 //заполнение формы по данным сделки
 const fillBillData = () => {
-	if (deal.value) {
+	const deal = findDeal(Number(route.query.dealId))
+	if (deal) {
 
-		const productList = deal.value.product.productList ?? []
+		const productList = deal.product.productList ?? []
     products = productList.map((product: ProductItem): ProductsInOrder => ({
       name: product.name,
       article: product.article,
@@ -406,7 +429,7 @@ const fillBillData = () => {
       price: product.price ?? 0,
       amount: product.amount ?? 0,
 		}))
-		const sellerData = deal.value.seller ?? {}
+		const sellerData = deal.seller ?? {}
     seller = {
       ownerName: sellerData.ownerName,
       companyName: sellerData.companyName,
@@ -421,7 +444,7 @@ const fillBillData = () => {
 			bic: sellerData.bic,
 			vatRate: sellerData.vatRate,
 		}
-		const buyerData = deal.value.buyer ?? {}
+		const buyerData = deal.buyer ?? {}
     buyer = {
       ownerName: buyerData.ownerName,
       companyName: buyerData.companyName,
@@ -436,7 +459,7 @@ const fillBillData = () => {
 			bic: buyerData.bic,
 			vatRate: buyerData.vatRate,
 		}
-		const officialsData = deal.value.bill.officials ?? []
+		const officialsData = deal.bill.officials ?? []
 		officials = officialsData.map((official: OfficialBill): OfficialBill => ({
 			id: official.id ,
 			position: official.position,
@@ -444,12 +467,14 @@ const fillBillData = () => {
 		}))
 
     billData.value = {
-      number: route.query.role === 'buyer' ? deal.value.buyerOrderNumber || '' : deal.value.sellerOrderNumber || '',
-      dealId: deal.value.dealId,
-      date: deal.value.date,
-      reason: reasonText.value,
-      amount: deal.value.product.amountPrice,
-      amountWord: deal.value.product.amountWord,
+      number: deal.bill.number,
+      dealId: deal.dealId,
+      date: deal.billDate,
+      reason: deal.bill.reason,
+      amount: deal.product.amountPrice,
+			amountWord: deal.product.amountWord,
+			paymentTerms: deal.bill.paymentTerms,
+			additionalInfo: deal.bill.additionalInfo,
       seller,
       buyer,
       products: [...products],
@@ -463,8 +488,6 @@ const fillBillData = () => {
 const fillFromQuery = () => {
 	const query = route.query
 	if (!query?.dealId || !query?.role) return
-
-	deal.value = findDeal(Number(query.dealId)) ?? undefined
 
 	fillBillData()
 }
@@ -480,35 +503,24 @@ watch(
 )
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
-watch(() => saveState.value,
+watch(() => saveState,
 	async () => {
-    if (!saveState.value) return
-		const dealId = billData.value.dealId
+		if (!saveState.value) return
+		try {
+			const dealId = billData.value.dealId
 
-		if (route.query.role === 'buyer') {
-			await fullUpdateDeal(
-				dealId,
-				billData.value.seller,
-				billData.value.buyer,
-				billData.value.products,
-				billData.value.reason,
-				billData.value.officials,
-			)
-			billData.value.amount = lastDeal?.value?.purchases?.product.amountPrice ?? 0
-			billData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord ?? ''
-				
-			} else if (route.query.role === 'seller') {
-			await fullUpdateDeal(
-				dealId,
-				billData.value.seller,
-				billData.value.buyer,
-				billData.value.products,
-				billData.value.reason,
-				billData.value.officials,
-				vatRateCheck.value
-			)
-			billData.value.amount = lastDeal?.value?.sales?.product.amountPrice ?? 0
-			billData.value.amountWord = lastDeal?.value?.sales?.product.amountWord ?? ''
+			if (route.query.role === 'seller') {
+				await editAmountWithVatRate(dealId, vatRateCheck.value)
+				await editSellerCompany(dealId, billData.value.seller)
+				await editBuyerCompany(dealId, billData.value.buyer)
+				await editProductList(dealId, billData.value.products)
+				await editPaymentTerms(dealId, billData.value.paymentTerms)
+				await editAdditionalInfo(dealId, billData.value.additionalInfo)
+				await editBillReason(dealId, billData.value.reason)
+				await editOfficialsBill(dealId, billData.value.officials)
+			}
+		} finally { 
+			completeSave()
 		}
 	},
 	{ deep: true }
@@ -541,6 +553,8 @@ const clearForm = () => {
 		amountWord: '',
 		date: '',
 		reason: '',
+		paymentTerms: '',
+		additionalInfo: '',
 		seller,
 		buyer,
 		products,
@@ -561,7 +575,6 @@ watch(() => clearState.value,
 //удаление сделки из store и сервера
 const removeDeal = () => {
 	deleteDeal(billData.value.dealId)
-	deal.value = undefined
 	clearForm()
 }
 

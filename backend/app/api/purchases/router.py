@@ -157,6 +157,8 @@ _DEAL_RESPONSE_EXAMPLE = {
     "bill": {
         "number": "СЧ-001",
         "reason": "Оплата по счёту № СЧ-001",
+        "payment_terms": "Оплата в течение 5 рабочих дней",
+        "additional_info": "Счет действителен 3 банковских дня",
         "officials": [
             {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
             {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер"}

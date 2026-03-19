@@ -332,6 +332,9 @@ class DealRepository:
             bill_number=latest_order.bill_number,
             bill_date=self._normalize_datetime(latest_order.bill_date),
             bill_officials=latest_order.bill_officials,
+            bill_reason=latest_order.bill_reason,
+            payment_terms=latest_order.payment_terms,
+            additional_info=latest_order.additional_info,
             supply_contracts_number=latest_order.supply_contracts_number,
             supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
             closing_documents=latest_order.closing_documents,
@@ -389,6 +392,9 @@ class DealRepository:
             "contract_number": order.contract_number,
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
+            "bill_reason": order.bill_reason,
+            "payment_terms": order.payment_terms,
+            "additional_info": order.additional_info,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
             "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),
@@ -438,6 +444,12 @@ class DealRepository:
                 {"id": o.id, "full_name": o.full_name, "position": o.position}
                 for o in order_data.bill.officials
             ]
+        if order_data.bill is not None and order_data.bill.reason is not None:
+            order.bill_reason = order_data.bill.reason
+        if order_data.bill is not None and order_data.bill.payment_terms is not None:
+            order.payment_terms = order_data.bill.payment_terms
+        if order_data.bill is not None and order_data.bill.additional_info is not None:
+            order.additional_info = order_data.bill.additional_info
 
         # supply_contracts_number / supply_contracts_date: supply_contracts_date обновляется только через POST /deals/{id}/versions
         if apply_date_fields and effective_supply_date is not None:
@@ -544,6 +556,9 @@ class DealRepository:
             "contract_number": order.contract_number,
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
+            "bill_reason": order.bill_reason,
+            "payment_terms": order.payment_terms,
+            "additional_info": order.additional_info,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
             "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),

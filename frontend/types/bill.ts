@@ -14,6 +14,8 @@ export interface BillData {
 	amountWord: string
 	date: string
 	reason: string
+	paymentTerms: string
+	additionalInfo: string
 	products: ProductsInOrder[]
 	seller: Company
 	buyer: Company

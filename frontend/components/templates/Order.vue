@@ -6,7 +6,8 @@ import { Editor, TemplateElement } from '~/constants/keys';
 import { normalizeDate, normalizePrice } from '~/utils/normalize';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
-import { useUserStore } from '~/stores/user';
+import { useUserStore } from '~/stores/user'; 
+import { useSaveDeals } from '~/composables/useSaveDeals';
 
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +16,7 @@ const { deals } = useDeals()
 
 
 const { findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
-const saveState = useTypedState(Editor.SAVE_STATE)
+const { completeSave, saveState } = useSaveDeals()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
@@ -132,28 +133,34 @@ watch(
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
 watch(() => saveState.value,
 	async () => {
-    if (!saveState.value) return
-		const dealId = orderData.value.dealId
+		if (!saveState.value) return
+		
+		try {
+			const dealId = orderData.value.dealId
 
-		if (route.query.role === 'buyer') {
-			await fullUpdateDeal(
-				dealId,
-				orderData.value.seller,
-				orderData.value.buyer,
-				orderData.value.products,
-				orderData.value.comments)
-			orderData.value.amount = lastDeal?.value?.purchases?.product.amountPrice
-			orderData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord
-		} else if (route.query.role === 'seller') {
-			await fullUpdateDeal(
-				dealId,
-				orderData.value.seller,
-				orderData.value.buyer,
-				orderData.value.products,
-				orderData.value.comments)
-			orderData.value.amount = lastDeal?.value?.sales?.product.amountPrice
-			orderData.value.amountWord = lastDeal?.value?.sales?.product.amountWord
+			if (route.query.role === 'buyer') {
+				await fullUpdateDeal(
+					dealId,
+					orderData.value.seller,
+					orderData.value.buyer,
+					orderData.value.products,
+					orderData.value.comments)
+				orderData.value.amount = lastDeal?.value?.purchases?.product.amountPrice
+				orderData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord
+			} else if (route.query.role === 'seller') {
+				await fullUpdateDeal(
+					dealId,
+					orderData.value.seller,
+					orderData.value.buyer,
+					orderData.value.products,
+					orderData.value.comments)
+				orderData.value.amount = lastDeal?.value?.sales?.product.amountPrice
+				orderData.value.amountWord = lastDeal?.value?.sales?.product.amountWord
+			}
+		} finally {
+			completeSave()
 		}
+
 	},
 	{ deep: true }
 )

@@ -13,19 +13,6 @@ export const useClearState = () => {
   };
 };
 
-export const useSaveState = () => {
-  const saveState = useTypedState(Editor.SAVE_STATE, () => ref(false))
-
-		const save = (): void => {
-			saveState.value = true
-			nextTick(() => (saveState.value = false))
-		}
-
-  return {
-    save,
-  };
-};
-
 export const useRemoveDealState = () => {
   const removeDealState = useTypedState(Editor.REMOVE_DEAL, () => ref(false));
 

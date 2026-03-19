@@ -36,6 +36,8 @@ export interface Product {
 export interface Bill {
 	number: string
 	reason: string
+	paymentTerms: string
+	additionalInfo: string
 	officials: OfficialBill[]
 }
 

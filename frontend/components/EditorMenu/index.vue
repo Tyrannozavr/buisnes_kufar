@@ -206,9 +206,9 @@ import { useSearch } from "~/composables/useSearch"
 import { Editor, TemplateElement } from "~/constants/keys"
 import {
 	useClearState,
-	useSaveState,
 	useRemoveDealState
 } from "~/composables/useStates"
+import { useSaveDeals } from "~/composables/useSaveDeals"
 import { useRoute } from "vue-router"
 import {
 	getCounterpartData,
@@ -337,7 +337,7 @@ const removeCurrentDeal = () => {
 }
 
 // save button
-const { save } = useSaveState()
+const { startSave } = useSaveDeals()
 const modalIsOpenSaveChanges = ref(false)
 
 
@@ -349,7 +349,7 @@ const counterpartData: CounterpartData | null = getCounterpartData(
 const saveChanges = async (): Promise<void> => {
 	try {
 		// Сначала сохраняем форму в store (officials, products и т.д.), затем создаём новую версию.
-		await save()
+		await startSave()
 		await createNewDealVersion(Number(route.query.dealId))
 		editButton()
 

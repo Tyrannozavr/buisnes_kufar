@@ -39,6 +39,10 @@ export const useDeals = () => {
 		editContractDate,
 		editSupplyContractsDate,
 		editAmountWithVatRate,
+		editPaymentTerms,
+		editAdditionalInfo,
+		editOfficialsBill,
+		editBillReason,
 	} = dealsStore
 
 	/** 
@@ -180,6 +184,10 @@ export const useDeals = () => {
 		editContractDate,
 		editSupplyContractsDate,
 		editAmountWithVatRate,
+		editPaymentTerms,
+		editAdditionalInfo,
+		editOfficialsBill,
+		editBillReason,
 		//server functions
 		getDeals,
 		deleteDeal,

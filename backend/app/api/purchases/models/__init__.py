@@ -64,6 +64,9 @@ class Order(Base):
     bill_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета на оплату
     bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
     bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
+    bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
+    payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
+    additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
     supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
     supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
 

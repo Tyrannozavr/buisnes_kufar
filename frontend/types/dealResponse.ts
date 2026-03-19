@@ -77,6 +77,8 @@ export interface DealUpdate {
 export interface BillResponse {
 	number: string
 	reason: string
+	payment_terms: string
+	additional_info: string
 	officials: OfficialsResponse[]
 }
 
@@ -88,7 +90,7 @@ export interface OfficialsResponse {
 
 export interface DealResponse {
 	id: number
-	version?: number
+	version: number
 	role: "buyer" | "seller"
 	buyer_company_id: number
 	seller_company_id: number

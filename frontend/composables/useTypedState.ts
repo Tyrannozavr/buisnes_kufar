@@ -7,9 +7,9 @@ interface StateMap {
   removeDealState: boolean;
   activeTab: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7";
   reasonCheck: boolean;
-  dueDateCheck: boolean;
-  dueDate: string;
-  additionalInfo: boolean;
+  paymentTerms: string;
+  paymentTermsCheck: boolean;
+  additionalInfoCheck: boolean;
   vatRateCheck: boolean;
   //TemplateElement
   htmlOrder: HTMLElement | null;

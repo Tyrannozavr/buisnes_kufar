@@ -17,9 +17,9 @@ export const enum Editor {
 	REMOVE_DEAL = 'removeDealState',
 	ACTIVE_TAB = 'activeTab',
 	REASON_CHECK = 'reasonCheck',
-	DUE_DATE_CHECK = 'dueDateCheck',
-	DUE_DATE = 'dueDate',
-	ADDITIOANAL_INFO = 'additionalInfo',
+	PAYMENT_TERMS = 'paymentTerms',
+	PAYMENT_TERMS_CHECK = 'paymentTermsCheck',
+	ADDITIONAL_INFO_CHECK = 'additionalInfoCheck',
 	VAT_RATE_CHECK = 'vatRateCheck',
 }
 

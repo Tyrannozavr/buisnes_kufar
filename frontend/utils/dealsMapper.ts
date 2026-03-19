@@ -33,6 +33,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	if (deal.bill) body.bill = {
 		number: deal.bill.number,
 		reason: deal.bill.reason,
+		payment_terms: deal.bill.paymentTerms,
+		additional_info: deal.bill.additionalInfo,
 		officials: deal.bill.officials.map((official: OfficialBill) => ({
 			id: official.id,
 			full_name: official.name,
@@ -104,6 +106,8 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		bill: {
 			number: dealResponse.bill.number,
 			reason: dealResponse.bill.reason,
+			paymentTerms: dealResponse.bill.payment_terms,
+			additionalInfo: dealResponse.bill.additional_info,
 			officials: dealResponse.bill.officials.map((official: OfficialsResponse) => ({
 				id: official.id,
 				name: official.full_name,

@@ -178,6 +178,8 @@ class BillUpdateInDeal(BaseModel):
     model_config = {"extra": "ignore", "from_attributes": True}
     number: str = Field("", description="Номер счёта")
     reason: Optional[str] = Field("", description="Основание")
+    payment_terms: Optional[str] = Field(None, description="Условия оплаты")
+    additional_info: Optional[str] = Field(None, description="Дополнительная информация")
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
@@ -209,7 +211,7 @@ class DealUpdate(BaseModel):
 
     # Объектные поля (формат фронтенда)
     contract: Optional[List[ContractItem]] = Field(None, description="Массив договоров [{number, date}]")
-    bill: Optional["BillUpdateInDeal"] = Field(None, description="Счёт {number, reason, officials}")
+    bill: Optional["BillUpdateInDeal"] = Field(None, description="Счёт {number, reason, payment_terms, additional_info, officials}")
     supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
     closing_documents: Optional[List[Any]] = Field(None, description="Закрывающие документы")
     others_documents: Optional[List[Any]] = Field(None, description="Прочие документы")
@@ -220,6 +222,8 @@ class BillInDealResponse(BaseModel):
     model_config = {"from_attributes": True}
     number: str = Field("", description="Номер счёта")
     reason: str = Field("", description="Основание")
+    payment_terms: str = Field("", description="Условия оплаты")
+    additional_info: str = Field("", description="Дополнительная информация")
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 

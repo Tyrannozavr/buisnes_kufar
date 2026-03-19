@@ -338,57 +338,6 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.bill.additionalInfo = additionalInfo
 	}
 
-	//FIXME: Удалить и заменить в компонентах на точечные функции
-	/**
-	 * обновление сделки
-	 * @param dealId - id сделки
-	 * @param seller - компания продавца
-	 * @param buyer - компания покупателя
-	 * @param newProductList - новый список товаров
-	 * @param comments - комментарии
-	 * @param paymentTerms - сроки оплаты
-	 * @param additionalInfo - дополнительная информация в счете
-	 * @param officials - список должностных лиц
-	 * @param amountWithVatRate - режим расчета суммыс учетом НДС продавца
-	 * @returns void
-	 */
-	const fullUpdateDeal = async (
-		dealId: number,
-		seller?: EditPersonCompany,
-		buyer?: EditPersonCompany,
-		newProductList?: ProductItem[],
-		comments?: string,
-		paymentTerms?: string,
-		additionalInfo?: string,
-		officials?: OfficialBill[],
-		amountWithVatRate?: boolean,
-	) => {
-		if (seller) {
-			editSellerCompany(dealId, seller)
-		}
-		if (buyer) {
-			editBuyerCompany(dealId, buyer)
-		}
-		if (newProductList) {
-			editProductList(dealId, newProductList)
-		}
-		if (paymentTerms) {
-			editPaymentTerms(dealId, paymentTerms)
-		}
-		if (additionalInfo) {
-			editAdditionalInfo(dealId, additionalInfo)
-		}
-		if (officials) {
-			editOfficialsBill(dealId, officials)
-		}
-		if (comments) {
-			editProductComments(dealId, comments)
-		}
-		if (amountWithVatRate) {
-			editAmountWithVatRate(dealId, amountWithVatRate)
-		}
-	}
-
 	return {
 		deals,
 		storedIds,
@@ -407,7 +356,6 @@ export const useDealsStore = defineStore("deals", () => {
 		editProductList,
 		editProductComments,
 		removeDeal,
-		fullUpdateDeal,
 		editBillFields,
 		editContractDate,
 		editSupplyContractsDate,

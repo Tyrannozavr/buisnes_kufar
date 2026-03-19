@@ -15,7 +15,7 @@ const userStore = useUserStore()
 const { deals } = useDeals()
 
 
-const { findDeal, fullUpdateDeal, lastDeal, deleteDeal } = useDeals()
+const { findDeal, lastDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editProductComments } = useDeals()
 const { completeSave, saveState } = useSaveDeals()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
@@ -137,23 +137,16 @@ watch(() => saveState.value,
 		
 		try {
 			const dealId = orderData.value.dealId
+			
+			await editSellerCompany(dealId, orderData.value.seller)
+			await editBuyerCompany(dealId, orderData.value.buyer)
+			await editProductList(dealId, orderData.value.products)
+			await editProductComments(dealId, orderData.value.comments ?? '')
 
 			if (route.query.role === 'buyer') {
-				await fullUpdateDeal(
-					dealId,
-					orderData.value.seller,
-					orderData.value.buyer,
-					orderData.value.products,
-					orderData.value.comments)
 				orderData.value.amount = lastDeal?.value?.purchases?.product.amountPrice
 				orderData.value.amountWord = lastDeal?.value?.purchases?.product.amountWord
 			} else if (route.query.role === 'seller') {
-				await fullUpdateDeal(
-					dealId,
-					orderData.value.seller,
-					orderData.value.buyer,
-					orderData.value.products,
-					orderData.value.comments)
 				orderData.value.amount = lastDeal?.value?.sales?.product.amountPrice
 				orderData.value.amountWord = lastDeal?.value?.sales?.product.amountWord
 			}

@@ -507,7 +507,8 @@ const fillFromQuery = () => {
 watch(
   () => [
     route.query.dealId,
-    deals?.value?.length ?? 0,
+		deals?.value?.length ?? 0,
+		findDeal(Number(route.query.dealId))?.bill.number ?? ''
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }

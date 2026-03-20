@@ -145,7 +145,6 @@ export const useDeals = () => {
 	const createBill = (dealId: number): void => {
 		const { createBill } = useCreateBillQuery()
 		createBill(dealId)
-
 	}
 
 	/**

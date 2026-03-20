@@ -51,11 +51,18 @@ export const unitsOfMeasurementQuery = defineQueryOptions(() => ({
 )
 
 export const useCreateBillQuery = defineMutation(() => {
-	const { editBillFields, findDealByDealNumber } = useDeals()
+	const { editBillFields, findDealByDealNumber, findDeal } = useDeals()
 	const queryCache = useQueryCache()
 	const { mutate, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_BILL],
 		mutation: ({ dealId, date }: { dealId: number, date?: string }) => usePurchasesApi().createBill(dealId, date),
+		onMutate: ({dealId}) => {
+			const deal = findDeal(dealId)
+			if (deal) {
+				editBillFields(dealId, new Date().toISOString(), deal.sellerOrderNumber)
+				queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
+			}
+		},
 		onSuccess: (data: { bill_number: string, bill_date: string } | undefined) => {
 			if (data) {
 				const deal = findDealByDealNumber(data.bill_number, 'seller')

@@ -235,7 +235,7 @@ class DealService:
             logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
             seller_company = await self.repository.get_company_by_id(order.seller_company_id)
 
-            def _make_company_info(company, owner_name: str) -> CompanyInDealResponse:
+            def _make_company_info(company, owner_name: str, vat_rate_override: Optional[int] = None) -> CompanyInDealResponse:
                 return CompanyInDealResponse(
                     id=company.id,
                     company_name=company.name,
@@ -250,13 +250,13 @@ class DealService:
                     current_account_number=company.current_account_number,
                     bank_name=company.bank_name,
                     bic=company.bic,
-                    vat_rate=company.vat_rate,
+                    vat_rate=vat_rate_override if vat_rate_override is not None else company.vat_rate,
                 )
 
             buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
             seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
             buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
-            seller_company_info = _make_company_info(seller_company, seller_owner_name) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
+            seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
             
             logger.debug("Создаем DealResponse")
             closing_docs = order.closing_documents if order.closing_documents is not None else []
@@ -309,7 +309,8 @@ class DealService:
                 seller_order_number=order.seller_order_number,
                 status=DealStatus(order.status.value),
                 total_amount=order.total_amount,
-                amount_with_vat_rate=getattr(order, "amount_with_vat_rate", False),
+                amount_vat_rate=getattr(order, "amount_vat_rate", 0.0),
+                amount_with_vat_rate=getattr(order, "amount_with_vat_rate", True),
                 comments=order.comments or "",
                 contract_date=order.contract_date,
                 bill_date=order.bill_date,

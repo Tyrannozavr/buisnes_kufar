@@ -29,6 +29,7 @@ export interface ProductItem {
 export interface Product {
 	productList: ProductItem[]
 	amountPrice: number 
+	amountVatRate: number
 	amountWord: string
 	comments?: string 
 }
@@ -60,12 +61,4 @@ export interface Deal {
   supplyContractsDate: string
   closingDocuments: unknown[]
   othersDocuments: unknown[]
-}
-
-export interface EditPersonCompany {
-  name?: string;
-  mobileNumber?: string;
-  companyName?: string;
-  legalAddress?: string;
-  inn?: number;
 }

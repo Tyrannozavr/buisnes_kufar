@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import type { Deal, EditPersonCompany, ProductItem } from "~/types/dealState"
+import type { Company, Deal, ProductItem } from "~/types/dealState"
 import numberToWordsRuPkg from "number-to-words-ru"
 import type { OfficialBill } from "~/types/bill"
 
@@ -94,7 +94,7 @@ export const useDealsStore = defineStore("deals", () => {
 					fractional: true
 				},
 				convertNumberToWords: {
-					fractional: true
+					fractional: false
 				},
 				showCurrency: {
 					integer: true,
@@ -179,7 +179,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 */
 	const editSellerCompany = async (
 		dealId: number,
-		newSellerCompany: EditPersonCompany
+		newSellerCompany: Company
 	) => {
 		const sellerCompany = findDeal(dealId)?.seller
 		if (!sellerCompany) return
@@ -195,7 +195,7 @@ export const useDealsStore = defineStore("deals", () => {
 	 */
 	const editBuyerCompany = async(
 		dealId: number,
-		newBuyerCompany: EditPersonCompany
+		newBuyerCompany: Company
 	) => {
 		const buyerCompany = findDeal(dealId)?.buyer
 		if (!buyerCompany) return
@@ -338,6 +338,30 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.bill.additionalInfo = additionalInfo
 	}
 
+	/**
+	 * редактирование ставки НДС продавца
+	 * @param dealId - id сделки
+	 * @param vatRate - новая ставка НДС
+	 * @returns void
+	 */
+	const editVatRateSeller = async (dealId: number, vatRate: number) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.seller.vatRate = vatRate
+	}
+
+	/**
+	 * редактирование суммы НДС
+	 * @param dealId - id сделки
+	 * @param amountVatRate - новая сумма НДС
+	 * @returns void
+	 */
+	const editAmountVatRate = async (dealId: number, amountVatRate: number) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.product.amountVatRate = amountVatRate
+	}
+
 	return {
 		deals,
 		storedIds,
@@ -364,5 +388,7 @@ export const useDealsStore = defineStore("deals", () => {
 		editAdditionalInfo,
 		editOfficialsBill,
 		editBillReason,
+		editVatRateSeller,
+		editAmountVatRate,
 	}
 })

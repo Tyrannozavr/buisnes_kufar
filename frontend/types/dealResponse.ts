@@ -61,6 +61,7 @@ export interface DealUpdate {
 	comments?: string
 	updated_at: string
 	total_amount?: number // общая сумма сделки c учетом ндс
+	amount_vat_rate?: number // общая сумма НДС
 	amount_with_vat_rate?: boolean
 	bill?: BillResponse
 	bill_date?: string
@@ -100,7 +101,8 @@ export interface DealResponse {
 	created_at: string
 	updated_at: string
 	total_amount: number
-	amount_with_vat_rate?: boolean
+	amount_vat_rate?: number
+	amount_with_vat_rate: boolean
 	comments: string
 	bill: BillResponse
 	bill_date: string

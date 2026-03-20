@@ -22,6 +22,8 @@ class DealRepository:
         logger.debug("Начинаем создание заказа для покупателя %s", buyer_company_id)
         
         try:
+            seller_company = await self.get_company_by_id(order_data.seller_company_id)
+
             # Генерируем номера заказов для покупателя и продавца (ежегодное обнуление)
             logger.debug("Генерируем номер заказа для покупателя %s", buyer_company_id)
             buyer_order_number = await self._generate_order_number(buyer_company_id, "buyer")
@@ -40,6 +42,7 @@ class DealRepository:
                 seller_order_number=seller_order_number,
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
+                seller_vat_rate=seller_company.vat_rate if seller_company else None,
                 deal_type=OrderType.GOODS,
                 status=OrderStatus.ACTIVE,
                 comments=order_data.comments
@@ -119,7 +122,9 @@ class DealRepository:
                 logger.debug("Добавляем позицию в сессию")
                 self.session.add(order_item)
             
-            order.total_amount = total_amount
+            vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+            order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
+            order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
             logger.debug("Общая сумма заказа: %s", total_amount)
             
             # Записываем в историю
@@ -327,6 +332,7 @@ class DealRepository:
             status=latest_order.status,
             buyer_company_id=latest_order.buyer_company_id,
             seller_company_id=latest_order.seller_company_id,
+            seller_vat_rate=latest_order.seller_vat_rate,
             contract_number=latest_order.contract_number,
             contract_date=self._normalize_datetime(latest_order.contract_date),
             bill_number=latest_order.bill_number,
@@ -341,7 +347,8 @@ class DealRepository:
             others_documents=latest_order.others_documents,
             comments=latest_order.comments,
             total_amount=latest_order.total_amount,
-            amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", False),
+            amount_vat_rate=latest_order.amount_vat_rate,
+            amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", True),
         )
 
         self.session.add(new_order)
@@ -395,10 +402,16 @@ class DealRepository:
             "bill_reason": order.bill_reason,
             "payment_terms": order.payment_terms,
             "additional_info": order.additional_info,
+            "seller_vat_rate": order.seller_vat_rate,
+            "amount_vat_rate": order.amount_vat_rate,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
-            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),
+            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
         }
+
+        old_total_amount = order.total_amount
+        old_flag = old_data.get("amount_with_vat_rate", True)
+        old_amount_vat_rate = (old_data.get("amount_vat_rate") or 0)
 
         # Извлекаем из объектного формата (bill, contract, supply_contracts) — совместимость с фронтендом
         effective_contract_number = None
@@ -466,16 +479,31 @@ class DealRepository:
         if order_data.others_documents is not None:
             order.others_documents = order_data.others_documents
 
+        if order_data.seller_company is not None and order_data.seller_company.vat_rate is not None:
+            order.seller_vat_rate = order_data.seller_company.vat_rate
+
+        if order_data.amount_vat_rate is not None:
+            order.amount_vat_rate = order_data.amount_vat_rate
+
         if order_data.amount_with_vat_rate is not None:
             order.amount_with_vat_rate = order_data.amount_with_vat_rate
-            if order_data.items is None:
-                seller_company = await self.get_company_by_id(order.seller_company_id)
-                vat_rate = (seller_company.vat_rate or 0) if seller_company else 0
-                old_flag = old_data.get("amount_with_vat_rate", False)
-                if old_flag and not order.amount_with_vat_rate:
-                    order.total_amount = order.total_amount / (1 + vat_rate / 100) if vat_rate else order.total_amount
-                elif not old_flag and order.amount_with_vat_rate:
-                    order.total_amount = order.total_amount * (1 + vat_rate / 100)
+
+        if order_data.items is None and (
+            order_data.amount_vat_rate is not None
+            or order_data.total_amount is not None
+            or order_data.amount_with_vat_rate is not None
+            or (order_data.seller_company is not None and order_data.seller_company.vat_rate is not None)
+        ):
+            seller_company = await self.get_company_by_id(order.seller_company_id)
+            new_vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+            base_total = old_total_amount - old_amount_vat_rate if old_flag else old_total_amount
+            if order_data.total_amount is not None:
+                base_total = order_data.total_amount - order.amount_vat_rate if order.amount_with_vat_rate else order_data.total_amount
+            if order_data.amount_vat_rate is None:
+                order.amount_vat_rate = self._calculate_amount_vat_rate(base_total, new_vat_rate, order.amount_with_vat_rate)
+            elif not order.amount_with_vat_rate:
+                order.amount_vat_rate = 0
+            order.total_amount = base_total + order.amount_vat_rate if order.amount_with_vat_rate else base_total
         
         # Обновляем позиции если нужно
         if order_data.items is not None:
@@ -541,11 +569,13 @@ class DealRepository:
                 )
                 order.order_items.append(order_item)
 
-            order.total_amount = total_amount
-            if order.amount_with_vat_rate:
-                seller_company = await self.get_company_by_id(order.seller_company_id)
-                vat_rate = (seller_company.vat_rate or 0) if seller_company else 0
-                order.total_amount = order.total_amount * (1 + vat_rate / 100)
+            seller_company = await self.get_company_by_id(order.seller_company_id)
+            vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+            if order_data.amount_vat_rate is None:
+                order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
+            elif not order.amount_with_vat_rate:
+                order.amount_vat_rate = 0
+            order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
         
         order.updated_at = datetime.utcnow()
         
@@ -559,9 +589,11 @@ class DealRepository:
             "bill_reason": order.bill_reason,
             "payment_terms": order.payment_terms,
             "additional_info": order.additional_info,
+            "seller_vat_rate": order.seller_vat_rate,
+            "amount_vat_rate": order.amount_vat_rate,
             "supply_contracts_number": order.supply_contracts_number,
             "supply_contracts_date": order.supply_contracts_date,
-            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", False),
+            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
         }
         
         self._add_order_history(
@@ -928,6 +960,13 @@ class DealRepository:
         if value.tzinfo is None:
             return value
         return value.replace(tzinfo=None)
+
+    @staticmethod
+    def _calculate_amount_vat_rate(base_total: float, vat_rate: float, amount_with_vat_rate: bool) -> float:
+        """Считает сумму НДС для сделки только при включенном флаге amount_with_vat_rate."""
+        if not amount_with_vat_rate:
+            return 0.0
+        return base_total * (vat_rate / 100)
 
     def _add_order_history(self, order_row_id: int, company_id: int, change_type: str,
                                 description: str, old_data: Optional[dict] = None,

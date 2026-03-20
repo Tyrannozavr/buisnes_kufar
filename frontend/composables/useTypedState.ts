@@ -10,7 +10,8 @@ interface StateMap {
   paymentTerms: string;
   paymentTermsCheck: boolean;
   additionalInfoCheck: boolean;
-  vatRateCheck: boolean;
+	vatRateCheck: boolean;
+	vatRate: number;
   //TemplateElement
   htmlOrder: HTMLElement | null;
   htmlBill: HTMLElement | null;

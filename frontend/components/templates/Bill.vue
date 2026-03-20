@@ -167,14 +167,14 @@
 					<td colspan="4"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(amount.amountVatRate) }}</span>
+						<span class="font-bold">{{ normalizePrice(billData.amountVatRate) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">Всего к оплате:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(amount.amount) }}</span>
+						<span class="font-bold">{{ normalizePrice(billData.amount) }}</span>
 					</td>
 				</tr>
 				
@@ -189,7 +189,7 @@
 				</span>
 				, на сумму:
 				<span class="font-bold">
-					{{ normalizePrice(amount.amount) }} p.
+					{{ normalizePrice(billData.amount) }} p.
 				</span> 
 			</span>
 		</p>
@@ -200,7 +200,7 @@
 			<p v-if="paymentTermsCheck">
 				<span>Срок оплаты: 
 					<span class="font-bold">
-						{{ paymentTerms }}
+						{{ billData.paymentTerms }}
 					</span>
 				</span>
 			</p>
@@ -266,13 +266,14 @@ import PersonSelector from '~/components/tables/PersonSelector.vue';
 import numberToWordsRu from 'number-to-words-ru';
 import { useSaveDeals } from '~/composables/useSaveDeals';
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
 const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS)
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+const sellerVatRate = useTypedState(Editor.VAT_RATE)
 
 const route = useRoute()
 const router = useRouter()
@@ -290,19 +291,29 @@ let products: BillData['products'] = []
 let officials: BillData['officials'] = []
 
 const billData = ref<BillData>({
-		dealId: 0,
-		number: '',
-		date: '',
-		amount: 0,
-		amountWord: '',
-		seller,
-		buyer,
-		paymentTerms: '',
-		additionalInfo: '',
-		reason: '',
-		products,
-		officials,
+	dealId: 0,
+	number: '',
+	date: '',
+	amount: 0,
+	amountVatRate: 0,
+	amountWord: '',
+	seller: {
+		vatRate: 0,
+	},
+	buyer,
+	paymentTerms: '',
+	additionalInfo: '',
+	reason: '',
+	products,
+	officials,
 })
+
+//заполнение срока оплаты
+watch(paymentTerms, () => {
+	if (paymentTerms.value !== 'billData.value.paymentTerms') {
+		billData.value.paymentTerms = paymentTerms.value
+	}
+}, { deep: true })
 
 //заполнение основания
 watch(reasonCheck, () => {
@@ -339,43 +350,42 @@ watch(additionalInfoCheck, () => {
 })
 
 //рассчет суммы и суммы НДС
-const amount = computed<{amount: number, amountVatRate: number}>((): {amount: number, amountVatRate: number} => {
-	const dealAmount = findDeal(Number(route.query.dealId))?.product.amountPrice ?? 0
+watch(() => [
+	sellerVatRate.value,
+	vatRateCheck.value,
+	route.query.dealId
+], () => {
 	const amountTable = products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)
 	const isAmountWithVatRate = findDeal(Number(route.query.dealId))?.amountWithVatRate ?? false
+	billData.value.seller.vatRate = sellerVatRate.value
 
 	if (vatRateCheck.value && isAmountWithVatRate) {
-		return {
-			amount: dealAmount,
-			amountVatRate: dealAmount - amountTable
-		}
+
+		billData.value.amount = amountTable + (amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100)
+		billData.value.amountVatRate = amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100
+
 	} else if (vatRateCheck.value && !isAmountWithVatRate) {
-		return {
-			amount: dealAmount + (dealAmount * (billData.value.seller.vatRate ?? 0) / 100),
-			amountVatRate: dealAmount * (billData.value.seller.vatRate ?? 0) / 100
-		}
+		billData.value.amount = amountTable + (amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100)
+		billData.value.amountVatRate = amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100
+
 	} else if (!vatRateCheck.value && isAmountWithVatRate) {
-		return {
-			amount: dealAmount - (dealAmount - amountTable),
-			amountVatRate: 0
-		}
+		billData.value.amount = amountTable
+		billData.value.amountVatRate = 0
+
 	} else if (!vatRateCheck.value && !isAmountWithVatRate) {
-		return {
-			amount: dealAmount,
-			amountVatRate: 0
-		}
+		billData.value.amount = amountTable
+		billData.value.amountVatRate = 0
 	}
-	return {amount: 0, amountVatRate: 0}
-})
+}, { immediate: true, deep: true })
 
 //рассчет суммы словами
 const amountWord = computed<string>(() => {
-	return numberToWordsRu.convert(amount.value.amount, {
+	return numberToWordsRu.convert(billData.value.amount, {
 		showNumberParts: {
 			fractional: true
 		},
 		convertNumberToWords: {
-			fractional: true
+			fractional: false
 		},
 		showCurrency: {
 			integer: true,
@@ -472,6 +482,7 @@ const fillBillData = () => {
       date: deal.billDate,
       reason: deal.bill.reason,
       amount: deal.product.amountPrice,
+			amountVatRate: deal.product.amountVatRate,
 			amountWord: deal.product.amountWord,
 			paymentTerms: deal.bill.paymentTerms,
 			additionalInfo: deal.bill.additionalInfo,
@@ -511,6 +522,8 @@ watch(() => saveState,
 
 			if (route.query.role === 'seller') {
 				await editAmountWithVatRate(dealId, vatRateCheck.value)
+				await editVatRateSeller(dealId, (normalizeVatRate(billData.value.seller.vatRate) ?? 0))
+				await editAmountVatRate(dealId, billData.value.amountVatRate)
 				await editSellerCompany(dealId, billData.value.seller)
 				await editBuyerCompany(dealId, billData.value.buyer)
 				await editProductList(dealId, billData.value.products)
@@ -550,6 +563,7 @@ const clearForm = () => {
 		number: '',
 		dealId: 0,
 		amount: 0,
+		amountVatRate: 0,
 		amountWord: '',
 		date: '',
 		reason: '',

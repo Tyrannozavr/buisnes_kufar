@@ -7,6 +7,13 @@
 
 		<div class="mb-2">
 			<UCheckbox :disabled="isDisabled" label="Ставка НДС" v-model="vatRateCheck" size="xl" class="mb-2" />
+			<USelectMenu
+					:disabled="isDisabled"
+					placeholder="Ставка НДС"
+					:items="vatRateOptions"
+					v-model="sellerVatRate"
+					class="w-full"
+				/>
 		</div>
 
 		<div>
@@ -28,7 +35,7 @@ import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { useDeals } from '~/composables/useDeals';
 
-const { deals } = useDeals()
+const { deals, findDeal } = useDeals()
 const route = useRoute()
 const typeOfDocumentOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет на оплату', id: 'bill'},
@@ -36,8 +43,10 @@ const typeOfDocumentOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет-оферта', id: 'bill-offert'}
 ])
 const typeOfDocument = ref()
-const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => ref(''))
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+
+const initialSellerVatRate = ref(0)
+const initialPaymentTerms = ref('')
 //initial values for checkboxes
 const initialVatRateCheck = ref(false)
 const initialAdditionalInfoCheck = ref(false)
@@ -50,21 +59,29 @@ watch(() => [
 ], () => {
 	const deal = deals.value?.find((deal) => deal.dealId === Number(route.query.dealId))
 	if (!deal) return
-
+	initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
+	initialSellerVatRate.value = deal.seller.vatRate ?? 0
 	initialVatRateCheck.value = deal.amountWithVatRate
 	initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
 	initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
 	initialReasonCheck.value = deal.bill.reason !== '' ? true : false
 }, { immediate: true, deep: true })
 
-
-
+const sellerVatRate = useTypedState(Editor.VAT_RATE, () => initialSellerVatRate)
+const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => initialPaymentTerms)
 //checkBoxes
 const reasonCheck = useTypedState(Editor.REASON_CHECK, () => initialReasonCheck)
 const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK, () => initialPaymentTermsCheck)
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK, () => initialAdditionalInfoCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
 
-
+const vatRateOptions = ref<SelectMenuItem[]>([
+	{label: 'Без НДС', value: 0},
+	{label: '5%', value: 5},
+	{label: '7%', value: 7}, 
+	{label: '10%', value: 10},
+	{label: '18%', value: 18},
+	{label: '25%', value: 25},
+])
 
 </script>

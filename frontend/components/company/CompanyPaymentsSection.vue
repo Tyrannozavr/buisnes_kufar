@@ -65,27 +65,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:formState'])
 
-const normalizeVatRate = (rawValue: unknown): number | undefined => {
-  if (rawValue === null || rawValue === undefined) return undefined
-
-  // Nuxt UI can emit either primitive value or the whole item object (often as a Proxy)
-  if (typeof rawValue === 'number') return rawValue
-
-  if (typeof rawValue === 'string') {
-    const parsed = Number(rawValue)
-    return Number.isFinite(parsed) ? parsed : undefined
-  }
-
-  if (typeof rawValue === 'object' && 'value' in (rawValue as Record<string, unknown>)) {
-    const value = (rawValue as { value?: unknown }).value
-    if (typeof value === 'number') return value
-    const parsed = typeof value === 'string' ? Number(value) : Number(value)
-    return Number.isFinite(parsed) ? parsed : undefined
-  }
-
-  return undefined
-}
-
 const updateField = (field: keyof CompanyDataFormState, value: any) => {
   console.log("Typed new value ", value)
   emit('update:formState', {

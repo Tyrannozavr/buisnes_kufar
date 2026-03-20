@@ -183,6 +183,12 @@ class BillUpdateInDeal(BaseModel):
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
+class CompanyInDealUpdate(BaseModel):
+    """Частичное обновление company-данных в контексте сделки."""
+    model_config = {"extra": "ignore", "from_attributes": True, "populate_by_name": True}
+    vat_rate: Optional[int] = Field(None, ge=0, le=25, validation_alias=AliasChoices("vat_rate", "vatRate"))
+
+
 class DealUpdate(BaseModel):
     """Схема для обновления заказа (PUT /deals/{deal_id}, POST /deals/{id}/versions). Совместима с фронтендом DealUpdate."""
     model_config = {
@@ -202,6 +208,7 @@ class DealUpdate(BaseModel):
     comments: Optional[str] = Field(None, description="Комментарии")
     updated_at: Optional[str] = Field(None, description="Метка времени (игнорируется на сервере, для клиентского кэша)")
     total_amount: Optional[float] = Field(None, description="Общая сумма сделки")
+    amount_vat_rate: Optional[float] = Field(None, description="Сумма НДС по сделке")
     amount_with_vat_rate: Optional[bool] = Field(None, description="Если true — total_amount пересчитывается с учётом НДС (seller_company.vat_rate). Меняется при POST /deals/{id}/versions.")
 
     # Плоские поля (snake_case) — даты обновляются только через POST /deals/{id}/versions
@@ -215,6 +222,7 @@ class DealUpdate(BaseModel):
     supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
     closing_documents: Optional[List[Any]] = Field(None, description="Закрывающие документы")
     others_documents: Optional[List[Any]] = Field(None, description="Прочие документы")
+    seller_company: Optional["CompanyInDealUpdate"] = Field(None, description="Частичное обновление company-данных продавца в контексте сделки")
 
 
 class BillInDealResponse(BaseModel):
@@ -262,7 +270,8 @@ class DealResponse(BaseModel):
     seller_order_number: str
     status: DealStatus
     total_amount: float
-    amount_with_vat_rate: bool = Field(False, description="Если true — total_amount включает НДС (seller_company.vat_rate)")
+    amount_vat_rate: float = Field(0, description="Сумма НДС по сделке")
+    amount_with_vat_rate: bool = Field(True, description="Если true — total_amount включает НДС (seller_company.vat_rate)")
     comments: Optional[str]
     contract_date: Optional[datetime] = None
     bill_date: Optional[datetime] = None

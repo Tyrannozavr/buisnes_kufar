@@ -1,4 +1,4 @@
-import type { OfficialsResponse, DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse } from "~/types/dealResponse"
+import type { OfficialsResponse, DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse, CompanyInDealResponse } from "~/types/dealResponse"
 import type { Deal, ProductItem } from "~/types/dealState"
 import type { OfficialBill } from "~/types/bill"
 import { useDeals } from '~/composables/useDeals'
@@ -9,6 +9,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	const deal: Deal | undefined = findDeal(dealId)
 
 	if (!deal) return { updated_at: new Date().toISOString() }
+
+	const seller = deal.seller
 
 	const products = deal.product.productList
 	
@@ -25,7 +27,11 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 		items: itemsList,
 		comments: deal.product.comments ?? undefined,
 		updated_at: new Date().toISOString(),
-		amount_with_vat_rate: deal.amountWithVatRate ?? undefined
+		amount_with_vat_rate: deal.amountWithVatRate ?? undefined,
+		amount_vat_rate: deal.product.amountVatRate ?? undefined,
+		seller_company: {
+			vat_rate: seller.vatRate ?? 0
+		} as CompanyInDealResponse
 	}
 
 	if (deal.status) body.status = deal.status
@@ -66,6 +72,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				amount: item.amount
 			})),
 			amountPrice: dealResponse.amount_with_vat_rate ? dealResponse.total_amount + (dealResponse.total_amount * (dealResponse.seller_company.vat_rate ?? 0) / 100) : dealResponse.total_amount,
+			amountVatRate: dealResponse.amount_vat_rate ?? 0,
 			amountWord: "",
 			comments: dealResponse.comments ?? ""
 		},

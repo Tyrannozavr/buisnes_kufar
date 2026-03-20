@@ -57,6 +57,7 @@ class Order(Base):
     # Стороны сделки
     buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
     seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    seller_vat_rate: Mapped[Optional[int]] = mapped_column(Integer)  # Ставка НДС продавца, зафиксированная на уровне сделки
 
     # Связанные документы (номера)
     contract_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора
@@ -77,7 +78,8 @@ class Order(Base):
     # Дополнительная информация
     comments: Mapped[Optional[str]] = mapped_column(Text)
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
-    amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=False)  # Сумма с учётом НДС
+    amount_vat_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Сумма НДС по сделке
+    amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=True)  # Сумма с учётом НДС
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -21,6 +21,7 @@ export const enum Editor {
 	PAYMENT_TERMS_CHECK = 'paymentTermsCheck',
 	ADDITIONAL_INFO_CHECK = 'additionalInfoCheck',
 	VAT_RATE_CHECK = 'vatRateCheck',
+	VAT_RATE = 'vatRate',
 }
 
 export const enum TemplateElement {

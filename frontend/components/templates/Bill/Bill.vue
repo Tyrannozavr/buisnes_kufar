@@ -281,6 +281,7 @@ import PersonSelector from '~/components/tables/PersonSelector.vue';
 import numberToWordsRu from 'number-to-words-ru';
 import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
+import BillOffer from './Bill-Offer.vue';
 
 const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)

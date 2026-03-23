@@ -58,7 +58,7 @@
 			</tbody>
 		</table>
 
-		<h2 class="font-bold text-2xl">Счёт на оплату № {{ billData.number || '—' }} от {{ normalizeDate(billData.date) || '—' }} г.</h2>
+		<h2 class="font-bold text-2xl">{{ billTypeSelected.label }} № {{ billData.number || '—' }} от {{ normalizeDate(billData.date) || '—' }} г.</h2>
 		<hr class="border-2">
 		<br>
 		<table>
@@ -197,56 +197,72 @@
 			<span class="underline underline-offset-4">
 				<span class="font-bold">{{ amountWord }}</span>
 			</span>
-			<p v-if="paymentTermsCheck">
-				<span>Срок оплаты: 
-					<span class="font-bold">
-						{{ billData.paymentTerms }}
+		</div>
+
+
+		<div v-if="billType === 'bill'">
+			<div v-if="paymentTermsCheck">
+				<p>
+					<span>Срок оплаты: 
+						<span class="font-bold">
+							{{ billData.paymentTerms }} рабочих дней
+						</span>
 					</span>
-				</span>
+				</p>
+			</div>
+
+			<br>
+
+			<p v-if="additionalInfoCheck">
+			<textarea class="w-full h-50 overflow-hidden resize-none" v-model="billData.additionalInfo" />
 			</p>
+
+			<br>
+			<hr class="border-2">
+			<br>
+
+			<table class="w-full border-separate border-spacing-y-3 border-spacing-x-0">
+				<tbody >
+					<tr v-for="official in billData.officials" :key="official.id" class="w-full">
+						<td class="w-1/3">
+							<input :disabled="isDisabled" class="w-full" placeholder="Должность" v-model="official.position"/>
+						</td>
+						<td class="w-1/3">
+							<input :disabled="isDisabled" class="w-full pb-0 pt-2" placeholder="Имя" v-model="official.name"/>
+						</td>
+						<td class="border-b w-full">
+						</td>
+						<td>
+							<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removePerson(official)">
+								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
+									width="32" height="32" viewBox="0 0 24 24">
+									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
+										stroke-linejoin="round" stroke-width="3">
+										<circle cx="12" cy="12" r="10" />
+										<path d="m15 9l-6 6m0-6l6 6" />
+									</g>
+								</svg>
+							</span>
+						</td>
+					</tr>
+					<tr v-if="officials.length < 3" :hidden="isDisabled" class="w-full">
+						<td colspan="4">
+							<PersonSelector :isDisabled="isDisabled" @addPerson="addPerson($event)" />
+						</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 
 		<br>
 
-		<p v-if="additionalInfoCheck">
-		<textarea class="w-full h-50 overflow-hidden resize-none" v-model="billData.additionalInfo" />
-		</p>
+		<div v-if="billType === 'bill-contract'">
+			<BillContract :billData="billData" />
+		</div>
 
-		<br>
-		<hr class="border-2">
-		<br>
-		<table class="w-full border-separate border-spacing-y-3 border-spacing-x-0">
-			<tbody >
-				<tr v-for="official in billData.officials" :key="official.id" class="w-full">
-					<td class="w-1/3">
-						<input :disabled="isDisabled" class="w-full" placeholder="Должность" v-model="official.position"/>
-					</td>
-					<td class="w-1/3">
-						<input :disabled="isDisabled" class="w-full pb-0 pt-2" placeholder="Имя" v-model="official.name"/>
-					</td>
-					<td class="border-b w-full">
-					</td>
-					<td>
-						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removePerson(official)">
-							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
-								width="32" height="32" viewBox="0 0 24 24">
-								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
-									stroke-linejoin="round" stroke-width="3">
-									<circle cx="12" cy="12" r="10" />
-									<path d="m15 9l-6 6m0-6l6 6" />
-								</g>
-							</svg>
-						</span>
-					</td>
-				</tr>
-				<tr v-if="officials.length < 3" :hidden="isDisabled" class="w-full">
-					<td colspan="4">
-						<PersonSelector :isDisabled="isDisabled" @addPerson="addPerson($event)" />
-					</td>
-				</tr>
-			</tbody>
-		</table>
-
+		<div v-if="billType === 'bill-offer'">
+			<BillOffer :billData="billData" />
+		</div>
 	</div>
 </template>
 
@@ -257,7 +273,6 @@ import { useDeals } from '~/composables/useDeals';
 import { normalizeDate } from '~/utils/normalize';
 import type { BillData } from '~/types/bill';
 import { TemplateElement } from '~/constants/keys';
-import type { Deal } from '~/types/dealState';
 import { useUserStore } from '~/stores/user';
 import type { ProductItem } from '~/types/dealState';
 import type { ProductsInOrder } from '~/types/order';
@@ -265,6 +280,7 @@ import type { OfficialBill } from '~/types/bill';
 import PersonSelector from '~/components/tables/PersonSelector.vue';
 import numberToWordsRu from 'number-to-words-ru';
 import { useSaveDeals } from '~/composables/useSaveDeals';
+import BillContract from './Bill-Contract.vue';
 
 const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
@@ -274,6 +290,10 @@ const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const sellerVatRate = useTypedState(Editor.VAT_RATE)
+
+const billTypeSelected = useTypedState(Editor.BILL_TYPE, () => ref({value: 'bill', label: 'Счет на оплату'}))
+const billType = computed(() => billTypeSelected.value.value)
+
 
 const route = useRoute()
 const router = useRouter()

@@ -12,6 +12,7 @@ interface StateMap {
   additionalInfoCheck: boolean;
 	vatRateCheck: boolean;
 	vatRate: number;
+	billType: {value: 'bill' | 'bill-contract' | 'bill-offer'; label: string};
   //TemplateElement
   htmlOrder: HTMLElement | null;
   htmlBill: HTMLElement | null;

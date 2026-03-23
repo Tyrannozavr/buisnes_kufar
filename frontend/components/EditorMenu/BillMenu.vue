@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div class="mb-2">
-			<USelectMenu placeholder="Тип документа" :items="typeOfDocumentOptions" v-model="typeOfDocument" class="w-full" />
+			<USelectMenu placeholder="Тип документа" :items="billTypeOptions" v-model="billType" default-value="Счет на оплату" class="w-full" />
 			<UCheckbox :disabled="isDisabled" label="Основание" v-model="reasonCheck" size="xl" class="mt-2" />
 		</div>
 
@@ -20,7 +20,7 @@
 			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" @change="console.log(paymentTerms)" />
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms">
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms">
 			</div>
 		</div>
 
@@ -35,14 +35,14 @@ import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { useDeals } from '~/composables/useDeals';
 
-const { deals, findDeal } = useDeals()
+const { deals } = useDeals()
 const route = useRoute()
-const typeOfDocumentOptions = ref<SelectMenuItem[]>([
-	{label: 'Счет на оплату', id: 'bill'},
-	{label: 'Счет-договор', id: 'bill-contract'}, 
-	{label: 'Счет-оферта', id: 'bill-offert'}
+const billTypeOptions = ref<SelectMenuItem[]>([
+	{label: 'Счет на оплату', value: 'bill'},
+	{label: 'Счет-договор', value: 'bill-contract'}, 
+	{label: 'Счет-оферта', value: 'bill-offer'}
 ])
-const typeOfDocument = ref()
+const billType = useTypedState(Editor.BILL_TYPE)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const initialSellerVatRate = ref(0)

@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import DogovorUslug from '~/components/templates/DogovorUslug.vue'
-import Bill from '~/components/templates/Bill.vue'
+import Bill from '~/components/templates/Bill/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
 import { Editor } from '~/constants/keys'

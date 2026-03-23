@@ -71,7 +71,11 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				price: item.price,
 				amount: item.amount
 			})),
-			amountPrice: dealResponse.amount_with_vat_rate ? dealResponse.total_amount + (dealResponse.total_amount * (dealResponse.seller_company.vat_rate ?? 0) / 100) : dealResponse.total_amount,
+			amountPrice: dealResponse.amount_with_vat_rate
+				? dealResponse.total_amount +
+					(dealResponse.total_amount * (dealResponse.seller_company.vat_rate ?? 0)) /
+						100
+				: dealResponse.total_amount,
 			amountVatRate: dealResponse.amount_vat_rate ?? 0,
 			amountWord: "",
 			comments: dealResponse.comments ?? ""
@@ -88,6 +92,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			index: dealResponse.seller_company.index,
 			kpp: dealResponse.seller_company.kpp,
 			accountNumber: dealResponse.seller_company.account_number,
+			correspondentBankAccount: dealResponse.seller_company.correspondent_bank_account,
 			bankName: dealResponse.seller_company.bank_name,
 			bic: dealResponse.seller_company.bic,
 			vatRate: dealResponse.seller_company.vat_rate
@@ -104,6 +109,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			index: dealResponse.buyer_company.index,
 			kpp: dealResponse.buyer_company.kpp,
 			accountNumber: dealResponse.buyer_company.account_number,
+			correspondentBankAccount: dealResponse.buyer_company.correspondent_bank_account,
 			bankName: dealResponse.buyer_company.bank_name,
 			bic: dealResponse.buyer_company.bic,
 			vatRate: dealResponse.buyer_company.vat_rate
@@ -115,11 +121,13 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			reason: dealResponse.bill.reason,
 			paymentTerms: dealResponse.bill.payment_terms,
 			additionalInfo: dealResponse.bill.additional_info,
-			officials: dealResponse.bill.officials.map((official: OfficialsResponse) => ({
-				id: official.id,
-				name: official.full_name,
-				position: official.position
-			}))
+			officials: dealResponse.bill.officials.map(
+				(official: OfficialsResponse) => ({
+					id: official.id,
+					name: official.full_name,
+					position: official.position
+				})
+			)
 		},
 		billDate: dealResponse.bill_date,
 		contract: dealResponse.contract || [],

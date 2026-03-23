@@ -42,6 +42,7 @@ export interface CompanyInDealResponse {
 	inn: number // ИНН
 	kpp: string // КПП
 	account_number: string // Расчетный счет
+	correspondent_bank_account: string // Корреспондентский счет
 	bank_name: string // Наименование банка
 	bic: string // БИК
 	vat_rate: number // Ставка НДС 0, 10, 20

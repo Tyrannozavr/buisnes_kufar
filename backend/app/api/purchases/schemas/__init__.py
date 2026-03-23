@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, model_validator, AliasChoices
+from pydantic import BaseModel, Field, model_validator, AliasChoices, ConfigDict
 from enum import Enum
 
 
@@ -236,8 +236,30 @@ class BillInDealResponse(BaseModel):
 
 
 class CompanyInDealResponse(BaseModel):
-    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, account_number)"""
-    model_config = {"from_attributes": True, "populate_by_name": True}
+    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, account_number, correspondent_bank_account, bank_name)."""
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+        "json_schema_extra": {
+            "example": {
+                "company_id": 1,
+                "company_name": "ООО Пример",
+                "owner_name": "Иванов Иван Иванович",
+                "slug": "ooo-primer",
+                "inn": "7707083893",
+                "phone": "+79990000000",
+                "email": "info@example.ru",
+                "legal_address": "г. Москва, ул. Примерная, д. 1",
+                "index": "101000",
+                "kpp": "770701001",
+                "account_number": "40702810100000000000",
+                "correspondent_bank_account": "30101810100000000593",
+                "bank_name": "ПАО Сбербанк",
+                "bic": "044525225",
+                "vat_rate": 20,
+            }
+        },
+    }
 
     id: int = Field(..., description="ID компании", serialization_alias="company_id")
     company_name: str = Field(..., description="Название компании")
@@ -250,6 +272,7 @@ class CompanyInDealResponse(BaseModel):
     index: Optional[str] = Field(None, description="Почтовый индекс")
     kpp: Optional[str] = Field(None, description="КПП")
     current_account_number: Optional[str] = Field(None, description="Расчётный счёт", serialization_alias="account_number")
+    correspondent_bank_account: Optional[str] = Field(None, description="Корреспондентский счёт")
     bank_name: Optional[str] = Field(None, description="Наименование банка")
     bic: Optional[str] = Field(None, description="БИК")
     vat_rate: Optional[int] = Field(None, description="Ставка НДС")
@@ -261,7 +284,72 @@ class DealRole(str, Enum):
 
 
 class DealResponse(BaseModel):
-    """Полная схема заказа для ответа"""
+    """Полная схема заказа для ответа. Реквизиты банка (account_number, correspondent_bank_account, bank_name, bic) — в объектах buyer_company и seller_company (см. CompanyInDealResponse)."""
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "version": 1,
+                "buyer_company_id": 10,
+                "seller_company_id": 20,
+                "buyer_order_number": "00001",
+                "seller_order_number": "00001",
+                "status": "Активная",
+                "total_amount": 10000.0,
+                "amount_vat_rate": 0.0,
+                "amount_with_vat_rate": True,
+                "comments": None,
+                "contract_date": None,
+                "bill_date": None,
+                "supply_contracts_date": None,
+                "closing_documents": [],
+                "others_documents": [],
+                "created_at": "2025-01-01T12:00:00",
+                "updated_at": "2025-01-01T12:00:00",
+                "role": "buyer",
+                "contract": [],
+                "bill": None,
+                "supply_contracts": [],
+                "items": [],
+                "buyer_company": {
+                    "company_id": 10,
+                    "company_name": "ООО Покупатель",
+                    "owner_name": "Иванов И.И.",
+                    "slug": "buyer",
+                    "inn": "7707083893",
+                    "phone": "+79990000001",
+                    "email": "info@buyer.ru",
+                    "legal_address": "г. Москва",
+                    "index": "101000",
+                    "kpp": "770701001",
+                    "account_number": "40702810100000000001",
+                    "correspondent_bank_account": "30101810100000000593",
+                    "bank_name": "ПАО Сбербанк",
+                    "bic": "044525225",
+                    "vat_rate": 20,
+                },
+                "seller_company": {
+                    "company_id": 20,
+                    "company_name": "ООО Продавец",
+                    "owner_name": "Петров П.П.",
+                    "slug": "seller",
+                    "inn": "7707083894",
+                    "phone": "+79990000002",
+                    "email": "info@seller.ru",
+                    "legal_address": "г. Санкт-Петербург",
+                    "index": "190000",
+                    "kpp": "770701002",
+                    "account_number": "40702810100000000002",
+                    "correspondent_bank_account": "30101810100000000594",
+                    "bank_name": "АО Альфа-Банк",
+                    "bic": "044525593",
+                    "vat_rate": 20,
+                },
+            }
+        },
+    )
+
     id: int
     version: int = Field(..., description="Версия сделки (1..N), где N — последняя версия")
     buyer_company_id: int
@@ -293,11 +381,14 @@ class DealResponse(BaseModel):
 
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)
-    buyer_company: Optional[CompanyInDealResponse] = Field(None, description="Информация о компании-покупателе")
-    seller_company: Optional[CompanyInDealResponse] = Field(None, description="Информация о компании-продавце")
-
-    class Config:
-        from_attributes = True
+    buyer_company: Optional[CompanyInDealResponse] = Field(
+        None,
+        description="Компания-покупатель: в т.ч. account_number, correspondent_bank_account, bank_name, bic",
+    )
+    seller_company: Optional[CompanyInDealResponse] = Field(
+        None,
+        description="Компания-продавец: в т.ч. account_number, correspondent_bank_account, bank_name, bic",
+    )
 
 
 class BuyerDealResponse(BaseModel):

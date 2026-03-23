@@ -12,6 +12,7 @@ export interface Company {
   inn?: number; // ИНН
 	kpp?: string; // КПП
 	accountNumber?: string; // Расчетный счет
+	correspondentBankAccount?: string; // Корреспондентский счет
 	bankName?: string; // Наименование банка
 	bic?: string; // БИК
 	vatRate?: number; // Ставка НДС

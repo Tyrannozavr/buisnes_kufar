@@ -248,6 +248,7 @@ class DealService:
                     index=getattr(company, "index", None),
                     kpp=company.kpp,
                     current_account_number=company.current_account_number,
+                    correspondent_bank_account=company.correspondent_bank_account,
                     bank_name=company.bank_name,
                     bic=company.bic,
                     vat_rate=vat_rate_override if vat_rate_override is not None else company.vat_rate,

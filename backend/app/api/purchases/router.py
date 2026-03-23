@@ -195,6 +195,7 @@ _DEAL_RESPONSE_EXAMPLE = {
         "index": "220000",
         "kpp": "123456789",
         "account_number": "BY12345678901234567890",
+        "correspondent_bank_account": "30101810100000000593",
         "bank_name": "Банк",
         "bic": "123456789",
         "vat_rate": 20
@@ -211,6 +212,7 @@ _DEAL_RESPONSE_EXAMPLE = {
         "index": "220001",
         "kpp": "987654321",
         "account_number": "BY98765432109876543210",
+        "correspondent_bank_account": "30101810100000000594",
         "bank_name": "Банк",
         "bic": "987654321",
         "vat_rate": 20

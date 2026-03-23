@@ -36,16 +36,20 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 
 	if (deal.status) body.status = deal.status
 	if (deal.contract.length > 0) body.contract = deal.contract
-	if (deal.bill) body.bill = {
-		number: deal.bill.number,
-		reason: deal.bill.reason,
-		payment_terms: deal.bill.paymentTerms,
-		additional_info: deal.bill.additionalInfo,
-		officials: deal.bill.officials.map((official: OfficialBill) => ({
-			id: official.id,
-			full_name: official.name,
-			position: official.position
-		} satisfies OfficialsResponse))
+	// bill всегда с явными строками: undefined в JSON.stringify выкидывается, на бэке payment_terms не приходит
+	// и репозиторий не обновляет order.payment_terms (см. update_order: payment_terms is not None).
+	if (deal.bill) {
+		body.bill = {
+			number: deal.bill.number ?? "",
+			reason: deal.bill.reason ?? "",
+			payment_terms: String(deal.bill.paymentTerms ?? ""),
+			additional_info: deal.bill.additionalInfo ?? "",
+			officials: deal.bill.officials.map((official: OfficialBill) => ({
+				id: official.id,
+				full_name: official.name,
+				position: official.position
+			}) satisfies OfficialsResponse)
+		}
 	}
 	if (deal.contract) body.contract = deal.contract
 	if (deal.supplyContracts) body.supply_contracts = deal.supplyContracts

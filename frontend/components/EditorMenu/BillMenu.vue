@@ -1,11 +1,12 @@
 <template>
 	<div>
-		<div class="mb-2">
-			<USelectMenu placeholder="Тип документа" :items="billTypeOptions" v-model="billType" default-value="Счет на оплату" class="w-full" />
+		<USelectMenu placeholder="Тип документа" :items="billTypeOptions" v-model="billType" default-value="Счет на оплату" class="w-full" />
+
+		<div :hidden="hiddenForBuyer" class="mb-2">
 			<UCheckbox :disabled="isDisabled" label="Основание" v-model="reasonCheck" size="xl" class="mt-2" />
 		</div>
 
-		<div class="mb-2">
+		<div :hidden="hiddenForBuyer" class="mb-2">
 			<UCheckbox :disabled="isDisabled" label="Ставка НДС" v-model="vatRateCheck" size="xl" class="mb-2" />
 			<USelectMenu
 					:disabled="isDisabled"
@@ -16,7 +17,7 @@
 				/>
 		</div>
 
-		<div>
+		<div :hidden="hiddenForBuyer">
 			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" @change="console.log(paymentTerms)" />
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
@@ -24,7 +25,7 @@
 			</div>
 		</div>
 
-		<div>
+		<div :hidden="hiddenForBuyer">
 			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" class="mt-2" />
 		</div>
 	</div>
@@ -35,7 +36,11 @@ import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { useDeals } from '~/composables/useDeals';
 
-const { deals } = useDeals()
+defineProps<{
+	hiddenForBuyer?: boolean
+}>()
+
+const { findDeal } = useDeals()
 const route = useRoute()
 const billTypeOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет на оплату', value: 'bill'},
@@ -53,19 +58,24 @@ const initialAdditionalInfoCheck = ref(false)
 const initialPaymentTermsCheck = ref(false)
 const initialReasonCheck = ref(false)
 
-watch(() => [
-	route.query.dealId,
-	deals.value,
-], () => {
-	const deal = deals.value?.find((deal) => deal.dealId === Number(route.query.dealId))
-	if (!deal) return
-	initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
-	initialSellerVatRate.value = deal.seller.vatRate ?? 0
-	initialVatRateCheck.value = deal.amountWithVatRate
-	initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
-	initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
-	initialReasonCheck.value = deal.bill.reason !== '' ? true : false
-}, { immediate: true, deep: true })
+const dealForEditor = computed(() =>
+	findDeal(Number(route.query.dealId))
+)
+
+watch(
+	[() => route.query.dealId, dealForEditor],
+	() => {
+		const deal = dealForEditor.value
+		if (!deal) return
+		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
+		initialSellerVatRate.value = deal.seller.vatRate ?? 0
+		initialVatRateCheck.value = deal.amountWithVatRate
+		initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
+		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
+		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
+	},
+	{ immediate: true }
+)
 
 const sellerVatRate = useTypedState(Editor.VAT_RATE, () => initialSellerVatRate)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => initialPaymentTerms)

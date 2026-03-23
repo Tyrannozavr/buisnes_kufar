@@ -331,9 +331,9 @@ const billData = ref<BillData>({
 
 //заполнение срока оплаты
 watch(paymentTerms, () => {
-	if (paymentTerms.value !== 'billData.value.paymentTerms') {
-		billData.value.paymentTerms = paymentTerms.value
-	}
+	debugger
+	billData.value.paymentTerms = paymentTerms.value
+	debugger
 }, { deep: true })
 
 //заполнение основания
@@ -548,8 +548,8 @@ watch(() => saveState,
 				await editAmountWithVatRate(dealId, vatRateCheck.value)
 				await editVatRateSeller(dealId, (normalizeVatRate(billData.value.seller.vatRate) ?? 0))
 				await editAmountVatRate(dealId, billData.value.amountVatRate)
-				await editSellerCompany(dealId, billData.value.seller)
-				await editBuyerCompany(dealId, billData.value.buyer)
+				await editSellerCompany(dealId, billData.value.seller)// тут paymentTerms еще есть 
+				await editBuyerCompany(dealId, billData.value.buyer)// тут paymentTerms уже нет
 				await editProductList(dealId, billData.value.products)
 				await editPaymentTerms(dealId, billData.value.paymentTerms)
 				await editAdditionalInfo(dealId, billData.value.additionalInfo)

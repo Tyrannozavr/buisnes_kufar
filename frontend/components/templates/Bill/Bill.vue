@@ -283,10 +283,13 @@ import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTerms, editContractTermsText } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTerms, editContractTermsText, editDeliveryTerms } = useDeals()
+
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
 const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS)
+const deliveryTermsCheck = useTypedState(Editor.DELIVERY_TERMS_CHECK)
+const deliveryTerms = useTypedState(Editor.DELIVERY_TERMS)
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
@@ -325,6 +328,7 @@ const billData = ref<BillData>({
 	},
 	buyer,
 	paymentTerms: '',
+	deliveryTerms: '',
 	additionalInfo: '',
 	contractTerms: 'standard-delivery-supplier',
 	contractTermsText: '',
@@ -334,7 +338,7 @@ const billData = ref<BillData>({
 })
 
 //заполнение условий договора
-watch(() => [contractTerms, contractTermsCheck, paymentTerms],
+watch(() => [contractTerms, contractTermsCheck, billData.value.paymentTerms, billData.value.deliveryTerms],
 	() => {
 		if (contractTermsCheck.value) {
 			billData.value.contractTerms = contractTerms.value.value
@@ -344,7 +348,7 @@ watch(() => [contractTerms, contractTermsCheck, paymentTerms],
 1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
 2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
 3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTerms} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.paymentTerms} рабочих дней с момента зачисления оплаты на расчетный счет
+4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTerms} рабочих дней с момента зачисления оплаты на расчетный счет
 5. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
 6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
 7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
@@ -356,7 +360,7 @@ watch(() => [contractTerms, contractTermsCheck, paymentTerms],
 1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
 2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
 3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTerms} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.paymentTerms} рабочих дней с момента зачисления оплаты на расчетный счет
+4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTerms} рабочих дней с момента зачисления оплаты на расчетный счет
 5. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
 6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
 7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
@@ -376,9 +380,22 @@ watch(() => [contractTerms, contractTermsCheck, paymentTerms],
 	{ deep: true }
 )
 
+//заполнение срока поставки
+watch(() => [deliveryTermsCheck, deliveryTerms], () => {
+	if (deliveryTermsCheck.value) {
+		billData.value.deliveryTerms = deliveryTerms.value
+	} else {
+		billData.value.deliveryTerms = '10'
+	}
+}, { deep: true })
+
 //заполнение срока оплаты
-watch(paymentTerms, () => {
-	billData.value.paymentTerms = paymentTerms.value
+watch(() => [paymentTermsCheck, paymentTerms], () => {
+	if (paymentTermsCheck.value) {
+		billData.value.paymentTerms = paymentTerms.value
+	} else {
+		billData.value.paymentTerms = '3'
+	}
 }, { deep: true })
 
 //заполнение основания
@@ -553,6 +570,7 @@ const fillBillData = () => {
 			amountVatRate: deal.product.amountVatRate,
 			amountWord: deal.product.amountWord,
 			paymentTerms: deal.bill.paymentTerms,
+			deliveryTerms: deal.bill.deliveryTerms,
 			additionalInfo: deal.bill.additionalInfo,
 			contractTerms: deal.bill.contractTerms,
 			contractTermsText: deal.bill.contractTermsText,
@@ -601,6 +619,7 @@ watch(() => saveState,
 				await editContractTerms(dealId, billData.value.contractTerms)
 				await editContractTermsText(dealId, billData.value.contractTermsText)
 				await editPaymentTerms(dealId, billData.value.paymentTerms)
+				await editDeliveryTerms(dealId, billData.value.deliveryTerms)
 				await editAdditionalInfo(dealId, billData.value.additionalInfo)
 				await editBillReason(dealId, billData.value.reason)
 				await editOfficialsBill(dealId, billData.value.officials)
@@ -641,6 +660,7 @@ const clearForm = () => {
 		date: '',
 		reason: '',
 		paymentTerms: '',
+		deliveryTerms: '',
 		additionalInfo: '',
 		contractTerms: 'standard-delivery-supplier',
 		contractTermsText: '',

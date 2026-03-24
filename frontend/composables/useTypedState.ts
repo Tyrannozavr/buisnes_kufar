@@ -9,6 +9,8 @@ interface StateMap {
 	reasonCheck: boolean
 	paymentTerms: string
 	paymentTermsCheck: boolean
+	deliveryTerms: string
+	deliveryTermsCheck: boolean
 	additionalInfoCheck: boolean
 	vatRateCheck: boolean
 	vatRate: number

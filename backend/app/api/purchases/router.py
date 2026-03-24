@@ -49,6 +49,7 @@ _DEAL_RESPONSE_EXAMPLE = {
         "number": "СЧ-001",
         "reason": "Оплата по счёту № СЧ-001",
         "payment_terms": "Оплата в течение 5 рабочих дней",
+        "delivery_terms": "",
         "additional_info": "Счет действителен 3 банковских дня",
         "contract_terms": "standard-delivery-supplier",
         "contract_terms_text": "",

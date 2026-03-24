@@ -80,6 +80,7 @@ export interface BillResponse {
 	number: string
 	reason: string
 	payment_terms: string
+	delivery_terms: string
 	additional_info: string
 	contract_terms:
 		| "standard-delivery-supplier"

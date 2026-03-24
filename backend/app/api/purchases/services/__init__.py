@@ -271,8 +271,8 @@ class DealService:
                 elif company_id == order.seller_company_id:
                     role = DealRole.SELLER
 
-            # bill — объект для фронтенда (number, reason, payment_terms, additional_info, officials).
-            # officials, reason, payment_terms и additional_info приходят только с клиента при update
+            # bill — объект для фронтенда (number, reason, payment_terms, delivery_terms, additional_info, officials).
+            # officials, reason, payment_terms, delivery_terms и additional_info приходят только с клиента при update
             officials_list = []
             stored = getattr(order, "bill_officials", None)
             if stored and isinstance(stored, list):
@@ -293,6 +293,7 @@ class DealService:
                 number=order.bill_number or "",
                 reason=order.bill_reason or "",
                 payment_terms=order.payment_terms or "",
+                delivery_terms=getattr(order, "delivery_terms", None) or "",
                 additional_info=order.additional_info or "",
                 contract_terms=contract_terms,
                 contract_terms_text=getattr(order, "contract_terms_text", None) or "",

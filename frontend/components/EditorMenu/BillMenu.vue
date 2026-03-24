@@ -38,6 +38,14 @@
 			</div>
 		</div>
 
+		<div v-if="billType.value === 'bill-contract'" :hidden="hiddenForBuyer">
+			<UCheckbox :disabled="isDisabled" label="Срок поставки" v-model="deliveryTermsCheck" size="xl" class="mt-2" @change="console.log(deliveryTerms)" />
+			<div class="flex gap-1" v-if="deliveryTermsCheck">
+				<label class="w-full self-center">Рабочих дней - </label>
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки поставки" class="w-50 p-1 border rounded-lg" v-model="deliveryTerms">
+			</div>
+		</div>
+
 		<div v-if="billType.value === 'bill'" :hidden="hiddenForBuyer">
 			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" class="mt-2" />
 		</div>
@@ -78,11 +86,13 @@ const vatRateOptions = ref<SelectMenuItem[]>([
 const initialContractTerms = ref<{value: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom'; label: string}>({value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика'})
 const initialSellerVatRate = ref(0)
 const initialPaymentTerms = ref('')
+const initialDeliveryTerms = ref('')
 //initial values for checkboxes
 const initialContractTermsCheck = ref(false)
 const initialVatRateCheck = ref(false)
 const initialAdditionalInfoCheck = ref(false)
 const initialPaymentTermsCheck = ref(false)
+const initialDeliveryTermsCheck = ref(false)
 const initialReasonCheck = ref(false)
 
 const dealForEditor = computed(() =>
@@ -99,6 +109,8 @@ watch(
 
 		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
 		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
+		initialDeliveryTerms.value = deal.bill.deliveryTerms ?? ''
+		initialDeliveryTermsCheck.value = deal.bill.deliveryTerms !== '' ? true : false
 
 		initialSellerVatRate.value = deal.seller.vatRate ?? 0
 		initialVatRateCheck.value = deal.amountWithVatRate
@@ -113,9 +125,11 @@ const contractTerms = useTypedState(Editor.CONTRACT_TERMS, () => initialContract
 const contractTermsCheck = useTypedState(Editor.CONTRACT_TERMS_CHECK, () => initialContractTermsCheck)
 const sellerVatRate = useTypedState(Editor.VAT_RATE, () => initialSellerVatRate)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => initialPaymentTerms)
+const deliveryTerms = useTypedState(Editor.DELIVERY_TERMS, () => initialDeliveryTerms)
 //checkBoxes
 const reasonCheck = useTypedState(Editor.REASON_CHECK, () => initialReasonCheck)
 const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK, () => initialPaymentTermsCheck)
+const deliveryTermsCheck = useTypedState(Editor.DELIVERY_TERMS_CHECK, () => initialDeliveryTermsCheck)
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK, () => initialAdditionalInfoCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
 

@@ -19,6 +19,8 @@ export const enum Editor {
 	REASON_CHECK = 'reasonCheck',
 	PAYMENT_TERMS = 'paymentTerms',
 	PAYMENT_TERMS_CHECK = 'paymentTermsCheck',
+	DELIVERY_TERMS = 'deliveryTerms',
+	DELIVERY_TERMS_CHECK = 'deliveryTermsCheck',
 	ADDITIONAL_INFO_CHECK = 'additionalInfoCheck',
 	VAT_RATE_CHECK = 'vatRateCheck',
 	VAT_RATE = 'vatRate',

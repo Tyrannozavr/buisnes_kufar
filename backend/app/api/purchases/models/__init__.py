@@ -67,6 +67,7 @@ class Order(Base):
     bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
     bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
     payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
+    delivery_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
     additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
     contract_terms: Mapped[str] = mapped_column(
         String(64), nullable=False, default="standard-delivery-supplier"

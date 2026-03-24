@@ -340,6 +340,7 @@ class DealRepository:
             bill_officials=latest_order.bill_officials,
             bill_reason=latest_order.bill_reason,
             payment_terms=latest_order.payment_terms,
+            delivery_terms=getattr(latest_order, "delivery_terms", None),
             additional_info=latest_order.additional_info,
             contract_terms=getattr(latest_order, "contract_terms", "standard-delivery-supplier"),
             contract_terms_text=getattr(latest_order, "contract_terms_text", "") or "",
@@ -403,6 +404,7 @@ class DealRepository:
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
             "payment_terms": order.payment_terms,
+            "delivery_terms": getattr(order, "delivery_terms", None),
             "additional_info": order.additional_info,
             "contract_terms": getattr(order, "contract_terms", "standard-delivery-supplier"),
             "contract_terms_text": getattr(order, "contract_terms_text", "") or "",
@@ -465,6 +467,8 @@ class DealRepository:
             order.bill_reason = order_data.bill.reason
         if order_data.bill is not None and order_data.bill.payment_terms is not None:
             order.payment_terms = order_data.bill.payment_terms
+        if order_data.bill is not None and order_data.bill.delivery_terms is not None:
+            order.delivery_terms = order_data.bill.delivery_terms
         if order_data.bill is not None and order_data.bill.additional_info is not None:
             order.additional_info = order_data.bill.additional_info
         if order_data.bill is not None and order_data.bill.contract_terms is not None:
@@ -596,6 +600,7 @@ class DealRepository:
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
             "payment_terms": order.payment_terms,
+            "delivery_terms": getattr(order, "delivery_terms", None),
             "additional_info": order.additional_info,
             "contract_terms": getattr(order, "contract_terms", "standard-delivery-supplier"),
             "contract_terms_text": getattr(order, "contract_terms_text", "") or "",

@@ -39,6 +39,7 @@ export interface Bill {
 	number: string
 	reason: string
 	paymentTerms: string
+	deliveryTerms: string
 	additionalInfo: string
 	contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
 	contractTermsText: string

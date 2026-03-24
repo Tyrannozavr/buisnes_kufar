@@ -386,6 +386,18 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.bill.contractTermsText = contractTermsText
 	}
 
+	/**
+	 * редактирование срока поставки в счете
+	 * @param dealId - id сделки
+	 * @param deliveryTerms - новый срок поставки
+	 * @returns void
+	 */
+	const editDeliveryTerms = async (dealId: number, deliveryTerms: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.deliveryTerms = deliveryTerms
+	}
+
 	return {
 		deals,
 		storedIds,
@@ -416,5 +428,6 @@ export const useDealsStore = defineStore("deals", () => {
 		editAmountVatRate,
 		editContractTerms,
 		editContractTermsText,
+		editDeliveryTerms,
 	}
 })

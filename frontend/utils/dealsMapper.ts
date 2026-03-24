@@ -44,6 +44,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 			reason: deal.bill.reason ?? "",
 			payment_terms: String(deal.bill.paymentTerms ?? ""),
 			additional_info: deal.bill.additionalInfo ?? "",
+			contract_terms: deal.bill.contractTerms ?? "standard-delivery-supplier",
+			contract_terms_text: deal.bill.contractTermsText ?? "",
 			officials: deal.bill.officials.map((official: OfficialBill) => ({
 				id: official.id,
 				full_name: official.name,
@@ -125,6 +127,8 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			reason: dealResponse.bill.reason,
 			paymentTerms: dealResponse.bill.payment_terms,
 			additionalInfo: dealResponse.bill.additional_info,
+			contractTerms: dealResponse.bill.contract_terms ?? "standard-delivery-supplier",
+			contractTermsText: dealResponse.bill.contract_terms_text ?? "",
 			officials: dealResponse.bill.officials.map(
 				(official: OfficialsResponse) => ({
 					id: official.id,

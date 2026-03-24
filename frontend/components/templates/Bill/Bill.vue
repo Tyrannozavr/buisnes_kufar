@@ -133,7 +133,7 @@
 						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
-						<span class="">{{ product.amount }}</span>
+						<span class="">{{ normalizePrice(product.amount) }}</span>
 					</td>
 					<td>
 						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
@@ -283,7 +283,7 @@ import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTerms, editContractTermsText } = useDeals()
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
 const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS)
@@ -291,6 +291,8 @@ const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const sellerVatRate = useTypedState(Editor.VAT_RATE)
+const contractTerms = useTypedState(Editor.CONTRACT_TERMS)
+const contractTermsCheck = useTypedState(Editor.CONTRACT_TERMS_CHECK)
 
 const billTypeSelected = useTypedState(Editor.BILL_TYPE, () => ref({value: 'bill', label: 'Счет на оплату'}))
 const billType = computed(() => billTypeSelected.value.value)
@@ -324,16 +326,59 @@ const billData = ref<BillData>({
 	buyer,
 	paymentTerms: '',
 	additionalInfo: '',
+	contractTerms: 'standard-delivery-supplier',
+	contractTermsText: '',
 	reason: '',
 	products,
 	officials,
 })
 
+//заполнение условий договора
+watch(() => [contractTerms, contractTermsCheck, paymentTerms],
+	() => {
+		if (contractTermsCheck.value) {
+			billData.value.contractTerms = contractTerms.value.value
+
+			if (contractTerms.value.value === 'standard-delivery-supplier') {
+				billData.value.contractTermsText = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
+1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
+2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
+3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTerms} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
+4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.paymentTerms} рабочих дней с момента зачисления оплаты на расчетный счет
+5. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
+6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
+7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
+8. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
+9. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+			} else if (contractTerms.value.value === 'standard-delivery-buyer') {
+				billData.value.contractTermsText = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
+1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
+2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
+3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTerms} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
+4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.paymentTerms} рабочих дней с момента зачисления оплаты на расчетный счет
+5. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
+6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
+7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
+8. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
+9. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+			} else if (contractTerms.value.value === 'custom') {
+				const deal = findDeal(Number(route.query.dealId))
+				const dealContractTermsText = deal?.bill.contractTermsText
+				billData.value.contractTermsText = dealContractTermsText ?? ''
+			}
+		} else {
+			billData.value.contractTerms = 'standard-delivery-supplier'
+			billData.value.contractTermsText = ''
+		}
+	},
+	{ deep: true }
+)
+
 //заполнение срока оплаты
 watch(paymentTerms, () => {
-	debugger
 	billData.value.paymentTerms = paymentTerms.value
-	debugger
 }, { deep: true })
 
 //заполнение основания
@@ -509,6 +554,8 @@ const fillBillData = () => {
 			amountWord: deal.product.amountWord,
 			paymentTerms: deal.bill.paymentTerms,
 			additionalInfo: deal.bill.additionalInfo,
+			contractTerms: deal.bill.contractTerms,
+			contractTermsText: deal.bill.contractTermsText,
       seller,
       buyer,
       products: [...products],
@@ -548,9 +595,11 @@ watch(() => saveState,
 				await editAmountWithVatRate(dealId, vatRateCheck.value)
 				await editVatRateSeller(dealId, (normalizeVatRate(billData.value.seller.vatRate) ?? 0))
 				await editAmountVatRate(dealId, billData.value.amountVatRate)
-				await editSellerCompany(dealId, billData.value.seller)// тут paymentTerms еще есть 
-				await editBuyerCompany(dealId, billData.value.buyer)// тут paymentTerms уже нет
+				await editSellerCompany(dealId, billData.value.seller) 
+				await editBuyerCompany(dealId, billData.value.buyer)
 				await editProductList(dealId, billData.value.products)
+				await editContractTerms(dealId, billData.value.contractTerms)
+				await editContractTermsText(dealId, billData.value.contractTermsText)
 				await editPaymentTerms(dealId, billData.value.paymentTerms)
 				await editAdditionalInfo(dealId, billData.value.additionalInfo)
 				await editBillReason(dealId, billData.value.reason)
@@ -593,6 +642,8 @@ const clearForm = () => {
 		reason: '',
 		paymentTerms: '',
 		additionalInfo: '',
+		contractTerms: 'standard-delivery-supplier',
+		contractTermsText: '',
 		seller,
 		buyer,
 		products,

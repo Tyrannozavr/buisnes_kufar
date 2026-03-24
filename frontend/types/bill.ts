@@ -17,6 +17,8 @@ export interface BillData {
 	reason: string
 	paymentTerms: string
 	additionalInfo: string
+	contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom'
+	contractTermsText: string
 	products: ProductsInOrder[]
 	seller: Company
 	buyer: Company

@@ -68,6 +68,10 @@ class Order(Base):
     bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
     payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
     additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
+    contract_terms: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="standard-delivery-supplier"
+    )  # Вариант условий договора в счёте (как на фронте BillResponse.contract_terms)
+    contract_terms_text: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий договора
     supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
     supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
 

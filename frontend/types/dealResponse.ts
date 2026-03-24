@@ -81,6 +81,11 @@ export interface BillResponse {
 	reason: string
 	payment_terms: string
 	additional_info: string
+	contract_terms:
+		| "standard-delivery-supplier"
+		| "standard-delivery-buyer"
+		| "custom"
+	contract_terms_text: string
 	officials: OfficialsResponse[]
 }
 

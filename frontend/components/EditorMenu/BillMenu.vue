@@ -9,11 +9,24 @@
 		<div :hidden="hiddenForBuyer" class="mb-2">
 			<UCheckbox :disabled="isDisabled" label="Ставка НДС" v-model="vatRateCheck" size="xl" class="mb-2" />
 			<USelectMenu
-					:disabled="isDisabled"
-					placeholder="Ставка НДС"
-					:items="vatRateOptions"
-					v-model="sellerVatRate"
-					class="w-full"
+				v-if="vatRateCheck"
+				:disabled="isDisabled"
+				placeholder="Ставка НДС"
+				:items="vatRateOptions"
+				v-model="sellerVatRate"
+				class="w-full"
+				/>
+		</div>
+
+		<div v-if="billType.value === 'bill-contract'" :hidden="hiddenForBuyer" class="mb-2">
+			<UCheckbox :disabled="isDisabled" label="Условия договора" v-model="contractTermsCheck" size="xl" class="mb-2" @change="console.log(contractTerms)" />
+			<USelectMenu
+				v-if="contractTermsCheck"
+				:disabled="isDisabled"
+				placeholder="Условия договора"
+				:items="contractTermsOptions"
+				v-model="contractTerms"
+				class="w-full"
 				/>
 		</div>
 
@@ -25,7 +38,7 @@
 			</div>
 		</div>
 
-		<div :hidden="hiddenForBuyer">
+		<div v-if="billType.value === 'bill'" :hidden="hiddenForBuyer">
 			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" class="mt-2" />
 		</div>
 	</div>
@@ -42,17 +55,31 @@ defineProps<{
 
 const { findDeal } = useDeals()
 const route = useRoute()
+const isDisabled = useTypedState(Editor.IS_DISABLED)
+
+const contractTermsOptions = ref<SelectMenuItem[]>([
+	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier'},
+	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },
+])
 const billTypeOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет на оплату', value: 'bill'},
 	{label: 'Счет-договор', value: 'bill-contract'}, 
 	{label: 'Счет-оферта', value: 'bill-offer'}
 ])
-const billType = useTypedState(Editor.BILL_TYPE)
-const isDisabled = useTypedState(Editor.IS_DISABLED)
+const vatRateOptions = ref<SelectMenuItem[]>([
+	{label: 'Без НДС', value: 0},
+	{label: '5%', value: 5},
+	{label: '7%', value: 7}, 
+	{label: '10%', value: 10},
+	{label: '18%', value: 18},
+	{label: '25%', value: 25},
+])
 
+const initialContractTerms = ref<{value: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom'; label: string}>({value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика'})
 const initialSellerVatRate = ref(0)
 const initialPaymentTerms = ref('')
 //initial values for checkboxes
+const initialContractTermsCheck = ref(false)
 const initialVatRateCheck = ref(false)
 const initialAdditionalInfoCheck = ref(false)
 const initialPaymentTermsCheck = ref(false)
@@ -67,16 +94,23 @@ watch(
 	() => {
 		const deal = dealForEditor.value
 		if (!deal) return
+		initialContractTermsCheck.value = deal.bill.contractTermsText !== '' ? true : false
+		initialContractTerms.value.value = deal.bill.contractTerms ?? 'standard-delivery-supplier'
+
 		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
+		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
+
 		initialSellerVatRate.value = deal.seller.vatRate ?? 0
 		initialVatRateCheck.value = deal.amountWithVatRate
 		initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
-		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
 		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
 	},
 	{ immediate: true }
 )
 
+const billType = useTypedState(Editor.BILL_TYPE)
+const contractTerms = useTypedState(Editor.CONTRACT_TERMS, () => initialContractTerms)
+const contractTermsCheck = useTypedState(Editor.CONTRACT_TERMS_CHECK, () => initialContractTermsCheck)
 const sellerVatRate = useTypedState(Editor.VAT_RATE, () => initialSellerVatRate)
 const paymentTerms = useTypedState(Editor.PAYMENT_TERMS, () => initialPaymentTerms)
 //checkBoxes
@@ -85,13 +119,9 @@ const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK, () => initia
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK, () => initialAdditionalInfoCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
 
-const vatRateOptions = ref<SelectMenuItem[]>([
-	{label: 'Без НДС', value: 0},
-	{label: '5%', value: 5},
-	{label: '7%', value: 7}, 
-	{label: '10%', value: 10},
-	{label: '18%', value: 18},
-	{label: '25%', value: 25},
-])
+watch(contractTerms, () => {
+	console.log(contractTerms.value)
+})
+
 
 </script>

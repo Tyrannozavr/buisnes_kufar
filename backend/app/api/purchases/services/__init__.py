@@ -17,6 +17,7 @@ from app.api.purchases.schemas import (
     OfficialsInBillResponse,
     SupplyContractItem,
     ContractItem,
+    ContractTerms,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -283,11 +284,18 @@ class DealService:
                     )
                     for o in stored
                 ]
+            ct_raw = getattr(order, "contract_terms", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
+            try:
+                contract_terms = ContractTerms(ct_raw)
+            except ValueError:
+                contract_terms = ContractTerms.STANDARD_DELIVERY_SUPPLIER
             bill_obj = BillInDealResponse(
                 number=order.bill_number or "",
                 reason=order.bill_reason or "",
                 payment_terms=order.payment_terms or "",
                 additional_info=order.additional_info or "",
+                contract_terms=contract_terms,
+                contract_terms_text=getattr(order, "contract_terms_text", None) or "",
                 officials=officials_list,
             )
             supply_contracts_list = []

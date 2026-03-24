@@ -362,6 +362,30 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.product.amountVatRate = amountVatRate
 	}
 
+	/**
+	 * редактирование условий договора
+	 * @param dealId - id сделки
+	 * @param contractTerms - новые условия договора
+	 * @returns void
+	 */
+	const editContractTerms = async (dealId: number, contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom') => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.contractTerms = contractTerms
+	}
+
+	/**
+	 * редактирование текста условий договора
+	 * @param dealId - id сделки
+	 * @param contractTermsText - новый текст условий договора
+	 * @returns void
+	 */
+	const editContractTermsText = async (dealId: number, contractTermsText: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.contractTermsText = contractTermsText
+	}
+
 	return {
 		deals,
 		storedIds,
@@ -390,5 +414,7 @@ export const useDealsStore = defineStore("deals", () => {
 		editBillReason,
 		editVatRateSeller,
 		editAmountVatRate,
+		editContractTerms,
+		editContractTermsText,
 	}
 })

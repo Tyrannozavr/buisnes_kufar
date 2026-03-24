@@ -40,6 +40,8 @@ export interface Bill {
 	reason: string
 	paymentTerms: string
 	additionalInfo: string
+	contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
+	contractTermsText: string
 	officials: OfficialBill[]
 }
 

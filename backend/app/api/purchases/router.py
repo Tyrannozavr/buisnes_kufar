@@ -23,8 +23,107 @@ router = APIRouter(
     tags=["purchases", "orders", "deals", "documents", "business"]
 )
 
+# Пример полного DealResponse для OpenAPI / Swagger (bill с contract_terms и contract_terms_text)
+_DEAL_RESPONSE_EXAMPLE = {
+    "id": 321,
+    "version": 1,
+    "buyer_company_id": 10,
+    "seller_company_id": 20,
+    "buyer_order_number": "00042",
+    "seller_order_number": "00058",
+    "status": "Активная",
+    "total_amount": 246.9,
+    "amount_vat_rate": 0.0,
+    "amount_with_vat_rate": False,
+    "comments": "Комментарий к сделке",
+    "contract_date": "2026-02-19T10:00:00",
+    "bill_date": "2026-02-19T10:00:00",
+    "supply_contracts_date": "2026-02-19T10:00:00",
+    "closing_documents": [],
+    "others_documents": [],
+    "created_at": "2026-02-19T10:00:00",
+    "updated_at": "2026-02-19T11:00:00",
+    "role": "buyer",
+    "contract": [{"number": "Д-001", "date": "2026-02-19T10:00:00"}],
+    "bill": {
+        "number": "СЧ-001",
+        "reason": "Оплата по счёту № СЧ-001",
+        "payment_terms": "Оплата в течение 5 рабочих дней",
+        "additional_info": "Счет действителен 3 банковских дня",
+        "contract_terms": "standard-delivery-supplier",
+        "contract_terms_text": "",
+        "officials": [
+            {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
+            {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер"},
+        ],
+    },
+    "supply_contracts": [{"number": "ДП-001", "date": "2026-02-19T10:00:00"}],
+    "items": [
+        {
+            "id": 1,
+            "order_id": 321,
+            "product_name": "Товар",
+            "product_slug": "tovar",
+            "product_description": None,
+            "product_article": "ART-001",
+            "logo_url": None,
+            "quantity": 2,
+            "unit_of_measurement": "шт",
+            "price": 123.45,
+            "amount": 246.9,
+            "position": 1,
+            "created_at": "2026-02-19T10:00:00",
+            "updated_at": "2026-02-19T11:00:00",
+        }
+    ],
+    "buyer_company": {
+        "company_id": 10,
+        "company_name": "ООО Покупатель",
+        "owner_name": "Сидоров С.С.",
+        "slug": "ooo-pokupatel",
+        "inn": "1234567890",
+        "phone": "+375291234567",
+        "email": "buyer@example.com",
+        "legal_address": "г. Минск, ул. Примерная, 1",
+        "index": "220000",
+        "kpp": "123456789",
+        "account_number": "BY12345678901234567890",
+        "correspondent_bank_account": "30101810100000000593",
+        "bank_name": "Банк",
+        "bic": "123456789",
+        "vat_rate": 20,
+    },
+    "seller_company": {
+        "company_id": 20,
+        "company_name": "ООО Продавец",
+        "owner_name": "Иванов И.И.",
+        "slug": "ooo-prodavets",
+        "inn": "0987654321",
+        "phone": "+375299876543",
+        "email": "seller@example.com",
+        "legal_address": "г. Минск, ул. Другая, 2",
+        "index": "220001",
+        "kpp": "987654321",
+        "account_number": "BY98765432109876543210",
+        "correspondent_bank_account": "30101810100000000594",
+        "bank_name": "Банк",
+        "bic": "987654321",
+        "vat_rate": 20,
+    },
+}
 
-@router.post("/deals", response_model=DealResponse, tags=["deals", "orders", "create"])
+
+@router.post(
+    "/deals",
+    response_model=DealResponse,
+    tags=["deals", "orders", "create"],
+    responses={
+        200: {
+            "description": "Сделка создана (формат DealResponse, в т.ч. bill.contract_terms / contract_terms_text)",
+            "content": {"application/json": {"example": _DEAL_RESPONSE_EXAMPLE}},
+        },
+    },
+)
 async def create_deal(
     deal_data: DealCreate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -134,92 +233,6 @@ async def get_seller_deals(
     return seller_deals
 
 
-_DEAL_RESPONSE_EXAMPLE = {
-    "id": 321,
-    "version": 1,
-    "buyer_company_id": 10,
-    "seller_company_id": 20,
-    "buyer_order_number": "00042",
-    "seller_order_number": "00058",
-    "status": "Активная",
-    "total_amount": 246.9,
-    "amount_with_vat_rate": False,
-    "comments": "Комментарий к сделке",
-    "contract_date": "2026-02-19T10:00:00",
-    "bill_date": "2026-02-19T10:00:00",
-    "supply_contracts_date": "2026-02-19T10:00:00",
-    "closing_documents": [],
-    "others_documents": [],
-    "created_at": "2026-02-19T10:00:00",
-    "updated_at": "2026-02-19T11:00:00",
-    "role": "buyer",
-    "contract": [{"number": "Д-001", "date": "2026-02-19T10:00:00"}],
-    "bill": {
-        "number": "СЧ-001",
-        "reason": "Оплата по счёту № СЧ-001",
-        "payment_terms": "Оплата в течение 5 рабочих дней",
-        "additional_info": "Счет действителен 3 банковских дня",
-        "officials": [
-            {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
-            {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер"}
-        ]
-    },
-    "supply_contracts": [{"number": "ДП-001", "date": "2026-02-19T10:00:00"}],
-    "items": [
-        {
-            "id": 1,
-            "order_id": 321,
-            "product_name": "Товар",
-            "product_slug": "tovar",
-            "product_description": None,
-            "product_article": "ART-001",
-            "logo_url": None,
-            "quantity": 2,
-            "unit_of_measurement": "шт",
-            "price": 123.45,
-            "amount": 246.9,
-            "position": 1,
-            "created_at": "2026-02-19T10:00:00",
-            "updated_at": "2026-02-19T11:00:00"
-        }
-    ],
-    "buyer_company": {
-        "company_id": 10,
-        "company_name": "ООО Покупатель",
-        "owner_name": "Сидоров С.С.",
-        "slug": "ooo-pokupatel",
-        "inn": "1234567890",
-        "phone": "+375291234567",
-        "email": "buyer@example.com",
-        "legal_address": "г. Минск, ул. Примерная, 1",
-        "index": "220000",
-        "kpp": "123456789",
-        "account_number": "BY12345678901234567890",
-        "correspondent_bank_account": "30101810100000000593",
-        "bank_name": "Банк",
-        "bic": "123456789",
-        "vat_rate": 20
-    },
-    "seller_company": {
-        "company_id": 20,
-        "company_name": "ООО Продавец",
-        "owner_name": "Иванов И.И.",
-        "slug": "ooo-prodavets",
-        "inn": "0987654321",
-        "phone": "+375299876543",
-        "email": "seller@example.com",
-        "legal_address": "г. Минск, ул. Другая, 2",
-        "index": "220001",
-        "kpp": "987654321",
-        "account_number": "BY98765432109876543210",
-        "correspondent_bank_account": "30101810100000000594",
-        "bank_name": "Банк",
-        "bic": "987654321",
-        "vat_rate": 20
-    }
-}
-
-
 @router.post(
     "/deals/by-ids",
     response_model=List[DealResponse],
@@ -262,21 +275,7 @@ async def get_deals_by_ids(
             "description": "Возвращена последняя версия сделки",
             "content": {
                 "application/json": {
-                    "example": {
-                        "id": 321,
-                        "version": 3,
-                        "buyer_company_id": 10,
-                        "seller_company_id": 20,
-                        "buyer_order_number": "00042",
-                        "seller_order_number": "00058",
-                        "status": "Активная",
-                        "total_amount": 246.9,
-                        "amount_with_vat_rate": False,
-                        "comments": "latest version",
-                        "items": [],
-                        "created_at": "2026-02-19T10:00:00",
-                        "updated_at": "2026-02-19T11:00:00"
-                    }
+                    "example": {**_DEAL_RESPONSE_EXAMPLE, "version": 3, "comments": "latest version"}
                 }
             }
         },
@@ -317,19 +316,10 @@ async def get_deal(
             "content": {
                 "application/json": {
                     "example": {
-                        "id": 321,
+                        **_DEAL_RESPONSE_EXAMPLE,
                         "version": 3,
-                        "buyer_company_id": 10,
-                        "seller_company_id": 20,
-                        "buyer_order_number": "00042",
-                        "seller_order_number": "00058",
-                        "status": "Активная",
-                        "total_amount": 246.9,
-                        "amount_with_vat_rate": False,
                         "comments": "updated latest version",
-                        "items": [],
-                        "created_at": "2026-02-19T10:00:00",
-                        "updated_at": "2026-02-19T11:30:00"
+                        "updated_at": "2026-02-19T11:30:00",
                     }
                 }
             }
@@ -470,19 +460,11 @@ async def delete_deal(
             "content": {
                 "application/json": {
                     "example": {
-                        "id": 321,
+                        **_DEAL_RESPONSE_EXAMPLE,
                         "version": 4,
-                        "buyer_company_id": 10,
-                        "seller_company_id": 20,
-                        "buyer_order_number": "00042",
-                        "seller_order_number": "00058",
-                        "status": "Активная",
-                        "total_amount": 246.9,
-                        "amount_with_vat_rate": False,
                         "comments": "copied from previous version",
-                        "items": [],
                         "created_at": "2026-02-19T12:00:00",
-                        "updated_at": "2026-02-19T12:00:00"
+                        "updated_at": "2026-02-19T12:00:00",
                     }
                 }
             }
@@ -850,7 +832,17 @@ async def create_supply_contract(
     return SupplyContractResponse(supply_contracts_number=result[0], supply_contracts_date=result[1])
 
 
-@router.post("/checkout", response_model=DealResponse, tags=["checkout", "orders", "create"])
+@router.post(
+    "/checkout",
+    response_model=DealResponse,
+    tags=["checkout", "orders", "create"],
+    responses={
+        200: {
+            "description": "Заказ из корзины создан",
+            "content": {"application/json": {"example": _DEAL_RESPONSE_EXAMPLE}},
+        },
+    },
+)
 async def create_order_from_checkout(
     checkout_data: CheckoutRequest,
     current_user: Annotated[User, Depends(get_current_user)],

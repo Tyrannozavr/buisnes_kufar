@@ -23,6 +23,8 @@ export const enum Editor {
 	VAT_RATE_CHECK = 'vatRateCheck',
 	VAT_RATE = 'vatRate',
 	BILL_TYPE = 'billType',
+	CONTRACT_TERMS = 'contractTerms',
+	CONTRACT_TERMS_CHECK = 'contractTermsCheck',
 }
 
 export const enum TemplateElement {

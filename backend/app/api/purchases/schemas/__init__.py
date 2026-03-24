@@ -9,6 +9,13 @@ class DealStatus(str, Enum):
     COMPLETED = "Завершенная"
 
 
+class ContractTerms(str, Enum):
+    """Условия договора в счёте (как во фронтенде BillResponse.contract_terms)."""
+    STANDARD_DELIVERY_SUPPLIER = "standard-delivery-supplier"
+    STANDARD_DELIVERY_BUYER = "standard-delivery-buyer"
+    CUSTOM = "custom"
+
+
 class OrderItemBase(BaseModel):
     """Базовая схема для позиции заказа"""
     product_name: str = Field(..., description="Наименование товара/услуги")
@@ -175,11 +182,27 @@ class OfficialsInBillResponse(BaseModel):
 
 class BillUpdateInDeal(BaseModel):
     """Счёт для обновления (соответствует фронтенду BillResponse)"""
-    model_config = {"extra": "ignore", "from_attributes": True}
+    model_config = ConfigDict(
+        extra="ignore",
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "number": "СЧ-001",
+                "reason": "Оплата по счёту",
+                "payment_terms": "Оплата в течение 5 рабочих дней",
+                "additional_info": "",
+                "contract_terms": "standard-delivery-supplier",
+                "contract_terms_text": "",
+                "officials": [],
+            }
+        },
+    )
     number: str = Field("", description="Номер счёта")
     reason: Optional[str] = Field("", description="Основание")
     payment_terms: Optional[str] = Field(None, description="Условия оплаты")
     additional_info: Optional[str] = Field(None, description="Дополнительная информация")
+    contract_terms: Optional[ContractTerms] = Field(None, description="Вариант условий договора")
+    contract_terms_text: Optional[str] = Field(None, description="Текст условий договора")
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
@@ -199,6 +222,14 @@ class DealUpdate(BaseModel):
             "examples": [
                 {"comments": "Обновление", "amount_with_vat_rate": True},
                 {"status": "Активная", "amount_with_vat_rate": False},
+                {
+                    "comments": "Патч счёта с условиями договора",
+                    "bill": {
+                        "number": "СЧ-001",
+                        "contract_terms": "standard-delivery-supplier",
+                        "contract_terms_text": "",
+                    },
+                },
             ]
         },
     }
@@ -218,7 +249,13 @@ class DealUpdate(BaseModel):
 
     # Объектные поля (формат фронтенда)
     contract: Optional[List[ContractItem]] = Field(None, description="Массив договоров [{number, date}]")
-    bill: Optional["BillUpdateInDeal"] = Field(None, description="Счёт {number, reason, payment_terms, additional_info, officials}")
+    bill: Optional["BillUpdateInDeal"] = Field(
+        None,
+        description=(
+            "Счёт: number, reason, payment_terms, additional_info, "
+            "contract_terms, contract_terms_text, officials"
+        ),
+    )
     supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
     closing_documents: Optional[List[Any]] = Field(None, description="Закрывающие документы")
     others_documents: Optional[List[Any]] = Field(None, description="Прочие документы")
@@ -227,11 +264,37 @@ class DealUpdate(BaseModel):
 
 class BillInDealResponse(BaseModel):
     """Счёт в ответе сделки (соответствует фронтенду BillResponse)"""
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "number": "СЧ-001",
+                "reason": "Оплата по счёту № СЧ-001",
+                "payment_terms": "Оплата в течение 5 рабочих дней",
+                "additional_info": "Счет действителен 3 банковских дня",
+                "contract_terms": "standard-delivery-supplier",
+                "contract_terms_text": "",
+                "officials": [
+                    {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
+                ],
+            }
+        },
+    )
     number: str = Field("", description="Номер счёта")
     reason: str = Field("", description="Основание")
     payment_terms: str = Field("", description="Условия оплаты")
     additional_info: str = Field("", description="Дополнительная информация")
+    contract_terms: ContractTerms = Field(
+        default=ContractTerms.STANDARD_DELIVERY_SUPPLIER,
+        description=(
+            "Пресет условий договора в счёте: standard-delivery-supplier | "
+            "standard-delivery-buyer | custom"
+        ),
+    )
+    contract_terms_text: str = Field(
+        default="",
+        description="Полный текст условий (для custom или сгенерированный для пресетов)",
+    )
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
@@ -309,7 +372,15 @@ class DealResponse(BaseModel):
                 "updated_at": "2025-01-01T12:00:00",
                 "role": "buyer",
                 "contract": [],
-                "bill": None,
+                "bill": {
+                    "number": "СЧ-001",
+                    "reason": "Оплата по счёту",
+                    "payment_terms": "Оплата в течение 5 рабочих дней",
+                    "additional_info": "",
+                    "contract_terms": "standard-delivery-supplier",
+                    "contract_terms_text": "",
+                    "officials": [],
+                },
                 "supply_contracts": [],
                 "items": [],
                 "buyer_company": {
@@ -376,7 +447,13 @@ class DealResponse(BaseModel):
 
     # Поля для совместимости с фронтендом (DealResponse)
     contract: List["ContractItem"] = Field(default_factory=list, description="Массив договоров [{number, date}]")
-    bill: Optional["BillInDealResponse"] = Field(None, description="Счёт на оплату (number, reason, officials)")
+    bill: Optional["BillInDealResponse"] = Field(
+        None,
+        description=(
+            "Счёт на оплату: number, reason, payment_terms, additional_info, "
+            "contract_terms, contract_terms_text, officials"
+        ),
+    )
     supply_contracts: List["SupplyContractItem"] = Field(default_factory=list, description="Договоры поставки [{number, date}]")
 
     # Связанные данные

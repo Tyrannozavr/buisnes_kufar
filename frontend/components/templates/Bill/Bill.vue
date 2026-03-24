@@ -445,7 +445,7 @@ watch(() => [deliveryTermsCheck, deliveryTerms], () => {
 	if (deliveryTermsCheck.value) {
 		billData.value.deliveryTerms = deliveryTerms.value
 	} else {
-		billData.value.deliveryTerms = '10'
+		billData.value.deliveryTerms = ''
 	}
 }, { deep: true }
 )
@@ -455,7 +455,7 @@ watch(() => [paymentTermsCheck, paymentTerms], () => {
 	if (paymentTermsCheck.value) {
 		billData.value.paymentTerms = paymentTerms.value
 	} else {
-		billData.value.paymentTerms = '3'
+		billData.value.paymentTerms = ''
 	}
 }, { deep: true }
 )
@@ -689,6 +689,7 @@ watch(() => saveState,
 			}
 		} finally { 
 			completeSave()
+			debugger
 		}
 	},
 	{ deep: true }

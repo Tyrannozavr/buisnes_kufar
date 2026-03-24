@@ -34,7 +34,7 @@
 			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" @change="console.log(paymentTerms)" />
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms">
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms" default-value="3">
 			</div>
 		</div>
 
@@ -42,7 +42,7 @@
 			<UCheckbox :disabled="isDisabled" label="Срок поставки" v-model="deliveryTermsCheck" size="xl" class="mt-2" @change="console.log(deliveryTerms)" />
 			<div class="flex gap-1" v-if="deliveryTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input type="number" :disabled="isDisabled" placeholder="Введите сроки поставки" class="w-50 p-1 border rounded-lg" v-model="deliveryTerms">
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки поставки" class="w-50 p-1 border rounded-lg" v-model="deliveryTerms" default-value="10">
 			</div>
 		</div>
 

@@ -17,6 +17,7 @@ interface StateMap {
 	billType: { value: "bill" | "bill-contract" | "bill-offer"; label: string }
 	contractTerms: { value: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"; label: string }
 	contractTermsCheck: boolean
+	contractTermsText: string
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null

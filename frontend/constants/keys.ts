@@ -27,6 +27,7 @@ export const enum Editor {
 	BILL_TYPE = 'billType',
 	CONTRACT_TERMS = 'contractTerms',
 	CONTRACT_TERMS_CHECK = 'contractTermsCheck',
+	CONTRACT_TERMS_TEXT = 'contractTermsText',
 }
 
 export const enum TemplateElement {

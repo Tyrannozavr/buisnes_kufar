@@ -296,6 +296,7 @@ const isDisabled = useTypedState(Editor.IS_DISABLED)
 const sellerVatRate = useTypedState(Editor.VAT_RATE)
 const contractTerms = useTypedState(Editor.CONTRACT_TERMS)
 const contractTermsCheck = useTypedState(Editor.CONTRACT_TERMS_CHECK)
+const contractTermsText = useTypedState(Editor.CONTRACT_TERMS_TEXT)
 
 const billTypeSelected = useTypedState(Editor.BILL_TYPE, () => ref({value: 'bill', label: 'Счет на оплату'}))
 const billType = computed(() => billTypeSelected.value.value)
@@ -338,7 +339,7 @@ const billData = ref<BillData>({
 })
 
 //заполнение условий договора
-watch(() => [contractTerms, contractTermsCheck, billData.value.paymentTerms, billData.value.deliveryTerms, paymentTermsCheck, deliveryTermsCheck],
+watch(() => [contractTerms,contractTermsText, contractTermsCheck, billData.value.paymentTerms, billData.value.deliveryTerms, paymentTermsCheck, deliveryTermsCheck],
 	() => {
 		if (contractTermsCheck.value) {
 			billData.value.contractTerms = contractTerms.value.value
@@ -428,9 +429,7 @@ watch(() => [contractTerms, contractTermsCheck, billData.value.paymentTerms, bil
 			
 
 			} else if (contractTerms.value.value === 'custom') {
-				const deal = findDeal(Number(route.query.dealId))
-				const dealContractTermsText = deal?.bill.contractTermsText
-				billData.value.contractTermsText = dealContractTermsText ?? ''
+				billData.value.contractTermsText = contractTermsText.value
 			}
 		} else {
 			billData.value.contractTerms = 'standard-delivery-supplier'

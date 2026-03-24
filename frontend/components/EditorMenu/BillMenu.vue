@@ -18,8 +18,13 @@
 				/>
 		</div>
 
-		<div v-if="billType.value === 'bill-contract'" :hidden="hiddenForBuyer" class="mb-2">
-			<UCheckbox :disabled="isDisabled" label="Условия договора" v-model="contractTermsCheck" size="xl" class="mb-2" @change="console.log(contractTerms)" />
+		<div v-if="billType.value === 'bill-contract'" :hidden="hiddenForBuyer" class="">
+			<div class="flex gap-2 mb-2">
+				<UCheckbox :disabled="isDisabled" label="Условия договора" v-model="contractTermsCheck" size="xl" class="mb-2" />
+
+				<ContractTermsEditor />
+			</div>
+
 			<USelectMenu
 				v-if="contractTermsCheck"
 				:disabled="isDisabled"
@@ -31,7 +36,7 @@
 		</div>
 
 		<div :hidden="hiddenForBuyer">
-			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" @change="console.log(paymentTerms)" />
+			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="mt-2" />
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
 				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms" default-value="3">
@@ -39,7 +44,7 @@
 		</div>
 
 		<div v-if="billType.value === 'bill-contract'" :hidden="hiddenForBuyer">
-			<UCheckbox :disabled="isDisabled" label="Срок поставки" v-model="deliveryTermsCheck" size="xl" class="mt-2" @change="console.log(deliveryTerms)" />
+			<UCheckbox :disabled="isDisabled" label="Срок поставки" v-model="deliveryTermsCheck" size="xl" class="mt-2" />
 			<div class="flex gap-1" v-if="deliveryTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
 				<input type="number" :disabled="isDisabled" placeholder="Введите сроки поставки" class="w-50 p-1 border rounded-lg" v-model="deliveryTerms" default-value="10">
@@ -56,6 +61,7 @@
 import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { useDeals } from '~/composables/useDeals';
+import ContractTermsEditor from '~/components/EditorMenu/ContractTermsEditor.vue';
 
 defineProps<{
 	hiddenForBuyer?: boolean
@@ -68,6 +74,7 @@ const isDisabled = useTypedState(Editor.IS_DISABLED)
 const contractTermsOptions = ref<SelectMenuItem[]>([
 	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier'},
 	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },
+	{ label: 'Свой шаблон', value: 'custom' },
 ])
 const billTypeOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет на оплату', value: 'bill'},
@@ -132,10 +139,4 @@ const paymentTermsCheck = useTypedState(Editor.PAYMENT_TERMS_CHECK, () => initia
 const deliveryTermsCheck = useTypedState(Editor.DELIVERY_TERMS_CHECK, () => initialDeliveryTermsCheck)
 const additionalInfoCheck = useTypedState(Editor.ADDITIONAL_INFO_CHECK, () => initialAdditionalInfoCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
-
-watch(contractTerms, () => {
-	console.log(contractTerms.value)
-})
-
-
 </script>

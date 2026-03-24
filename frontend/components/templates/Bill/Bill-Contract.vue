@@ -1,8 +1,8 @@
 <template>
 	<div>
-		<textarea disabled class="w-full h-76 overflow-hidden resize-none">
-			{{ billData.contractTermsText || '—' }}
-		</textarea>
+		<div class="w-full field-sizing-content resize-none">
+			<p v-if="billData.contractTermsText" v-for="line in billData.contractTermsText.split('\n')" :key="line">{{ replaceFields(line) }}</p>
+		</div>
 	</div>
 
 	<br>
@@ -77,7 +77,13 @@ const { billData } = defineProps<{
 	billData: BillData;
 }>();
 
+const replaceFields = (line: string): string => {
+	return line.replaceAll('{{ НОМЕР_СЧЕТА }}', billData.number)
+		.replaceAll('{{ ДАТА }}', normalizeDate(billData.date))
+		.replaceAll('{{ СРОК_ОПЛАТЫ }}', billData.paymentTerms)
+		.replaceAll('{{ СРОК_ПОСТАВКИ }}', billData.deliveryTerms);
+}
+
 watch(() => [billData.contractTermsText], () => {
-	console.log(billData.contractTermsText)
 }, { deep: true })
 </script>

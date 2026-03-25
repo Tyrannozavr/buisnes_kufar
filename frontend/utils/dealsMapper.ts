@@ -36,17 +36,23 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 
 	if (deal.status) body.status = deal.status
 	if (deal.contract.length > 0) body.contract = deal.contract
-	// bill всегда с явными строками: undefined в JSON.stringify выкидывается, на бэке payment_terms не приходит
-	// и репозиторий не обновляет order.payment_terms (см. update_order: payment_terms is not None).
 	if (deal.bill) {
 		body.bill = {
 			number: deal.bill.number ?? "",
 			reason: deal.bill.reason ?? "",
-			payment_terms: String(deal.bill.paymentTerms ?? ""),
-			delivery_terms: String(deal.bill.deliveryTerms ?? ""),
+			//bill-payment
 			additional_info: deal.bill.additionalInfo ?? "",
-			contract_terms: deal.bill.contractTerms ?? "standard-delivery-supplier",
-			contract_terms_text: deal.bill.contractTermsText ?? "",
+			payment_terms: String(deal.bill.paymentTerms ?? ""),
+			//bill-contract
+			delivery_terms_contract: String(deal.bill.deliveryTermsContract ?? ""),
+			payment_terms_contract: String(deal.bill.paymentTermsContract ?? ""),
+			contract_terms_contract: deal.bill.contractTermsContract ?? "standard-delivery-supplier",
+			contract_terms_text_contract: deal.bill.contractTermsTextContract ?? "",
+			//bill-offer
+			payment_terms_offer: String(deal.bill.paymentTermsOffer ?? ""),
+			contract_terms_offer: deal.bill.contractTermsOffer ?? "standard-delivery-supplier",
+			contract_terms_text_offer: deal.bill.contractTermsTextOffer ?? "",
+			additional_info_offer: deal.bill.additionalInfoOffer ?? "",
 			officials: deal.bill.officials.map((official: OfficialBill) => ({
 				id: official.id,
 				full_name: official.name,
@@ -96,6 +102,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			email: dealResponse.seller_company.email,
 			inn: dealResponse.seller_company.inn,
 			legalAddress: dealResponse.seller_company.legal_address,
+			productionAddress: dealResponse.seller_company.production_address,
 			index: dealResponse.seller_company.index,
 			kpp: dealResponse.seller_company.kpp,
 			accountNumber: dealResponse.seller_company.account_number,
@@ -113,6 +120,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			email: dealResponse.buyer_company.email,
 			inn: dealResponse.buyer_company.inn,
 			legalAddress: dealResponse.buyer_company.legal_address,
+			productionAddress: dealResponse.buyer_company.production_address,
 			index: dealResponse.buyer_company.index,
 			kpp: dealResponse.buyer_company.kpp,
 			accountNumber: dealResponse.buyer_company.account_number,
@@ -126,11 +134,23 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		bill: {
 			number: dealResponse.bill.number,
 			reason: dealResponse.bill.reason,
-			paymentTerms: dealResponse.bill.payment_terms,
-			deliveryTerms: dealResponse.bill.delivery_terms,
+			paymentTerms:
+				dealResponse.bill.payment_terms ??
+				dealResponse.bill.payment_terms_contract ??
+				"",
 			additionalInfo: dealResponse.bill.additional_info,
-			contractTerms: dealResponse.bill.contract_terms ?? "standard-delivery-supplier",
-			contractTermsText: dealResponse.bill.contract_terms_text ?? "",
+			paymentTermsContract: dealResponse.bill.payment_terms_contract ?? "",
+			deliveryTermsContract: dealResponse.bill.delivery_terms_contract ?? "",
+			contractTermsContract:
+				dealResponse.bill.contract_terms_contract ?? "standard-delivery-supplier",
+			contractTermsTextContract:
+				dealResponse.bill.contract_terms_text_contract ?? "",
+			paymentTermsOffer: dealResponse.bill.payment_terms_offer ?? "",
+			contractTermsOffer:
+				dealResponse.bill.contract_terms_offer ?? "standard-delivery-supplier",
+			contractTermsTextOffer:
+				dealResponse.bill.contract_terms_text_offer ?? "",
+			additionalInfoOffer: dealResponse.bill.additional_info_offer ?? "",
 			officials: dealResponse.bill.officials.map(
 				(official: OfficialsResponse) => ({
 					id: official.id,

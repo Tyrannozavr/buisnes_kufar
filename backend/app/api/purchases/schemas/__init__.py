@@ -10,7 +10,7 @@ class DealStatus(str, Enum):
 
 
 class ContractTerms(str, Enum):
-    """Условия договора в счёте (как во фронтенде BillResponse.contract_terms)."""
+    """Условия договора в счёте (BillResponse.contract_terms_contract)."""
     STANDARD_DELIVERY_SUPPLIER = "standard-delivery-supplier"
     STANDARD_DELIVERY_BUYER = "standard-delivery-buyer"
     CUSTOM = "custom"
@@ -189,22 +189,30 @@ class BillUpdateInDeal(BaseModel):
             "example": {
                 "number": "СЧ-001",
                 "reason": "Оплата по счёту",
-                "payment_terms": "Оплата в течение 5 рабочих дней",
-                "delivery_terms": "",
+                "payment_terms_contract": "Оплата в течение 5 рабочих дней",
+                "delivery_terms_contract": "",
                 "additional_info": "",
-                "contract_terms": "standard-delivery-supplier",
-                "contract_terms_text": "",
+                "contract_terms_contract": "standard-delivery-supplier",
+                "contract_terms_text_contract": "",
+                "payment_terms_offer": "",
+                "contract_terms_offer": "standard-delivery-supplier",
+                "contract_terms_text_offer": "",
+                "additional_info_offer": "",
                 "officials": [],
             }
         },
     )
     number: str = Field("", description="Номер счёта")
     reason: Optional[str] = Field("", description="Основание")
-    payment_terms: Optional[str] = Field(None, description="Условия оплаты")
-    delivery_terms: Optional[str] = Field(None, description="Условия / срок поставки")
+    payment_terms_contract: Optional[str] = Field(None, description="Условия оплаты")
+    delivery_terms_contract: Optional[str] = Field(None, description="Условия / срок поставки")
     additional_info: Optional[str] = Field(None, description="Дополнительная информация")
-    contract_terms: Optional[ContractTerms] = Field(None, description="Вариант условий договора")
-    contract_terms_text: Optional[str] = Field(None, description="Текст условий договора")
+    contract_terms_contract: Optional[ContractTerms] = Field(None, description="Вариант условий договора")
+    contract_terms_text_contract: Optional[str] = Field(None, description="Текст условий договора")
+    payment_terms_offer: Optional[str] = Field(None, description="Условия оплаты (оферта)")
+    contract_terms_offer: Optional[ContractTerms] = Field(None, description="Вариант условий оферты")
+    contract_terms_text_offer: Optional[str] = Field(None, description="Текст условий оферты")
+    additional_info_offer: Optional[str] = Field(None, description="Дополнительная информация (оферта)")
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
@@ -228,8 +236,8 @@ class DealUpdate(BaseModel):
                     "comments": "Патч счёта с условиями договора",
                     "bill": {
                         "number": "СЧ-001",
-                        "contract_terms": "standard-delivery-supplier",
-                        "contract_terms_text": "",
+                        "contract_terms_contract": "standard-delivery-supplier",
+                        "contract_terms_text_contract": "",
                     },
                 },
             ]
@@ -254,8 +262,9 @@ class DealUpdate(BaseModel):
     bill: Optional["BillUpdateInDeal"] = Field(
         None,
         description=(
-            "Счёт: number, reason, payment_terms, delivery_terms, additional_info, "
-            "contract_terms, contract_terms_text, officials"
+            "Счёт: number, reason, payment_terms_contract, delivery_terms_contract, additional_info, "
+            "contract_terms_contract, contract_terms_text_contract, payment_terms_offer, "
+            "contract_terms_offer, contract_terms_text_offer, additional_info_offer, officials"
         ),
     )
     supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
@@ -272,11 +281,15 @@ class BillInDealResponse(BaseModel):
             "example": {
                 "number": "СЧ-001",
                 "reason": "Оплата по счёту № СЧ-001",
-                "payment_terms": "Оплата в течение 5 рабочих дней",
-                "delivery_terms": "",
+                "payment_terms_contract": "Оплата в течение 5 рабочих дней",
+                "delivery_terms_contract": "",
                 "additional_info": "Счет действителен 3 банковских дня",
-                "contract_terms": "standard-delivery-supplier",
-                "contract_terms_text": "",
+                "contract_terms_contract": "standard-delivery-supplier",
+                "contract_terms_text_contract": "",
+                "payment_terms_offer": "",
+                "contract_terms_offer": "standard-delivery-supplier",
+                "contract_terms_text_offer": "",
+                "additional_info_offer": "",
                 "officials": [
                     {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
                 ],
@@ -285,25 +298,35 @@ class BillInDealResponse(BaseModel):
     )
     number: str = Field("", description="Номер счёта")
     reason: str = Field("", description="Основание")
-    payment_terms: str = Field("", description="Условия оплаты")
-    delivery_terms: str = Field("", description="Условия / срок поставки")
+    payment_terms_contract: str = Field("", description="Условия оплаты")
+    delivery_terms_contract: str = Field("", description="Условия / срок поставки")
     additional_info: str = Field("", description="Дополнительная информация")
-    contract_terms: ContractTerms = Field(
+    contract_terms_contract: ContractTerms = Field(
         default=ContractTerms.STANDARD_DELIVERY_SUPPLIER,
         description=(
             "Пресет условий договора в счёте: standard-delivery-supplier | "
             "standard-delivery-buyer | custom"
         ),
     )
-    contract_terms_text: str = Field(
+    contract_terms_text_contract: str = Field(
         default="",
         description="Полный текст условий (для custom или сгенерированный для пресетов)",
     )
+    payment_terms_offer: str = Field("", description="Условия оплаты (оферта)")
+    contract_terms_offer: ContractTerms = Field(
+        default=ContractTerms.STANDARD_DELIVERY_SUPPLIER,
+        description="Пресет условий оферты (как contract_terms_contract)",
+    )
+    contract_terms_text_offer: str = Field(
+        default="",
+        description="Текст условий оферты",
+    )
+    additional_info_offer: str = Field("", description="Дополнительная информация (оферта)")
     officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
 class CompanyInDealResponse(BaseModel):
-    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, account_number, correspondent_bank_account, bank_name)."""
+    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, production_address, account_number, correspondent_bank_account, bank_name)."""
     model_config = {
         "from_attributes": True,
         "populate_by_name": True,
@@ -317,6 +340,7 @@ class CompanyInDealResponse(BaseModel):
                 "phone": "+79990000000",
                 "email": "info@example.ru",
                 "legal_address": "г. Москва, ул. Примерная, д. 1",
+                "production_address": "г. Москва, ул. Заводская, д. 5",
                 "index": "101000",
                 "kpp": "770701001",
                 "account_number": "40702810100000000000",
@@ -336,6 +360,7 @@ class CompanyInDealResponse(BaseModel):
     phone: str = Field("", description="Телефон компании")
     email: str = Field("", description="Email компании")
     legal_address: str = Field("", description="Юридический адрес компании")
+    production_address: str = Field("", description="Адрес производства")
     index: Optional[str] = Field(None, description="Почтовый индекс")
     kpp: Optional[str] = Field(None, description="КПП")
     current_account_number: Optional[str] = Field(None, description="Расчётный счёт", serialization_alias="account_number")
@@ -379,11 +404,15 @@ class DealResponse(BaseModel):
                 "bill": {
                     "number": "СЧ-001",
                     "reason": "Оплата по счёту",
-                    "payment_terms": "Оплата в течение 5 рабочих дней",
-                    "delivery_terms": "",
+                    "payment_terms_contract": "Оплата в течение 5 рабочих дней",
+                    "delivery_terms_contract": "",
                     "additional_info": "",
-                    "contract_terms": "standard-delivery-supplier",
-                    "contract_terms_text": "",
+                    "contract_terms_contract": "standard-delivery-supplier",
+                    "contract_terms_text_contract": "",
+                    "payment_terms_offer": "",
+                    "contract_terms_offer": "standard-delivery-supplier",
+                    "contract_terms_text_offer": "",
+                    "additional_info_offer": "",
                     "officials": [],
                 },
                 "supply_contracts": [],
@@ -397,6 +426,7 @@ class DealResponse(BaseModel):
                     "phone": "+79990000001",
                     "email": "info@buyer.ru",
                     "legal_address": "г. Москва",
+                    "production_address": "",
                     "index": "101000",
                     "kpp": "770701001",
                     "account_number": "40702810100000000001",
@@ -414,6 +444,7 @@ class DealResponse(BaseModel):
                     "phone": "+79990000002",
                     "email": "info@seller.ru",
                     "legal_address": "г. Санкт-Петербург",
+                    "production_address": "",
                     "index": "190000",
                     "kpp": "770701002",
                     "account_number": "40702810100000000002",
@@ -455,8 +486,9 @@ class DealResponse(BaseModel):
     bill: Optional["BillInDealResponse"] = Field(
         None,
         description=(
-            "Счёт на оплату: number, reason, payment_terms, delivery_terms, additional_info, "
-            "contract_terms, contract_terms_text, officials"
+            "Счёт на оплату: number, reason, payment_terms_contract, delivery_terms_contract, additional_info, "
+            "contract_terms_contract, contract_terms_text_contract, payment_terms_offer, "
+            "contract_terms_offer, contract_terms_text_offer, additional_info_offer, officials"
         ),
     )
     supply_contracts: List["SupplyContractItem"] = Field(default_factory=list, description="Договоры поставки [{number, date}]")

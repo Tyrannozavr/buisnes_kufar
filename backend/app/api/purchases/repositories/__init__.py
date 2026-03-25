@@ -339,11 +339,15 @@ class DealRepository:
             bill_date=self._normalize_datetime(latest_order.bill_date),
             bill_officials=latest_order.bill_officials,
             bill_reason=latest_order.bill_reason,
-            payment_terms=latest_order.payment_terms,
-            delivery_terms=getattr(latest_order, "delivery_terms", None),
+            payment_terms_contract=latest_order.payment_terms_contract,
+            delivery_terms_contract=getattr(latest_order, "delivery_terms_contract", None),
             additional_info=latest_order.additional_info,
-            contract_terms=getattr(latest_order, "contract_terms", "standard-delivery-supplier"),
-            contract_terms_text=getattr(latest_order, "contract_terms_text", "") or "",
+            contract_terms_contract=getattr(latest_order, "contract_terms_contract", "standard-delivery-supplier"),
+            contract_terms_text_contract=getattr(latest_order, "contract_terms_text_contract", "") or "",
+            payment_terms_offer=getattr(latest_order, "payment_terms_offer", None),
+            contract_terms_offer=getattr(latest_order, "contract_terms_offer", "standard-delivery-supplier"),
+            contract_terms_text_offer=getattr(latest_order, "contract_terms_text_offer", "") or "",
+            additional_info_offer=getattr(latest_order, "additional_info_offer", None),
             supply_contracts_number=latest_order.supply_contracts_number,
             supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
             closing_documents=latest_order.closing_documents,
@@ -403,11 +407,15 @@ class DealRepository:
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
-            "payment_terms": order.payment_terms,
-            "delivery_terms": getattr(order, "delivery_terms", None),
+            "payment_terms_contract": order.payment_terms_contract,
+            "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
             "additional_info": order.additional_info,
-            "contract_terms": getattr(order, "contract_terms", "standard-delivery-supplier"),
-            "contract_terms_text": getattr(order, "contract_terms_text", "") or "",
+            "contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
+            "contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
+            "payment_terms_offer": getattr(order, "payment_terms_offer", None),
+            "contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
+            "contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
+            "additional_info_offer": getattr(order, "additional_info_offer", None),
             "seller_vat_rate": order.seller_vat_rate,
             "amount_vat_rate": order.amount_vat_rate,
             "supply_contracts_number": order.supply_contracts_number,
@@ -465,16 +473,24 @@ class DealRepository:
             ]
         if order_data.bill is not None and order_data.bill.reason is not None:
             order.bill_reason = order_data.bill.reason
-        if order_data.bill is not None and order_data.bill.payment_terms is not None:
-            order.payment_terms = order_data.bill.payment_terms
-        if order_data.bill is not None and order_data.bill.delivery_terms is not None:
-            order.delivery_terms = order_data.bill.delivery_terms
+        if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
+            order.payment_terms_contract = order_data.bill.payment_terms_contract
+        if order_data.bill is not None and order_data.bill.delivery_terms_contract is not None:
+            order.delivery_terms_contract = order_data.bill.delivery_terms_contract
         if order_data.bill is not None and order_data.bill.additional_info is not None:
             order.additional_info = order_data.bill.additional_info
-        if order_data.bill is not None and order_data.bill.contract_terms is not None:
-            order.contract_terms = order_data.bill.contract_terms.value
-        if order_data.bill is not None and order_data.bill.contract_terms_text is not None:
-            order.contract_terms_text = order_data.bill.contract_terms_text
+        if order_data.bill is not None and order_data.bill.contract_terms_contract is not None:
+            order.contract_terms_contract = order_data.bill.contract_terms_contract.value
+        if order_data.bill is not None and order_data.bill.contract_terms_text_contract is not None:
+            order.contract_terms_text_contract = order_data.bill.contract_terms_text_contract
+        if order_data.bill is not None and order_data.bill.payment_terms_offer is not None:
+            order.payment_terms_offer = order_data.bill.payment_terms_offer
+        if order_data.bill is not None and order_data.bill.contract_terms_offer is not None:
+            order.contract_terms_offer = order_data.bill.contract_terms_offer.value
+        if order_data.bill is not None and order_data.bill.contract_terms_text_offer is not None:
+            order.contract_terms_text_offer = order_data.bill.contract_terms_text_offer
+        if order_data.bill is not None and order_data.bill.additional_info_offer is not None:
+            order.additional_info_offer = order_data.bill.additional_info_offer
 
         # supply_contracts_number / supply_contracts_date: supply_contracts_date обновляется только через POST /deals/{id}/versions
         if apply_date_fields and effective_supply_date is not None:
@@ -599,11 +615,15 @@ class DealRepository:
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
-            "payment_terms": order.payment_terms,
-            "delivery_terms": getattr(order, "delivery_terms", None),
+            "payment_terms_contract": order.payment_terms_contract,
+            "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
             "additional_info": order.additional_info,
-            "contract_terms": getattr(order, "contract_terms", "standard-delivery-supplier"),
-            "contract_terms_text": getattr(order, "contract_terms_text", "") or "",
+            "contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
+            "contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
+            "payment_terms_offer": getattr(order, "payment_terms_offer", None),
+            "contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
+            "contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
+            "additional_info_offer": getattr(order, "additional_info_offer", None),
             "seller_vat_rate": order.seller_vat_rate,
             "amount_vat_rate": order.amount_vat_rate,
             "supply_contracts_number": order.supply_contracts_number,

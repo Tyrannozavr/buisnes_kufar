@@ -16,18 +16,34 @@ export const enum Editor {
 	CLEAR_STATE = 'clearState',
 	REMOVE_DEAL = 'removeDealState',
 	ACTIVE_TAB = 'activeTab',
+	
+	//bill
+	BILL_TYPE = 'billType',
 	REASON_CHECK = 'reasonCheck',
-	PAYMENT_TERMS = 'paymentTerms',
-	PAYMENT_TERMS_CHECK = 'paymentTermsCheck',
-	DELIVERY_TERMS = 'deliveryTerms',
-	DELIVERY_TERMS_CHECK = 'deliveryTermsCheck',
-	ADDITIONAL_INFO_CHECK = 'additionalInfoCheck',
 	VAT_RATE_CHECK = 'vatRateCheck',
 	VAT_RATE = 'vatRate',
-	BILL_TYPE = 'billType',
-	CONTRACT_TERMS = 'contractTerms',
-	CONTRACT_TERMS_CHECK = 'contractTermsCheck',
-	CONTRACT_TERMS_TEXT = 'contractTermsText',
+
+	//bill-payment(счет-оплата)
+	PAYMENT_TERMS = 'paymentTerms',
+	PAYMENT_TERMS_CHECK = 'paymentTermsCheck',
+	ADDITIONAL_INFO_CHECK = 'additionalInfoCheck',
+
+	//bill-contract
+	PAYMENT_TERMS_CONTRACT = 'paymentTermsContract',
+	DELIVERY_TERMS_CONTRACT = 'deliveryTermsContract',
+	CONTRACT_TERMS_CONTRACT = 'contractTermsContract',
+	CONTRACT_TERMS_TEXT_CONTRACT = 'contractTermsTextContract',
+	PAYMENT_TERMS_CHECK_CONTRACT = 'paymentTermsCheckContract',
+	DELIVERY_TERMS_CHECK_CONTRACT = 'deliveryTermsCheckContract',
+	CONTRACT_TERMS_CHECK_CONTRACT = 'contractTermsCheckContract',
+	
+	//bill-offer
+	PAYMENT_TERMS_OFFER = 'paymentTermsOffer',
+	CONTRACT_TERMS_OFFER = 'contractTermsOffer',
+	CONTRACT_TERMS_TEXT_OFFER = 'contractTermsTextOffer',
+	CONTRACT_TERMS_CHECK_OFFER = 'contractTermsCheckOffer',
+	PAYMENT_TERMS_CHECK_OFFER = 'paymentTermsCheckOffer',
+	ADDITIONAL_INFO_CHECK_OFFER = 'additionalInfoCheckOffer',
 }
 
 export const enum TemplateElement {

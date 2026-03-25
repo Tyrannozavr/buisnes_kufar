@@ -246,6 +246,7 @@ class DealService:
                     phone=company.phone or "",
                     email=company.email or "",
                     legal_address=company.legal_address or "",
+                    production_address=getattr(company, "production_address", None) or "",
                     index=getattr(company, "index", None),
                     kpp=company.kpp,
                     current_account_number=company.current_account_number,
@@ -257,8 +258,8 @@ class DealService:
 
             buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
             seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
-            buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
-            seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="")
+            buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
+            seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
             
             logger.debug("Создаем DealResponse")
             closing_docs = order.closing_documents if order.closing_documents is not None else []
@@ -271,8 +272,8 @@ class DealService:
                 elif company_id == order.seller_company_id:
                     role = DealRole.SELLER
 
-            # bill — объект для фронтенда (number, reason, payment_terms, delivery_terms, additional_info, officials).
-            # officials, reason, payment_terms, delivery_terms и additional_info приходят только с клиента при update
+            # bill — объект для фронтенда (number, reason, payment_terms_contract, delivery_terms_contract, additional_info, officials).
+            # officials, reason, payment_terms_contract, delivery_terms_contract и additional_info приходят только с клиента при update
             officials_list = []
             stored = getattr(order, "bill_officials", None)
             if stored and isinstance(stored, list):
@@ -284,19 +285,28 @@ class DealService:
                     )
                     for o in stored
                 ]
-            ct_raw = getattr(order, "contract_terms", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
+            ct_raw = getattr(order, "contract_terms_contract", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
             try:
-                contract_terms = ContractTerms(ct_raw)
+                contract_terms_contract = ContractTerms(ct_raw)
             except ValueError:
-                contract_terms = ContractTerms.STANDARD_DELIVERY_SUPPLIER
+                contract_terms_contract = ContractTerms.STANDARD_DELIVERY_SUPPLIER
+            cto_raw = getattr(order, "contract_terms_offer", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
+            try:
+                contract_terms_offer = ContractTerms(cto_raw)
+            except ValueError:
+                contract_terms_offer = ContractTerms.STANDARD_DELIVERY_SUPPLIER
             bill_obj = BillInDealResponse(
                 number=order.bill_number or "",
                 reason=order.bill_reason or "",
-                payment_terms=order.payment_terms or "",
-                delivery_terms=getattr(order, "delivery_terms", None) or "",
+                payment_terms_contract=order.payment_terms_contract or "",
+                delivery_terms_contract=getattr(order, "delivery_terms_contract", None) or "",
                 additional_info=order.additional_info or "",
-                contract_terms=contract_terms,
-                contract_terms_text=getattr(order, "contract_terms_text", None) or "",
+                contract_terms_contract=contract_terms_contract,
+                contract_terms_text_contract=getattr(order, "contract_terms_text_contract", None) or "",
+                payment_terms_offer=getattr(order, "payment_terms_offer", None) or "",
+                contract_terms_offer=contract_terms_offer,
+                contract_terms_text_offer=getattr(order, "contract_terms_text_offer", None) or "",
+                additional_info_offer=getattr(order, "additional_info_offer", None) or "",
                 officials=officials_list,
             )
             supply_contracts_list = []

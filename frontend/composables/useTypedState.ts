@@ -6,18 +6,36 @@ interface StateMap {
 	clearState: boolean
 	removeDealState: boolean
 	activeTab: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+
+	//bill
+	billType: { value: "bill" | "bill-contract" | "bill-offer"; label: string }
 	reasonCheck: boolean
-	paymentTerms: string
-	paymentTermsCheck: boolean
-	deliveryTerms: string
-	deliveryTermsCheck: boolean
-	additionalInfoCheck: boolean
 	vatRateCheck: boolean
 	vatRate: number
-	billType: { value: "bill" | "bill-contract" | "bill-offer"; label: string }
-	contractTerms: { value: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"; label: string }
-	contractTermsCheck: boolean
-	contractTermsText: string
+	
+	//bill-payment(счет-оплата)
+	paymentTerms: string
+	paymentTermsCheck: boolean
+	additionalInfoCheck: boolean
+
+	//bill-contract
+	paymentTermsContract: string
+	deliveryTermsContract: string
+	contractTermsContract: { value: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"; label: string }
+	contractTermsTextContract: string
+	paymentTermsCheckContract: boolean
+	deliveryTermsCheckContract: boolean
+	contractTermsCheckContract: boolean
+	
+	//bill-offer
+	paymentTermsOffer: string
+	contractTermsOffer: { value: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"; label: string }
+	contractTermsTextOffer: string
+	contractTermsCheckOffer: boolean
+	paymentTermsCheckOffer: boolean
+	additionalInfoCheckOffer: boolean
+	
+
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null

@@ -15,13 +15,24 @@ export interface BillData {
 	amountWord: string
 	date: string
 	reason: string
-	paymentTerms: string
-	deliveryTerms: string
-	additionalInfo: string
-	contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom'
-	contractTermsText: string
 	products: ProductsInOrder[]
 	seller: Company
 	buyer: Company
 	officials: OfficialBill[]
+
+	//bill-payment
+	paymentTerms: string
+	additionalInfo: string
+
+	//bill-contract
+	paymentTermsContract: string
+	contractTermsContract: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"
+	deliveryTermsContract: string
+	contractTermsTextContract: string
+	
+	//bill-offer
+	paymentTermsOffer: string
+	contractTermsOffer: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"
+	contractTermsTextOffer: string
+	additionalInfoOffer: string
 }

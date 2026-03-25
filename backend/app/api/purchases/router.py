@@ -23,7 +23,7 @@ router = APIRouter(
     tags=["purchases", "orders", "deals", "documents", "business"]
 )
 
-# Пример полного DealResponse для OpenAPI / Swagger (bill с contract_terms и contract_terms_text)
+# Пример полного DealResponse для OpenAPI / Swagger (bill с contract_terms_contract / contract_terms_text_contract)
 _DEAL_RESPONSE_EXAMPLE = {
     "id": 321,
     "version": 1,
@@ -48,11 +48,15 @@ _DEAL_RESPONSE_EXAMPLE = {
     "bill": {
         "number": "СЧ-001",
         "reason": "Оплата по счёту № СЧ-001",
-        "payment_terms": "Оплата в течение 5 рабочих дней",
-        "delivery_terms": "",
+        "payment_terms_contract": "Оплата в течение 5 рабочих дней",
+        "delivery_terms_contract": "",
         "additional_info": "Счет действителен 3 банковских дня",
-        "contract_terms": "standard-delivery-supplier",
-        "contract_terms_text": "",
+        "contract_terms_contract": "standard-delivery-supplier",
+        "contract_terms_text_contract": "",
+        "payment_terms_offer": "",
+        "contract_terms_offer": "standard-delivery-supplier",
+        "contract_terms_text_offer": "",
+        "additional_info_offer": "",
         "officials": [
             {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор"},
             {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер"},
@@ -86,6 +90,7 @@ _DEAL_RESPONSE_EXAMPLE = {
         "phone": "+375291234567",
         "email": "buyer@example.com",
         "legal_address": "г. Минск, ул. Примерная, 1",
+        "production_address": "",
         "index": "220000",
         "kpp": "123456789",
         "account_number": "BY12345678901234567890",
@@ -103,6 +108,7 @@ _DEAL_RESPONSE_EXAMPLE = {
         "phone": "+375299876543",
         "email": "seller@example.com",
         "legal_address": "г. Минск, ул. Другая, 2",
+        "production_address": "",
         "index": "220001",
         "kpp": "987654321",
         "account_number": "BY98765432109876543210",
@@ -120,7 +126,7 @@ _DEAL_RESPONSE_EXAMPLE = {
     tags=["deals", "orders", "create"],
     responses={
         200: {
-            "description": "Сделка создана (формат DealResponse, в т.ч. bill.contract_terms / contract_terms_text)",
+            "description": "Сделка создана (формат DealResponse, в т.ч. bill.contract_terms_contract / contract_terms_text_contract)",
             "content": {"application/json": {"example": _DEAL_RESPONSE_EXAMPLE}},
         },
     },

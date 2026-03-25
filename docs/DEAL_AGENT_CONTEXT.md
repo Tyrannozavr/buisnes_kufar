@@ -15,9 +15,34 @@
 
 - **Файл:** `backend/app/api/purchases/models/__init__.py`
 - **Таблица:** `orders`
-- Ключевые поля: `id`, `version`, `buyer_company_id`, `seller_company_id`, `buyer_order_number`, `seller_order_number`, `status` (`Активная` / `Завершенная`), суммы (`total_amount`, `amount_vat_rate`, `amount_with_vat_rate`), комментарии, даты/номера договора, счёта, договора поставки, JSON для закрывающих/прочих документов, поля счёта (`bill_*`, `payment_terms`, `additional_info`, `bill_officials`), `seller_vat_rate`.
-- **Позиции:** `OrderItem` (`order_items`), связь с заказом по `order_row_id`.
-- **Реквизиты банка в ответе API** приходят не из `Order`, а из связанных **`Company`** (`buyer_company` / `seller_company` в `DealResponse`): расчётный счёт, корсчёт, банк, БИК и т.д.
+
+**Общие поля сделки:** `id`, `version`, `buyer_company_id`, `seller_company_id`, `buyer_order_number`, `seller_order_number`, `deal_type`, `status` (`Активная` / `Завершенная`), `comments`, суммы (`total_amount`, `amount_vat_rate`, `amount_with_vat_rate`), `seller_vat_rate`, даты/номера основного договора (`contract_number`, `contract_date`), договора поставки (`supply_contracts_number`, `supply_contracts_date`), JSON `closing_documents`, `others_documents`, таймстемпы.
+
+**Поля счёта (хранятся в `orders`, в JSON ответа собираются во вложенный объект `bill`):**
+
+| Колонка в БД | Смысл |
+|--------------|--------|
+| `bill_number`, `bill_date` | Номер и дата счёта |
+| `bill_officials` | JSON: должностные лица |
+| `bill_reason` | Основание (`bill.reason`) |
+| `payment_terms_contract`, `delivery_terms_contract` | Условия оплаты и поставки (блок «договор» в счёте) |
+| `additional_info` | Доп. информация к счёту (общий блок) |
+| `contract_terms_contract`, `contract_terms_text_contract` | Пресет и текст условий договора (`standard-delivery-supplier` \| `standard-delivery-buyer` \| `custom`) |
+| `payment_terms_offer`, `contract_terms_offer`, `contract_terms_text_offer`, `additional_info_offer` | Аналогично для блока оферты |
+
+**Позиции:** `OrderItem` (`order_items`), связь с заказом по `order_row_id`.
+
+**Реквизиты банка в ответе API** приходят не из `Order`, а из связанных **`Company`** (`buyer_company` / `seller_company` в `DealResponse`): расчётный счёт, корсчёт, банк, БИК и т.д.
+
+### Объект `bill` в API
+
+Источник на бэке: **`BillInDealResponse`** (и **`BillUpdateInDeal`** для PATCH) в `backend/app/api/purchases/schemas/__init__.py`. Имена полей в JSON совпадают с колонками суффикса `_contract` / `_offer` (без отдельного префикса `bill_`, кроме логики «номер счёта»):
+
+- `number` ← `bill_number`, `reason` ← `bill_reason`, `officials` ← `bill_officials`
+- `payment_terms_contract`, `delivery_terms_contract`, `additional_info`, `contract_terms_contract`, `contract_terms_text_contract`
+- `payment_terms_offer`, `contract_terms_offer`, `contract_terms_text_offer`, `additional_info_offer`
+
+На фронте зеркало: **`BillResponse`** в `frontend/types/dealResponse.ts`. UI-состояние (`Deal.bill` в `dealState.ts`) использует camelCase; маппинг: **`frontend/utils/dealsMapper.ts`**.
 
 ## Префикс HTTP
 
@@ -71,15 +96,20 @@
 | URL константы | `frontend/constants/urls.ts` |
 | Вызовы API | `frontend/api/purchases.ts` (`usePurchasesApi`) |
 | Типы API | `frontend/types/dealResponse.ts` |
-| Состояние UI сделки (человекочитаемые имена полей) | `frontend/types/dealState.ts` (`Deal`, `Company`) |
+| Состояние UI сделки (человекочитаемые имена полей) | `frontend/types/dealState.ts` (`Deal`, `Company`, `Bill`) |
 | Маппинг API ↔ состояние | `frontend/utils/dealsMapper.ts` (`responseToDeal`, `createBodyForUpdate`) |
-| Кэш / поиск сделок | `frontend/composables/useDeals.ts` (если есть) |
+| Кэш / поиск сделок | `frontend/composables/useDeals.ts`, `frontend/stores/deals.ts` |
+
+## Миграции Alembic
+
+- Скрипты: **`backend/alembic/versions/`**.
+- В некоторых окружениях колонка **`alembic_version.version_num`** имеет длину **32 символа**; **`revision`** в файле миграции не должен её превышать (иначе `alembic upgrade` упадёт на записи версии).
 
 ## Ключевые правила для изменений
 
 1. **Создание новой версии** (`POST .../versions`) и **правка последней** (`PUT .../deals/{id}`) — разные сценарии; не путать с бизнес-логикой «одна версия».
 2. **`deal_id` в URL** — это **бизнес-**`id` сделки, не `row_id`.
-3. Правки в **схеме ответа** нужно синхронизировать: Pydantic в `schemas/__init__.py` + TypeScript в `dealResponse.ts` + при необходимости `dealsMapper.ts` и `dealState.ts`.
+3. Правки в **схеме ответа** нужно синхронизировать: Pydantic в `schemas/__init__.py` + TypeScript в `dealResponse.ts` + при необходимости `dealsMapper.ts` и `dealState.ts` + колонки `Order` + миграция Alembic.
 4. Примеры в Swagger для отдельных роутов могут быть **переопределены** в `backend/app/api/purchases/router.py` (константы `responses` / `_DEAL_RESPONSE_EXAMPLE`); при добавлении полей в ответ проверяй и их.
 
 ## Связанные файлы бэкенда
@@ -91,4 +121,4 @@
 
 ---
 
-*Документ сгенерирован для агентов/разработчиков; при смене API обновляйте этот файл вместе с кодом.*
+*Документ для агентов/разработчиков; при смене API обновляйте этот файл вместе с кодом.*

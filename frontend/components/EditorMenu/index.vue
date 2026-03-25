@@ -349,7 +349,6 @@ const counterpartData: CounterpartData | null = getCounterpartData(
 const saveChanges = async (): Promise<void> => {
 	try {
 		// Сначала сохраняем форму в store (officials, products и т.д.), затем создаём новую версию.
-		debugger
 		await startSave()
 		await createNewDealVersion(Number(route.query.dealId))
 		editButton()

@@ -8,6 +8,7 @@ export interface Company {
   phone?: string;
   email?: string;
 	legalAddress?: string; // Юридический адрес
+	productionAddress?: string; // Адрес производства
 	index?: string; // Индекс
   inn?: number; // ИНН
 	kpp?: string; // КПП
@@ -38,12 +39,23 @@ export interface Product {
 export interface Bill {
 	number: string
 	reason: string
-	paymentTerms: string
-	deliveryTerms: string
-	additionalInfo: string
-	contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
-	contractTermsText: string
 	officials: OfficialBill[]
+
+	//bill-payment
+	paymentTerms: string
+	additionalInfo: string
+
+	//bill-contract
+	paymentTermsContract: string
+	deliveryTermsContract: string
+	contractTermsContract: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
+	contractTermsTextContract: string
+
+	//bill-offer
+	paymentTermsOffer: string
+	contractTermsOffer: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
+	contractTermsTextOffer: string
+	additionalInfoOffer: string
 }
 
 export interface Deal {

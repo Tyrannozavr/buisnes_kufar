@@ -368,10 +368,10 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param contractTerms - новые условия договора
 	 * @returns void
 	 */
-	const editContractTerms = async (dealId: number, contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom') => {
+	const editContractTermsContract = async (dealId: number, contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom') => {
 		const deal = findDeal(dealId)
 		if (!deal) return
-		deal.bill.contractTerms = contractTerms
+		deal.bill.contractTermsContract = contractTerms
 	}
 
 	/**
@@ -380,10 +380,22 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param contractTermsText - новый текст условий договора
 	 * @returns void
 	 */
-	const editContractTermsText = async (dealId: number, contractTermsText: string) => {
+	const editContractTermsTextContract = async (dealId: number, contractTermsText: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
-		deal.bill.contractTermsText = contractTermsText
+		deal.bill.contractTermsTextContract = contractTermsText
+	}
+
+	/**
+	 * редактирование срока оплаты в счете
+	 * @param dealId - id сделки
+	 * @param paymentTerms - новый срок оплаты
+	 * @returns void
+	 */
+	const editPaymentTermsContract = async (dealId: number, paymentTerms: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.paymentTermsContract = paymentTerms
 	}
 
 	/**
@@ -392,10 +404,59 @@ export const useDealsStore = defineStore("deals", () => {
 	 * @param deliveryTerms - новый срок поставки
 	 * @returns void
 	 */
-	const editDeliveryTerms = async (dealId: number, deliveryTerms: string) => {
+
+	const editDeliveryTermsContract = async (dealId: number, deliveryTerms: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
-		deal.bill.deliveryTerms = deliveryTerms
+		deal.bill.deliveryTermsContract = deliveryTerms
+	}
+
+	/**
+	 * редактирование срока оплаты в счете
+	 * @param dealId - id сделки
+	 * @param paymentTerms - новый срок оплаты
+	 * @returns void
+	 */
+	const editPaymentTermsOffer = async (dealId: number, paymentTerms: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.paymentTermsOffer = paymentTerms
+	}
+
+	/**
+	 * редактирование срока оплаты в счете
+	 * @param dealId - id сделки
+	 * @param paymentTerms - новый срок оплаты
+	 * @returns void
+	 */
+	const editContractTermsOffer = async (dealId: number, contractTerms: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom') => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.contractTermsOffer = contractTerms
+	}
+
+	/**
+	 * редактирование текста условий договора
+	 * @param dealId - id сделки
+	 * @param contractTermsText - новый текст условий договора
+	 * @returns void
+	 */
+	const editContractTermsTextOffer = async (dealId: number, contractTermsText: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.contractTermsTextOffer = contractTermsText
+	}
+
+	/**
+	 * редактирование дополнительной информации в счете
+	 * @param dealId - id сделки
+	 * @param additionalInfo - новая дополнительная информация
+	 * @returns void
+	 */
+	const editAdditionalInfoOffer = async (dealId: number, additionalInfo: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.additionalInfoOffer = additionalInfo
 	}
 
 	return {
@@ -416,18 +477,27 @@ export const useDealsStore = defineStore("deals", () => {
 		editProductList,
 		editProductComments,
 		removeDeal,
-		editBillFields,
 		editContractDate,
 		editSupplyContractsDate,
+		//bill
+		editBillFields,
+		editAmountVatRate,
 		editAmountWithVatRate,
+		editOfficialsBill,
+		editVatRateSeller,
+		//bill-payment
+		editBillReason,
 		editPaymentTerms,
 		editAdditionalInfo,
-		editOfficialsBill,
-		editBillReason,
-		editVatRateSeller,
-		editAmountVatRate,
-		editContractTerms,
-		editContractTermsText,
-		editDeliveryTerms,
+		//bill-contract
+		editPaymentTermsContract,
+		editDeliveryTermsContract,
+		editContractTermsContract,
+		editContractTermsTextContract,
+		//bill-offer
+		editPaymentTermsOffer,
+		editContractTermsOffer,
+		editContractTermsTextOffer,
+		editAdditionalInfoOffer,
 	}
 })

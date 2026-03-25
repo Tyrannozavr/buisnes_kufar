@@ -38,6 +38,7 @@ export interface CompanyInDealResponse {
 	phone: string
 	email: string
 	legal_address: string // Юридический адрес
+	production_address: string // Адрес производства
 	index: string // Индекс
 	inn: number // ИНН
 	kpp: string // КПП
@@ -79,15 +80,29 @@ export interface DealUpdate {
 export interface BillResponse {
 	number: string
 	reason: string
-	payment_terms: string
-	delivery_terms: string
+	officials: OfficialsResponse[]
+	
+	// bill-payment
+	payment_terms?: string
 	additional_info: string
-	contract_terms:
+
+	// bill-contract
+	payment_terms_contract: string
+	delivery_terms_contract: string
+	contract_terms_contract:
 		| "standard-delivery-supplier"
 		| "standard-delivery-buyer"
 		| "custom"
-	contract_terms_text: string
-	officials: OfficialsResponse[]
+	contract_terms_text_contract: string
+
+	// bill-offer
+	payment_terms_offer: string
+	contract_terms_offer:
+		| "standard-delivery-supplier"
+		| "standard-delivery-buyer"
+		| "custom"
+	contract_terms_text_offer: string
+	additional_info_offer: string
 }
 
 export interface OfficialsResponse {

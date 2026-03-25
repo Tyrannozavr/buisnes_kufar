@@ -66,13 +66,19 @@ class Order(Base):
     bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
     bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
     bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
-    payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
-    delivery_terms: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
+    payment_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
+    delivery_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
     additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
-    contract_terms: Mapped[str] = mapped_column(
+    contract_terms_contract: Mapped[str] = mapped_column(
         String(64), nullable=False, default="standard-delivery-supplier"
-    )  # Вариант условий договора в счёте (как на фронте BillResponse.contract_terms)
-    contract_terms_text: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий договора
+    )  # Вариант условий договора в счёте (BillResponse.contract_terms_contract)
+    contract_terms_text_contract: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий договора
+    payment_terms_offer: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (оферта)
+    contract_terms_offer: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="standard-delivery-supplier"
+    )  # Вариант условий оферты (BillResponse.contract_terms_offer)
+    contract_terms_text_offer: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий оферты
+    additional_info_offer: Mapped[Optional[str]] = mapped_column(Text)  # Доп. информация (оферта)
     supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
     supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
 

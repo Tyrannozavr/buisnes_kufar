@@ -21,10 +21,10 @@
 		<div v-if="billType.value === 'bill'" :hidden="hiddenForBuyer" class="flex flex-col gap-2">
 			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" />
 
-			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl"/>
+			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="w-fit"/>
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms" default-value="3">
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms" @update="console.log(paymentTerms)">
 			</div>
 		</div>
 		
@@ -152,39 +152,6 @@ const dealForEditor = computed(() =>
 	findDeal(Number(route.query.dealId))
 )
 
-watch(
-	[() => route.query.dealId, dealForEditor],
-	() => {
-		const deal = dealForEditor.value
-		if (!deal) return
-		//bill-general
-		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
-		initialVatRateCheck.value = deal.amountWithVatRate
-		initialSellerVatRate.value = deal.seller.vatRate ?? 0
-
-		//bill-payment(счет-оплата)
-		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
-		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
-		initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
-
-		//bill-contract
-		initialPaymentTermsContract.value = deal.bill.paymentTermsContract ?? ''
-		initialDeliveryTermsContract.value = deal.bill.deliveryTermsContract ?? ''
-		initialContractTermsContract.value.value = deal.bill.contractTermsContract ?? 'standard-delivery-supplier'
-		initialPaymentTermsCheckContract.value = deal.bill.paymentTermsContract !== '' ? true : false
-		initialDeliveryTermsCheckContract.value = deal.bill.deliveryTermsContract !== '' ? true : false
-		initialContractTermsCheckContract.value = deal.bill.contractTermsTextContract !== '' ? true : false
-
-		//bill-offer
-		initialPaymentTermsOffer.value = deal.bill.paymentTermsOffer ?? ''
-		initialContractTermsOffer.value.value = deal.bill.contractTermsOffer ?? 'standard-delivery-supplier'
-		initialContractTermsCheckOffer.value = deal.bill.contractTermsTextOffer !== '' ? true : false
-		initialPaymentTermsCheckOffer.value = deal.bill.paymentTermsOffer !== '' ? true : false
-		initialAdditionalInfoCheckOffer.value = deal.bill.additionalInfoOffer !== '' ? true : false
-	},
-	{ immediate: true }
-)
-
 //bill-general
 const billType = useTypedState(Editor.BILL_TYPE)
 const reasonCheck = useTypedState(Editor.REASON_CHECK, () => initialReasonCheck)
@@ -204,11 +171,77 @@ const paymentTermsCheckContract = useTypedState(Editor.PAYMENT_TERMS_CHECK_CONTR
 const deliveryTermsCheckContract = useTypedState(Editor.DELIVERY_TERMS_CHECK_CONTRACT, () => initialDeliveryTermsCheckContract)
 const contractTermsCheckContract = useTypedState(Editor.CONTRACT_TERMS_CHECK_CONTRACT, () => initialContractTermsCheckContract)
 
-
 //bill-offer
 const paymentTermsOffer = useTypedState(Editor.PAYMENT_TERMS_OFFER, () => initialPaymentTermsOffer)
 const contractTermsOffer = useTypedState(Editor.CONTRACT_TERMS_OFFER, () => initialContractTermsOffer)
 const contractTermsCheckOffer = useTypedState(Editor.CONTRACT_TERMS_CHECK_OFFER, () => initialContractTermsCheckOffer)
 const paymentTermsCheckOffer = useTypedState(Editor.PAYMENT_TERMS_CHECK_OFFER, () => initialPaymentTermsCheckOffer)
 const additionalInfoCheckOffer = useTypedState(Editor.ADDITIONAL_INFO_CHECK_OFFER, () => initialAdditionalInfoCheckOffer)
+
+//задаем initial значения по данным сделки
+watch(
+	[() => route.query.dealId, dealForEditor],
+	() => {
+		const deal = dealForEditor.value
+		if (!deal) return
+		//bill-general
+		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
+		initialVatRateCheck.value = deal.amountWithVatRate
+		initialSellerVatRate.value = deal.seller.vatRate ?? 0
+
+		//bill-payment(счет-оплата)
+		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
+		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
+		initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
+
+		//bill-contract
+		initialPaymentTermsContract.value = deal.bill.paymentTermsContract ?? ''
+		initialDeliveryTermsContract.value = deal.bill.deliveryTermsContract ?? ''
+		if (deal.bill.contractTermsContract === 'standard-delivery-supplier') {
+			initialContractTermsContract.value = { value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика' }
+		} else if (deal.bill.contractTermsContract === 'standard-delivery-buyer') {
+			initialContractTermsContract.value = { value: 'standard-delivery-buyer', label: 'Стандартный, доставка Покупателя' }
+		} else {
+			initialContractTermsContract.value = { value: 'custom', label: 'Свой шаблон' }
+		}
+		initialPaymentTermsCheckContract.value = deal.bill.paymentTermsContract !== '' ? true : false
+		initialDeliveryTermsCheckContract.value = deal.bill.deliveryTermsContract !== '' ? true : false
+		initialContractTermsCheckContract.value = deal.bill.contractTermsTextContract !== '' ? true : false
+
+		//bill-offer
+		initialPaymentTermsOffer.value = deal.bill.paymentTermsOffer ?? ''
+		if (deal.bill.contractTermsOffer === 'standard-delivery-supplier') {
+			initialContractTermsOffer.value = { value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика' }
+		} else if (deal.bill.contractTermsOffer === 'standard-delivery-buyer') {
+			initialContractTermsOffer.value = { value: 'standard-delivery-buyer', label: 'Стандартный, доставка Покупателя' }
+		} else {
+			initialContractTermsOffer.value = { value: 'custom', label: 'Свой шаблон' }
+		}
+		initialContractTermsCheckOffer.value = deal.bill.contractTermsTextOffer !== '' ? true : false
+		initialPaymentTermsCheckOffer.value = deal.bill.paymentTermsOffer !== '' ? true : false
+		initialAdditionalInfoCheckOffer.value = deal.bill.additionalInfoOffer !== '' ? true : false
+	},
+	{ immediate: true }
+)
+
+
+//убираем галки, если значение в поле пустое
+watch(() => [
+	paymentTerms.value,
+	paymentTermsContract.value,
+	paymentTermsOffer.value,
+], () => {
+	if (Number(paymentTerms.value) <= 0) {
+		paymentTerms.value = '0'
+		paymentTermsCheck.value = false
+	}
+	if (Number(paymentTermsContract.value) <= 0) {
+		paymentTermsContract.value = '0'
+		paymentTermsCheckContract.value = false
+	}
+	if (Number(paymentTermsOffer.value) <= 0) {
+		paymentTermsOffer.value = '0'
+		paymentTermsCheckOffer.value = false
+	}
+}, { deep: true, immediate: true})
 </script>

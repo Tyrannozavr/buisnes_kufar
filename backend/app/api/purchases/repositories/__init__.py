@@ -7,6 +7,12 @@ import enum
 
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
 from app.api.purchases.schemas import DealCreate, DealUpdate
+from app.api.purchases.deal_bill_defaults import (
+    DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+    DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+    default_contract_terms_text_contract,
+    default_contract_terms_text_offer,
+)
 from app.api.company.models.company import Company
 from app_logging.logger import logger
 
@@ -35,6 +41,19 @@ class DealRepository:
 
             # Создаем заказ (version starts at 1 for a new deal id)
             logger.debug("Создаем объект Order")
+            seller_production_address = (
+                (getattr(seller_company, "production_address", None) or "")
+                if seller_company
+                else ""
+            )
+            _ct_contract = default_contract_terms_text_contract(
+                payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+                delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+            )
+            _ct_offer = default_contract_terms_text_offer(
+                payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+                production_address=seller_production_address,
+            )
             order = Order(
                 id=await self._generate_deal_id(),
                 version=1,
@@ -45,7 +64,12 @@ class DealRepository:
                 seller_vat_rate=seller_company.vat_rate if seller_company else None,
                 deal_type=OrderType.GOODS,
                 status=OrderStatus.ACTIVE,
-                comments=order_data.comments
+                comments=order_data.comments,
+                payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+                delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+                payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+                contract_terms_text_contract=_ct_contract,
+                contract_terms_text_offer=_ct_offer,
             )
             
             logger.debug("Добавляем заказ в сессию")

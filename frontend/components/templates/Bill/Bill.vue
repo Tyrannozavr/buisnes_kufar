@@ -250,6 +250,14 @@
 							<PersonSelector :isDisabled="isDisabled" @addPerson="addPerson($event)" />
 						</td>
 					</tr>
+					<tr v-if="billData.officials.length === 0">
+						<td colspan="4">
+							<div class="w-2/5 mt-6">
+								<div class="h-5"></div>
+								<div class="text-center text-xs border-t">(должность, подпись, ФИО)</div>
+							</div>
+						</td>
+					</tr>
 				</tbody>
 			</table>
 		</div>
@@ -282,6 +290,7 @@ import numberToWordsRu from 'number-to-words-ru';
 import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
+import { CONTRACT_TERMS_BILL_OFFER, CONTRACT_TERMS_BILL_CONTRACT, ADDITIONAL_INFO_BILL } from '~/constants/contractTerms';
 
 const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer } = useDeals()
 
@@ -361,151 +370,146 @@ const billData = ref<BillData>({
 	additionalInfoOffer: '',
 })
 
+//установка значений сроков оплаты и доставки по умолчанию, если они есть в шаблоне
+watch(() => [
+	contractTermsTextContract.value,
+	contractTermsTextOffer.value,
+	contractTermsContract.value,
+	contractTermsOffer.value,
+], () => {
+	if ((contractTermsTextContract.value?.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ДОГОВОРА }}') && contractTermsContract.value.value === 'custom')) {
+		paymentTermsCheckContract.value = true
+		paymentTermsContract.value = '3'
+	}
+	if ((contractTermsTextContract.value?.includes('{{ СРОК_ПОСТАВКИ_СЧЕТА_ДОГОВОРА }}') && contractTermsContract.value.value === 'custom')) {
+		deliveryTermsCheckContract.value = true
+		deliveryTermsContract.value = '10'
+	}
+	if ((contractTermsTextOffer.value?.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ОФЕРТЫ }}') && contractTermsOffer.value.value === 'custom')) {
+		paymentTermsCheckOffer.value = true
+		paymentTermsOffer.value = '3'
+	}
+}, { deep: true, immediate: true })
+
 //заполнение условий договора счета-оферты
-watch(() => [contractTermsOffer, contractTermsTextOffer, contractTermsCheckOffer, billData.value.paymentTermsOffer, paymentTermsCheckOffer],
+watch(() => [
+	contractTermsOffer,
+	contractTermsTextOffer,
+	contractTermsCheckOffer,
+	billData.value.paymentTermsOffer,
+	paymentTermsCheckOffer
+],
 	() => {
 		if (contractTermsCheckOffer.value) {
 			billData.value.contractTermsOffer = contractTermsOffer.value.value
 
 			if (contractTermsOffer.value.value === 'standard-delivery-supplier' && paymentTermsCheckOffer.value) {
-				billData.value.contractTermsTextOffer = `1.	Предметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
-2.	Подписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
-3.	Осмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
-4.	Покупатель обязуется оплатить товар на условиях 100% предоплаты в сумме, указанной в счете, в течение ${billData.value.paymentTermsOffer} рабочих дней по указанным реквизитам.
-5.	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА со склада Поставщика, расположенного по адресу: ${billData.value.seller.productionAddress}.
-6.	После получения товара Покупатель обязан подписать Товарную накладную.
-`
+
+				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_SUPPLIER_PAYMENT(
+					billData.value.paymentTermsOffer,
+					billData.value.seller.productionAddress ?? '______________'
+				)
 			} else if (contractTermsOffer.value.value === 'standard-delivery-buyer' && paymentTermsCheckOffer.value) {
-				billData.value.contractTermsTextOffer = `1.	Предметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
-2.	Подписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
-3.	Осмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
-4.	Покупатель обязуется оплатить товар на условиях 100% предоплаты в сумме, указанной в счете, в течение ${billData.value.paymentTermsOffer} рабочих дней по указанным реквизитам.
-5.	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ со склада Поставщика, расположенного по адресу: ${billData.value.seller.productionAddress}.
-6.	После получения товара Покупатель обязан подписать Товарную накладную.
-`
+
+				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_BUYER_PAYMENT(
+					billData.value.paymentTermsOffer,
+					billData.value.seller.productionAddress ?? '______________'
+				)
 			} else if (contractTermsOffer.value.value === 'standard-delivery-supplier' && !paymentTermsCheckOffer.value) {
-				billData.value.contractTermsTextOffer = `1.	Предметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
-2.	Подписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
-3.	Осмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
-4.	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА со склада Поставщика, расположенного по адресу: ${billData.value.seller.productionAddress}.
-5.	После получения товара Покупатель обязан подписать Товарную накладную.
-`
+
+				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_SUPPLIER_WITHOUT_PAYMENT(
+					billData.value.seller.productionAddress ?? '______________'
+				)
 			} else if (contractTermsOffer.value.value === 'standard-delivery-buyer' && !paymentTermsCheckOffer.value) {
-				billData.value.contractTermsTextOffer = `1.	Предметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
-2.	Подписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
-3.	Осмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
-4.	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ со склада Поставщика, расположенного по адресу: ${billData.value.seller.productionAddress}.
-5.	После получения товара Покупатель обязан подписать Товарную накладную.
-`
-			} else if (contractTermsOffer.value.value === 'custom') {
+
+				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_BUYER_WITHOUT_PAYMENT(
+					billData.value.seller.productionAddress ?? '______________'
+				)
+			} else if (contractTermsOffer.value.value === 'custom' && contractTermsTextOffer.value) {
+
 				billData.value.contractTermsTextOffer = contractTermsTextOffer.value
 			}
 		} else {
-			billData.value.contractTermsOffer = 'standard-delivery-supplier'
 			billData.value.contractTermsTextOffer = ''
 		}
-	}, { deep: true }
+	}, { deep: true, immediate: true }
 )
 
 //заполнение условий договора счета-договора
-watch(() => [contractTermsContract,contractTermsTextContract, contractTermsCheckContract, billData.value.paymentTermsContract, billData.value.deliveryTermsContract, paymentTermsCheckContract, deliveryTermsCheckContract],
+watch(() => [
+	contractTermsContract.value,
+	contractTermsTextContract.value,
+	contractTermsCheckContract.value,
+	billData.value.paymentTermsContract,
+	billData.value.deliveryTermsContract,
+	paymentTermsCheckContract.value,
+	deliveryTermsCheckContract.value
+],
 	() => {
 		if (contractTermsCheckContract.value) {
 			billData.value.contractTermsContract = contractTermsContract.value.value
 
 			if (contractTermsContract.value.value === 'standard-delivery-supplier' && paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTermsContract} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTermsContract} рабочих дней с момента зачисления оплаты на расчетный счет
-5. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
-6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-8. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-9. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_WITH_PAYMENT_AND_DELIVERY(
+					billData.value.number,
+					normalizeDate(billData.value.date),
+					billData.value.paymentTermsContract,
+					billData.value.deliveryTermsContract)
 
 			} else if (contractTermsContract.value.value === 'standard-delivery-buyer' && paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTermsContract} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTermsContract} рабочих дней с момента зачисления оплаты на расчетный счет
-5. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
-6. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-7. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-8. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-9. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_BUYER_WITH_PAYMENT_AND_DELIVERY(
+					billData.value.number,
+					normalizeDate(billData.value.date),
+					billData.value.paymentTermsContract,
+					billData.value.deliveryTermsContract
+				)
 
 			} else if (contractTermsContract.value.value === 'standard-delivery-supplier' && !paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTermsContract} рабочих дней с момента зачисления оплаты на расчетный счет
-4. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
-5. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-6. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-7. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-8. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
-			} else if (contractTermsContract.value.value === 'standard-delivery-supplier' && paymentTermsCheckContract.value && !deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTermsContract} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
-5. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-6. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-7. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-8. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
-			} else if (contractTermsContract.value.value === 'standard-delivery-supplier' && !paymentTermsCheckContract.value && !deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Оплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
-4. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-5. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-6. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-7. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_WITHOUT_PAYMENT_AND_DELIVERY(
+					billData.value.number,
+					normalizeDate(billData.value.date)
+				)
+			} else if (contractTermsContract.value.value === 'standard-delivery-supplier' && paymentTermsCheckContract.value && !deliveryTermsCheckContract.value)
+			{
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_ONLY_PAYMENT(
+					billData.value.number,
+					normalizeDate(billData.value.date),
+					billData.value.paymentTermsContract)
+
 			} else if (contractTermsContract.value.value === 'standard-delivery-buyer' && !paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Поставщик обязан доставить оплаченный товар и передать его Покупателю в течение ${billData.value.deliveryTermsContract} рабочих дней с момента зачисления оплаты на расчетный счет
-4. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
-5. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-6. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-7. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-8. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_BUYER_ONLY_DELIVERY(
+					billData.value.number,
+					normalizeDate(billData.value.date),
+					billData.value.deliveryTermsContract)
+
 			} else if (contractTermsContract.value.value === 'standard-delivery-buyer' && paymentTermsCheckContract.value && !deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Настоящий Счет-договор действителен в течение ${billData.value.paymentTermsContract} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
-4. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
-5. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-6. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-7. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-8. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_BUYER_ONLY_PAYMENT(
+					billData.value.number,
+					normalizeDate(billData.value.date),
+					billData.value.paymentTermsContract)
+
 			} else if (contractTermsContract.value.value === 'standard-delivery-buyer' && !paymentTermsCheckContract.value && !deliveryTermsCheckContract.value) {
-				billData.value.contractTermsTextContract = `Основные условия настоящего договора-счета № ${billData.value.number || '—'} от ${normalizeDate(billData.value.date) || '—'} г.
-1. 	Предметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
-2. 	Оплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.	
-3. 	Оплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
-4. 	Оплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
-5. 	Поставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
-6. 	Покупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
-7. 	Подписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара.`
+
+				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_BUYER_WITHOUT_PAYMENT_AND_DELIVERY(
+					billData.value.number,
+					normalizeDate(billData.value.date)
+				)
 			
 
-			} else if (contractTermsContract.value.value === 'custom') {
+			} else if (contractTermsContract.value.value === 'custom' && contractTermsTextContract.value) {
+
 				billData.value.contractTermsTextContract = contractTermsTextContract.value
 			}
 		} else {
-			billData.value.contractTermsContract = 'standard-delivery-supplier'
 			billData.value.contractTermsTextContract = ''
 		}
 	},
-	{ deep: true }
+	{ deep: true, immediate: true }
 )
 
 //заполнение срока поставки счета-договора
@@ -531,7 +535,12 @@ watch(() => [paymentTermsCheck, paymentTerms],
 )
 
 //заполнение срока оплаты и доставки счета-договора
-watch(() => [paymentTermsCheckContract, paymentTermsContract, deliveryTermsCheckContract, deliveryTermsContract], () => {
+watch(() => [
+	paymentTermsCheckContract,
+	paymentTermsContract,
+	deliveryTermsCheckContract,
+	deliveryTermsContract
+], () => {
 	if (paymentTermsCheck.value) {
 		billData.value.paymentTerms = paymentTerms.value
 	} else {
@@ -558,7 +567,7 @@ watch(() => [paymentTermsCheck, paymentTerms], () => {
 
 //заполнение срока оплаты счета-договора
 watch(() => [paymentTermsCheckContract, paymentTermsContract], () => {
-	if (paymentTermsCheck.value) {
+	if (paymentTermsCheckContract.value) {
 		billData.value.paymentTermsContract = paymentTermsContract.value
 	} else {
 		billData.value.paymentTermsContract = ''
@@ -599,12 +608,7 @@ watch(additionalInfoCheck, () => {
 		billData.value.additionalInfo = dealAdditionalInfo
 		 return dealAdditionalInfo
 	} else if (additionalInfoCheck.value && !dealAdditionalInfo) {
-		const additionalInfo = `Внимание!
-Оплата данного счета означает согласие с условиями поставки товара.
-Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
-Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.
-Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
-Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.`
+		const additionalInfo = ADDITIONAL_INFO_BILL.PAYMENT
 		billData.value.additionalInfo = additionalInfo
 		return additionalInfo
 	}
@@ -619,7 +623,7 @@ watch(additionalInfoCheckOffer, () => {
 		billData.value.additionalInfoOffer = dealAdditionalInfoOffer
 		 return dealAdditionalInfoOffer
 	} else if (additionalInfoCheckOffer.value && !dealAdditionalInfoOffer) {
-		const additionalInfoOffer = `«Настоящий счет-оферта (далее счет) является письменным предложением (офертой) {{ НАЗВАНИЕ_КОМПАНИИ_ПОСТАВЩИКА }}, далее по тексту Поставщик, заключить договор поставки (далее договор). Договор считается согласованным путем принятия (акцептования) оферты Покупателем в установленном порядке (п.3 ст.438 ГК) и обладает свойствами письменной формы договора (п.3 ст.434 ГК).»`
+		const additionalInfoOffer = ADDITIONAL_INFO_BILL.OFFER(billData.value.seller.companyName ?? `______________`)
 		billData.value.additionalInfoOffer = additionalInfoOffer
 		return additionalInfoOffer
 	}

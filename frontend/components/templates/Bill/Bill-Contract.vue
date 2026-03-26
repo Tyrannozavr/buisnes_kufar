@@ -65,6 +65,20 @@
 						</div>
 					</td>
 				</tr>
+				<tr v-if="billData.officials.length === 0">
+					<td>
+						<div class="mr-5">
+								<div class="h-5"></div>
+								<div class="text-center text-xs border-t">(должность, подпись, ФИО)</div>
+						</div>
+					</td>
+					<td>
+						<div class="mr-5">
+							<div class="h-5"></div>
+							<div class="text-center text-xs border-t">(должность, подпись, ФИО)</div>
+						</div>
+					</td>
+				</tr>
 			</tbody>
 		</table>
 	</div>

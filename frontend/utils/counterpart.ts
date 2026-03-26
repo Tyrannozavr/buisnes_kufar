@@ -1,6 +1,7 @@
 import { useDeals } from "~/composables/useDeals"
 import { useChatsApi } from "~/api/chats"
-import { useRouter } from "vue-router"
+import { useNuxtApp } from "nuxt/app"
+import type { Router } from "vue-router"
 
 export interface CounterpartData {
 	companyId: number
@@ -21,17 +22,22 @@ export const getCounterpartData = (
 
 	const { findDeal } = useDeals()
 	const deal = findDeal(dealId)
+	if (!deal) return null
 
 	if (role === "buyer") {
+		const companyId = deal.seller?.companyId
+		if (!companyId) return null
 		return {
-			companyId: deal?.seller?.companyId ?? 0,
-			dealNumber: deal?.sellerOrderNumber ?? ""
+			companyId,
+			dealNumber: deal.sellerOrderNumber ?? ""
 		}
 	}
 	if (role === "seller") {
+		const companyId = deal.buyer?.companyId
+		if (!companyId) return null
 		return {
-			companyId: deal?.buyer?.companyId ?? 0,
-			dealNumber: deal?.buyerOrderNumber ?? ""
+			companyId,
+			dealNumber: deal.buyerOrderNumber ?? ""
 		}
 	}
 	return null
@@ -51,11 +57,15 @@ export const sendMessageToCounterpart = async (
 	counterpartData: CounterpartData,
 	isConfirm?: boolean
 ): Promise<void> => {
-	if (!counterpartData) return
+	if (!counterpartData?.companyId) return
 
 	const { createChat, sendMessage } = useChatsApi()
-	const router = useRouter()
-	const route = useRoute()
+	const nuxtApp = useNuxtApp()
+	const router = nuxtApp.$router as Router | undefined
+	if (!router?.resolve) {
+		console.warn("sendMessageToCounterpart: router is not available")
+		return
+	}
 
 	const orderNumber = String(
 		await Promise.resolve(counterpartData.dealNumber ?? "")
@@ -65,8 +75,9 @@ export const sendMessageToCounterpart = async (
 	})
 
 	if (chatData?.id) {
+		const path = router.currentRoute.value.path
 		const resolvedDealRoute = router.resolve({
-			path: route.path,
+			path,
 			query: {
 				dealId: dealId,
 				role: role,

@@ -41,7 +41,11 @@ export const useChatsApi = () => {
   }): Promise<CreateChatResponse> => {
     const { $api } = useNuxtApp()
     
-    if (!params.participantId && !params.participantSlug) {
+    const hasParticipantId =
+      params.participantId != null &&
+      params.participantId !== 0 &&
+      Number.isFinite(params.participantId)
+    if (!hasParticipantId && !params.participantSlug) {
       throw new Error('Either participantId or participantSlug must be provided')
     }
 
@@ -50,10 +54,12 @@ export const useChatsApi = () => {
       if (params.participantSlug) {
         // Создаем чат по slug
         response = await $api.post(`/v1/chats/by-slug/${params.participantSlug}`)
-      } else {
+      } else if (hasParticipantId) {
         // Создаем чат по ID
-        const payload = { participant_company_id: params.participantId }
+        const payload = { participant_company_id: params.participantId! }
         response = await $api.post('/v1/chats', payload)
+      } else {
+        throw new Error('Either participantId or participantSlug must be provided')
       }
       
       // Возвращаем только необходимые данные для перехода к чату

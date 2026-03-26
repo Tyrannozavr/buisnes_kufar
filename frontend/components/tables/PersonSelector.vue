@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PersonBill } from '~/types/bill';
+import type { OfficialBill } from '~/types/bill';
 import type { SelectMenuItem } from '@nuxt/ui';
 import { getMyCompanyQuery } from '~/queries/companyOwner';
 import type { OfficialsResponse } from '~/types/dealResponse';
@@ -8,8 +8,10 @@ defineProps<{
 	isDisabled: boolean
 }>() 
 
+const route = useRoute()
+
 const emit = defineEmits<{
-	(e: 'addPerson', value: PersonBill): void
+	(e: 'addPerson', value: OfficialBill): void
 }>()
 
 const { data: myCompany } = useQuery(getMyCompanyQuery())
@@ -21,13 +23,14 @@ return myCompany.value?.officials?.map((person: OfficialsResponse) => ({
 		id: person.id,
 		name: person.full_name,
 		position: person.position,
-	} satisfies PersonBill,
+	} satisfies OfficialBill,
 })) ?? []
 })
 </script>
 
 <template>
 	<USelect 
+	v-if="route.query.role === 'seller'"
 	:disabled="isDisabled" 
 	:items="personsOptions" 
 	class="w-full mt-2" 

@@ -123,6 +123,10 @@ export interface DealResponse {
 	created_at: string
 	updated_at: string
 	total_amount: number
+	/** Сумма позиций без НДС */
+	total_amount_excl_vat?: number
+	/** Сумма total_amount прописью (рубли/копейки), только с сервера */
+	total_amount_word: string
 	amount_vat_rate?: number
 	amount_with_vat_rate: boolean
 	comments: string
@@ -147,6 +151,7 @@ export interface BuyerDealResponse {
   seller_order_number: string,
   status: "Активная" | "Завершенная",
   total_amount: number,
+  total_amount_excl_vat?: number,
   created_at: string,
   updated_at: string,
   supplier_name: string,
@@ -162,6 +167,7 @@ export interface SellerDealResponse {
   seller_order_number: string,
   status: "Активная" | "Завершенная",
   total_amount: number,
+  total_amount_excl_vat?: number,
   created_at: string,
   updated_at: string,
   buyer_name: string,

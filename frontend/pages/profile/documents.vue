@@ -108,7 +108,7 @@ const UButton = resolveComponent("UButton");
 const USelect = resolveComponent("USelect");
 const UDropdownMenu = resolveComponent("UDropdownMenu");
 const { findDeal, getDeals } = useDeals();
-const { generateDocxOrder, generateDocxBill, downloadBlob } = useDocxGenerator();
+const { fetchDealGeneratedDocxBlob, downloadBlob } = useDocxGenerator();
 
 const dealTypeFilter = ref<DealTypeFilter>("purchases");
 const selectedDealId = ref<number | null>(null);
@@ -245,35 +245,43 @@ const createDocumentsFromState = async (dealId: number): Promise<DocumentApiItem
 
   const docs = []
   if (orderNumber) {
-    const blob = await generateDocxOrder(deal);
-    docs.push({
-      document_id: deal.dealId,
-      deal_id: deal.dealId,
-      document_type: "order",
-      document_number: orderNumber ?? null,
-      document_date: deal.date,
-      document_file_path: null,
-      created_at: deal.date,
-      updated_at: deal.date,
-      blob: blob,
-    });
+    try {
+      const blob = await fetchDealGeneratedDocxBlob(deal.dealId, "order");
+      docs.push({
+        document_id: deal.dealId,
+        deal_id: deal.dealId,
+        document_type: "order",
+        document_number: orderNumber ?? null,
+        document_date: deal.date,
+        document_file_path: null,
+        created_at: deal.date,
+        updated_at: deal.date,
+        blob: blob,
+      });
+    } catch (e) {
+      console.error("fetch order.docx:", e);
+    }
   }
   if (deal.bill) {
-    const blob = await generateDocxBill(deal);
-    docs.push({
-      document_id: deal.dealId + 1_000_000,
-      deal_id: deal.dealId,
-      document_type: "bill",
-      document_number: deal.bill.number ?? null,
-      document_date: deal.date,
-      document_file_path: null,
-      created_at: deal.date,
-      updated_at: deal.date,
-      blob: blob,
-    });
+    try {
+      const blob = await fetchDealGeneratedDocxBlob(deal.dealId, "bill");
+      docs.push({
+        document_id: deal.dealId + 1_000_000,
+        deal_id: deal.dealId,
+        document_type: "bill",
+        document_number: deal.bill.number ?? null,
+        document_date: deal.date,
+        document_file_path: null,
+        created_at: deal.date,
+        updated_at: deal.date,
+        blob: blob,
+      });
+    } catch (e) {
+      console.error("fetch bill.docx:", e);
+    }
   }
   console.log("docs", docs)
-  return docs;
+  return docs as DocumentApiItem[];
 };
 
 //загрузка документов по selectedDealId

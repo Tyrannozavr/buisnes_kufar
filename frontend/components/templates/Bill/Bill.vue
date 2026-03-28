@@ -1,5 +1,5 @@
 <template>
-	<div class="font-sans text-l text-justify text-pretty w-full">
+	<div ref="html" class="font-sans text-l text-justify text-pretty w-full">
 		<table class="p-3 w-full border-2 border-black">
 			<tbody>
 				<tr>
@@ -160,7 +160,7 @@
 					<td colspan="4"></td>
 					<td colspan="2" >Итого:</td>
 					<td >
-						<span class="font-bold">{{ normalizePrice(billData.products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)) }}</span>
+						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
@@ -292,7 +292,7 @@ import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
 import { CONTRACT_TERMS_BILL_OFFER, CONTRACT_TERMS_BILL_CONTRACT, ADDITIONAL_INFO_BILL } from '~/constants/contractTerms';
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer, editAmountExclVat } = useDeals()
 
 const route = useRoute()
 const router = useRouter()
@@ -304,8 +304,8 @@ const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const billType = computed(() => billTypeSelected.value.value)
 
 const html = useTemplateRef('html')
-const htmlBill = useTypedState(TemplateElement.BILL, () => ref(null)
-)
+const htmlBill = useTypedState(TemplateElement.BILL, () => ref(null))
+
 //bill-general
 const billTypeSelected = useTypedState(Editor.BILL_TYPE, () => ref({value: 'bill', label: 'Счет на оплату'}))
 const reasonCheck = useTypedState(Editor.REASON_CHECK)
@@ -346,6 +346,7 @@ const billData = ref<BillData>({
 	number: '',
 	date: '',
 	amount: 0,
+	amountExclVat: 0,
 	amountVatRate: 0,
 	amountWord: '',
 	reason: '',
@@ -629,34 +630,45 @@ watch(additionalInfoCheckOffer, () => {
 	}
 })
 
-//рассчет суммы и суммы НДС
-watch(() => [
-	sellerVatRate.value,
-	vatRateCheck.value,
-	route.query.dealId
-], () => {
-	const amountTable = products.reduce((acc: number, product: ProductsInOrder) => acc + product.amount, 0)
+// рассчёт суммы по позициям: источник правды — billData.products (не внешний `products`, он расходится после fillBillData / addProduct)
+const recalcBillAmounts = (): void => {
+	const rows = billData.value.products
+	let amountTable = 0
+	for (const product of rows) {
+		const qty = Number(product.quantity) || 0
+		const price = Number(product.price) || 0
+		const line = qty * price
+		product.amount = line
+		amountTable += line
+	}
 	const isAmountWithVatRate = findDeal(Number(route.query.dealId))?.amountWithVatRate ?? false
 	billData.value.seller.vatRate = sellerVatRate.value
+	billData.value.amountExclVat = amountTable
 
 	if (vatRateCheck.value && isAmountWithVatRate) {
-
 		billData.value.amount = amountTable + (amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100)
 		billData.value.amountVatRate = amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100
-
 	} else if (vatRateCheck.value && !isAmountWithVatRate) {
 		billData.value.amount = amountTable + (amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100)
 		billData.value.amountVatRate = amountTable * ((normalizeVatRate(sellerVatRate.value)) ?? 0) / 100
-
 	} else if (!vatRateCheck.value && isAmountWithVatRate) {
 		billData.value.amount = amountTable
 		billData.value.amountVatRate = 0
-
 	} else if (!vatRateCheck.value && !isAmountWithVatRate) {
 		billData.value.amount = amountTable
 		billData.value.amountVatRate = 0
 	}
-}, { immediate: true, deep: true }
+}
+
+watch(
+	() => ({
+		products: billData.value.products,
+		sellerVat: sellerVatRate.value,
+		vatCheck: vatRateCheck.value,
+		dealId: route.query.dealId,
+	}),
+	() => recalcBillAmounts(),
+	{ deep: true, immediate: true }
 )
 
 //рассчет суммы словами
@@ -764,7 +776,8 @@ const fillBillData = () => {
     billData.value = {
       number: deal.bill.number,
       dealId: deal.dealId,
-      amount: deal.product.amountPrice,
+			amount: deal.product.amountPrice,
+			amountExclVat: deal.totalAmountExclVat,
 			amountVatRate: deal.product.amountVatRate,
 			amountWord: deal.product.amountWord,
       date: deal.billDate,
@@ -826,6 +839,7 @@ watch(() => saveState,
 
 				await editAmountVatRate(dealId, billData.value.amountVatRate)
 				await editAmountWithVatRate(dealId, vatRateCheck.value)
+				await editAmountExclVat(dealId, billData.value.amountExclVat)
 				await editVatRateSeller(dealId, (normalizeVatRate(billData.value.seller.vatRate) ?? 0))
 				await editOfficialsBill(dealId, billData.value.officials)
 
@@ -875,6 +889,7 @@ const clearForm = () => {
 		number: '',
 		date: '',
 		amount: 0,
+		amountExclVat: 0,
 		amountVatRate: 0,
 		amountWord: '',
 		reason: '',
@@ -936,6 +951,10 @@ const removeProduct = (product: ProductsInOrder): void => {
 onMounted(() => {
 	htmlBill.value = html.value
 })
+
+watch(billData, () => {
+	htmlBill.value = html.value
+}, { deep: true })
 </script>
 
 <style lang="css" scoped>

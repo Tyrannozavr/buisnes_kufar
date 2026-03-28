@@ -14,9 +14,10 @@ RUN pip install --no-cache-dir poetry==1.8.2
 # Копируем файлы зависимостей
 COPY pyproject.toml poetry.lock ./
 
-# Устанавливаем зависимости
+# Устанавливаем зависимости (+ num2words явно для миграций/рантайма)
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi
+    poetry install --no-interaction --no-ansi && \
+    pip install --no-cache-dir "num2words>=0.5.13,<0.6.0"
 
 # Копируем исходный код
 COPY app/ ./app/

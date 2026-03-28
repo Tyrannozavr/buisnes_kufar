@@ -34,43 +34,80 @@
 				<div class="flex flex-row justify-between gap-1 w-full">
 					<UCollapsible class="gap-3">
 						<UButton
-							@click="(clearInput(), searchInCurrentDocument(activeTab, orderElement))"
+							@click="(clearInput(), searchInCurrentDocument(activeTab))"
 							label="Поиск"
 							icon="i-lucide-search"
 							class="p-1 h-10 text-sm"
 						/>
 
 						<template #content>
-							<div class="mt-4 w-79 absolute">
+							<div class="mt-4 w-79 absolute flex flex-col gap-2">
 								<input
 									type="text"
 									name="search"
 									v-model="inputValue"
-									@input="searchInCurrentDocument(activeTab, orderElement)"
+									@input="searchInCurrentDocument(activeTab)"
+									@keydown="handleSearchKeydown"
+									placeholder="Поиск по документу…"
 									class="border-emerald-500 border-2 rounded w-full leading-[1.75] px-2 text-lg"
+									autocomplete="off"
+									aria-label="Поиск по документу"
 								/>
+								<div
+									v-if="matchTotal > 0"
+									class="flex items-center justify-between gap-2 text-sm text-neutral-600 dark:text-neutral-400"
+								>
+									<div class="flex items-center gap-1">
+										<UButton
+											type="button"
+											icon="i-lucide-chevron-up"
+											size="xs"
+											variant="soft"
+											color="neutral"
+											class="p-1 min-w-8"
+											aria-label="Предыдущее вхождение"
+											@click="goToPreviousMatch"
+										/>
+										<UButton
+											type="button"
+											icon="i-lucide-chevron-down"
+											size="xs"
+											variant="soft"
+											color="neutral"
+											class="p-1 min-w-8"
+											aria-label="Следующее вхождение"
+											@click="goToNextMatch"
+										/>
+									</div>
+									<span class="tabular-nums font-medium" aria-live="polite">
+										{{ matchCurrent }} / {{ matchTotal }}
+									</span>
+								</div>
+								<p class="text-xs text-neutral-500 dark:text-neutral-500">
+									Enter — далее, Shift+Enter — назад
+								</p>
 							</div>
-							<div class="h-12"></div>
+							<div class="h-24"></div>
 						</template>
 					</UCollapsible>
 
 					<UButton
 						label="Печать"
-						@click="printCurrentDocument(activeTab, orderElement)"
+						@click="printCurrentDocument(activeTab)"
 						icon="i-lucide-printer"
 						class="p-1 w-[97px] h-10 text-sm"
 						:disabled="!isDisabled"
 					/>
 					<UButton
 						label="DOC"
-						@click="downloadCurrentDocxBlob(activeTab)"
+						@click="handleDownloadCurrentDocx(activeTab)"
 						icon="i-lucide-dock"
 						class="p-1 w-[81px] h-10 text-sm"
 						:disabled="!isDisabled"
 					/>
 					<UButton
 						label="PDF"
-						@click="downloadCurrentPdf(activeTab, orderElement)"
+						@click="handleDownloadCurrentPdf(activeTab)"
 						icon="i-lucide-dock"
 						class="p-1 w-[77px] h-10 text-sm"
 						:disabled="!isDisabled"
@@ -220,10 +257,11 @@ import { useDeals } from "~/composables/useDeals"
 const modalIsOpen = ref(false)
 const route = useRoute()
 const router = useRouter()
-const { deals, lastDeal } = useDeals()
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
+const billElement = useTypedState(TemplateElement.BILL)
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
+const billType = useTypedState(Editor.BILL_TYPE)
 const { createNewDealVersion, deleteLastDealVersion } = useDeals()
 
 const inDevelopment = () => {
@@ -239,83 +277,124 @@ const isHiddenForBuyer = computed(() => {
 	return route.query.role === "buyer"
 })
 
-//DOCX
-const { downloadBlob, generateDocxOrder, generateDocxBill } = useDocxGenerator()
+//DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
+const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
 
-let orderDocxBlob: Blob | null = null
-let billDocxBlob: Blob | null = null
-
-//присвоение корректного Blob в зависимости от выбранной сделки
-watch(
-	route.query,
-	async () => {
-		if (deals && route.query.dealType === "purchases") {
-			if (lastDeal?.value?.purchases) {
-				orderDocxBlob = await generateDocxOrder(lastDeal?.value?.purchases)
-			}
-		} else if (deals && route.query.dealType === "sales") {
-			if (lastDeal?.value?.sales) {
-				orderDocxBlob = await generateDocxOrder(lastDeal?.value?.sales)
-			}
-		}
-	},
-	{ immediate: false, deep: true }
-)
-
-const downloadCurrentDocxBlob = async (activeTab: string): Promise<void> => {
-	if (activeTab === "0" && orderDocxBlob) {
-		downloadBlob(orderDocxBlob, "Order.docx")
-	} else if (activeTab === "1") {
-		if (!billDocxBlob) {
-			// Генерируем billDocxBlob динамически при необходимости
-			// TODO: передать нужные данные для генерации Bill
+const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
+	const dealId = Number(route.query.dealId)
+	if (!dealId || Number.isNaN(dealId)) {
+		useToast().add({ title: "Не выбрана сделка", color: "error" })
+		return
+	}
+	try {
+		if (tab === "0") {
+			await downloadDealGeneratedDocx(dealId, "order")
 			return
 		}
-		downloadBlob(billDocxBlob, "Bill.docx")
+		if (tab === "1") {
+			const selected = billType.value as { value?: string } | null | undefined
+			const sub = selected?.value ?? "bill"
+			const variant =
+				sub === "bill-contract"
+					? "bill-contract"
+					: sub === "bill-offer"
+						? "bill-offer"
+						: "bill"
+			await downloadDealGeneratedDocx(dealId, variant)
+		}
+	} catch (e) {
+		console.error(e)
+		useToast().add({
+			title: "Не удалось скачать документ",
+			color: "error",
+		})
 	}
 }
 
-//PDF
-const { downloadPdf } = usePdfGenerator()
-
-const downloadCurrentPdf = (
-	activeTab: string,
-	orderElement: HTMLElement | null
-): void => {
-	if (activeTab === "0") {
-		const fileName = "Order"
-		downloadPdf(orderElement, fileName)
+const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
+	const dealId = Number(route.query.dealId)
+	if (!dealId || Number.isNaN(dealId)) {
+		useToast().add({ title: "Не выбрана сделка", color: "error" })
+		return
+	}
+	try {
+		if (tab === "0") {
+			await downloadDealGeneratedPdf(dealId, "order")
+			return
+		}
+		if (tab === "1") {
+			const selected = billType.value as { value?: string } | null | undefined
+			const sub = selected?.value ?? "bill"
+			const variant =
+				sub === "bill-contract"
+					? "bill-contract"
+					: sub === "bill-offer"
+						? "bill-offer"
+						: "bill"
+			await downloadDealGeneratedPdf(dealId, variant)
+		}
+	} catch (e) {
+		console.error(e)
+		useToast().add({
+			title: "Не удалось скачать PDF (нужен Gotenberg и GOTENBERG_URL на бэкенде)",
+			color: "error",
+		})
 	}
 }
 
-//Print
-const { printDocument } = usePdfGenerator()
+// Print: innerHTML не содержит .value у input/textarea — без replaceTextareasAndInputs в печати пустые поля и placeholder
+const { printDocument, replaceTextareasAndInputs } = usePdfGenerator()
 
-const printCurrentDocument = (
-	activeTab: string,
-	orderElement: HTMLElement | null
-) => {
-	if (activeTab === "0") {
-		printDocument(orderElement)
+const printCurrentDocument = (activeTab: string) => {
+	const root =
+		activeTab === "0"
+			? orderElement.value
+			: activeTab === "1"
+				? billElement.value
+				: null
+	if (!root) {
+		return
 	}
+	const cloneWithText = replaceTextareasAndInputs(root)
+	printDocument(cloneWithText)
 }
 
-//Search
-const { searchInDocument } = useSearch()
+//Search (как Ctrl+F: вхождения, счётчик, вперёд/назад, Enter / Shift+Enter)
+const {
+	searchInDocument,
+	goToNextMatch,
+	goToPreviousMatch,
+	handleSearchKeydown,
+	matchTotal,
+	matchCurrent,
+} = useSearch()
 const inputValue: Ref<string> = ref("")
 
 const clearInput = () => {
 	inputValue.value = ""
 }
 
-const searchInCurrentDocument = (
-	activeTab: string,
-	orderElement: HTMLElement | null
-) => {
-	if (activeTab === "0") {
-		searchInDocument(orderElement, inputValue.value)
+const searchInCurrentDocument = (activeTab: string) => {
+	const root =
+		activeTab === "0"
+			? orderElement.value
+			: activeTab === "1"
+				? billElement.value
+				: null
+	if (!root) {
+		return
 	}
+	searchInDocument(root, inputValue.value)
 }
+
+watch(
+	() => activeTab.value,
+	() => {
+		if (inputValue.value.trim()) {
+			searchInCurrentDocument(String(activeTab.value ?? "0"))
+		}
+	}
+)
 
 //Button edit
 const editButton = () => {

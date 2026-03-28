@@ -142,6 +142,10 @@ def custom_openapi():
         {"name": "supply-contract", "description": "Создание номера и даты договора поставки"},
         {"name": "versions", "description": "Управление версиями сделки: создание новой и удаление последней версии"},
         {"name": "batch", "description": "Массовое получение сделок по списку ID (аналог GET /deals/{id} для нескольких сделок)"},
+        {"name": "documents", "description": "Документы сделки: загрузка в S3, скачивание файлов, сгенерированные DOCX/PDF"},
+        {"name": "docx", "description": "Скачивание заполненных шаблонов Word (docxtpl), см. docs/DOCX_TEMPLATES_BACKEND.md"},
+        {"name": "pdf", "description": "Скачивание PDF: тот же рендер docxtpl + конвертация через Gotenberg (LibreOffice)"},
+        {"name": "generated", "description": "Документы, собранные на сервере из данных сделки (без загрузки пользователем)"},
     ]
     existing_names = {t["name"] for t in openapi_schema["tags"] if isinstance(t, dict) and "name" in t}
     for tag in doc_tags:

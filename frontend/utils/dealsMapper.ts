@@ -75,6 +75,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		sellerOrderNumber: dealResponse.seller_order_number,
 		role: dealResponse.role as "buyer" | "seller",
 		date: dealResponse.created_at,
+		totalAmountExclVat: dealResponse.total_amount_excl_vat ?? 0,
 		product: {
 			productList: dealResponse.items.map((item: ProductItemResponse) => ({
 				name: item.product_name,

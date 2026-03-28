@@ -71,17 +71,27 @@ services:
       - minio_data_dev:/data
     command: server /data --console-address ":9001"
 
+  # DOCX → PDF: POST http://gotenberg:3000/forms/libreoffice/convert (см. docs/DOCX_TEMPLATES_BACKEND.md)
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    expose:
+      - "3000"
+    ports:
+      - "${DEV_GOTENBERG_PORT:-3030}:3000"
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile.dev
-    entrypoint: []  # Переопределяем entrypoint.sh (CRLF/путь) при монтировании ./backend:/app
+    # num2words в venv Poetry (poetry run), не в system pip — иначе ModuleNotFoundError у uvicorn
     env_file:
       - ./.env
     environment:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
+      GOTENBERG_URL: "http://gotenberg:3000"
       # Все конфиги (DB/CORS/Celery/Keys) берём из корневого .env через env_file
     restart: unless-stopped
     ports:
@@ -96,13 +106,18 @@ services:
       # Пробрасываем логи и кэш для разработки
       - ./logs:/app/logs:cached
       - ./cache:/app/cache:cached
-    command: ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    command:
+      - /bin/sh
+      - -c
+      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
+        condition: service_started
+      gotenberg:
         condition: service_started
 
   frontend:
@@ -170,7 +185,10 @@ services:
       - backend_venv:/root/.cache/pypoetry/virtualenvs
       - ./logs:/app/logs:cached
       - ./cache:/app/cache:cached
-    command: ["poetry", "run", "celery", "-A", "app.celery_app", "worker", "--loglevel=info"]
+    command:
+      - /bin/sh
+      - -c
+      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app worker --loglevel=info
     depends_on:
       db:
         condition: service_healthy
@@ -194,7 +212,10 @@ services:
       - backend_venv:/root/.cache/pypoetry/virtualenvs
       - ./logs:/app/logs:cached
       - ./cache:/app/cache:cached
-    command: ["poetry", "run", "celery", "-A", "app.celery_app", "beat", "--loglevel=info"]
+    command:
+      - /bin/sh
+      - -c
+      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app beat --loglevel=info
     depends_on:
       db:
         condition: service_healthy

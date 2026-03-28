@@ -16,7 +16,7 @@
 - **Файл:** `backend/app/api/purchases/models/__init__.py`
 - **Таблица:** `orders`
 
-**Общие поля сделки:** `id`, `version`, `buyer_company_id`, `seller_company_id`, `buyer_order_number`, `seller_order_number`, `deal_type`, `status` (`Активная` / `Завершенная`), `comments`, суммы (`total_amount`, `amount_vat_rate`, `amount_with_vat_rate`), `seller_vat_rate`, даты/номера основного договора (`contract_number`, `contract_date`), договора поставки (`supply_contracts_number`, `supply_contracts_date`), JSON `closing_documents`, `others_documents`, таймстемпы.
+**Общие поля сделки:** `id`, `version`, `buyer_company_id`, `seller_company_id`, `buyer_order_number`, `seller_order_number`, `deal_type`, `status` (`Активная` / `Завершенная`), `comments`, суммы (`total_amount`, **`total_amount_excl_vat`** — сумма позиций qty×price **без НДС**; при `amount_with_vat_rate` итог с НДС: `total_amount` ≈ `total_amount_excl_vat` + `amount_vat_rate`), **`total_amount_word`** — сумма прописью на русском, синхронно с `total_amount`, только на сервере), `amount_vat_rate`, `amount_with_vat_rate`, `seller_vat_rate`, даты/номера основного договора (`contract_number`, `contract_date`), договора поставки (`supply_contracts_number`, `supply_contracts_date`), JSON `closing_documents`, `others_documents`, таймстемпы.
 
 **Поля счёта (хранятся в `orders`, в JSON ответа собираются во вложенный объект `bill`):**
 
@@ -87,6 +87,8 @@
 Важно:
 
 - В JSON поля компании часто с **aliases** (`company_id`, `owner_name`, `account_number`) — согласовано с Pydantic `serialization_alias`.
+- Поле **`total_amount_word`** в `DealResponse` — пропись **`total_amount`** (рубли/копейки); в запросах создания/обновления не передаётся.
+- Поле **`total_amount_excl_vat`** — на сервере хранится в `orders.total_amount_excl_vat`, в API отдаётся в `DealResponse` / списках сделок; сумма строк заказа без НДС (не передаётся клиентом в теле создания/обновления, пересчитывается при изменении позиций или сумм).
 - Для списков покупателя/продавца используются **урезанные** типы `BuyerDealResponse` / `SellerDealResponse` — там **нет** вложенных `buyer_company`/`seller_company` с банками.
 
 ## Фронтенд: где смотреть код

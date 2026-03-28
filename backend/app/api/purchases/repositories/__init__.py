@@ -7,6 +7,7 @@ import enum
 
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
 from app.api.purchases.schemas import DealCreate, DealUpdate
+from app.api.purchases.utils.total_amount_word import format_total_amount_word
 from app.api.purchases.deal_bill_defaults import (
     DEFAULT_BILL_DELIVERY_TERMS_DAYS,
     DEFAULT_BILL_PAYMENT_TERMS_DAYS,
@@ -19,7 +20,11 @@ from app_logging.logger import logger
 
 class DealRepository:
     """Репозиторий для работы с заказами и сделками"""
-    
+
+    @staticmethod
+    def _sync_total_amount_word(order: Order) -> None:
+        order.total_amount_word = format_total_amount_word(order.total_amount)
+
     def __init__(self, session: AsyncSession):
         self.session = session
 
@@ -148,7 +153,9 @@ class DealRepository:
             
             vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
             order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
+            order.total_amount_excl_vat = total_amount
             order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
+            self._sync_total_amount_word(order)
             logger.debug("Общая сумма заказа: %s", total_amount)
             
             # Записываем в историю
@@ -378,6 +385,8 @@ class DealRepository:
             others_documents=latest_order.others_documents,
             comments=latest_order.comments,
             total_amount=latest_order.total_amount,
+            total_amount_word=format_total_amount_word(latest_order.total_amount),
+            total_amount_excl_vat=getattr(latest_order, "total_amount_excl_vat", 0.0),
             amount_vat_rate=latest_order.amount_vat_rate,
             amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", True),
         )
@@ -555,8 +564,10 @@ class DealRepository:
                 order.amount_vat_rate = self._calculate_amount_vat_rate(base_total, new_vat_rate, order.amount_with_vat_rate)
             elif not order.amount_with_vat_rate:
                 order.amount_vat_rate = 0
+            order.total_amount_excl_vat = base_total
             order.total_amount = base_total + order.amount_vat_rate if order.amount_with_vat_rate else base_total
-        
+            self._sync_total_amount_word(order)
+
         # Обновляем позиции если нужно
         if order_data.items is not None:
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
@@ -627,8 +638,10 @@ class DealRepository:
                 order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
             elif not order.amount_with_vat_rate:
                 order.amount_vat_rate = 0
+            order.total_amount_excl_vat = total_amount
             order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
-        
+            self._sync_total_amount_word(order)
+
         order.updated_at = datetime.utcnow()
         
         # Записываем в историю

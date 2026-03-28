@@ -11,6 +11,7 @@ export interface BillData {
 	number: string
 	dealId: number
 	amount: number
+	amountExclVat: number
 	amountVatRate: number
 	amountWord: string
 	date: string

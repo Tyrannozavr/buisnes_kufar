@@ -26,6 +26,26 @@ export const API_URLS = {
 	DOWNLOAD_DOCUMENT: (deal_id: number, document_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents/${document_id}/download`,
 	DELETE_DOCUMENT: (deal_id: number, document_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents/${document_id}`,
 
+	/** Сгенерированные на бэкенде шаблоны docxtpl (см. docs/DOCX_TEMPLATES_BACKEND.md) */
+	DOWNLOAD_DEAL_DOCX_ORDER: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/order.docx`,
+	DOWNLOAD_DEAL_DOCX_BILL: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill.docx`,
+	DOWNLOAD_DEAL_DOCX_BILL_CONTRACT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill-contract.docx`,
+	DOWNLOAD_DEAL_DOCX_BILL_OFFER: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill-offer.docx`,
+
+	/** Те же сделки, конвертация Gotenberg (LibreOffice), см. docs/DOCX_TEMPLATES_BACKEND.md §9 */
+	DOWNLOAD_DEAL_PDF_ORDER: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/order.pdf`,
+	DOWNLOAD_DEAL_PDF_BILL: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill.pdf`,
+	DOWNLOAD_DEAL_PDF_BILL_CONTRACT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill-contract.pdf`,
+	DOWNLOAD_DEAL_PDF_BILL_OFFER: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/bill-offer.pdf`,
+
 	// Companies
 	COMPANIES: "/v1/companies/",
 	COMPANIES_LATEST: "/v1/companies/latest",

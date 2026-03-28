@@ -1,122 +1,153 @@
 export const usePdfGenerator = () => {
-  const ensureClient = () => {
-    // Важно: jspdf/html2canvas падают при SSR (vite-node/Node).
-    if (import.meta.server) {
-      throw new Error("usePdfGenerator is client-only (SSR disabled for this feature)");
-    }
-  };
+	const ensureClient = () => {
+		if (import.meta.server) {
+			throw new Error("usePdfGenerator is client-only (SSR disabled for this feature)");
+		}
+	};
 
-  const replaceTextareasAndInputs = (element: any) => {
-    const newElement: HTMLElement = element.cloneNode(true);
-		document.body.appendChild(newElement)
-		newElement.style.lineHeight = '1.75'
-		newElement.style.fontSize = '32px'
+	/** Те же link/style, что на странице (Tailwind, scoped Vue). */
+	const collectDocumentStylesMarkup = (): string => {
+		const chunks: string[] = [];
+		document.querySelectorAll('link[rel="stylesheet"]').forEach((node) => {
+			const link = node as HTMLLinkElement;
+			if (!link.href) {
+				return;
+			}
+			const href = link.href.replace(/"/g, "&quot;");
+			chunks.push(`<link rel="stylesheet" href="${href}">`);
+		});
+		document.querySelectorAll("style").forEach((node) => {
+			const text = node.textContent;
+			if (text?.trim()) {
+				chunks.push(`<style>${text}</style>`);
+			}
+		});
+		return chunks.join("\n");
+	};
 
-    const textareas = newElement.querySelectorAll("textarea");
-    const inputs = newElement.querySelectorAll("input");
+	/**
+	 * Внешние CSS подгружаются асинхронно: если вызвать print() сразу — в превью голый HTML
+	 * (Times, без border из Tailwind). Ждём link[rel=stylesheet] (или сразу, если лист уже в кэше).
+	 */
+	const whenPrintDomReady = (doc: Document, callback: () => void): void => {
+		const links = [...doc.querySelectorAll('link[rel="stylesheet"]')] as HTMLLinkElement[];
+		if (links.length === 0) {
+			queueMicrotask(callback);
+			return;
+		}
+		let remaining = links.length;
+		const tick = (): void => {
+			remaining -= 1;
+			if (remaining <= 0) {
+				queueMicrotask(callback);
+			}
+		};
+		for (const link of links) {
+			if (link.sheet != null) {
+				tick();
+				continue;
+			}
+			link.addEventListener("load", tick, { once: true });
+			link.addEventListener("error", tick, { once: true });
+		}
+	};
 
-    textareas.forEach((textarea: any) => {
-      const div = document.createElement("div");
-      div.textContent = textarea.value;
-      div.style.cssText = getComputedStyle(textarea).cssText;
-      div.style.whiteSpace = "pre-wrap";
-      div.style.display = "block";
-      div.style.minHeight = textarea.offsetHeight + "px";
-      div.style.padding = "5px";
-      textarea.parentNode?.replaceChild(div, textarea);
-    });
+	const replaceTextareasAndInputs = (element: any) => {
+		const newElement: HTMLElement = element.cloneNode(true) as HTMLElement;
+		document.body.appendChild(newElement);
+		// Не задавать fontSize/lineHeight на корне — ломает наследование Tailwind и сетку таблиц
 
-    inputs.forEach((input: any) => {
-      const span = document.createElement("span");
-      span.textContent = input.value;
-      span.style.cssText = getComputedStyle(input).cssText;
-      span.style.display = "inline";
-			span.style.lineHeight = '1.75'
-      span.style.minHeight = input.offsetHeight + "px";
-      span.style.minWidth = input.offsetWidth + "px";
-      span.style.padding = "3px";
-			span.style.marginBlock = '30px'
-      input.parentNode?.replaceChild(span, input);
-    });
+		const textareas = newElement.querySelectorAll("textarea");
+		const inputs = newElement.querySelectorAll("input");
 
-    return newElement;
-  };
+		textareas.forEach((textarea: any) => {
+			const div = document.createElement("div");
+			div.textContent = textarea.value;
+			div.style.cssText = getComputedStyle(textarea).cssText;
+			div.style.whiteSpace = "pre-wrap";
+			div.style.display = "block";
+			div.style.minHeight = textarea.offsetHeight + "px";
+			div.style.padding = "5px";
+			textarea.parentNode?.replaceChild(div, textarea);
+		});
 
-  const downloadPdf = async (element: HTMLElement | null, fileName: string) => {		
-    ensureClient();
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import("html2canvas-pro"),
-      import("jspdf"),
-    ]);
+		inputs.forEach((input: any) => {
+			const span = document.createElement("span");
+			span.textContent = input.value;
+			span.style.cssText = getComputedStyle(input).cssText;
+			span.style.display = "inline";
+			span.style.lineHeight = "1.75";
+			span.style.minHeight = input.offsetHeight + "px";
+			span.style.minWidth = input.offsetWidth + "px";
+			span.style.padding = "3px";
+			span.style.marginBlock = "30px";
+			input.parentNode?.replaceChild(span, input);
+		});
 
-		const newElement = replaceTextareasAndInputs(element)
+		return newElement;
+	};
 
-    const canvas = await html2canvas(newElement, { scale: 1, useCORS: true });
-    const imgData = canvas.toDataURL("image/png");
+	const printDocument = (element: HTMLElement | any): void => {
+		ensureClient();
+		const styleInjection = collectDocumentStylesMarkup();
+		const baseHref = (() => {
+			try {
+				return new URL(".", document.baseURI).href;
+			} catch {
+				return `${window.location.origin}/`;
+			}
+		})();
+		const printWindow = window.open("", "", "height=600, width=900");
+		if (!printWindow) {
+			element.remove();
+			return;
+		}
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.width;
-    const pageHeight = pdf.internal.pageSize.height;
+		const doc = printWindow.document;
+		doc.open();
+		doc.write(`
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<base href="${baseHref.replace(/"/g, "&quot;")}" />
+		<title>Печать документа …</title>
+		${styleInjection}
+		<style>
+			h1 {
+				text-align: center;
+				font-size: 24px;
+			}
+			h1 ~ table {
+				width: 100%;
+			}
+			th {
+				text-align: start;
+			}
+		</style>
+	</head>
+	<body>
+		${element.innerHTML}
+	</body>
+</html>
+`);
+		doc.close();
 
-    const imgWidth = pageWidth * 0.85;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+		whenPrintDomReady(doc, () => {
+			// Дать браузеру применить стили к layout перед диалогом печати
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					printWindow.focus();
+					printWindow.print();
+					printWindow.close();
+					element.remove();
+				});
+			});
+		});
+	};
 
-    let position = 10;
-    let heightLeft = imgHeight;
-
-    while (heightLeft > 0) {
-      pdf.addImage(imgData, "PNG", 16, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      if (heightLeft > 0) {
-        pdf.addPage();
-        position = -heightLeft + imgHeight;
-      }
-    }
-
-    pdf.save(`${fileName}.pdf`);
-    // cleanup clone
-    newElement.remove();
-  };
-
-const printDocument = (element: HTMLElement | any): void => {
-  ensureClient();
-	const newElement = replaceTextareasAndInputs(element)
-	const printWindow = window.open('','', 'height=600, width=900')
-	printWindow?.document.writeln(`
-	<html>
-		<head>
-			<title>Печать документа ...</title>
-			<style>
-				h1 { 
-					text-align: center; 
-					font-size: 24px; 
-					}
-
-				h1 ~ table {
-					width: 100%;
-				}
-
-				th {
-					text-align: start;
-				}
-			</style>
-		</head>
-		<body>
-			${newElement.innerHTML}
-		</body>
-	</html>
-	`)
-	printWindow?.document.close()
-	printWindow?.focus()
-	printWindow?.print()
-	printWindow?.close()
-  // cleanup clone
-  newElement.remove();
-}  
-
-return {
-    downloadPdf,
+	return {
 		printDocument,
 		replaceTextareasAndInputs,
-  };
+	};
 };

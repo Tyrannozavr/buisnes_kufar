@@ -89,6 +89,9 @@ class Order(Base):
     # Дополнительная информация
     comments: Mapped[Optional[str]] = mapped_column(Text)
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
+    total_amount_word: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Сумма прописью (RUB), синхронно с total_amount
+    # Сумма позиций (qty×price) без НДС; при amount_with_vat_rate: total_amount ≈ total_amount_excl_vat + amount_vat_rate
+    total_amount_excl_vat: Mapped[float] = mapped_column(Float, default=0.0)
     amount_vat_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Сумма НДС по сделке
     amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=True)  # Сумма с учётом НДС
 

@@ -52,6 +52,7 @@ export const useDeals = () => {
 		editContractTermsTextOffer,
 		editAdditionalInfoOffer,
 		editPaymentTermsOffer,
+		editAmountExclVat,
 	} = dealsStore
 
 	/** 
@@ -205,6 +206,7 @@ export const useDeals = () => {
 		editContractTermsTextOffer,
 		editAdditionalInfoOffer,
 		editPaymentTermsOffer,
+		editAmountExclVat,
 		//server functions
 		getDeals,
 		deleteDeal,

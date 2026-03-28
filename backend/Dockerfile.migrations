@@ -21,7 +21,7 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false
 
 # Устанавливаем только необходимые зависимости для миграций
-RUN pip install alembic sqlalchemy psycopg2-binary python-dotenv pydantic pydantic-settings
+RUN pip install alembic sqlalchemy psycopg2-binary python-dotenv pydantic pydantic-settings "num2words>=0.5.13,<0.6.0"
 
 # Создаем скрипт для миграций
 RUN echo '#!/bin/bash\n\

@@ -41,6 +41,7 @@ services:
       BACKEND_CORS_ORIGINS: '["https://tradesynergy.ru","https://www.tradesynergy.ru","http://tradesynergy.ru","http://www.tradesynergy.ru","http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000","http://localhost:8000","http://127.0.0.1:8000","http://localhost","http://127.0.0.1","http://frontend:3000"]'
       CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
       CELERY_RESULT_BACKEND: "rpc://"
+      GOTENBERG_URL: "http://gotenberg:3000"
     volumes:
       - ./logs/backend:/app/logging
       - ./backend/cache:/app/cache
@@ -52,6 +53,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
 
   frontend:
     build: ./frontend
@@ -187,6 +190,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # DOCX → PDF: POST {GOTENBERG_URL}/forms/libreoffice/convert (см. docs/DOCX_TEMPLATES_BACKEND.md)
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    expose:
+      - "3000"
 
 volumes:
   rabbitmq_data:

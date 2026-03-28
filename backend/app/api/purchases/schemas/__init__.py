@@ -389,6 +389,8 @@ class DealResponse(BaseModel):
                 "seller_order_number": "00001",
                 "status": "Активная",
                 "total_amount": 10000.0,
+                "total_amount_word": "десять тысяч рублей, ноль копеек",
+                "total_amount_excl_vat": 10000.0,
                 "amount_vat_rate": 0.0,
                 "amount_with_vat_rate": True,
                 "comments": None,
@@ -465,6 +467,14 @@ class DealResponse(BaseModel):
     seller_order_number: str
     status: DealStatus
     total_amount: float
+    total_amount_word: str = Field(
+        "",
+        description="Сумма total_amount прописью (рубли и копейки); заполняется на сервере, в запросах не передаётся",
+    )
+    total_amount_excl_vat: float = Field(
+        0,
+        description="Сумма позиций заказа (qty×price) без учёта НДС; при amount_with_vat_rate: total_amount ≈ total_amount_excl_vat + amount_vat_rate",
+    )
     amount_vat_rate: float = Field(0, description="Сумма НДС по сделке")
     amount_with_vat_rate: bool = Field(True, description="Если true — total_amount включает НДС (seller_company.vat_rate)")
     comments: Optional[str]
@@ -515,6 +525,7 @@ class BuyerDealResponse(BaseModel):
     seller_order_number: str
     status: DealStatus
     total_amount: float
+    total_amount_excl_vat: float = Field(0, description="Сумма позиций без НДС")
     created_at: datetime
     updated_at: datetime
     
@@ -537,6 +548,7 @@ class SellerDealResponse(BaseModel):
     seller_order_number: str
     status: DealStatus
     total_amount: float
+    total_amount_excl_vat: float = Field(0, description="Сумма позиций без НДС")
     created_at: datetime
     updated_at: datetime
     

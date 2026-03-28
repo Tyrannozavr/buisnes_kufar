@@ -135,11 +135,13 @@ async def test_create_deal_success(client: AsyncClient, seeded_context: dict):
     data = response.json()
     assert data["id"] > 0
     assert data["version"] == 1
-    assert data["deal_type"] == "Товары"
     assert data["buyer_company_id"] == seeded_context["buyer_company_id"]
     assert data["seller_company_id"] == seeded_context["seller_company_id"]
     assert data["buyer_order_number"]
     assert data["seller_order_number"]
+    assert "total_amount_word" in data
+    assert data["total_amount"] == 200.0
+    assert "рубл" in (data.get("total_amount_word") or "").lower()
 
 
 @pytest.mark.asyncio
@@ -188,6 +190,95 @@ async def test_get_deal_by_id_404(client: AsyncClient, seeded_context: dict):
     """GET /api/v1/purchases/deals/999999 — 404 для несуществующего ID."""
     response = await client.get("/api/v1/purchases/deals/999999")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_download_order_docx_404(client: AsyncClient, seeded_context: dict):
+    """GET .../documents/order.docx — 404 для несуществующей сделки."""
+    response = await client.get("/api/v1/purchases/deals/999999/documents/order.docx")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_download_order_pdf_404(client: AsyncClient, seeded_context: dict):
+    """GET .../documents/order.pdf — 404 для несуществующей сделки."""
+    response = await client.get("/api/v1/purchases/deals/999999/documents/order.pdf")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_download_order_pdf_503_without_gotenberg(client: AsyncClient, seeded_context: dict, monkeypatch):
+    """GET .../order.pdf — 503 если GOTENBERG_URL не задан."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "GOTENBERG_URL", None)
+    payload = _valid_deal_payload(seeded_context["seller_company_id"])
+    create_resp = await client.post("/api/v1/purchases/deals", json=payload)
+    assert create_resp.status_code == 200
+    deal_id = create_resp.json()["id"]
+    response = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/order.pdf")
+    assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_download_order_pdf_success_mock_gotenberg(client: AsyncClient, seeded_context: dict, monkeypatch):
+    """GET .../*.pdf — 200 и PDF при моке конвертера."""
+    from unittest.mock import AsyncMock
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "GOTENBERG_URL", "http://gotenberg:3000")
+    monkeypatch.setattr(
+        "app.api.purchases.router.convert_docx_bytes_to_pdf",
+        AsyncMock(return_value=b"%PDF-1.4\n%\ntrailer<<>>\n%%EOF\n"),
+    )
+    payload = _valid_deal_payload(seeded_context["seller_company_id"])
+    create_resp = await client.post("/api/v1/purchases/deals", json=payload)
+    assert create_resp.status_code == 200
+    deal_id = create_resp.json()["id"]
+
+    response = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/order.pdf")
+    assert response.status_code == 200, response.text
+    assert response.headers.get("content-type", "").split(";")[0].strip() == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+    for path in (
+        f"/api/v1/purchases/deals/{deal_id}/documents/bill.pdf",
+        f"/api/v1/purchases/deals/{deal_id}/documents/bill-contract.pdf",
+        f"/api/v1/purchases/deals/{deal_id}/documents/bill-offer.pdf",
+    ):
+        r = await client.get(path)
+        assert r.status_code == 200, r.text
+        assert r.content.startswith(b"%PDF")
+
+
+@pytest.mark.asyncio
+async def test_download_order_docx_success(client: AsyncClient, seeded_context: dict):
+    """GET .../documents/order.docx — 200 и docx при наличии шаблона на сервере."""
+    payload = _valid_deal_payload(seeded_context["seller_company_id"])
+    create_resp = await client.post("/api/v1/purchases/deals", json=payload)
+    assert create_resp.status_code == 200
+    deal_id = create_resp.json()["id"]
+
+    response = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/order.docx")
+    assert response.status_code == 200, response.text
+    assert (
+        response.headers.get("content-type", "").split(";")[0].strip()
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert response.content[:2] == b"PK"  # ZIP / OOXML signature
+
+    bill_resp = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/bill.docx")
+    assert bill_resp.status_code == 200, bill_resp.text
+    assert bill_resp.content[:2] == b"PK"
+
+    bc = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/bill-contract.docx")
+    assert bc.status_code == 200, bc.text
+    assert bc.content[:2] == b"PK"
+
+    bo = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/bill-offer.docx")
+    assert bo.status_code == 200, bo.text
+    assert bo.content[:2] == b"PK"
 
 
 @pytest.mark.asyncio

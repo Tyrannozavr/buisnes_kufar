@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     STATIC_DIR: Path = BASE_DIR / "static"
 
+    # Шаблоны docxtpl (.docx) для генерации документов по сделке
+    DOCX_TEMPLATES_DIR: Path = BASE_DIR / "templates" / "docx"
+
+    # Gotenberg: DOCX → PDF (LibreOffice). Пусто — эндпоинты *.pdf отвечают 503
+    GOTENBERG_URL: Optional[str] = None
+    GOTENBERG_TIMEOUT_SECONDS: float = 60.0
+    GOTENBERG_MAX_DOCX_BYTES: int = 20 * 1024 * 1024
+
     # API ключ для сервиса локаций (htmlweb.ru)
     LOCATION_API_KEY: Optional[str] = None
 

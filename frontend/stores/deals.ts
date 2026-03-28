@@ -308,6 +308,18 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.amountWithVatRate = value
 	}
 
+	/**
+	 * редактирование суммы без НДС
+	 * @param dealId - id сделки
+	 * @param amountExclVat - новая сумма без НДС
+	 * @returns void
+	 */
+	const editAmountExclVat = async (dealId: number, amountExclVat: number) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.totalAmountExclVat = amountExclVat
+	}
+
 	const editBillReason = async (dealId: number, reason: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
@@ -468,6 +480,7 @@ export const useDealsStore = defineStore("deals", () => {
 		clearStore,
 		addNewDeal,
 		amountPriceInProductItem,
+		editAmountExclVat,
 		amountPriceInProductWithoutVat,
 		amountPriceInProduct,
 		amountWordProduct,

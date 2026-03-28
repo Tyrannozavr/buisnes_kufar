@@ -18,10 +18,64 @@ from app.api.purchases.schemas import (
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
 )
 from app.api.purchases.schemas import DealStatus
+from app.api.purchases.deal_docx_context import build_deal_docx_context
+from app.api.purchases.services.docx_template_service import (
+	BILL_CONTRACT_DOCX_FILENAME,
+	BILL_DOCX_FILENAME,
+	BILL_OFFER_DOCX_FILENAME,
+	ORDER_DOCX_FILENAME,
+	render_docx_bytes,
+	resolve_docx_template_path,
+)
+from app.api.purchases.services.gotenberg_pdf_service import (
+	PdfConversionFailedError,
+	PdfConversionNotConfiguredError,
+	convert_docx_bytes_to_pdf,
+)
 
 router = APIRouter(
-    tags=["purchases", "orders", "deals", "documents", "business"]
+	tags=["purchases", "orders", "deals", "documents", "business"]
 )
+
+# --- OpenAPI / Swagger: бинарные ответы и параметр deal_id для сгенерированных документов ---
+DealGeneratedDownloadId = Annotated[
+	int,
+	Path(
+		description="ID сделки (как в GET /purchases/deals/{deal_id})",
+		gt=0,
+		example=123,
+	),
+]
+
+_OPENAPI_DOCX_BINARY = {
+	"description": "Файл Word (.docx), OOXML. Заголовок Content-Disposition: attachment.",
+	"content": {
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+			"schema": {"type": "string", "format": "binary"},
+		},
+	},
+}
+
+_OPENAPI_PDF_BINARY = {
+	"description": "Файл PDF: шаблон docxtpl → Gotenberg (LibreOffice). Content-Disposition: attachment.",
+	"content": {
+		"application/pdf": {
+			"schema": {"type": "string", "format": "binary"},
+		},
+	},
+}
+
+_OPENAPI_GEN_DOCX_ERRORS = {
+	404: {"description": "Компания не найдена, сделка не найдена или нет доступа"},
+	500: {"description": "Файл шаблона .docx на сервере отсутствует"},
+}
+
+_OPENAPI_GEN_PDF_ERRORS = {
+	**_OPENAPI_GEN_DOCX_ERRORS,
+	413: {"description": "DOCX превышает GOTENBERG_MAX_DOCX_BYTES"},
+	502: {"description": "Gotenberg недоступен или ошибка конвертации"},
+	503: {"description": "Не задан GOTENBERG_URL — выдача PDF отключена"},
+}
 
 # Пример полного DealResponse для OpenAPI / Swagger (bill с contract_terms_contract / contract_terms_text_contract)
 _DEAL_RESPONSE_EXAMPLE = {
@@ -33,6 +87,8 @@ _DEAL_RESPONSE_EXAMPLE = {
     "seller_order_number": "00058",
     "status": "Активная",
     "total_amount": 246.9,
+    "total_amount_word": "двести сорок шесть рублей, девяносто копеек",
+    "total_amount_excl_vat": 246.9,
     "amount_vat_rate": 0.0,
     "amount_with_vat_rate": False,
     "comments": "Комментарий к сделке",
@@ -189,6 +245,7 @@ async def get_buyer_deals(
             seller_order_number=deal.seller_order_number,
             status=deal.status,
             total_amount=deal.total_amount,
+            total_amount_excl_vat=getattr(deal, "total_amount_excl_vat", 0.0),
             created_at=deal.created_at,
             updated_at=deal.updated_at,
             supplier_name=deal.seller_company.name if deal.seller_company else "Unknown",
@@ -230,6 +287,7 @@ async def get_seller_deals(
             seller_order_number=deal.seller_order_number,
             status=deal.status,
             total_amount=deal.total_amount,
+            total_amount_excl_vat=getattr(deal, "total_amount_excl_vat", 0.0),
             created_at=deal.created_at,
             updated_at=deal.updated_at,
             buyer_name=deal.buyer_company.name if deal.buyer_company else "Unknown",
@@ -665,6 +723,290 @@ async def get_documents(
         )
         for doc in documents
     ]
+
+
+async def _serve_deal_docx(
+	deal_id: int,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: DealService,
+	*,
+	template_filename: str,
+	attachment_prefix: str,
+) -> Response:
+	"""Общая выдача .docx по шаблону из DOCX_TEMPLATES_DIR и контексту сделки."""
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	deal = await deal_service.get_deal_by_id(deal_id, company.id)
+	if not deal:
+		raise HTTPException(status_code=404, detail="Deal not found")
+	context = build_deal_docx_context(deal)
+	template_path = resolve_docx_template_path(template_filename)
+	try:
+		content = render_docx_bytes(template_path, context)
+	except FileNotFoundError:
+		logger.exception("Missing DOCX template: %s", template_path)
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f"DOCX template is not configured on the server: {template_filename}",
+		) from None
+	filename = f"{attachment_prefix}-deal-{deal.id}.docx"
+	return Response(
+		content=content,
+		media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/order.docx",
+	tags=["documents", "docx", "generated"],
+	summary="Скачать заказ (.docx) по шаблону order.docx",
+	description="Сервер подставляет данные сделки в шаблон `order.docx` (docxtpl) и отдаёт файл.",
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		**_OPENAPI_GEN_DOCX_ERRORS,
+	},
+)
+async def download_order_docx(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_docx(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=ORDER_DOCX_FILENAME,
+		attachment_prefix="order",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill.docx",
+	tags=["documents", "docx", "generated"],
+	summary="Скачать счёт (.docx) по шаблону bill.docx",
+	description="Шаблон `bill.docx`, контекст из сделки (см. build_deal_docx_context).",
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		**_OPENAPI_GEN_DOCX_ERRORS,
+	},
+)
+async def download_bill_docx(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_docx(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_DOCX_FILENAME,
+		attachment_prefix="bill",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill-contract.docx",
+	tags=["documents", "docx", "generated"],
+	summary="Скачать счёт (договор, .docx) по шаблону bill_contract.docx",
+	description="Шаблон `bill_contract.docx`.",
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		**_OPENAPI_GEN_DOCX_ERRORS,
+	},
+)
+async def download_bill_contract_docx(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_docx(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_CONTRACT_DOCX_FILENAME,
+		attachment_prefix="bill-contract",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill-offer.docx",
+	tags=["documents", "docx", "generated"],
+	summary="Скачать счёт (оферта, .docx) по шаблону bill_offer.docx",
+	description="Шаблон `bill_offer.docx`.",
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		**_OPENAPI_GEN_DOCX_ERRORS,
+	},
+)
+async def download_bill_offer_docx(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_docx(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_OFFER_DOCX_FILENAME,
+		attachment_prefix="bill-offer",
+	)
+
+
+async def _serve_deal_pdf(
+	deal_id: int,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: DealService,
+	*,
+	template_filename: str,
+	attachment_prefix: str,
+) -> Response:
+	"""Тот же контент, что .docx, конвертированный в PDF через Gotenberg (LibreOffice)."""
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	deal = await deal_service.get_deal_by_id(deal_id, company.id)
+	if not deal:
+		raise HTTPException(status_code=404, detail="Deal not found")
+	if not (settings.GOTENBERG_URL and str(settings.GOTENBERG_URL).strip()):
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		)
+	context = build_deal_docx_context(deal)
+	template_path = resolve_docx_template_path(template_filename)
+	try:
+		docx_bytes = render_docx_bytes(template_path, context)
+	except FileNotFoundError:
+		logger.exception("Missing DOCX template: %s", template_path)
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f"DOCX template is not configured on the server: {template_filename}",
+		) from None
+	try:
+		pdf_bytes = await convert_docx_bytes_to_pdf(
+			docx_bytes,
+			source_filename=f"{attachment_prefix}.docx",
+		)
+	except PdfConversionNotConfiguredError:
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		) from None
+	except PdfConversionFailedError:
+		logger.exception("Gotenberg PDF conversion failed for deal %s template %s", deal_id, template_filename)
+		raise HTTPException(
+			status_code=status.HTTP_502_BAD_GATEWAY,
+			detail="PDF conversion failed",
+		) from None
+	except ValueError as e:
+		raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e)) from e
+	filename = f"{attachment_prefix}-deal-{deal.id}.pdf"
+	return Response(
+		content=pdf_bytes,
+		media_type="application/pdf",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/order.pdf",
+	tags=["documents", "pdf", "generated"],
+	summary="Скачать заказ (.pdf) через Gotenberg",
+	description=(
+		"Тот же документ, что `order.docx`: рендер docxtpl, затем POST на Gotenberg "
+		"`/forms/libreoffice/convert`. Нужен `GOTENBERG_URL` в настройках сервера."
+	),
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		**_OPENAPI_GEN_PDF_ERRORS,
+	},
+)
+async def download_order_pdf(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_pdf(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=ORDER_DOCX_FILENAME,
+		attachment_prefix="order",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill.pdf",
+	tags=["documents", "pdf", "generated"],
+	summary="Скачать счёт (.pdf) через Gotenberg",
+	description="PDF из шаблона `bill.docx` через Gotenberg (LibreOffice).",
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		**_OPENAPI_GEN_PDF_ERRORS,
+	},
+)
+async def download_bill_pdf(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_pdf(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_DOCX_FILENAME,
+		attachment_prefix="bill",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill-contract.pdf",
+	tags=["documents", "pdf", "generated"],
+	summary="Скачать счёт (договор, .pdf) через Gotenberg",
+	description="PDF из шаблона `bill_contract.docx`.",
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		**_OPENAPI_GEN_PDF_ERRORS,
+	},
+)
+async def download_bill_contract_pdf(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_pdf(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_CONTRACT_DOCX_FILENAME,
+		attachment_prefix="bill-contract",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/bill-offer.pdf",
+	tags=["documents", "pdf", "generated"],
+	summary="Скачать счёт (оферта, .pdf) через Gotenberg",
+	description="PDF из шаблона `bill_offer.docx`.",
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		**_OPENAPI_GEN_PDF_ERRORS,
+	},
+)
+async def download_bill_offer_pdf(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_pdf(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=BILL_OFFER_DOCX_FILENAME,
+		attachment_prefix="bill-offer",
+	)
 
 
 @router.get(

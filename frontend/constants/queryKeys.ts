@@ -14,4 +14,8 @@ export const enum QueryKeys {
 	CREATE_NEW_DEAL_VERSION = 'create-new-deal-version',
 	DELETE_LAST_DEAL_VERSION = 'delete-last-deal-version',
 	GET_MY_COMPANY = 'get-my-company',
+	GET_DOCUMENTS_BY_DEAL_ID = 'get-documents-by-deal-id',
+	UPLOAD_DOCUMENT_BY_DEAL_ID = 'upload-document-by-deal-id',
+	DOWNLOAD_DOCUMENT = 'download-document',
+	DELETE_DOCUMENT_BY_DEAL_ID = 'delete-document-by-deal-id',
 }

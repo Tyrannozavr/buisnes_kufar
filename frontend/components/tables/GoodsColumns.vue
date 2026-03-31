@@ -8,7 +8,6 @@
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from "pinia";
 import type { TableColumn } from "@nuxt/ui";
 import { normalizeDate } from "~/utils/normalize";
 import { useRouter } from "vue-router";
@@ -25,7 +24,7 @@ const router = useRouter()
 const UButton = resolveComponent('UButton')
 const purchasesApi = usePurchasesApi()
 
-const { deals, findDealByDealNumber } = useDeals()
+const { deals, findDealByDealNumber, findDeal } = useDeals()
 const list = deals?.value ?? []
 
 const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? list.filter(deal => deal.role === 'buyer') : list.filter(deal => deal.role === 'seller'))
@@ -44,8 +43,8 @@ watch(dealsList, () => {
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
     status: deal.status,
-    bill: deal.billNumber ? `${deal.billNumber} от ${normalizeDate(deal.billDate || '')}` : 'Просмотр',
-    supplyContract: deal.supplyContractNumber ? `${deal.supplyContractNumber} от ${normalizeDate(deal.supplyContractDate || '')}` : 'Просмотр',
+    bill: deal.billDate ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Создать счет',
+    supplyContract: deal.supplyContractsDate ? `${deal.sellerOrderNumber} от ${normalizeDate(deal.supplyContractsDate)}` : 'Просмотр',
     closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
     othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
   }))]
@@ -175,6 +174,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     header: 'Счет',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+      const billDate = dealId ? findDeal(dealId)?.billDate : undefined
       return h(UButton,
         {
           color: 'neutral',
@@ -182,13 +182,19 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('bill'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            if (dealId != null) {
+            if (billDate) {
               router.push({
                 path: '/profile/editor',
                 query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#bill'
               })
-            }
+						} else {
+							useToast().add({
+								title: 'Счет пока не создан', 
+								color: 'warning',
+								icon: 'i-lucide-file-x',
+							})
+						}
           }
         })
     }
@@ -197,7 +203,8 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'supplyContract',
     header: 'Договор поставки',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+			const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+			const supplyContractDate = dealId ? findDeal(dealId)?.supplyContractsDate : undefined
       return h(UButton,
         {
           color: 'neutral',
@@ -205,13 +212,19 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('supplyContract'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            if (dealId != null) {
+            if (supplyContractDate) {
               router.push({
                 path: '/profile/editor',
                 query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#supplyContract'
               })
-            }
+            } else {
+							useToast().add({
+								title: 'Договор поставки пока не создан', 
+								color: 'warning',
+								icon: 'i-lucide-file-x',
+							})
+						}
           }
         })
     }
@@ -221,6 +234,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     header: 'Закрывающие документы',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+      const closingDocuments = dealId ? findDeal(dealId) : undefined
       return h(UButton,
         {
           color: 'neutral',
@@ -228,13 +242,19 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('closingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            if (dealId != null) {
+            if (0) {
               router.push({
                 path: '/profile/editor',
                 query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#accompanyingDocuments'
               })
-            }
+            } else {
+							useToast().add({
+								title: 'Нет доступных документов', 
+								color: 'warning',
+								icon: 'i-lucide-file-x',
+							})
+						}
           }
         })
     }
@@ -243,7 +263,8 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
-      	const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+      const othersDocuments = dealId ? findDeal(dealId)?.othersDocuments : undefined
       return h(UButton,
         {
           color: 'neutral',
@@ -251,13 +272,19 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('othersDocument'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            if (dealId != null) {
+            if (0) {
               router.push({
                 path: '/profile/editor',
                 query: { dealId: String(dealId), role: 'buyer' },
                 hash: '#othersDocument'
               })
-            }
+            } else {
+							useToast().add({
+								title: 'Нет доступных документов', 
+								color: 'warning',
+								icon: 'i-lucide-file-x',
+							})
+						}
           }
         })
     }
@@ -513,8 +540,8 @@ watch(dealsList, () => {
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',
     status: deal.status,
-    bill: deal.billNumber || 'Создать счет',
-    supplyContract: deal.supplyContractNumber || 'Создать договор поставки',
+    bill: deal.billDate ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Создать счет',
+    supplyContract: deal.supplyContractsDate ? `Просмотр` : 'Создать договор поставки',
     closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Создать',
     othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Загрузить',
   }))]

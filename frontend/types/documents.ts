@@ -1,6 +1,8 @@
 export type DocumentTypeResponse =
 	| "order"
 	| "bill"
+	| "bill_contract"
+	| "bill_offer"
 	| "supply_contract"
 	| "contract"
 	| "other"
@@ -9,6 +11,8 @@ export type DocumentTypeResponse =
 export type DocumentType =
 	| "order"
 	| "bill"
+	| "billContract"
+	| "billOffer"
 	| "supplyContract"
 	| "contract"
 	| "other"
@@ -17,6 +21,8 @@ export type DocumentType =
 export const DOCUMENT_TYPE_MAP: Record<DocumentType, DocumentTypeResponse> = {
 	order: "order",
 	bill: "bill",
+	billContract: "bill_contract",
+	billOffer: "bill_offer",
 	supplyContract: "supply_contract",
 	contract: "contract",
 	act: "act",
@@ -72,7 +78,9 @@ export const DOCUMENT_TYPE_OPTIONS: {
 	value: DocumentTypeResponse
 }[] = [
 	{ label: "Заказ", value: "order" },
-	{ label: "Счет", value: "bill" },
+	{ label: "Счет на оплату", value: "bill" },
+	{ label: "Счет-договор", value: "bill_contract" },
+	{ label: "Счет-оферта", value: "bill_offer" },
 	{ label: "Договор поставки", value: "supply_contract" },
 	{ label: "Контракт", value: "contract" },
 	{ label: "Другие документы", value: "other" }
@@ -81,6 +89,8 @@ export const DOCUMENT_TYPE_OPTIONS: {
 export const DOCUMENT_TYPE_LABELS: Record<DocumentTypeResponse, string> = {
 	order: "Заказ",
 	bill: "Счет",
+	bill_contract: "Счет-договор",
+	bill_offer: "Счет-оферта",
 	supply_contract: "Договор поставки",
 	contract: "Контракт",
 	other: "Другие документы",

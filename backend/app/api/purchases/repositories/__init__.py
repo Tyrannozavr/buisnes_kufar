@@ -150,7 +150,9 @@ class DealRepository:
                 )
                 logger.debug("Добавляем позицию в сессию")
                 self.session.add(order_item)
-            
+
+            total_amount = float(total_amount)
+
             vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
             order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
             order.total_amount_excl_vat = total_amount
@@ -564,8 +566,12 @@ class DealRepository:
                 order.amount_vat_rate = self._calculate_amount_vat_rate(base_total, new_vat_rate, order.amount_with_vat_rate)
             elif not order.amount_with_vat_rate:
                 order.amount_vat_rate = 0
-            order.total_amount_excl_vat = base_total
-            order.total_amount = base_total + order.amount_vat_rate if order.amount_with_vat_rate else base_total
+            order.total_amount_excl_vat = float(base_total)
+            order.total_amount = (
+                float(base_total) + float(order.amount_vat_rate)
+                if order.amount_with_vat_rate
+                else float(base_total)
+            )
             self._sync_total_amount_word(order)
 
         # Обновляем позиции если нужно
@@ -631,6 +637,8 @@ class DealRepository:
                     position=i
                 )
                 order.order_items.append(order_item)
+
+            total_amount = float(total_amount)
 
             seller_company = await self.get_company_by_id(order.seller_company_id)
             vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
@@ -1034,11 +1042,14 @@ class DealRepository:
         return value.replace(tzinfo=None)
 
     @staticmethod
-    def _calculate_amount_vat_rate(base_total: float, vat_rate: float, amount_with_vat_rate: bool) -> float:
+    def _calculate_amount_vat_rate(base_total: Any, vat_rate: Any, amount_with_vat_rate: bool) -> float:
         """Считает сумму НДС для сделки только при включенном флаге amount_with_vat_rate."""
         if not amount_with_vat_rate:
             return 0.0
-        return base_total * (vat_rate / 100)
+        # float/Decimal/int из БД и схем — без смешения типов при умножении
+        bt = float(base_total or 0)
+        vr = float(vat_rate or 0)
+        return bt * (vr / 100.0)
 
     def _add_order_history(self, order_row_id: int, company_id: int, change_type: str,
                                 description: str, old_data: Optional[dict] = None,

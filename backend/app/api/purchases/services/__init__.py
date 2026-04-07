@@ -21,6 +21,8 @@ from app.api.purchases.schemas import (
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
+from app.api.products.models.product import Product
+from app.api.products.repositories.company_products_repository import CompanyProductsRepository
 from app_logging.logger import logger
 
 
@@ -354,6 +356,25 @@ class DealService:
             logger.exception("Ошибка в _order_to_deal_response для заказа %s: %s (тип: %s)", order.id, e, type(e).__name__)
             raise
 
+    async def _resolve_catalog_product_for_checkout(
+        self,
+        products_repo: CompanyProductsRepository,
+        seller_company_id: int,
+        item: dict,
+    ) -> Optional[Product]:
+        """Каталожная позиция: сначала article, при промахе — slug внутри компании продавца (старые клиенты с Number(article))."""
+        raw_art = item.get("article")
+        if raw_art is not None and str(raw_art).strip() != "":
+            p = await products_repo.get_by_article(str(raw_art).strip())
+            if p:
+                return p
+        slug = item.get("slug")
+        if slug and str(slug).strip() and seller_company_id:
+            return await products_repo.get_by_company_id_and_slug(
+                int(seller_company_id), str(slug).strip()
+            )
+        return None
+
     async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
         """Создание заказа из корзины (соответствует фронтенду)"""
         try:
@@ -374,36 +395,36 @@ class DealService:
             # Создаем заказы для каждого продавца
             created_deals = []
             for seller_id, seller_data in sellers.items():
-                # Преобразуем данные корзины в формат DealCreate
-                # Используем article из корзины для поиска продукта
-                from app.api.products.repositories.company_products_repository import CompanyProductsRepository
                 products_repo = CompanyProductsRepository(self.session)
-                
+
                 deal_items = []
                 for i, item in enumerate(seller_data["items"], 1):
-                    # Используем article из корзины
-                    article = str(item.get("article", "")) if item.get("article") else None
-                    
-                    deal_item = {
+                    catalog_product = await self._resolve_catalog_product_for_checkout(
+                        products_repo, seller_id, item
+                    )
+
+                    deal_item: dict = {
                         "quantity": item.get("quantity"),
-                        "position": i
+                        "position": i,
                     }
-                    
-                    if article:
-                        # Если есть article, используем его для поиска продукта
-                        deal_item["article"] = article
+
+                    if catalog_product:
+                        deal_item["article"] = catalog_product.article
                     else:
-                        # Ручной ввод - все поля обязательны
+                        pa = item.get("article")
+                        product_article = (
+                            str(pa).strip() if pa is not None and str(pa).strip() != "" else ""
+                        )
                         deal_item.update({
                             "product_name": item.get("productName"),
                             "product_slug": item.get("slug"),
                             "product_description": item.get("description"),
-                            "product_article": str(item.get("article", "")),
+                            "product_article": product_article,
                             "logo_url": item.get("logoUrl"),
                             "unit_of_measurement": item.get("units"),
-                            "price": item.get("price")
+                            "price": item.get("price"),
                         })
-                    
+
                     deal_items.append(deal_item)
                 
                 deal_data = DealCreate(

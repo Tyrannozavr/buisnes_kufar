@@ -79,7 +79,7 @@ export interface ProductListPublicResponse {
 export interface ProductInCheckout {
   slug: string;
   productName: string;
-  article: number;
+  article: string;
   quantity: number;
   units: string;
   price: number;

@@ -128,7 +128,7 @@ const sortProducts = (products: any[]): void  => {
       description: item.product.description,
       logoUrl: item.product.logo_url,
       productName: item.product.name,
-      article: Number(item.product.article),
+      article: item.product.article != null ? String(item.product.article) : '',
       quantity: item.quantity,
       units: item.product.unit_of_measurement,
       price: item.product.price,

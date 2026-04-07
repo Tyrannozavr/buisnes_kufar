@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 log_directory = "logging"
@@ -9,32 +8,51 @@ if not os.path.exists(log_directory):
     os.makedirs(log_directory)
 
 
+class _ExcludeErrorLevelsFilter(logging.Filter):
+    """DEBUG, INFO, WARNING — в общий лог; ERROR и CRITICAL только в error-файл."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno < logging.ERROR
+
+
 # Настройка логирования
 logger = logging.getLogger("my_logger")
-logger.setLevel(logging.DEBUG)  # Изменено на DEBUG для захвата всех уровней сообщений
+logger.setLevel(logging.DEBUG)
 
-current_date = datetime.now().strftime("%Y-%m-%d")
-log_file_name = f"app_{current_date}.log"
+# Базовые имена; после ротации к имени добавляется суффикс даты (когда=midnight)
+general_log_path = os.path.join(log_directory, "app.log")
+error_log_path = os.path.join(log_directory, "app_error.log")
 
-
-# Создаем обработчик для файла с ежедневной ротацией
-file_handler = TimedRotatingFileHandler(
-    filename=os.path.join(log_directory, log_file_name),  # Имя файла с датой
-    when="midnight",  # Ротация каждый день в полночь
-    interval=1,  # Каждый день
-    backupCount=7  # Хранить последние 7 файлов
+# Общий лог: без ERROR/CRITICAL (ротация каждый день в полночь)
+general_file_handler = TimedRotatingFileHandler(
+    filename=general_log_path,
+    when="midnight",
+    interval=1,
+    backupCount=7,
+    encoding="utf-8",
 )
-file_handler.setLevel(logging.INFO)
+# Как раньше: в общий файл не пишем DEBUG (только консоль)
+general_file_handler.setLevel(logging.INFO)
+general_file_handler.addFilter(_ExcludeErrorLevelsFilter())
 
-# Создаем обработчик для вывода в консоль
+# Только ошибки: ERROR, CRITICAL (в т.ч. traceback из logger.exception)
+error_file_handler = TimedRotatingFileHandler(
+    filename=error_log_path,
+    when="midnight",
+    interval=1,
+    backupCount=7,
+    encoding="utf-8",
+)
+error_file_handler.setLevel(logging.ERROR)
+
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)  # Устанавливаем уровень DEBUG для консоли
+console_handler.setLevel(logging.DEBUG)
 
-# Форматирование логов
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+general_file_handler.setFormatter(formatter)
+error_file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
-# Добавляем обработчики к логгеру
-logger.addHandler(file_handler)
+logger.addHandler(general_file_handler)
+logger.addHandler(error_file_handler)
 logger.addHandler(console_handler)

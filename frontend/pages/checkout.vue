@@ -213,7 +213,7 @@ const showToast = () => {
 			label: 'Перейти к закупкам',
 			color: 'success',
 			variant: 'link',
-			to: '/profile/deals'
+			to: '/profile/purchases'
 		}]
 	}
 	)

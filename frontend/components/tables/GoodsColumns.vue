@@ -43,7 +43,7 @@ watch(dealsList, () => {
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
     status: deal.status,
-    bill: deal.billDate ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Создать счет',
+    bill: deal.billDate ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Просмотр',
     supplyContract: deal.supplyContractsDate ? `${deal.sellerOrderNumber} от ${normalizeDate(deal.supplyContractsDate)}` : 'Просмотр',
     closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
     othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',

@@ -73,10 +73,16 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
           active: route.path === '/profile/editor'
         },
         {
-          label: 'Товары',
+          label: 'Закупки',
           icon: 'i-heroicons-shopping-bag',
-          to: '/profile/deals',
-          active: route.path === '/profile/deals'
+          to: '/profile/purchases',
+          active: route.path === '/profile/purchases'
+        },
+        {
+          label: 'Продажи',
+          icon: 'i-heroicons-banknotes',
+          to: '/profile/sales',
+          active: route.path === '/profile/sales/sales'
         }
       ],
 			[
@@ -114,8 +120,9 @@ const pageTitle = computed(() => {
 
 // Полноширинный контент без бокового меню: Закупки, Продажи и Редактор документов
 const alternativeLayout = () =>
-  route.path === '/profile/deals' ||
-  route.path === '/profile/editor'
+  route.path === '/profile/sales' ||
+	route.path === '/profile/purchases' ||
+	route.path === '/profile/editor'
 
 </script>
 

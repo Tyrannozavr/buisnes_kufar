@@ -36,10 +36,9 @@
 						<UButton
                 v-if="userStore.isAuthenticated"
                 color="primary"
-                to="/checkout"
 								@click.prevent="handleOrderSubmit(cp, cp.goods)"
             >
-              Оформить заказ
+              Отправить заказ
             </UButton>
             <UButton
                 v-else
@@ -51,9 +50,9 @@
             <UButton
                 color="neutral"
                 variant="soft"
-                @click="removeItemsFromCart(cp.goods)"
+                to="/cart"
             >
-              Очистить корзину
+              Вернуть товары в корзину
             </UButton>
 					</div>
 				</div>

@@ -691,7 +691,7 @@ class CheckoutItem(BaseModel):
     description: Optional[str]
     logoUrl: Optional[str]
     productName: str
-    article: int
+    article: str
     quantity: float
     units: str
     price: float

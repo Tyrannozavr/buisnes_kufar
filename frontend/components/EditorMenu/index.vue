@@ -31,6 +31,10 @@
 					<BillMenu :hiddenForBuyer="isHiddenForBuyer" />
 				</div>
 
+				<div v-if="activeTab === '2'">
+					<SupplyContractMenu />
+				</div>
+
 				<div class="flex flex-row justify-between gap-1 w-full">
 					<UCollapsible class="gap-3">
 						<UButton
@@ -118,8 +122,19 @@
 					<UButton
 						:disabled="!isDisabled"
 						@click="editButton()"
-						label="Редактировать"
+						:label="activeTab === '2' ? 'Редактировать данные договора' : 'Редактировать'"
 						icon="i-lucide-file-pen"
+						color="neutral"
+						variant="subtle"
+						class="active:bg-green-500"
+					/>
+
+					<UButton
+						v-if="activeTab === '2'"
+						:disabled="!isDisabled"
+						@click="editButton()"
+						label="Удалить данные договора"
+						icon="i-lucide-file-x"
 						color="neutral"
 						variant="subtle"
 						class="active:bg-green-500"
@@ -234,6 +249,7 @@
 </template>
 
 <script setup lang="ts">
+import SupplyContractMenu from "./SupplyContractMenu.vue"
 import InsertButtons from "./InsertButtons.vue"
 import OrderMenu from "./OrderMenu.vue"
 import BillMenu from "./BillMenu.vue"

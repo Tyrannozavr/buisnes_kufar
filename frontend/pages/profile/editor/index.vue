@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill/Bill.vue'
-import SupplyContract from '~/components/templates/SupplyContract.vue'
+import SupplyContract from '~/components/templates/SupplyContract/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
@@ -115,7 +115,7 @@ const items = computed(() => [
 	{
 		label: 'Договор поставки',
 		slot: 'supplyContract' as const,
-		disabled: true,
+		disabled: false,
 	},
 	{
 		label: 'Сопроводительные документы',
@@ -180,6 +180,11 @@ watch(
       router.replace({
         query: route.query,
         hash: '#bill'
+      })
+    } else if (activeTab.value === '2') {
+      router.replace({
+        query: route.query,
+        hash: '#supplyContract'
       })
     }
   }

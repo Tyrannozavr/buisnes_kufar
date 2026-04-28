@@ -33,6 +33,7 @@
     "@tiptap/starter-kit": "^3.22.4",
     "@tiptap/vue-3": "^3.22.4",
     "@unhead/vue": "^2.0.8",
+    "mammoth": "^1.12.0",
     "number-to-words-ru": "^2.4.1",
     "nuxt": "^3.12.2",
     "pinia": "^3.0.3",

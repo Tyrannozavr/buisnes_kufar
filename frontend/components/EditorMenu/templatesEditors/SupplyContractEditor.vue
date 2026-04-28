@@ -7,6 +7,7 @@ import StarterKit from "@tiptap/starter-kit"
 import { TextAlign } from "@tiptap/extension-text-align"
 import { TableKit } from "@tiptap/extension-table"
 import type { DropdownMenuItem } from "@nuxt/ui"
+import mammoth from "mammoth"
 
 const templateEditorOpen = ref(false)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
@@ -50,6 +51,9 @@ const requisitesItems: DropdownMenuItem[] = [
 		onClick: () => editor.chain().focus().insertContent('ИНН').run()
 	}
 ]
+
+const fileInput = ref<HTMLInputElement | null>(null)
+
 
 // Mock объект для billData, чтобы таблица с ним работала корректно
 const Data = ref({
@@ -104,6 +108,17 @@ const editor = new TiptapEditor({
 	injectCSS: false,
 	autofocus: "start"
 })
+
+
+const handleFileSelect = async (e: Event) => {
+	const file = (e.target as HTMLInputElement).files?.[0]
+	if (file) {
+		const arrayBuffer = await file.arrayBuffer()
+		const result = await mammoth.convertToHtml({ arrayBuffer })
+		editor.chain().focus().insertContent(result.value).run()
+	}
+}
+
 
 const syncFontSizeFromSelection = () => {
 	const attrs = editor.getAttributes("textStyle") as { fontSize?: string | null }
@@ -240,11 +255,21 @@ onBeforeUnmount(() => {
 						<div class="flex gap-1 p-1 bg-gray-50 rounded-md">
 							<!-- FIXME: Выбора папки с текстом -->
 							<UButton
+								type="button"
 								icon="i-lucide-folder-open"
 								color="neutral"
 								variant="ghost"
-								title="Выбрать папку с текстом"
 								class="hover:bg-gray-300"
+								title="Выберите документ(.docx, .doc) с текстом для вставки в редактор"
+								@click="fileInput?.click()"
+							/>
+							<input
+								ref="fileInput"
+								class="hidden"
+								aria-hidden="true"
+								type="file"
+								accept=".docx, .doc"
+								@change="handleFileSelect"
 							/>
 							<UButton
 								@click="editor.chain().focus().unsetAllMarks().run()"

@@ -12,18 +12,19 @@ const { getOfficials, createOfficial, updateOfficial, deleteOfficial } = useOffi
 
 const loading = ref(false)
 const error = ref<string | undefined>(undefined)
+const isEditMode = ref(false)
 
 // Добавляем debounce для обновления
-const updateTimeout = ref<NodeJS.Timeout | null>(null)
+const updateTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // Добавляем состояние для временных должностных лиц (которые еще не созданы)
-const tempOfficials = ref<Array<{ id: string, position: string, full_name: string, isTemp: boolean }>>([])
+const tempOfficials = ref<Array<{ id: string, position: string, full_name: string, isTemp: boolean, is_base?: boolean, base_document?: string, base_document_name?: string }>>([])
 
 // Добавляем состояние для режима редактирования
 const editingOfficials = ref<Set<number | string>>(new Set())
 
 // Добавляем состояние для временных данных редактирования
-const editData = ref<Map<number | string, { position: string, full_name: string }>>(new Map())
+const editData = ref<Map<number | string, { position: string, full_name: string, is_base?: boolean, base_document?: string, base_document_name?: string }>>(new Map())
 
 const positions = [
   {label: 'Генеральный директор', value: 'Генеральный директор'},
@@ -147,24 +148,30 @@ const removeOfficial = async (officialId: number | string) => {
 
 // Включаем режим редактирования
 const startEditing = (officialId: number | string) => {
+	isEditMode.value = true
   const official = allOfficials.value.find(o => o.id === officialId)
   if (!official) return
   
   editingOfficials.value.add(officialId)
   editData.value.set(officialId, {
     position: official.position,
-    full_name: official.full_name
+    full_name: official.full_name,
+    is_base: official.is_base || false,
+    base_document: official.base_document || '',
+    base_document_name: official.base_document_name || ''
   })
 }
 
 // Отменяем редактирование
 const cancelEditing = (officialId: number | string) => {
+	isEditMode.value = false
   editingOfficials.value.delete(officialId)
   editData.value.delete(officialId)
 }
 
 // Сохраняем изменения
 const saveChanges = async (officialId: number | string) => {
+	isEditMode.value = false
   const editInfo = editData.value.get(officialId)
   if (!editInfo) return
   
@@ -193,16 +200,21 @@ const saveChanges = async (officialId: number | string) => {
   try {
     const updateData: CompanyOfficialBase = {
       position: editInfo.position,
-      full_name: editInfo.full_name
+      full_name: editInfo.full_name,
+      is_base: editInfo.is_base || false,
+      base_document: editInfo.base_document || '',
+      base_document_name: editInfo.base_document_name || ''
     }
     
     const updatedOfficial = await updateOfficial(officialId as number, updateData)
     const newOfficials = props.officials.map(o => 
       o.id === officialId ? updatedOfficial : o
     )
-    emit('update:officials', newOfficials)
+		emit('update:officials', newOfficials)
+		
     editingOfficials.value.delete(officialId)
-    editData.value.delete(officialId)
+		editData.value.delete(officialId)
+		
     useToast().add({ title: 'Успешно', description: 'Должностное лицо обновлено', color: 'success' })
   } catch (e: any) {
     error.value = e.message || 'Ошибка обновления должностного лица'
@@ -213,12 +225,12 @@ const saveChanges = async (officialId: number | string) => {
 }
 
 // Обновляем должностное лицо (теперь только для временных записей)
-const updateOfficialData = async (officialId: number | string, field: keyof CompanyOfficialBase, value: string) => {
+const updateOfficialData = async (officialId: number | string, field: keyof CompanyOfficialBase, value: string | boolean ) => {
   // Если в режиме редактирования, обновляем временные данные
   if (editingOfficials.value.has(officialId)) {
     const editInfo = editData.value.get(officialId)
     if (editInfo) {
-      editInfo[field] = value
+      editInfo[field as keyof typeof editInfo] = value as never
     }
     return
   }
@@ -229,7 +241,7 @@ const updateOfficialData = async (officialId: number | string, field: keyof Comp
     if (!tempOfficial) return
     
     // Обновляем временного должностного лица
-    tempOfficial[field] = value
+    tempOfficial[field as keyof typeof tempOfficial] = value as unknown as never
     
     // Проверяем, заполнены ли оба поля
     if (tempOfficial.position && tempOfficial.full_name) {
@@ -251,9 +263,7 @@ const updateOfficialData = async (officialId: number | string, field: keyof Comp
   if (!official) return
   
   // Обновляем локальное состояние сразу
-  const newOfficials = props.officials.map(o => 
-    o.id === officialId ? { ...o, [field]: value } : o
-  )
+  const newOfficials = props.officials.map(o => o.id === officialId ? { ...o, [field]: value } : o)
   emit('update:officials', newOfficials)
   
   // Проверяем, заполнены ли оба поля
@@ -301,75 +311,100 @@ const updateOfficialData = async (officialId: number | string, field: keyof Comp
         <p class="text-sm mt-2">Нажмите кнопку ниже, чтобы добавить должностное лицо</p>
       </div>
       
-      <div v-for="(official, index) in allOfficials" :key="official.id" class="flex items-end gap-4">
-        <UFormField label="Должность" required class="flex-1">
-          <USelect
-              :model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.position : official.position"
-              :items="positionOptions"
-              placeholder="Выберите должность"
-              :disabled="loading"
-              @update:model-value="value => updateOfficialData(official.id, 'position', value)"
-          />
-        </UFormField>
-        <UFormField label="ФИО" required class="flex-1">
-          <UInput
-              :model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.full_name : official.full_name"
-              placeholder="Например: Иванова И.И."
-              :disabled="loading"
-              @update:model-value="value => updateOfficialData(official.id, 'full_name', value)"
-          />
-        </UFormField>
-        
-        <!-- Кнопки действий -->
-        <div class="flex gap-2 mb-1">
-          <!-- Кнопка редактирования/сохранения -->
-          <UButton
-              v-if="!editingOfficials.has(official.id)"
-              color="primary"
-              variant="soft"
-              icon="i-heroicons-pencil"
-              :loading="loading"
-              :disabled="loading"
-              @click="startEditing(official.id)"
-          >
-            Изменить
-          </UButton>
-          <UButton
-              v-else
-              color="success"
-              variant="soft"
-              icon="i-heroicons-check"
-              :loading="loading"
-              :disabled="loading"
-              @click="saveChanges(official.id)"
-          >
-            Сохранить
-          </UButton>
-          
-          <!-- Кнопка отмены редактирования -->
-          <UButton
-              v-if="editingOfficials.has(official.id)"
-              color="neutral"
-              variant="soft"
-              icon="i-heroicons-x-mark"
-              :loading="loading"
-              :disabled="loading"
-              @click="cancelEditing(official.id)"
-          >
-            Отмена
-          </UButton>
-          
-          <!-- Кнопка удаления -->
-          <UButton
-              color="error"
-              variant="soft"
-              icon="i-heroicons-trash"
-              :loading="loading"
-              :disabled="loading"
-              @click="removeOfficial(official.id)"
-          />
-        </div>
+      <div v-for="(official, index) in allOfficials" :key="official.id" class="flex flex-col items-start gap-4 border-b border-gray-300 pb-4">
+				<div class="flex items-end gap-4">
+					<UFormField label="Должность" required class="flex-1">
+						<USelect
+								:model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.position : official.position"
+								:items="positionOptions"
+								placeholder="Выберите должность"
+								:disabled="loading || !isEditMode"
+								@update:model-value="value => updateOfficialData(official.id, 'position', value)"
+						/>
+					</UFormField>
+					<UFormField label="ФИО" required class="flex-1">
+						<UInput
+								:model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.full_name : official.full_name"
+								placeholder="Например: Иванова И.И."
+								:disabled="loading || !isEditMode"
+								@update:model-value="value => updateOfficialData(official.id, 'full_name', value)"
+						/>
+					</UFormField>
+					
+					<!-- Кнопки действий -->
+					<div class="flex gap-2 mb-1">
+						<!-- Кнопка редактирования/сохранения -->
+						<UButton
+								v-if="!editingOfficials.has(official.id)"
+								color="primary"
+								variant="soft"
+								icon="i-heroicons-pencil"
+								:loading="loading"
+								:disabled="loading"
+								@click="startEditing(official.id)"
+						>
+							Изменить
+						</UButton>
+						<UButton
+								v-else
+								color="success"
+								variant="soft"
+								icon="i-heroicons-check"
+								:loading="loading"
+								:disabled="loading"
+								@click="saveChanges(official.id)"
+						>
+							Сохранить
+						</UButton>
+						
+						<!-- Кнопка отмены редактирования -->
+						<UButton
+								v-if="editingOfficials.has(official.id)"
+								color="neutral"
+								variant="soft"
+								icon="i-heroicons-x-mark"
+								:loading="loading"
+								:disabled="loading"
+								@click="cancelEditing(official.id)"
+						>
+							Отмена
+						</UButton>
+						
+						<!-- Кнопка удаления -->
+						<UButton
+								color="error"
+								variant="soft"
+								icon="i-heroicons-trash"
+								:loading="loading"
+								:disabled="loading"
+								@click="removeOfficial(official.id)"
+						/>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<UCheckbox
+						:model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.is_base : official.is_base"
+						label="На основании"
+						size="xl"
+						:disabled="loading || !isEditMode"
+						@update:model-value="value => updateOfficialData(official.id, 'is_base', value as boolean)"
+					/>
+					<USelect
+						:model-value="editingOfficials.has(official.id) ? editData.get(official.id)?.base_document : official.base_document"
+						:items="[ 'устава', 'приказа', 'протокола', 'решения', 'доверенности', 'трудового договора', 'выписки из ЕГРЮР' ]"
+						placeholder="Выберите основание"
+						:disabled="loading || !editData.get(official.id)?.is_base || !isEditMode"
+						@update:model-value="value => updateOfficialData(official.id, 'base_document', value)"
+					/>
+					<UInput
+						:model-value="official.base_document_name"
+						placeholder="Введите название документа основания"
+						:disabled="loading || !editData.get(official.id)?.is_base || !isEditMode"
+							@update:model-value="value => updateOfficialData(official.id, 'base_document_name', value)"
+						/>
+				</div>
       </div>
+
       <UButton
           color="primary"
           variant="soft"

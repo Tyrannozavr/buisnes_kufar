@@ -2,8 +2,11 @@ from pydantic import BaseModel
 
 
 class CompanyOfficialBase(BaseModel):
-    position: str
-    full_name: str
+	position: str
+	full_name: str
+	is_base: bool = False
+	base_document: str | None = None
+	base_document_name: str | None = None
 
 
 class CompanyOfficialCreate(CompanyOfficialBase):
@@ -11,17 +14,26 @@ class CompanyOfficialCreate(CompanyOfficialBase):
 
 
 class CompanyOfficialUpdate(BaseModel):
-    pass
+	position: str | None = None
+	full_name: str | None = None
+	is_base: bool | None = None
+	base_document: str | None = None
+	base_document_name: str | None = None
 
 
 class CompanyOfficialPartialUpdate(BaseModel):
-    position: str | None = None
-    full_name: str | None = None
-
+	position: str | None = None
+	full_name: str | None = None
+	is_base: bool | None = None
+	base_document: str | None = None
+	base_document_name: str | None = None
 
 class CompanyOfficial(CompanyOfficialBase):
-    id: int
-    company_id: int
+	id: int
+	company_id: int
+	is_base: bool = False
+	base_document: str | None = None
+	base_document_name: str | None = None
 
-    class Config:
-        from_attributes = True
+	class Config:
+			from_attributes = True

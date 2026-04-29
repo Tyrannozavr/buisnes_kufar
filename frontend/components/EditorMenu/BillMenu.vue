@@ -89,7 +89,7 @@
 import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { useDeals } from '~/composables/useDeals';
-import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/ContractTermsEditor.vue';
+import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue';
 
 defineProps<{
 	hiddenForBuyer?: boolean

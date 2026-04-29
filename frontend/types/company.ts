@@ -45,13 +45,19 @@ export interface Company {
 // Base type for company officials
 export interface CompanyOfficialBase {
   position: string
-  full_name: string
+	full_name: string
+	is_base?: boolean
+	base_document?: string
+	base_document_name?: string
 }
 
 // Extended type for company officials with additional properties
 export interface CompanyOfficial extends CompanyOfficialBase {
   id: number
   company_id: number
+	is_base?: boolean
+	base_document?: string
+	base_document_name?: string
 }
 
 // Type for partner company with only the required fields

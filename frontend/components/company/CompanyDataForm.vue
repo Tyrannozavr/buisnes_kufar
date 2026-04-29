@@ -45,7 +45,7 @@ const cities = ref<LocationItem[]>([])
 
 // Добавляем состояние для поискового запроса города
 const citySearchQuery = ref('')
-const citySearchTimeout = ref<NodeJS.Timeout | null>(null)
+const citySearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // Добавляем состояние для отслеживания, был ли город выбран пользователем
 const isCityManuallyChanged = ref(false)

@@ -1,3 +1,5 @@
+import type { CompanyOfficial } from "./company";
+
 export interface DealPurchaseResponse {
   buyer_company_id: number;
   buyer_order_number: string;
@@ -33,6 +35,7 @@ export interface ProductItemResponse {
 export interface CompanyInDealResponse {
 	owner_name?: string // имя владельца компании
 	company_name: string
+	company_type: string
 	slug: string
 	company_id: number
 	phone: string
@@ -69,8 +72,8 @@ export interface DealUpdate {
 	bill_date?: string
 	contract?: unknown[]
 	contract_date?: string
-	supply_contracts?: unknown[]
-	supply_contracts_date?: string
+	supply_contract?: SupplyContractResponse
+	supply_contract_date?: string
 	closing_documents?: unknown[]
 	others_documents?: unknown[]
 	buyer_company?: CompanyInDealResponse
@@ -80,7 +83,7 @@ export interface DealUpdate {
 export interface BillResponse {
 	number: string
 	reason: string
-	officials: OfficialsResponse[]
+	officials: CompanyOfficial[]
 	
 	// bill-payment
 	payment_terms?: string
@@ -105,10 +108,9 @@ export interface BillResponse {
 	additional_info_offer: string
 }
 
-export interface OfficialsResponse {
-	id: number
-	full_name: string
-	position: string
+export interface SupplyContractResponse {
+	number: string
+	officials: CompanyOfficial[] // изначально поля появляются при ручном добавлении должностных лиц к договору поставки
 }
 
 export interface DealResponse {
@@ -134,8 +136,8 @@ export interface DealResponse {
 	bill_date: string
 	contract: unknown[]
 	contract_date: string
-	supply_contracts: unknown[]
-	supply_contracts_date: string
+	supply_contract: SupplyContractResponse
+	supply_contract_date: string
 	closing_documents: unknown[]
 	others_documents: unknown[]
 	items: ProductItemResponse[]

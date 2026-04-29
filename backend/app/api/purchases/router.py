@@ -15,7 +15,7 @@ from app.api.purchases.schemas import (
     DealIdsBody,
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem,
-    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractResponse
+    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse
 )
 from app.api.purchases.schemas import DealStatus
 from app.api.purchases.deal_docx_context import build_deal_docx_context
@@ -94,7 +94,7 @@ _DEAL_RESPONSE_EXAMPLE = {
     "comments": "Комментарий к сделке",
     "contract_date": "2026-02-19T10:00:00",
     "bill_date": "2026-02-19T10:00:00",
-    "supply_contracts_date": "2026-02-19T10:00:00",
+    "supply_contract_date": "2026-02-19T10:00:00",
     "closing_documents": [],
     "others_documents": [],
     "created_at": "2026-02-19T10:00:00",
@@ -118,7 +118,13 @@ _DEAL_RESPONSE_EXAMPLE = {
             {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер"},
         ],
     },
-    "supply_contracts": [{"number": "ДП-001", "date": "2026-02-19T10:00:00"}],
+    "supply_contract": {
+			"number": "ДП-001",
+			"officials": [
+				{"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор", "is_base": True, "base_document": "приказа", "base_document_name": "123456789фывафыв"},
+				{"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер", "is_base": False, "base_document": "устава", "base_document_name": "1234567890фывафы"}
+			]
+		},
     "items": [
         {
             "id": 1,
@@ -1154,7 +1160,7 @@ async def create_contract(
 
 @router.post(
     "/deals/{deal_id}/supply-contract",
-    response_model=SupplyContractResponse,
+    response_model=SupplyContractNumberResponse,
     tags=["supply-contract"],
     summary="Создать номер и дату договора поставки",
     responses={
@@ -1175,10 +1181,12 @@ async def create_supply_contract(
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
+
     result = await deal_service.assign_supply_contract(deal_id, company.id, body.date if (body and body.date) else None)
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
-    return SupplyContractResponse(supply_contracts_number=result[0], supply_contracts_date=result[1])
+
+    return SupplyContractNumberResponse(number=result[0], date=result[1])
 
 
 @router.post(

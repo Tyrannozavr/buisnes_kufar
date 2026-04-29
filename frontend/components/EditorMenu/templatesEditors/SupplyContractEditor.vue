@@ -1,4 +1,12 @@
 <script setup lang="ts">
+/*
+TODO:
+- [ ] Добавить логику присвоения данного шаблона флага "шаблон по умолчанию" для дальнейшего использования в других заказах
+- [ ] Добавить логику сохранения договора поставки
+- [ ] добавить получение пропсов из компонента SupplyContractMenu.vue
+- [ ] Дополнить логику вставки таблицы с товарами(добавить реальные данные из заказа)
+- [ ] Дополнить логику выбора сроков и реквизитов
+*/
 import { Editor } from "~/constants/keys"
 import { ListItem } from "@tiptap/extension-list"
 import { TextStyleKit } from "@tiptap/extension-text-style"
@@ -109,7 +117,7 @@ const editor = new TiptapEditor({
 	autofocus: "start"
 })
 
-
+// преобразование документа в HTML и вставка в редактор
 const handleFileSelect = async (e: Event) => {
 	const file = (e.target as HTMLInputElement).files?.[0]
 	if (file) {
@@ -119,25 +127,29 @@ const handleFileSelect = async (e: Event) => {
 	}
 }
 
-
+// синхронизация размера шрифта из выделения текста
 const syncFontSizeFromSelection = () => {
 	const attrs = editor.getAttributes("textStyle") as { fontSize?: string | null }
 	const size = attrs.fontSize
 	fontSize.value = size && size.length > 0 ? size : DEFAULT_FONT_SIZE
 }
 
+// выбор размера шрифта
 const handleFontSizeSelect = (value: string) => {
 	editor.chain().focus().setFontSize(value).run()
 }
 
+// открытие редактора договора поставки
 const openTemplateEditor = () => {
 	templateEditorOpen.value = true
 }
 
+// FIXME: логика присвоения данного шаблона флага "шаблон по умолчанию" для дальнейшего использования в других заказах
 const useDefaultTemplate = () => {
 	editor.chain().focus().setContent(`<p>Заполните условия договора поставки</p>${"<p></p>".repeat(15)}`).run()
 }
 
+// сохранение договора поставки
 const saveSupplyContract = () => {
 	templateEditorOpen.value = false
 }
@@ -228,7 +240,7 @@ onBeforeUnmount(() => {
 						<UCheckbox
 							size="xl"
 							class="w-2/3 self-center"
-							label="Использовать шаблон по умолчанию"
+							label="Использовать по умолчанию"
 							@click="useDefaultTemplate()"
 						/>
 					</div>
@@ -253,7 +265,6 @@ onBeforeUnmount(() => {
 
 						<!-- Выбора папки с текстом и очистки форматирования -->
 						<div class="flex gap-1 p-1 bg-gray-50 rounded-md">
-							<!-- FIXME: Выбора папки с текстом -->
 							<UButton
 								type="button"
 								icon="i-lucide-folder-open"
@@ -422,7 +433,6 @@ onBeforeUnmount(() => {
 							/>
 						</div>
 
-						<!-- FIXME: Выбор сроков и реквизитов -->
 						<div class="flex gap-1 p-1 bg-gray-50 rounded-md">
 							<UDropdownMenu :items="paymentTermsItems">
 								<UButton

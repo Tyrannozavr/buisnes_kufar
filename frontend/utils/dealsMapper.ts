@@ -1,7 +1,8 @@
 import type { OfficialsResponse, DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse, CompanyInDealResponse } from "~/types/dealResponse"
-import type { Deal, ProductItem } from "~/types/dealState"
+import type { Deal, ProductItem, SupplyContract } from "~/types/dealState"
 import type { OfficialBill } from "~/types/bill"
 import { useDeals } from '~/composables/useDeals'
+import type { OfficialSupplyContract } from "~/types/supplyContract"
 
 
 export const createBodyForUpdate = (dealId: number): DealUpdate => {
@@ -56,12 +57,27 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 			officials: deal.bill.officials.map((official: OfficialBill) => ({
 				id: official.id,
 				full_name: official.name,
-				position: official.position
+				position: official.position,
+				is_base: official.isBase,
+				base_document: official.baseDocument,
+				base_document_name: official.baseDocumentName
 			}) satisfies OfficialsResponse)
 		}
 	}
 	if (deal.contract) body.contract = deal.contract
-	if (deal.supplyContracts) body.supply_contracts = deal.supplyContracts
+	if (deal.supplyContract) {
+		body.supply_contract = {
+			number: deal.supplyContract.number,
+			officials: deal.supplyContract.officials.map((official: OfficialSupplyContract) => ({
+				id: official.id,
+				full_name: official.name,
+				position: official.position,
+				is_base: official.isBase,
+				base_document: official.baseDocument,
+				base_document_name: official.baseDocumentName
+			}) satisfies OfficialsResponse)
+		}
+	}
 	if (deal.closingDocuments) body.closing_documents = deal.closingDocuments
 	if (deal.othersDocuments) body.others_documents = deal.othersDocuments
 
@@ -97,6 +113,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		seller: {
 			ownerName: dealResponse.seller_company.owner_name,
 			companyName: dealResponse.seller_company.company_name,
+			companyType: dealResponse.seller_company.company_type,
 			phone: dealResponse.seller_company.phone,
 			slug: dealResponse.seller_company.slug,
 			companyId: dealResponse.seller_company.company_id,
@@ -115,6 +132,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		buyer: {
 			ownerName: dealResponse.buyer_company.owner_name,
 			companyName: dealResponse.buyer_company.company_name,
+			companyType: dealResponse.buyer_company.company_type,
 			phone: dealResponse.buyer_company.phone,
 			slug: dealResponse.buyer_company.slug,
 			companyId: dealResponse.buyer_company.company_id,
@@ -156,15 +174,28 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				(official: OfficialsResponse) => ({
 					id: official.id,
 					name: official.full_name,
-					position: official.position
-				})
+					position: official.position,
+					isBase: official.is_base,
+					baseDocument: official.base_document,
+					baseDocumentName: official.base_document_name
+				}) satisfies OfficialBill
 			)
 		},
 		billDate: dealResponse.bill_date,
 		contract: dealResponse.contract || [],
 		contractDate: dealResponse.contract_date,
-		supplyContracts: dealResponse.supply_contracts || [],
-		supplyContractsDate: dealResponse.supply_contracts_date,
+		supplyContract: {
+			number: dealResponse.supply_contract.number,
+			officials: dealResponse.supply_contract.officials.map((official: OfficialsResponse) => ({
+				id: official.id,
+				name: official.full_name,
+				position: official.position,
+				isBase: official.is_base,
+				baseDocument: official.base_document,
+				baseDocumentName: official.base_document_name
+			}) satisfies OfficialSupplyContract)
+		} satisfies SupplyContract,
+		supplyContractDate: dealResponse.supply_contract_date,
 		closingDocuments: dealResponse.closing_documents || [],
 		othersDocuments: dealResponse.others_documents || []
 	}

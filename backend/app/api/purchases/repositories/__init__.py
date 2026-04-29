@@ -9,1047 +9,1041 @@ from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocume
 from app.api.purchases.schemas import DealCreate, DealUpdate
 from app.api.purchases.utils.total_amount_word import format_total_amount_word
 from app.api.purchases.deal_bill_defaults import (
-    DEFAULT_BILL_DELIVERY_TERMS_DAYS,
-    DEFAULT_BILL_PAYMENT_TERMS_DAYS,
-    default_contract_terms_text_contract,
-    default_contract_terms_text_offer,
+	DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+	DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+	default_contract_terms_text_contract,
+	default_contract_terms_text_offer,
 )
 from app.api.company.models.company import Company
 from app_logging.logger import logger
 
 
 class DealRepository:
-    """Репозиторий для работы с заказами и сделками"""
-
-    @staticmethod
-    def _sync_total_amount_word(order: Order) -> None:
-        order.total_amount_word = format_total_amount_word(order.total_amount)
-
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def create_order(self, order_data: DealCreate, buyer_company_id: int) -> Order:
-        """Создание нового заказа"""
-        logger.debug("Начинаем создание заказа для покупателя %s", buyer_company_id)
-        
-        try:
-            seller_company = await self.get_company_by_id(order_data.seller_company_id)
-
-            # Генерируем номера заказов для покупателя и продавца (ежегодное обнуление)
-            logger.debug("Генерируем номер заказа для покупателя %s", buyer_company_id)
-            buyer_order_number = await self._generate_order_number(buyer_company_id, "buyer")
-            logger.debug("Номер покупателя: %s", buyer_order_number)
-
-            logger.debug("Генерируем номер заказа для продавца %s", order_data.seller_company_id)
-            seller_order_number = await self._generate_order_number(order_data.seller_company_id, "seller")
-            logger.debug("Номер продавца: %s", seller_order_number)
-
-            # Создаем заказ (version starts at 1 for a new deal id)
-            logger.debug("Создаем объект Order")
-            seller_production_address = (
-                (getattr(seller_company, "production_address", None) or "")
-                if seller_company
-                else ""
-            )
-            _ct_contract = default_contract_terms_text_contract(
-                payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
-                delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
-            )
-            _ct_offer = default_contract_terms_text_offer(
-                payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
-                production_address=seller_production_address,
-            )
-            order = Order(
-                id=await self._generate_deal_id(),
-                version=1,
-                buyer_order_number=buyer_order_number,
-                seller_order_number=seller_order_number,
-                buyer_company_id=buyer_company_id,
-                seller_company_id=order_data.seller_company_id,
-                seller_vat_rate=seller_company.vat_rate if seller_company else None,
-                deal_type=OrderType.GOODS,
-                status=OrderStatus.ACTIVE,
-                comments=order_data.comments,
-                payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
-                delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
-                payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
-                contract_terms_text_contract=_ct_contract,
-                contract_terms_text_offer=_ct_offer,
-            )
-            
-            logger.debug("Добавляем заказ в сессию")
-            self.session.add(order)
-            logger.debug("Выполняем flush для получения ID")
-            await self.session.flush()  # Получаем ID заказа
-            logger.debug("Получен ID заказа: %s", order.id)
-            
-            # Добавляем позиции заказа
-            logger.debug("Добавляем %s позиций заказа", len(order_data.items))
-            total_amount = 0
-
-            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-            products_repo = CompanyProductsRepository(self.session)
-
-            for i, item_data in enumerate(order_data.items, 1):
-                position = item_data.position if item_data.position else i
-
-                # Если article указан, получаем данные из БД
-                product_id = None
-                if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
-                    if not product:
-                        raise ValueError(f"Product with article '{item_data.article}' not found")
-
-                    product_id = product.id
-                    # Используем данные из БД
-                    product_name = product.name
-                    product_slug = product.slug
-                    product_description = product.description
-                    product_article = product.article
-                    logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
-                    unit_of_measurement = product.unit_of_measurement or "шт"
-                    price = product.price if product.price is not None else 0.0
-                    quantity = item_data.quantity
-                else:
-                    # Ручной ввод - используем данные из запроса
-                    if not item_data.product_name:
-                        raise ValueError("product_name is required when article is not specified")
-                    if not item_data.price:
-                        raise ValueError("price is required when article is not specified")
-                    if not item_data.unit_of_measurement:
-                        raise ValueError("unit_of_measurement is required when article is not specified")
-
-                    product_name = item_data.product_name
-                    product_slug = item_data.product_slug
-                    product_description = item_data.product_description
-                    product_article = item_data.product_article
-                    logo_url = item_data.logo_url
-                    unit_of_measurement = item_data.unit_of_measurement
-                    price = item_data.price
-                    quantity = item_data.quantity
-
-                amount = quantity * price
-                total_amount += amount
-
-                logger.debug("Обрабатываем позицию %s: %s (qty=%s, price=%s)", position, product_name, quantity, price)
-
-                order_item = OrderItem(
-                    order_row_id=order.row_id,
-                    product_id=product_id,
-                    product_name=product_name,
-                    product_slug=product_slug,
-                    product_description=product_description,
-                    product_article=product_article,
-                    product_type=None,
-                    logo_url=logo_url,
-                    quantity=quantity,
-                    unit_of_measurement=unit_of_measurement,
-                    price=price,
-                    amount=amount,
-                    position=position
-                )
-                logger.debug("Добавляем позицию в сессию")
-                self.session.add(order_item)
-            
-            vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
-            order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
-            order.total_amount_excl_vat = total_amount
-            order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
-            self._sync_total_amount_word(order)
-            logger.debug("Общая сумма заказа: %s", total_amount)
-            
-            # Записываем в историю
-            logger.debug("Добавляем запись в историю")
-            self._add_order_history(
-                order.row_id,
-                buyer_company_id,
-                "created",
-                "Заказ создан покупателем",
-                None,
-                order_data.dict()
-            )
-            
-            logger.debug("Выполняем commit")
-            await self.session.commit()
-            logger.debug("Заказ успешно создан с ID %s", order.id)
-            
-            # Перезагружаем заказ с связанными данными
-            logger.debug("Перезагружаем заказ с связанными данными")
-            reloaded_order = await self.get_order_by_id(order.id, buyer_company_id)
-            return reloaded_order
-            
-        except Exception as e:
-            logger.exception("Ошибка в create_order: %s (тип: %s)", e, type(e).__name__)
-            raise
-
-    async def get_order_by_id_only(self, order_id: int) -> Optional[Order]:
-        """Получение latest-версии заказа по ID без проверки доступа (для различения 404/403)."""
-        query = (
-            select(Order)
-            .where(Order.id == order_id)
-            .order_by(desc(Order.version))
-            .limit(1)
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_order_by_id_and_version(
-        self, order_id: int, version: int, company_id: int
-    ) -> Optional[Order]:
-        """Получение конкретной версии заказа по deal ID и version с проверкой доступа."""
-        query = (
-            select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
-            .where(
-                and_(
-                    Order.id == order_id,
-                    Order.version == version,
-                    or_(
-                        Order.buyer_company_id == company_id,
-                        Order.seller_company_id == company_id,
-                    ),
-                )
-            )
-            .limit(1)
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_order_by_id(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Получение latest-версии заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
-        query = (
-            select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
-            .where(
-                and_(
-                    Order.id == order_id,
-                    or_(
-                        Order.buyer_company_id == company_id,
-                        Order.seller_company_id == company_id,
-                    ),
-                )
-            )
-            .order_by(desc(Order.version))
-            .limit(1)
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение latest-версий заказов покупателя."""
-        # Общее количество (distinct deals)
-        count_query = select(func.count(func.distinct(Order.id))).where(Order.buyer_company_id == company_id)
-        count_result = await self.session.execute(count_query)
-        total = count_result.scalar()
-
-        latest_subquery = (
-            select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
-            .where(Order.buyer_company_id == company_id)
-            .group_by(Order.id)
-            .subquery()
-        )
-
-        query = (
-            select(Order)
-            .join(
-                latest_subquery,
-                and_(
-                    Order.id == latest_subquery.c.deal_id,
-                    Order.version == latest_subquery.c.max_version,
-                ),
-            )
-            .options(
-                selectinload(Order.order_items),
-                selectinload(Order.seller_company),
-                selectinload(Order.buyer_company),
-            )
-            .order_by(desc(Order.updated_at))
-            .offset(skip)
-            .limit(limit)
-        )
-
-        result = await self.session.execute(query)
-        orders = result.scalars().all()
-
-        return list(orders), total
-
-    async def get_seller_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение latest-версий заказов продавца."""
-        # Общее количество (distinct deals)
-        count_query = select(func.count(func.distinct(Order.id))).where(Order.seller_company_id == company_id)
-        count_result = await self.session.execute(count_query)
-        total = count_result.scalar()
-
-        latest_subquery = (
-            select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
-            .where(Order.seller_company_id == company_id)
-            .group_by(Order.id)
-            .subquery()
-        )
-
-        query = (
-            select(Order)
-            .join(
-                latest_subquery,
-                and_(
-                    Order.id == latest_subquery.c.deal_id,
-                    Order.version == latest_subquery.c.max_version,
-                ),
-            )
-            .options(
-                selectinload(Order.order_items),
-                selectinload(Order.seller_company),
-                selectinload(Order.buyer_company),
-            )
-            .order_by(desc(Order.updated_at))
-            .offset(skip)
-            .limit(limit)
-        )
-
-        result = await self.session.execute(query)
-        orders = result.scalars().all()
-
-        return list(orders), total
-
-    async def delete_order(self, order_id: int, company_id: int) -> bool:
-        """Удаление всех версий заказа."""
-        latest_order = await self.get_order_by_id(order_id, company_id)
-        if not latest_order:
-            return False
-
-        query = (
-            select(Order)
-            .where(
-                and_(
-                    Order.id == order_id,
-                    or_(
-                        Order.buyer_company_id == company_id,
-                        Order.seller_company_id == company_id,
-                    ),
-                )
-            )
-            .order_by(desc(Order.version))
-        )
-        result = await self.session.execute(query)
-        orders = list(result.scalars().all())
-        for order in orders:
-            await self.session.delete(order)
-        await self.session.commit()
-        return True
-
-    async def delete_last_order_version(self, order_id: int, company_id: int) -> Optional[int]:
-        """Удаление только последней версии заказа. Возвращает удаленную version."""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        deleted_version = order.version
-        await self.session.delete(order)
-        await self.session.commit()
-        return deleted_version
-
-    async def create_new_order_version(self, order_id: int, company_id: int) -> Optional[Order]:
-        """Создание новой версии заказа по latest snapshot."""
-        latest_order = await self.get_order_by_id(order_id, company_id)
-        if not latest_order:
-            return None
-
-        new_version = latest_order.version + 1
-        new_order = Order(
-            id=latest_order.id,
-            version=new_version,
-            buyer_order_number=latest_order.buyer_order_number,
-            seller_order_number=latest_order.seller_order_number,
-            deal_type=latest_order.deal_type,
-            status=latest_order.status,
-            buyer_company_id=latest_order.buyer_company_id,
-            seller_company_id=latest_order.seller_company_id,
-            seller_vat_rate=latest_order.seller_vat_rate,
-            contract_number=latest_order.contract_number,
-            contract_date=self._normalize_datetime(latest_order.contract_date),
-            bill_number=latest_order.bill_number,
-            bill_date=self._normalize_datetime(latest_order.bill_date),
-            bill_officials=latest_order.bill_officials,
-            bill_reason=latest_order.bill_reason,
-            payment_terms_contract=latest_order.payment_terms_contract,
-            delivery_terms_contract=getattr(latest_order, "delivery_terms_contract", None),
-            additional_info=latest_order.additional_info,
-            contract_terms_contract=getattr(latest_order, "contract_terms_contract", "standard-delivery-supplier"),
-            contract_terms_text_contract=getattr(latest_order, "contract_terms_text_contract", "") or "",
-            payment_terms_offer=getattr(latest_order, "payment_terms_offer", None),
-            contract_terms_offer=getattr(latest_order, "contract_terms_offer", "standard-delivery-supplier"),
-            contract_terms_text_offer=getattr(latest_order, "contract_terms_text_offer", "") or "",
-            additional_info_offer=getattr(latest_order, "additional_info_offer", None),
-            supply_contracts_number=latest_order.supply_contracts_number,
-            supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
-            closing_documents=latest_order.closing_documents,
-            others_documents=latest_order.others_documents,
-            comments=latest_order.comments,
-            total_amount=latest_order.total_amount,
-            total_amount_word=format_total_amount_word(latest_order.total_amount),
-            total_amount_excl_vat=getattr(latest_order, "total_amount_excl_vat", 0.0),
-            amount_vat_rate=latest_order.amount_vat_rate,
-            amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", True),
-        )
-
-        self.session.add(new_order)
-        await self.session.flush()
-
-        for item in latest_order.order_items:
-            cloned_item = OrderItem(
-                order_row_id=new_order.row_id,
-                product_id=item.product_id,
-                product_name=item.product_name,
-                product_slug=item.product_slug,
-                product_description=item.product_description,
-                product_article=item.product_article,
-                product_type=item.product_type,
-                logo_url=item.logo_url,
-                quantity=item.quantity,
-                unit_of_measurement=item.unit_of_measurement,
-                price=item.price,
-                amount=item.amount,
-                position=item.position,
-            )
-            self.session.add(cloned_item)
-
-        self._add_order_history(
-            new_order.row_id,
-            company_id,
-            "version_created",
-            f"Создана новая версия сделки: v{new_version}",
-            {"source_version": latest_order.version},
-            {"version": new_version},
-        )
-
-        await self.session.commit()
-        return await self.get_order_by_id_and_version(order_id, new_version, company_id)
-
-    async def update_order(
-        self, order_id: int, order_data: DealUpdate, company_id: int, *, apply_date_fields: bool = False
-    ) -> Optional[Order]:
-        """Обновление заказа"""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        
-        # Сохраняем старые данные для истории
-        old_data = {
-            "status": order.status,
-            "comments": order.comments,
-            "contract_number": order.contract_number,
-            "bill_number": order.bill_number,
-            "bill_date": order.bill_date,
-            "bill_reason": order.bill_reason,
-            "payment_terms_contract": order.payment_terms_contract,
-            "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
-            "additional_info": order.additional_info,
-            "contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
-            "contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
-            "payment_terms_offer": getattr(order, "payment_terms_offer", None),
-            "contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
-            "contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
-            "additional_info_offer": getattr(order, "additional_info_offer", None),
-            "seller_vat_rate": order.seller_vat_rate,
-            "amount_vat_rate": order.amount_vat_rate,
-            "supply_contracts_number": order.supply_contracts_number,
-            "supply_contracts_date": order.supply_contracts_date,
-            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
-        }
-
-        old_total_amount = order.total_amount
-        old_flag = old_data.get("amount_with_vat_rate", True)
-        old_amount_vat_rate = (old_data.get("amount_vat_rate") or 0)
-
-        # Извлекаем из объектного формата (bill, contract, supply_contracts) — совместимость с фронтендом
-        effective_contract_number = None
-        effective_contract_date = getattr(order_data, "contract_date", None)
-        effective_bill_number = None
-        effective_bill_date = getattr(order_data, "bill_date", None)
-        effective_supply_number = None
-        effective_supply_date = getattr(order_data, "supply_contracts_date", None)
-        if order_data.bill is not None and order_data.bill.number:
-            effective_bill_number = order_data.bill.number
-        if order_data.contract and len(order_data.contract) > 0:
-            c0 = order_data.contract[0]
-            effective_contract_number = c0.number
-            effective_contract_date = c0.date
-        if order_data.supply_contracts and len(order_data.supply_contracts) > 0:
-            s0 = order_data.supply_contracts[0]
-            effective_supply_number = s0.number
-            effective_supply_date = s0.date
-
-        # Обновляем поля
-        if order_data.status is not None:
-            order.status = order_data.status
-        if order_data.comments is not None:
-            order.comments = order_data.comments
-        if effective_contract_number is not None:
-            order.contract_number = effective_contract_number
-        if apply_date_fields and effective_contract_date is not None:
-            order.contract_date = effective_contract_date
-
-        # bill_number / bill_date: bill_date обновляется только через POST /deals/{id}/versions (apply_date_fields=True)
-        if apply_date_fields and effective_bill_date is not None:
-            order.bill_date = effective_bill_date
-            if effective_bill_number is not None:
-                order.bill_number = effective_bill_number
-            elif not order.bill_number:
-                order.bill_number = order.seller_order_number
-        elif effective_bill_number is not None:
-            order.bill_number = effective_bill_number
-
-        # bill.officials — сохраняем только при обновлении с клиента
-        if order_data.bill is not None and order_data.bill.officials is not None:
-            order.bill_officials = [
-                {"id": o.id, "full_name": o.full_name, "position": o.position}
-                for o in order_data.bill.officials
-            ]
-        if order_data.bill is not None and order_data.bill.reason is not None:
-            order.bill_reason = order_data.bill.reason
-        if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
-            order.payment_terms_contract = order_data.bill.payment_terms_contract
-        if order_data.bill is not None and order_data.bill.delivery_terms_contract is not None:
-            order.delivery_terms_contract = order_data.bill.delivery_terms_contract
-        if order_data.bill is not None and order_data.bill.additional_info is not None:
-            order.additional_info = order_data.bill.additional_info
-        if order_data.bill is not None and order_data.bill.contract_terms_contract is not None:
-            order.contract_terms_contract = order_data.bill.contract_terms_contract.value
-        if order_data.bill is not None and order_data.bill.contract_terms_text_contract is not None:
-            order.contract_terms_text_contract = order_data.bill.contract_terms_text_contract
-        if order_data.bill is not None and order_data.bill.payment_terms_offer is not None:
-            order.payment_terms_offer = order_data.bill.payment_terms_offer
-        if order_data.bill is not None and order_data.bill.contract_terms_offer is not None:
-            order.contract_terms_offer = order_data.bill.contract_terms_offer.value
-        if order_data.bill is not None and order_data.bill.contract_terms_text_offer is not None:
-            order.contract_terms_text_offer = order_data.bill.contract_terms_text_offer
-        if order_data.bill is not None and order_data.bill.additional_info_offer is not None:
-            order.additional_info_offer = order_data.bill.additional_info_offer
-
-        # supply_contracts_number / supply_contracts_date: supply_contracts_date обновляется только через POST /deals/{id}/versions
-        if apply_date_fields and effective_supply_date is not None:
-            order.supply_contracts_date = effective_supply_date
-            if effective_supply_number is not None:
-                order.supply_contracts_number = effective_supply_number
-            elif not order.supply_contracts_number:
-                order.supply_contracts_number = order.seller_order_number
-        elif effective_supply_number is not None:
-            order.supply_contracts_number = effective_supply_number
-
-        if order_data.closing_documents is not None:
-            order.closing_documents = order_data.closing_documents
-        if order_data.others_documents is not None:
-            order.others_documents = order_data.others_documents
-
-        if order_data.seller_company is not None and order_data.seller_company.vat_rate is not None:
-            order.seller_vat_rate = order_data.seller_company.vat_rate
-
-        if order_data.amount_vat_rate is not None:
-            order.amount_vat_rate = order_data.amount_vat_rate
-
-        if order_data.amount_with_vat_rate is not None:
-            order.amount_with_vat_rate = order_data.amount_with_vat_rate
-
-        if order_data.items is None and (
-            order_data.amount_vat_rate is not None
-            or order_data.total_amount is not None
-            or order_data.amount_with_vat_rate is not None
-            or (order_data.seller_company is not None and order_data.seller_company.vat_rate is not None)
-        ):
-            seller_company = await self.get_company_by_id(order.seller_company_id)
-            new_vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
-            base_total = old_total_amount - old_amount_vat_rate if old_flag else old_total_amount
-            if order_data.total_amount is not None:
-                base_total = order_data.total_amount - order.amount_vat_rate if order.amount_with_vat_rate else order_data.total_amount
-            if order_data.amount_vat_rate is None:
-                order.amount_vat_rate = self._calculate_amount_vat_rate(base_total, new_vat_rate, order.amount_with_vat_rate)
-            elif not order.amount_with_vat_rate:
-                order.amount_vat_rate = 0
-            order.total_amount_excl_vat = base_total
-            order.total_amount = base_total + order.amount_vat_rate if order.amount_with_vat_rate else base_total
-            self._sync_total_amount_word(order)
-
-        # Обновляем позиции если нужно
-        if order_data.items is not None:
-            from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-            products_repo = CompanyProductsRepository(self.session)
-
-            # Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
-            order.order_items.clear()
-            await self.session.flush()
-
-            total_amount = 0
-            for i, item_data in enumerate(order_data.items, 1):
-                # Если article указан, получаем данные из БД
-                product_id = None
-                if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
-                    if not product:
-                        raise ValueError(f"Product with article '{item_data.article}' not found")
-
-                    product_id = product.id
-                    # Используем данные из БД
-                    product_name = product.name
-                    product_slug = product.slug
-                    product_description = product.description
-                    product_article = product.article
-                    logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
-                    unit_of_measurement = product.unit_of_measurement or "шт"
-                    price = product.price if product.price is not None else 0.0
-                else:
-                    # Ручной ввод - используем данные из запроса (price может быть 0 при обновлении)
-                    if not item_data.product_name:
-                        raise ValueError("product_name is required when article is not specified")
-                    if item_data.price is None:
-                        raise ValueError("price is required when article is not specified")
-                    if not item_data.unit_of_measurement:
-                        raise ValueError("unit_of_measurement is required when article is not specified")
-
-                    product_name = item_data.product_name
-                    product_slug = item_data.product_slug or None
-                    product_description = item_data.product_description or None
-                    product_article = item_data.product_article or None
-                    logo_url = item_data.logo_url or None
-                    unit_of_measurement = item_data.unit_of_measurement or "шт"
-                    price = float(item_data.price)
-
-                amount = item_data.quantity * price
-                total_amount += amount
-
-                order_item = OrderItem(
-                    order_row_id=order.row_id,
-                    product_id=product_id,
-                    product_name=product_name,
-                    product_slug=product_slug,
-                    product_description=product_description,
-                    product_article=product_article,
-                    product_type=None,
-                    logo_url=logo_url,
-                    quantity=item_data.quantity,
-                    unit_of_measurement=unit_of_measurement,
-                    price=price,
-                    amount=amount,
-                    position=i
-                )
-                order.order_items.append(order_item)
-
-            seller_company = await self.get_company_by_id(order.seller_company_id)
-            vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
-            if order_data.amount_vat_rate is None:
-                order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
-            elif not order.amount_with_vat_rate:
-                order.amount_vat_rate = 0
-            order.total_amount_excl_vat = total_amount
-            order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
-            self._sync_total_amount_word(order)
-
-        order.updated_at = datetime.utcnow()
-        
-        # Записываем в историю
-        new_data = {
-            "status": order.status,
-            "comments": order.comments,
-            "contract_number": order.contract_number,
-            "bill_number": order.bill_number,
-            "bill_date": order.bill_date,
-            "bill_reason": order.bill_reason,
-            "payment_terms_contract": order.payment_terms_contract,
-            "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
-            "additional_info": order.additional_info,
-            "contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
-            "contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
-            "payment_terms_offer": getattr(order, "payment_terms_offer", None),
-            "contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
-            "contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
-            "additional_info_offer": getattr(order, "additional_info_offer", None),
-            "seller_vat_rate": order.seller_vat_rate,
-            "amount_vat_rate": order.amount_vat_rate,
-            "supply_contracts_number": order.supply_contracts_number,
-            "supply_contracts_date": order.supply_contracts_date,
-            "amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
-        }
-        
-        self._add_order_history(
-            order.row_id,
-            company_id,
-            "updated",
-            "Заказ обновлен",
-            old_data,
-            new_data
-        )
-        
-        await self.session.commit()
-        # Перезагружаем заказ с позициями для ответа (order.order_items иначе может быть пуст/устаревший)
-        reloaded = await self.get_order_by_id(order_id, company_id)
-        return reloaded if reloaded else order
-
-    async def add_document(self, order_id: int, document_data: dict, file_path: str, company_id: int) -> Optional[OrderDocument]:
-        """Добавление документа к заказу"""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        
-        document = OrderDocument(
-            order_row_id=order.row_id,
-            document_type=document_data.get("document_type"),
-            document_number=(document_data.get("document_number") or "").strip() or "-",
-            document_date=document_data.get("document_date") or datetime.utcnow(),
-            document_file_path=file_path
-        )
-        
-        self.session.add(document)
-        await self.session.commit()
-
-        # Записываем в историю
-        self._add_order_history(
-            order.row_id,
-            company_id,
-            "document_added",
-            f"Добавлен документ: {document_data.get('document_type', 'Неизвестный тип')}",
-            None,
-            document_data
-        )
-        await self.session.commit()
-
-        return document
-
-    async def get_document_by_id(
-        self, deal_id: int, document_id: int, company_id: int
-    ) -> Optional[OrderDocument]:
-        """Получение документа по ID с проверкой доступа к заказу."""
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
-            return None
-        query = select(OrderDocument).options(selectinload(OrderDocument.order)).where(
-            and_(
-                OrderDocument.id == document_id,
-                OrderDocument.order_row_id == order.row_id,
-            )
-        )
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_documents_by_deal_id(
-        self, deal_id: int, company_id: int
-    ) -> List[OrderDocument]:
-        """Получение списка документов заказа с проверкой доступа."""
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
-            return []
-
-        query = (
-            select(OrderDocument)
-            .options(selectinload(OrderDocument.order))
-            .where(OrderDocument.order_row_id == order.row_id)
-            .order_by(desc(OrderDocument.created_at))
-        )
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-
-    async def delete_document(
-        self, deal_id: int, document_id: int, company_id: int
-    ) -> bool:
-        """Удаление документа (после удаления файла из S3 вызывающий код должен удалить запись)."""
-        doc = await self.get_document_by_id(deal_id, document_id, company_id)
-        if not doc:
-            return False
-        await self.session.delete(doc)
-        await self.session.commit()
-        return True
-
-    async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
-        """Получение компании по ID пользователя"""
-        from app.api.authentication.models.user import User
-        # Сначала получаем пользователя, затем его компанию
-        user_query = select(User).where(User.id == user_id)
-        user_result = await self.session.execute(user_query)
-        user = user_result.scalar_one_or_none()
-        
-        if not user or not user.company_id:
-            return None
-        
-        # Получаем компанию по company_id из пользователя
-        company_query = select(Company).where(Company.id == user.company_id)
-        company_result = await self.session.execute(company_query)
-        return company_result.scalar_one_or_none()
-
-    async def get_company_by_id(self, company_id: int) -> Optional[Company]:
-        """Получение компании по ID"""
-        query = select(Company).where(Company.id == company_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_company_with_officials(self, company_id: int) -> Optional[Company]:
-        """Получение компании по ID с загрузкой должностных лиц"""
-        query = select(Company).options(selectinload(Company.officials)).where(Company.id == company_id)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
-
-    async def get_company_owner_name(self, company_id: int) -> Optional[str]:
-        """Получение имени владельца компании"""
-        from app.api.authentication.models.user import User
-        from app.api.authentication.models.roles_positions import UserRole
-        
-        # Сначала ищем пользователя с ролью OWNER
-        owner_query = select(User).where(
-            and_(
-                User.company_id == company_id,
-                User.role == UserRole.OWNER
-            )
-        ).order_by(User.id.asc()).limit(1)
-        
-        owner_result = await self.session.execute(owner_query)
-        owner = owner_result.scalar_one_or_none()
-        
-        if owner:
-            # Формируем полное имя из first_name, last_name, patronymic
-            name_parts = []
-            if owner.first_name:
-                name_parts.append(owner.first_name)
-            if owner.last_name:
-                name_parts.append(owner.last_name)
-            if owner.patronymic:
-                name_parts.append(owner.patronymic)
-            
-            if name_parts:
-                return " ".join(name_parts)
-            # Если нет имени, возвращаем email
-            return owner.email or ""
-        
-        # Если нет OWNER, берем первого пользователя компании
-        first_user_query = select(User).where(
-            User.company_id == company_id
-        ).order_by(User.id.asc()).limit(1)
-        
-        first_user_result = await self.session.execute(first_user_query)
-        first_user = first_user_result.scalar_one_or_none()
-        
-        if first_user:
-            name_parts = []
-            if first_user.first_name:
-                name_parts.append(first_user.first_name)
-            if first_user.last_name:
-                name_parts.append(first_user.last_name)
-            if first_user.patronymic:
-                name_parts.append(first_user.patronymic)
-            
-            if name_parts:
-                return " ".join(name_parts)
-            return first_user.email or ""
-        
-        return None
-
-    async def get_units_of_measurement(self) -> List[UnitOfMeasurement]:
-        """Получение всех единиц измерения"""
-        query = select(UnitOfMeasurement).order_by(UnitOfMeasurement.name)
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
-
-    async def _generate_order_number(self, company_id: int, order_type: str) -> str:
-        """Генерация номера заказа (маска 00001, ежегодное обнуление).
-
-        order_type: "buyer" — max(buyer_order_number) по buyer_company_id;
-                   "seller" — max(seller_order_number) по seller_company_id.
-        """
-        current_year = datetime.utcnow().year
-        if order_type == "buyer":
-            col = Order.buyer_order_number
-            filter_col = Order.buyer_company_id
-        else:
-            col = Order.seller_order_number
-            filter_col = Order.seller_company_id
-
-        query = select(func.max(col)).where(
-            and_(filter_col == company_id, extract("year", Order.created_at) == current_year)
-        )
-        result = await self.session.execute(query)
-        max_number = result.scalar()
-
-        if max_number:
-            try:
-                number_part = int("".join(filter(str.isdigit, max_number)))
-                next_number = number_part + 1
-            except (ValueError, AttributeError):
-                next_number = 1
-        else:
-            next_number = 1
-
-        return f"{next_number:05d}"
-
-    async def _generate_deal_id(self) -> int:
-        """Генерация нового business deal id (стабильный для всех версий)."""
-        query = select(func.max(Order.id))
-        result = await self.session.execute(query)
-        max_id = result.scalar()
-        return (max_id or 0) + 1
-
-    async def _generate_bill_number(self, seller_company_id: int) -> str:
-        """Генерация номера счета на оплату (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
-        # Используем bill_date если есть, иначе created_at
-        date_col = func.coalesce(Order.bill_date, Order.created_at)
-        query = (
-            select(func.max(Order.bill_number))
-            .where(Order.seller_company_id == seller_company_id)
-            .where(Order.bill_number.isnot(None))
-            .where(extract("year", date_col) == current_year)
-        )
-        result = await self.session.execute(query)
-        max_number = result.scalar()
-
-        if max_number:
-            try:
-                number_part = int("".join(filter(str.isdigit, max_number)))
-                next_number = number_part + 1
-            except (ValueError, AttributeError):
-                next_number = 1
-        else:
-            next_number = 1
-
-        return f"{next_number:05d}"
-
-    async def _generate_supply_contract_number(self, seller_company_id: int) -> str:
-        """Генерация номера договора поставки (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
-        date_col = func.coalesce(Order.supply_contracts_date, Order.created_at)
-        query = (
-            select(func.max(Order.supply_contracts_number))
-            .where(Order.seller_company_id == seller_company_id)
-            .where(Order.supply_contracts_number.isnot(None))
-            .where(extract("year", date_col) == current_year)
-        )
-        result = await self.session.execute(query)
-        max_number = result.scalar()
-
-        if max_number:
-            try:
-                number_part = int("".join(filter(str.isdigit, max_number)))
-                next_number = number_part + 1
-            except (ValueError, AttributeError):
-                next_number = 1
-        else:
-            next_number = 1
-
-        return f"{next_number:05d}"
-
-    async def _generate_contract_number(self, seller_company_id: int) -> str:
-        """Генерация номера договора (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
-        date_col = func.coalesce(Order.contract_date, Order.created_at)
-        query = (
-            select(func.max(Order.contract_number))
-            .where(Order.seller_company_id == seller_company_id)
-            .where(Order.contract_number.isnot(None))
-            .where(extract("year", date_col) == current_year)
-        )
-        result = await self.session.execute(query)
-        max_number = result.scalar()
-
-        if max_number:
-            try:
-                number_part = int("".join(filter(str.isdigit, max_number)))
-                next_number = number_part + 1
-            except (ValueError, AttributeError):
-                next_number = 1
-        else:
-            next_number = 1
-
-        return f"{next_number:05d}"
-
-    async def assign_bill(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату счета заказу. bill_number привязан к seller_order_number — счёт выставляет продавец, его номер = номер заказа продавца."""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        bill_date = date or datetime.utcnow()
-        if not order.bill_number:
-            order.bill_number = order.seller_order_number
-        order.bill_date = bill_date
-        order.updated_at = datetime.utcnow()
-        self._add_order_history(
-            order.row_id, company_id, "bill_assigned",
-            f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
-            None, {"bill_number": order.bill_number, "bill_date": str(bill_date)}
-        )
-        await self.session.commit()
-        return (order.bill_number, order.bill_date)
-
-    async def assign_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату договора заказу. contract_number = seller_order_number. Возвращает (contract_number, contract_date)."""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        contract_date = date or datetime.utcnow()
-        if not order.contract_number:
-            order.contract_number = order.seller_order_number
-        order.contract_date = contract_date
-        order.updated_at = datetime.utcnow()
-        self._add_order_history(
-            order.row_id, company_id, "contract_assigned",
-            f"Присвоен договор № {order.contract_number} от {contract_date.strftime('%d.%m.%Y')}",
-            None, {"contract_number": order.contract_number, "contract_date": str(contract_date)}
-        )
-        await self.session.commit()
-        return (order.contract_number, order.contract_date)
-
-    async def assign_supply_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
-        """Генерирует и присваивает номер и дату договора поставки заказу. supply_contracts_number = seller_order_number. Возвращает (supply_contracts_number, supply_contracts_date)."""
-        order = await self.get_order_by_id(order_id, company_id)
-        if not order:
-            return None
-        supply_date = date or datetime.utcnow()
-        if not order.supply_contracts_number:
-            order.supply_contracts_number = order.seller_order_number
-        order.supply_contracts_date = supply_date
-        order.updated_at = datetime.utcnow()
-        self._add_order_history(
-            order.row_id, company_id, "supply_contract_assigned",
-            f"Присвоен договор поставки № {order.supply_contracts_number} от {supply_date.strftime('%d.%m.%Y')}",
-            None, {"supply_contracts_number": order.supply_contracts_number, "supply_contracts_date": str(supply_date)}
-        )
-        await self.session.commit()
-        return (order.supply_contracts_number, order.supply_contracts_date)
-
-    @staticmethod
-    def _to_json_serializable(obj: Any) -> Any:
-        """Приводит значение к виду, сериализуемому в JSON (datetime → строка, enum → value)."""
-        if obj is None:
-            return None
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if isinstance(obj, enum.Enum):
-            return obj.value
-        if isinstance(obj, dict):
-            return {k: DealRepository._to_json_serializable(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [DealRepository._to_json_serializable(v) for v in obj]
-        return obj
-
-    @staticmethod
-    def _normalize_datetime(value: Optional[datetime]) -> Optional[datetime]:
-        """Приводит datetime к naive UTC для полей БД без timezone."""
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            return value
-        return value.replace(tzinfo=None)
-
-    @staticmethod
-    def _calculate_amount_vat_rate(base_total: float, vat_rate: float, amount_with_vat_rate: bool) -> float:
-        """Считает сумму НДС для сделки только при включенном флаге amount_with_vat_rate."""
-        if not amount_with_vat_rate:
-            return 0.0
-        return base_total * (vat_rate / 100)
-
-    def _add_order_history(self, order_row_id: int, company_id: int, change_type: str,
-                                description: str, old_data: Optional[dict] = None,
-                                new_data: Optional[dict] = None):
-        """Добавление записи в историю заказа"""
-        history = OrderHistory(
-            order_row_id=order_row_id,
-            changed_by_company_id=company_id,
-            change_type=change_type,
-            change_description=description,
-            old_data=DealRepository._to_json_serializable(old_data),
-            new_data=DealRepository._to_json_serializable(new_data)
-        )
-        self.session.add(history)
+	"""Репозиторий для работы с заказами и сделками"""
+
+	@staticmethod
+	def _sync_total_amount_word(order: Order) -> None:
+		order.total_amount_word = format_total_amount_word(order.total_amount)
+
+	def __init__(self, session: AsyncSession):
+		self.session = session
+
+	async def create_order(self, order_data: DealCreate, buyer_company_id: int) -> Order:
+		"""Создание нового заказа"""
+		logger.debug("Начинаем создание заказа для покупателя %s", buyer_company_id)
+		
+		try:
+			seller_company = await self.get_company_by_id(order_data.seller_company_id)
+
+			# Генерируем номера заказов для покупателя и продавца (ежегодное обнуление)
+			logger.debug("Генерируем номер заказа для покупателя %s", buyer_company_id)
+			buyer_order_number = await self._generate_order_number(buyer_company_id, "buyer")
+			logger.debug("Номер покупателя: %s", buyer_order_number)
+
+			logger.debug("Генерируем номер заказа для продавца %s", order_data.seller_company_id)
+			seller_order_number = await self._generate_order_number(order_data.seller_company_id, "seller")
+			logger.debug("Номер продавца: %s", seller_order_number)
+
+			# Создаем заказ (version starts at 1 for a new deal id)
+			logger.debug("Создаем объект Order")
+			seller_production_address = (
+				(getattr(seller_company, "production_address", None) or "")
+				if seller_company
+				else ""
+			)
+			_ct_contract = default_contract_terms_text_contract(
+				payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+				delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+			)
+			_ct_offer = default_contract_terms_text_offer(
+				payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+				production_address=seller_production_address,
+			)
+			order = Order(
+				id=await self._generate_deal_id(),
+				version=1,
+				buyer_order_number=buyer_order_number,
+				seller_order_number=seller_order_number,
+				buyer_company_id=buyer_company_id,
+				seller_company_id=order_data.seller_company_id,
+				seller_vat_rate=seller_company.vat_rate if seller_company else None,
+				deal_type=OrderType.GOODS,
+				status=OrderStatus.ACTIVE,
+				comments=order_data.comments,
+				payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+				delivery_terms_contract=DEFAULT_BILL_DELIVERY_TERMS_DAYS,
+				payment_terms_offer=DEFAULT_BILL_PAYMENT_TERMS_DAYS,
+				contract_terms_text_contract=_ct_contract,
+				contract_terms_text_offer=_ct_offer,
+			)
+			
+			logger.debug("Добавляем заказ в сессию")
+			self.session.add(order)
+			logger.debug("Выполняем flush для получения ID")
+			await self.session.flush()  # Получаем ID заказа
+			logger.debug("Получен ID заказа: %s", order.id)
+			
+			# Добавляем позиции заказа
+			logger.debug("Добавляем %s позиций заказа", len(order_data.items))
+			total_amount = 0
+
+			from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+			products_repo = CompanyProductsRepository(self.session)
+
+			for i, item_data in enumerate(order_data.items, 1):
+				position = item_data.position if item_data.position else i
+
+				# Если article указан, получаем данные из БД
+				product_id = None
+				if item_data.article:
+					product = await products_repo.get_by_article(item_data.article)
+					if not product:
+						raise ValueError(f"Product with article '{item_data.article}' not found")
+
+					product_id = product.id
+					# Используем данные из БД
+					product_name = product.name
+					product_slug = product.slug
+					product_description = product.description
+					product_article = product.article
+					logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
+					unit_of_measurement = product.unit_of_measurement or "шт"
+					price = product.price if product.price is not None else 0.0
+					quantity = item_data.quantity
+				else:
+					# Ручной ввод - используем данные из запроса
+					if not item_data.product_name:
+						raise ValueError("product_name is required when article is not specified")
+					if not item_data.price:
+						raise ValueError("price is required when article is not specified")
+					if not item_data.unit_of_measurement:
+						raise ValueError("unit_of_measurement is required when article is not specified")
+
+					product_name = item_data.product_name
+					product_slug = item_data.product_slug
+					product_description = item_data.product_description
+					product_article = item_data.product_article
+					logo_url = item_data.logo_url
+					unit_of_measurement = item_data.unit_of_measurement
+					price = item_data.price
+					quantity = item_data.quantity
+
+				amount = quantity * price
+				total_amount += amount
+
+				logger.debug("Обрабатываем позицию %s: %s (qty=%s, price=%s)", position, product_name, quantity, price)
+
+				order_item = OrderItem(
+					order_row_id=order.row_id,
+					product_id=product_id,
+					product_name=product_name,
+					product_slug=product_slug,
+					product_description=product_description,
+					product_article=product_article,
+					product_type=None,
+					logo_url=logo_url,
+					quantity=quantity,
+					unit_of_measurement=unit_of_measurement,
+					price=price,
+					amount=amount,
+					position=position
+				)
+				logger.debug("Добавляем позицию в сессию")
+				self.session.add(order_item)
+			
+			vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+			order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
+			order.total_amount_excl_vat = total_amount
+			order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
+			self._sync_total_amount_word(order)
+			logger.debug("Общая сумма заказа: %s", total_amount)
+			
+			# Записываем в историю
+			logger.debug("Добавляем запись в историю")
+			self._add_order_history(
+				order.row_id,
+				buyer_company_id,
+				"created",
+				"Заказ создан покупателем",
+				None,
+				order_data.dict()
+			)
+			
+			logger.debug("Выполняем commit")
+			await self.session.commit()
+			logger.debug("Заказ успешно создан с ID %s", order.id)
+			
+			# Перезагружаем заказ с связанными данными
+			logger.debug("Перезагружаем заказ с связанными данными")
+			reloaded_order = await self.get_order_by_id(order.id, buyer_company_id)
+			return reloaded_order
+			
+		except Exception as e:
+			logger.exception("Ошибка в create_order: %s (тип: %s)", e, type(e).__name__)
+			raise
+
+	async def get_order_by_id_only(self, order_id: int) -> Optional[Order]:
+		"""Получение latest-версии заказа по ID без проверки доступа (для различения 404/403)."""
+		query = (
+			select(Order)
+			.where(Order.id == order_id)
+			.order_by(desc(Order.version))
+			.limit(1)
+		)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_order_by_id_and_version(
+		self, order_id: int, version: int, company_id: int
+	) -> Optional[Order]:
+		"""Получение конкретной версии заказа по deal ID и version с проверкой доступа."""
+		query = (
+			select(Order)
+			.options(selectinload(Order.order_items), selectinload(Order.order_history))
+			.where(
+				and_(
+					Order.id == order_id,
+					Order.version == version,
+					or_(
+						Order.buyer_company_id == company_id,
+						Order.seller_company_id == company_id,
+					),
+				)
+			)
+			.limit(1)
+		)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_order_by_id(self, order_id: int, company_id: int) -> Optional[Order]:
+		"""Получение latest-версии заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
+		query = (
+			select(Order)
+			.options(selectinload(Order.order_items), selectinload(Order.order_history))
+			.where(
+				and_(
+					Order.id == order_id,
+					or_(
+						Order.buyer_company_id == company_id,
+						Order.seller_company_id == company_id,
+					),
+				)
+			)
+			.order_by(desc(Order.version))
+			.limit(1)
+		)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
+		"""Получение latest-версий заказов покупателя."""
+		# Общее количество (distinct deals)
+		count_query = select(func.count(func.distinct(Order.id))).where(Order.buyer_company_id == company_id)
+		count_result = await self.session.execute(count_query)
+		total = count_result.scalar()
+
+		latest_subquery = (
+			select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
+			.where(Order.buyer_company_id == company_id)
+			.group_by(Order.id)
+			.subquery()
+		)
+
+		query = (
+			select(Order)
+			.join(
+				latest_subquery,
+				and_(
+					Order.id == latest_subquery.c.deal_id,
+					Order.version == latest_subquery.c.max_version,
+				),
+			)
+			.options(
+				selectinload(Order.order_items),
+				selectinload(Order.seller_company),
+				selectinload(Order.buyer_company),
+			)
+			.order_by(desc(Order.updated_at))
+			.offset(skip)
+			.limit(limit)
+		)
+
+		result = await self.session.execute(query)
+		orders = result.scalars().all()
+
+		return list(orders), total
+
+	async def get_seller_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
+		"""Получение latest-версий заказов продавца."""
+		# Общее количество (distinct deals)
+		count_query = select(func.count(func.distinct(Order.id))).where(Order.seller_company_id == company_id)
+		count_result = await self.session.execute(count_query)
+		total = count_result.scalar()
+
+		latest_subquery = (
+			select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
+			.where(Order.seller_company_id == company_id)
+			.group_by(Order.id)
+			.subquery()
+		)
+
+		query = (
+			select(Order)
+			.join(
+				latest_subquery,
+				and_(
+					Order.id == latest_subquery.c.deal_id,
+					Order.version == latest_subquery.c.max_version,
+				),
+			)
+			.options(
+				selectinload(Order.order_items),
+				selectinload(Order.seller_company),
+				selectinload(Order.buyer_company),
+			)
+			.order_by(desc(Order.updated_at))
+			.offset(skip)
+			.limit(limit)
+		)
+
+		result = await self.session.execute(query)
+		orders = result.scalars().all()
+
+		return list(orders), total
+
+	async def delete_order(self, order_id: int, company_id: int) -> bool:
+		"""Удаление всех версий заказа."""
+		latest_order = await self.get_order_by_id(order_id, company_id)
+		if not latest_order:
+			return False
+
+		query = (
+			select(Order)
+			.where(
+				and_(
+					Order.id == order_id,
+					or_(
+						Order.buyer_company_id == company_id,
+						Order.seller_company_id == company_id,
+					),
+				)
+			)
+			.order_by(desc(Order.version))
+		)
+		result = await self.session.execute(query)
+		orders = list(result.scalars().all())
+		for order in orders:
+			await self.session.delete(order)
+		await self.session.commit()
+		return True
+
+	async def delete_last_order_version(self, order_id: int, company_id: int) -> Optional[int]:
+		"""Удаление только последней версии заказа. Возвращает удаленную version."""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+		deleted_version = order.version
+		await self.session.delete(order)
+		await self.session.commit()
+		return deleted_version
+
+	async def create_new_order_version(self, order_id: int, company_id: int) -> Optional[Order]:
+		"""Создание новой версии заказа по latest snapshot."""
+		latest_order = await self.get_order_by_id(order_id, company_id)
+		if not latest_order:
+			return None
+
+		new_version = latest_order.version + 1
+		new_order = Order(
+			id=latest_order.id,
+			version=new_version,
+			buyer_order_number=latest_order.buyer_order_number,
+			seller_order_number=latest_order.seller_order_number,
+			deal_type=latest_order.deal_type,
+			status=latest_order.status,
+			buyer_company_id=latest_order.buyer_company_id,
+			seller_company_id=latest_order.seller_company_id,
+			seller_vat_rate=latest_order.seller_vat_rate,
+			contract_number=latest_order.contract_number,
+			contract_date=self._normalize_datetime(latest_order.contract_date),
+			bill_number=latest_order.bill_number,
+			bill_date=self._normalize_datetime(latest_order.bill_date),
+			bill_officials=latest_order.bill_officials,
+			bill_reason=latest_order.bill_reason,
+			payment_terms_contract=latest_order.payment_terms_contract,
+			delivery_terms_contract=getattr(latest_order, "delivery_terms_contract", None),
+			additional_info=latest_order.additional_info,
+			contract_terms_contract=getattr(latest_order, "contract_terms_contract", "standard-delivery-supplier"),
+			contract_terms_text_contract=getattr(latest_order, "contract_terms_text_contract", "") or "",
+			payment_terms_offer=getattr(latest_order, "payment_terms_offer", None),
+			contract_terms_offer=getattr(latest_order, "contract_terms_offer", "standard-delivery-supplier"),
+			contract_terms_text_offer=getattr(latest_order, "contract_terms_text_offer", "") or "",
+			additional_info_offer=getattr(latest_order, "additional_info_offer", None),
+			supply_contracts_number=latest_order.supply_contracts_number,
+			supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
+			closing_documents=latest_order.closing_documents,
+			others_documents=latest_order.others_documents,
+			comments=latest_order.comments,
+			total_amount=latest_order.total_amount,
+			total_amount_word=format_total_amount_word(latest_order.total_amount),
+			total_amount_excl_vat=getattr(latest_order, "total_amount_excl_vat", 0.0),
+			amount_vat_rate=latest_order.amount_vat_rate,
+			amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", True),
+		)
+
+		self.session.add(new_order)
+		await self.session.flush()
+
+		for item in latest_order.order_items:
+			cloned_item = OrderItem(
+				order_row_id=new_order.row_id,
+				product_id=item.product_id,
+				product_name=item.product_name,
+				product_slug=item.product_slug,
+				product_description=item.product_description,
+				product_article=item.product_article,
+				product_type=item.product_type,
+				logo_url=item.logo_url,
+				quantity=item.quantity,
+				unit_of_measurement=item.unit_of_measurement,
+				price=item.price,
+				amount=item.amount,
+				position=item.position,
+			)
+			self.session.add(cloned_item)
+
+		self._add_order_history(
+			new_order.row_id,
+			company_id,
+			"version_created",
+			f"Создана новая версия сделки: v{new_version}",
+			{"source_version": latest_order.version},
+			{"version": new_version},
+		)
+
+		await self.session.commit()
+		return await self.get_order_by_id_and_version(order_id, new_version, company_id)
+
+	async def update_order(
+		self, order_id: int, order_data: DealUpdate, company_id: int, *, apply_date_fields: bool = False
+	) -> Optional[Order]:
+		"""Обновление заказа"""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+		
+		# Сохраняем старые данные для истории
+		old_data = {
+			"status": order.status,
+			"comments": order.comments,
+			"contract_number": order.contract_number,
+			"bill_number": order.bill_number,
+			"bill_date": order.bill_date,
+			"bill_reason": order.bill_reason,
+			"payment_terms_contract": order.payment_terms_contract,
+			"delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
+			"additional_info": order.additional_info,
+			"contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
+			"contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
+			"payment_terms_offer": getattr(order, "payment_terms_offer", None),
+			"contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
+			"contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
+			"additional_info_offer": getattr(order, "additional_info_offer", None),
+			"seller_vat_rate": order.seller_vat_rate,
+			"amount_vat_rate": order.amount_vat_rate,
+			"supply_contract_number": order.supply_contract_number,
+			"supply_contract_date": order.supply_contract_date,
+			"amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
+		}
+
+		old_total_amount = order.total_amount
+		old_flag = old_data.get("amount_with_vat_rate", True)
+		old_amount_vat_rate = (old_data.get("amount_vat_rate") or 0)
+
+		# Обновляем поля
+		if order_data.status is not None:
+			order.status = order_data.status
+		if order_data.comments is not None:
+			order.comments = order_data.comments
+		if order_data.contract is not None and order_data.contract.number is not None:
+			order.contract_number = order_data.contract.number
+		if order_data.contract is not None and order_data.contract.date is not None:
+			order.contract_date = order_data.contract.date
+
+		# bill_number / bill_date: bill_date обновляется только через POST /deals/{id}/versions (apply_date_fields=True)
+		if apply_date_fields and order_data.bill.date is not None:
+			order.bill_date = order_data.bill.date
+			if order_data.bill is not None and order_data.bill.number is not None:
+				order.bill_number = order_data.bill.number
+			elif not order.bill_number:
+				order.bill_number = order.seller_order_number
+		elif order_data.bill is not None and order_data.bill.number is not None:
+			order.bill_number = order_data.bill.number
+
+		# bill.officials — сохраняем только при обновлении с клиента
+		if order_data.bill is not None and order_data.bill.officials is not None:
+			order.bill_officials = [
+				{"id": o.id, "full_name": o.full_name, "position": o.position}
+				for o in order_data.bill.officials
+			]
+		if order_data.bill is not None and order_data.bill.reason is not None:
+			order.bill_reason = order_data.bill.reason
+		if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
+			order.payment_terms_contract = order_data.bill.payment_terms_contract
+		if order_data.bill is not None and order_data.bill.delivery_terms_contract is not None:
+			order.delivery_terms_contract = order_data.bill.delivery_terms_contract
+		if order_data.bill is not None and order_data.bill.additional_info is not None:
+			order.additional_info = order_data.bill.additional_info
+		if order_data.bill is not None and order_data.bill.contract_terms_contract is not None:
+			order.contract_terms_contract = order_data.bill.contract_terms_contract.value
+		if order_data.bill is not None and order_data.bill.contract_terms_text_contract is not None:
+			order.contract_terms_text_contract = order_data.bill.contract_terms_text_contract
+		if order_data.bill is not None and order_data.bill.payment_terms_offer is not None:
+			order.payment_terms_offer = order_data.bill.payment_terms_offer
+		if order_data.bill is not None and order_data.bill.contract_terms_offer is not None:
+			order.contract_terms_offer = order_data.bill.contract_terms_offer.value
+		if order_data.bill is not None and order_data.bill.contract_terms_text_offer is not None:
+			order.contract_terms_text_offer = order_data.bill.contract_terms_text_offer
+		if order_data.bill is not None and order_data.bill.additional_info_offer is not None:
+			order.additional_info_offer = order_data.bill.additional_info_offer
+
+		# supply_contracts_number / supply_contracts_date: supply_contracts_date обновляется только через POST /deals/{id}/versions
+		if order_data.supply_contract is not None:
+			if order_data.supply_contract.number is not None:
+				order.supply_contract_number = order_data.supply_contract.number
+
+			order.supply_contract_officials = [
+				{
+					"id": o.id,
+					"company_id": order.seller_company_id,
+					"full_name": o.full_name,
+					"position": o.position,
+					"is_base": o.is_base,
+					"base_document": o.base_document,
+					"base_document_name": o.base_document_name,
+				}
+				 for o in order_data.supply_contract.officials]
+
+		if apply_date_fields and order_data.supply_contract.date is not None:
+			order.supply_contracts_date = order_data.supply_contract_date
+
+		if order_data.closing_documents is not None:
+			order.closing_documents = order_data.closing_documents
+		if order_data.others_documents is not None:
+			order.others_documents = order_data.others_documents
+
+		if order_data.seller_company is not None and order_data.seller_company.vat_rate is not None:
+			order.seller_vat_rate = order_data.seller_company.vat_rate
+
+		if order_data.amount_vat_rate is not None:
+			order.amount_vat_rate = order_data.amount_vat_rate
+
+		if order_data.amount_with_vat_rate is not None:
+			order.amount_with_vat_rate = order_data.amount_with_vat_rate
+
+		if order_data.items is None and (
+			order_data.amount_vat_rate is not None
+			or order_data.total_amount is not None
+			or order_data.amount_with_vat_rate is not None
+			or (order_data.seller_company is not None and order_data.seller_company.vat_rate is not None)
+		):
+			seller_company = await self.get_company_by_id(order.seller_company_id)
+			new_vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+			base_total = old_total_amount - old_amount_vat_rate if old_flag else old_total_amount
+			if order_data.total_amount is not None:
+				base_total = order_data.total_amount - order.amount_vat_rate if order.amount_with_vat_rate else order_data.total_amount
+			if order_data.amount_vat_rate is None:
+				order.amount_vat_rate = self._calculate_amount_vat_rate(base_total, new_vat_rate, order.amount_with_vat_rate)
+			elif not order.amount_with_vat_rate:
+				order.amount_vat_rate = 0
+			order.total_amount_excl_vat = base_total
+			order.total_amount = base_total + order.amount_vat_rate if order.amount_with_vat_rate else base_total
+			self._sync_total_amount_word(order)
+
+		# Обновляем позиции если нужно
+		if order_data.items is not None:
+			from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+			products_repo = CompanyProductsRepository(self.session)
+
+			# Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
+			order.order_items.clear()
+			await self.session.flush()
+
+			total_amount = 0
+			for i, item_data in enumerate(order_data.items, 1):
+				# Если article указан, получаем данные из БД
+				product_id = None
+				if item_data.article:
+					product = await products_repo.get_by_article(item_data.article)
+					if not product:
+						raise ValueError(f"Product with article '{item_data.article}' not found")
+
+					product_id = product.id
+					# Используем данные из БД
+					product_name = product.name
+					product_slug = product.slug
+					product_description = product.description
+					product_article = product.article
+					logo_url = (product.images[0] if (product.images and len(product.images) > 0) else None)
+					unit_of_measurement = product.unit_of_measurement or "шт"
+					price = product.price if product.price is not None else 0.0
+				else:
+					# Ручной ввод - используем данные из запроса (price может быть 0 при обновлении)
+					if not item_data.product_name:
+						raise ValueError("product_name is required when article is not specified")
+					if item_data.price is None:
+						raise ValueError("price is required when article is not specified")
+					if not item_data.unit_of_measurement:
+						raise ValueError("unit_of_measurement is required when article is not specified")
+
+					product_name = item_data.product_name
+					product_slug = item_data.product_slug or None
+					product_description = item_data.product_description or None
+					product_article = item_data.product_article or None
+					logo_url = item_data.logo_url or None
+					unit_of_measurement = item_data.unit_of_measurement or "шт"
+					price = float(item_data.price)
+
+				amount = item_data.quantity * price
+				total_amount += amount
+
+				order_item = OrderItem(
+					order_row_id=order.row_id,
+					product_id=product_id,
+					product_name=product_name,
+					product_slug=product_slug,
+					product_description=product_description,
+					product_article=product_article,
+					product_type=None,
+					logo_url=logo_url,
+					quantity=item_data.quantity,
+					unit_of_measurement=unit_of_measurement,
+					price=price,
+					amount=amount,
+					position=i
+				)
+				order.order_items.append(order_item)
+
+			seller_company = await self.get_company_by_id(order.seller_company_id)
+			vat_rate = order.seller_vat_rate if order.seller_vat_rate is not None else ((seller_company.vat_rate or 0) if seller_company else 0)
+			if order_data.amount_vat_rate is None:
+				order.amount_vat_rate = self._calculate_amount_vat_rate(total_amount, vat_rate, order.amount_with_vat_rate)
+			elif not order.amount_with_vat_rate:
+				order.amount_vat_rate = 0
+			order.total_amount_excl_vat = total_amount
+			order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
+			self._sync_total_amount_word(order)
+
+		order.updated_at = datetime.utcnow()
+		
+		# Записываем в историю
+		new_data = {
+			"status": order.status,
+			"comments": order.comments,
+			"contract_number": order.contract_number,
+			"bill_number": order.bill_number,
+			"bill_date": order.bill_date,
+			"bill_reason": order.bill_reason,
+			"payment_terms_contract": order.payment_terms_contract,
+			"delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
+			"additional_info": order.additional_info,
+			"contract_terms_contract": getattr(order, "contract_terms_contract", "standard-delivery-supplier"),
+			"contract_terms_text_contract": getattr(order, "contract_terms_text_contract", "") or "",
+			"payment_terms_offer": getattr(order, "payment_terms_offer", None),
+			"contract_terms_offer": getattr(order, "contract_terms_offer", "standard-delivery-supplier"),
+			"contract_terms_text_offer": getattr(order, "contract_terms_text_offer", "") or "",
+			"additional_info_offer": getattr(order, "additional_info_offer", None),
+			"seller_vat_rate": order.seller_vat_rate,
+			"amount_vat_rate": order.amount_vat_rate,
+			"supply_contracts_number": order.supply_contracts_number,
+			"supply_contracts_date": order.supply_contracts_date,
+			"amount_with_vat_rate": getattr(order, "amount_with_vat_rate", True),
+		}
+		
+		self._add_order_history(
+			order.row_id,
+			company_id,
+			"updated",
+			"Заказ обновлен",
+			old_data,
+			new_data
+		)
+		
+		await self.session.commit()
+		# Перезагружаем заказ с позициями для ответа (order.order_items иначе может быть пуст/устаревший)
+		reloaded = await self.get_order_by_id(order_id, company_id)
+		return reloaded if reloaded else order
+
+	async def add_document(self, order_id: int, document_data: dict, file_path: str, company_id: int) -> Optional[OrderDocument]:
+		"""Добавление документа к заказу"""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+		
+		document = OrderDocument(
+			order_row_id=order.row_id,
+			document_type=document_data.get("document_type"),
+			document_number=(document_data.get("document_number") or "").strip() or "-",
+			document_date=document_data.get("document_date") or datetime.utcnow(),
+			document_file_path=file_path
+		)
+		
+		self.session.add(document)
+		await self.session.commit()
+
+		# Записываем в историю
+		self._add_order_history(
+			order.row_id,
+			company_id,
+			"document_added",
+			f"Добавлен документ: {document_data.get('document_type', 'Неизвестный тип')}",
+			None,
+			document_data
+		)
+		await self.session.commit()
+
+		return document
+
+	async def get_document_by_id(
+		self, deal_id: int, document_id: int, company_id: int
+	) -> Optional[OrderDocument]:
+		"""Получение документа по ID с проверкой доступа к заказу."""
+		order = await self.get_order_by_id(deal_id, company_id)
+		if not order:
+			return None
+		query = select(OrderDocument).options(selectinload(OrderDocument.order)).where(
+			and_(
+				OrderDocument.id == document_id,
+				OrderDocument.order_row_id == order.row_id,
+			)
+		)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_documents_by_deal_id(
+		self, deal_id: int, company_id: int
+	) -> List[OrderDocument]:
+		"""Получение списка документов заказа с проверкой доступа."""
+		order = await self.get_order_by_id(deal_id, company_id)
+		if not order:
+			return []
+
+		query = (
+			select(OrderDocument)
+			.options(selectinload(OrderDocument.order))
+			.where(OrderDocument.order_row_id == order.row_id)
+			.order_by(desc(OrderDocument.created_at))
+		)
+		result = await self.session.execute(query)
+		return list(result.scalars().all())
+
+	async def delete_document(
+		self, deal_id: int, document_id: int, company_id: int
+	) -> bool:
+		"""Удаление документа (после удаления файла из S3 вызывающий код должен удалить запись)."""
+		doc = await self.get_document_by_id(deal_id, document_id, company_id)
+		if not doc:
+			return False
+		await self.session.delete(doc)
+		await self.session.commit()
+		return True
+
+	async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
+		"""Получение компании по ID пользователя"""
+		from app.api.authentication.models.user import User
+		# Сначала получаем пользователя, затем его компанию
+		user_query = select(User).where(User.id == user_id)
+		user_result = await self.session.execute(user_query)
+		user = user_result.scalar_one_or_none()
+		
+		if not user or not user.company_id:
+			return None
+		
+		# Получаем компанию по company_id из пользователя
+		company_query = select(Company).where(Company.id == user.company_id)
+		company_result = await self.session.execute(company_query)
+		return company_result.scalar_one_or_none()
+
+	async def get_company_by_id(self, company_id: int) -> Optional[Company]:
+		"""Получение компании по ID"""
+		query = select(Company).where(Company.id == company_id)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_company_with_officials(self, company_id: int) -> Optional[Company]:
+		"""Получение компании по ID с загрузкой должностных лиц"""
+		query = select(Company).options(selectinload(Company.officials)).where(Company.id == company_id)
+		result = await self.session.execute(query)
+		return result.scalar_one_or_none()
+
+	async def get_company_owner_name(self, company_id: int) -> Optional[str]:
+		"""Получение имени владельца компании"""
+		from app.api.authentication.models.user import User
+		from app.api.authentication.models.roles_positions import UserRole
+		
+		# Сначала ищем пользователя с ролью OWNER
+		owner_query = select(User).where(
+			and_(
+				User.company_id == company_id,
+				User.role == UserRole.OWNER
+			)
+		).order_by(User.id.asc()).limit(1)
+		
+		owner_result = await self.session.execute(owner_query)
+		owner = owner_result.scalar_one_or_none()
+		
+		if owner:
+			# Формируем полное имя из first_name, last_name, patronymic
+			name_parts = []
+			if owner.first_name:
+				name_parts.append(owner.first_name)
+			if owner.last_name:
+				name_parts.append(owner.last_name)
+			if owner.patronymic:
+				name_parts.append(owner.patronymic)
+			
+			if name_parts:
+				return " ".join(name_parts)
+			# Если нет имени, возвращаем email
+			return owner.email or ""
+		
+		# Если нет OWNER, берем первого пользователя компании
+		first_user_query = select(User).where(
+			User.company_id == company_id
+		).order_by(User.id.asc()).limit(1)
+		
+		first_user_result = await self.session.execute(first_user_query)
+		first_user = first_user_result.scalar_one_or_none()
+		
+		if first_user:
+			name_parts = []
+			if first_user.first_name:
+				name_parts.append(first_user.first_name)
+			if first_user.last_name:
+				name_parts.append(first_user.last_name)
+			if first_user.patronymic:
+				name_parts.append(first_user.patronymic)
+			
+			if name_parts:
+				return " ".join(name_parts)
+			return first_user.email or ""
+		
+		return None
+
+	async def get_units_of_measurement(self) -> List[UnitOfMeasurement]:
+		"""Получение всех единиц измерения"""
+		query = select(UnitOfMeasurement).order_by(UnitOfMeasurement.name)
+		result = await self.session.execute(query)
+		return list(result.scalars().all())
+
+	async def _generate_order_number(self, company_id: int, order_type: str) -> str:
+		"""Генерация номера заказа (маска 00001, ежегодное обнуление).
+
+		order_type: "buyer" — max(buyer_order_number) по buyer_company_id;
+				   "seller" — max(seller_order_number) по seller_company_id.
+		"""
+		current_year = datetime.utcnow().year
+		if order_type == "buyer":
+			col = Order.buyer_order_number
+			filter_col = Order.buyer_company_id
+		else:
+			col = Order.seller_order_number
+			filter_col = Order.seller_company_id
+
+		query = select(func.max(col)).where(
+			and_(filter_col == company_id, extract("year", Order.created_at) == current_year)
+		)
+		result = await self.session.execute(query)
+		max_number = result.scalar()
+
+		if max_number:
+			try:
+				number_part = int("".join(filter(str.isdigit, max_number)))
+				next_number = number_part + 1
+			except (ValueError, AttributeError):
+				next_number = 1
+		else:
+			next_number = 1
+
+		return f"{next_number:05d}"
+
+	async def _generate_deal_id(self) -> int:
+		"""Генерация нового business deal id (стабильный для всех версий)."""
+		query = select(func.max(Order.id))
+		result = await self.session.execute(query)
+		max_id = result.scalar()
+		return (max_id or 0) + 1
+
+	async def _generate_bill_number(self, seller_company_id: int) -> str:
+		"""Генерация номера счета на оплату (маска 00001, ежегодное обнуление)."""
+		current_year = datetime.utcnow().year
+		# Используем bill_date если есть, иначе created_at
+		date_col = func.coalesce(Order.bill_date, Order.created_at)
+		query = (
+			select(func.max(Order.bill_number))
+			.where(Order.seller_company_id == seller_company_id)
+			.where(Order.bill_number.isnot(None))
+			.where(extract("year", date_col) == current_year)
+		)
+		result = await self.session.execute(query)
+		max_number = result.scalar()
+
+		if max_number:
+			try:
+				number_part = int("".join(filter(str.isdigit, max_number)))
+				next_number = number_part + 1
+			except (ValueError, AttributeError):
+				next_number = 1
+		else:
+			next_number = 1
+
+		return f"{next_number:05d}"
+
+	async def _generate_supply_contract_number(self, seller_company_id: int) -> str:
+		"""Генерация номера договора поставки (маска 00001, ежегодное обнуление)."""
+		current_year = datetime.utcnow().year
+		date_col = func.coalesce(Order.supply_contracts_date, Order.created_at)
+		query = (
+			select(func.max(Order.supply_contracts_number))
+			.where(Order.seller_company_id == seller_company_id)
+			.where(Order.supply_contracts_number.isnot(None))
+			.where(extract("year", date_col) == current_year)
+		)
+		result = await self.session.execute(query)
+		max_number = result.scalar()
+
+		if max_number:
+			try:
+				number_part = int("".join(filter(str.isdigit, max_number)))
+				next_number = number_part + 1
+			except (ValueError, AttributeError):
+				next_number = 1
+		else:
+			next_number = 1
+
+		return f"{next_number:05d}"
+
+	async def _generate_contract_number(self, seller_company_id: int) -> str:
+		"""Генерация номера договора (маска 00001, ежегодное обнуление)."""
+		current_year = datetime.utcnow().year
+		date_col = func.coalesce(Order.contract_date, Order.created_at)
+		query = (
+			select(func.max(Order.contract_number))
+			.where(Order.seller_company_id == seller_company_id)
+			.where(Order.contract_number.isnot(None))
+			.where(extract("year", date_col) == current_year)
+		)
+		result = await self.session.execute(query)
+		max_number = result.scalar()
+
+		if max_number:
+			try:
+				number_part = int("".join(filter(str.isdigit, max_number)))
+				next_number = number_part + 1
+			except (ValueError, AttributeError):
+				next_number = 1
+		else:
+			next_number = 1
+
+		return f"{next_number:05d}"
+
+	async def assign_bill(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+		"""Генерирует и присваивает номер и дату счета заказу. bill_number привязан к seller_order_number — счёт выставляет продавец, его номер = номер заказа продавца."""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+		bill_date = date or datetime.utcnow()
+		if not order.bill_number:
+			order.bill_number = order.seller_order_number
+		order.bill_date = bill_date
+		order.updated_at = datetime.utcnow()
+		self._add_order_history(
+			order.row_id, company_id, "bill_assigned",
+			f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
+			None, {"bill_number": order.bill_number, "bill_date": str(bill_date)}
+		)
+		await self.session.commit()
+		return (order.bill_number, order.bill_date)
+
+	async def assign_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+		"""Генерирует и присваивает номер и дату договора заказу. contract_number = seller_order_number. Возвращает (contract_number, contract_date)."""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+		contract_date = date or datetime.utcnow()
+		if not order.contract_number:
+			order.contract_number = order.seller_order_number
+		order.contract_date = contract_date
+		order.updated_at = datetime.utcnow()
+		self._add_order_history(
+			order.row_id, company_id, "contract_assigned",
+			f"Присвоен договор № {order.contract_number} от {contract_date.strftime('%d.%m.%Y')}",
+			None, {"contract_number": order.contract_number, "contract_date": str(contract_date)}
+		)
+		await self.session.commit()
+		return (order.contract_number, order.contract_date)
+
+	async def assign_supply_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+		"""Генерирует и присваивает номер и дату договора поставки заказу. supply_contracts_number = seller_order_number. Возвращает (supply_contracts_number, supply_contracts_date)."""
+		order = await self.get_order_by_id(order_id, company_id)
+		if not order:
+			return None
+			
+		supply_date = date or datetime.utcnow()
+		if not order.supply_contracts_number:
+			order.supply_contracts_number = order.seller_order_number
+
+		order.supply_contracts_date = supply_date
+		order.updated_at = datetime.utcnow()
+		self._add_order_history(
+			order.row_id, company_id, "supply_contract_assigned",
+			f"Присвоен договор поставки № {order.supply_contracts_number} от {supply_date.strftime('%d.%m.%Y')}",
+			None, {"supply_contracts_number": order.supply_contracts_number, "supply_contracts_date": str(supply_date)}
+		)
+		await self.session.commit()
+		return (order.supply_contracts_number, order.supply_contracts_date)
+
+	@staticmethod
+	def _to_json_serializable(obj: Any) -> Any:
+		"""Приводит значение к виду, сериализуемому в JSON (datetime → строка, enum → value)."""
+		if obj is None:
+			return None
+		if isinstance(obj, datetime):
+			return obj.isoformat()
+		if isinstance(obj, enum.Enum):
+			return obj.value
+		if isinstance(obj, dict):
+			return {k: DealRepository._to_json_serializable(v) for k, v in obj.items()}
+		if isinstance(obj, list):
+			return [DealRepository._to_json_serializable(v) for v in obj]
+		return obj
+
+	@staticmethod
+	def _normalize_datetime(value: Optional[datetime]) -> Optional[datetime]:
+		"""Приводит datetime к naive UTC для полей БД без timezone."""
+		if value is None:
+			return None
+		if value.tzinfo is None:
+			return value
+		return value.replace(tzinfo=None)
+
+	@staticmethod
+	def _calculate_amount_vat_rate(base_total: float, vat_rate: float, amount_with_vat_rate: bool) -> float:
+		"""Считает сумму НДС для сделки только при включенном флаге amount_with_vat_rate."""
+		if not amount_with_vat_rate:
+			return 0.0
+		return base_total * (vat_rate / 100)
+
+	def _add_order_history(self, order_row_id: int, company_id: int, change_type: str,
+								description: str, old_data: Optional[dict] = None,
+								new_data: Optional[dict] = None):
+		"""Добавление записи в историю заказа"""
+		history = OrderHistory(
+			order_row_id=order_row_id,
+			changed_by_company_id=company_id,
+			change_type=change_type,
+			change_description=description,
+			old_data=DealRepository._to_json_serializable(old_data),
+			new_data=DealRepository._to_json_serializable(new_data)
+		)
+		self.session.add(history)

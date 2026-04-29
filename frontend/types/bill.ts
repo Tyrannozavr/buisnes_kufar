@@ -5,6 +5,9 @@ export interface OfficialBill {
 	id: number
 	name: string
 	position: string
+	isBase: boolean
+	baseDocument: string
+	baseDocumentName: string
 }
 
 export interface BillData {

@@ -2,7 +2,7 @@
 import type { OfficialBill } from '~/types/bill';
 import type { SelectMenuItem } from '@nuxt/ui';
 import { getMyCompanyQuery } from '~/queries/companyOwner';
-import type { OfficialsResponse } from '~/types/dealResponse';
+import type { CompanyOfficial } from '~/types/company';
 
 defineProps<{
 	isDisabled: boolean
@@ -17,12 +17,15 @@ const emit = defineEmits<{
 const { data: myCompany } = useQuery(getMyCompanyQuery())
 
 const personsOptions = computed<SelectMenuItem[]>(() => {
-return myCompany.value?.officials?.map((person: OfficialsResponse) => ({
+return myCompany.value?.officials?.map((person: CompanyOfficial) => ({
 	label: `${person.position} - ${person.full_name}`,
 	value: {
 		id: person.id,
 		name: person.full_name,
 		position: person.position,
+		isBase: person.is_base,
+		baseDocument: person.base_document ?? '',
+		baseDocumentName: person.base_document_name ?? ''
 	} satisfies OfficialBill,
 })) ?? []
 })

@@ -1,8 +1,10 @@
 import type { OfficialBill } from "./bill";
+import type { OfficialSupplyContract } from "./supplyContract";
 
 export interface Company {
   ownerName?: string;
 	companyName?: string;
+	companyType?: string;
   slug?: string;
   companyId?: number;
   phone?: string;
@@ -58,6 +60,11 @@ export interface Bill {
 	additionalInfoOffer: string
 }
 
+export interface SupplyContract {
+	number: string
+	officials: OfficialSupplyContract[]
+}
+
 export interface Deal {
   dealId: number;
   buyerOrderNumber: string;
@@ -74,8 +81,8 @@ export interface Deal {
 	billDate: string
   contract: unknown[]
   contractDate: string
-  supplyContracts: unknown[]
-  supplyContractsDate: string
+  supplyContract: SupplyContract
+  supplyContractDate: string
   closingDocuments: unknown[]
   othersDocuments: unknown[]
 }

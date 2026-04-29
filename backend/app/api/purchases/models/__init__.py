@@ -40,73 +40,76 @@ if TYPE_CHECKING:
 
 
 class Order(Base):
-    """Заказ - основная сущность для документооборота"""
-    __tablename__ = "orders"
+	"""Заказ - основная сущность для документооборота"""
+	__tablename__ = "orders"
 
-    # Technical row PK + stable business id
-    row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+	# Technical row PK + stable business id
+	row_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, nullable=False)
+	id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+	version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
-    # Основная информация
-    buyer_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа покупателя (00000)
-    seller_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа продавца (00000)
-    deal_type: Mapped[OrderType] = mapped_column(Enum(OrderType), nullable=False)  # Тип заказа (товары/услуги)
-    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.ACTIVE)
-    
-    # Стороны сделки
-    buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
-    seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
-    seller_vat_rate: Mapped[Optional[int]] = mapped_column(Integer)  # Ставка НДС продавца, зафиксированная на уровне сделки
+	# Основная информация
+	buyer_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа покупателя (00000)
+	seller_order_number: Mapped[str] = mapped_column(String(20), nullable=False)  # Номер заказа продавца (00000)
+	deal_type: Mapped[OrderType] = mapped_column(Enum(OrderType), nullable=False)  # Тип заказа (товары/услуги)
+	status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.ACTIVE)
+	
+	# Стороны сделки
+	buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+	seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+	seller_vat_rate: Mapped[Optional[int]] = mapped_column(Integer)  # Ставка НДС продавца, зафиксированная на уровне сделки
 
-    # Связанные документы (номера)
-    contract_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора
-    contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора
-    bill_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета на оплату
-    bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
-    bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
-    bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
-    payment_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
-    delivery_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
-    additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
-    contract_terms_contract: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="standard-delivery-supplier"
-    )  # Вариант условий договора в счёте (BillResponse.contract_terms_contract)
-    contract_terms_text_contract: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий договора
-    payment_terms_offer: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (оферта)
-    contract_terms_offer: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="standard-delivery-supplier"
-    )  # Вариант условий оферты (BillResponse.contract_terms_offer)
-    contract_terms_text_offer: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий оферты
-    additional_info_offer: Mapped[Optional[str]] = mapped_column(Text)  # Доп. информация (оферта)
-    supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора поставки
-    supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора поставки
+	# Связанные документы (номера)
+	contract_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер договора
+	contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата договора
+	bill_number: Mapped[Optional[str]] = mapped_column(String(20))  # Номер счета на оплату
+	bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
+	bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
+	bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
+	payment_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
+	delivery_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
+	additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
+	contract_terms_contract: Mapped[str] = mapped_column(
+			String(64), nullable=False, default="standard-delivery-supplier"
+	)  # Вариант условий договора в счёте (BillResponse.contract_terms_contract)
+	contract_terms_text_contract: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий договора
+	payment_terms_offer: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (оферта)
+	contract_terms_offer: Mapped[str] = mapped_column(
+			String(64), nullable=False, default="standard-delivery-supplier"
+	)  # Вариант условий оферты (BillResponse.contract_terms_offer)
+	contract_terms_text_offer: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Текст условий оферты
+	additional_info_offer: Mapped[Optional[str]] = mapped_column(Text)  # Доп. информация (оферта)
 
-    # Закрывающие и прочие документы (пока пустые)
-    closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
-    others_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Прочие документы
-    
-    # Дополнительная информация
-    comments: Mapped[Optional[str]] = mapped_column(Text)
-    total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
-    total_amount_word: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Сумма прописью (RUB), синхронно с total_amount
-    # Сумма позиций (qty×price) без НДС; при amount_with_vat_rate: total_amount ≈ total_amount_excl_vat + amount_vat_rate
-    total_amount_excl_vat: Mapped[float] = mapped_column(Float, default=0.0)
-    amount_vat_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Сумма НДС по сделке
-    amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=True)  # Сумма с учётом НДС
+	# Договор поставки
+	supply_contract_number: Mapped[Optional[str]] = mapped_column(String(20))
+	supply_contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+	supply_contract_officials: Mapped[Optional[list]] = mapped_column(JSON)
 
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+	# Закрывающие и прочие документы (пока пустые)
+	closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
+	others_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Прочие документы
+	
+	# Дополнительная информация
+	comments: Mapped[Optional[str]] = mapped_column(Text)
+	total_amount: Mapped[float] = mapped_column(Float, default=0.0)  # Общая сумма заказа
+	total_amount_word: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Сумма прописью (RUB), синхронно с total_amount
+	# Сумма позиций (qty×price) без НДС; при amount_with_vat_rate: total_amount ≈ total_amount_excl_vat + amount_vat_rate
+	total_amount_excl_vat: Mapped[float] = mapped_column(Float, default=0.0)
+	amount_vat_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Сумма НДС по сделке
+	amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=True)  # Сумма с учётом НДС
 
-    # Relationships
-    buyer_company: Mapped["Company"] = relationship("Company", foreign_keys=[buyer_company_id], backref="buyer_orders")
-    seller_company: Mapped["Company"] = relationship("Company", foreign_keys=[seller_company_id], backref="seller_orders")
-    order_items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    order_history: Mapped[List["OrderHistory"]] = relationship("OrderHistory", back_populates="order", cascade="all, delete-orphan")
+	# Timestamps
+	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __str__(self):
-        return f"Заказ {self.buyer_order_number}"
+	# Relationships
+	buyer_company: Mapped["Company"] = relationship("Company", foreign_keys=[buyer_company_id], backref="buyer_orders")
+	seller_company: Mapped["Company"] = relationship("Company", foreign_keys=[seller_company_id], backref="seller_orders")
+	order_items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+	order_history: Mapped[List["OrderHistory"]] = relationship("OrderHistory", back_populates="order", cascade="all, delete-orphan")
+
+	def __str__(self):
+		return f"Заказ {self.buyer_order_number}"
 
 
 class OrderItem(Base):

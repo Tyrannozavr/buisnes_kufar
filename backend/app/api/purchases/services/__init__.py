@@ -3,21 +3,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import (
-    DealCreate,
-    DealUpdate,
-    DealResponse,
-    BuyerDealResponse,
-    SellerDealResponse,
-    OrderItemResponse,
-    DocumentUpload,
-    CompanyInDealResponse,
-    DealStatus,
-    DealRole,
-    BillInDealResponse,
-    OfficialsInBillResponse,
-    SupplyContractItem,
-    ContractItem,
-    ContractTerms,
+	DealCreate,
+	DealUpdate,
+	DealResponse,
+	BuyerDealResponse,
+	SellerDealResponse,
+	OrderItemResponse,
+	DocumentUpload,
+	CompanyInDealResponse,
+	DealStatus,
+	DealRole,
+	BillInDealResponse,
+	SupplyContractInDealResponse,
+	CompanyOfficialInDealResponse,
+	ContractItem,
+	ContractTerms,
 )
 from app.api.purchases.models import Order, OrderItem, OrderDocument
 from app.api.company.models.company import Company
@@ -25,402 +25,412 @@ from app_logging.logger import logger
 
 
 class DealService:
-    """Сервис для работы с заказами и сделками"""
-    
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.repository = DealRepository(session)
+	"""Сервис для работы с заказами и сделками"""
+	
+	def __init__(self, session: AsyncSession):
+		self.session = session
+		self.repository = DealRepository(session)
 
-    async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
-        """Создание новой сделки"""
-        from sqlalchemy.exc import IntegrityError
-        try:
-            order = await self.repository.create_order(deal_data, buyer_company_id)
-            return await self._order_to_deal_response(order, buyer_company_id)
-        except IntegrityError as e:
-            await self.session.rollback()
-            logger.exception("Database integrity error creating deal: %s", e)
-            # Проверяем, какое ограничение нарушено
-            error_str = str(e)
-            if "seller_company_id_fkey" in error_str:
-                raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
-            elif "buyer_company_id_fkey" in error_str:
-                raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
-            elif "product_id_fkey" in error_str or "order_items_product_id_fkey" in error_str:
-                # Извлекаем product_id из ошибки, если возможно
-                import re
-                match = re.search(r'Key \(product_id\)=\((\d+)\)', error_str)
-                if match:
-                    product_id = match.group(1)
-                    raise ValueError(f"Product with ID {product_id} does not exist. Use null or omit product_id for manual entry.")
-                raise ValueError("One of the products in the order does not exist. Use null or omit product_id for manual entry.")
-            raise ValueError("Database constraint violation")
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error creating deal: %s", e)
-            raise
+	async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
+		"""Создание новой сделки"""
+		from sqlalchemy.exc import IntegrityError
+		try:
+			order = await self.repository.create_order(deal_data, buyer_company_id)
+			return await self._order_to_deal_response(order, buyer_company_id)
+		except IntegrityError as e:
+			await self.session.rollback()
+			logger.exception("Database integrity error creating deal: %s", e)
+			# Проверяем, какое ограничение нарушено
+			error_str = str(e)
+			if "seller_company_id_fkey" in error_str:
+				raise ValueError(f"Seller company with ID {deal_data.seller_company_id} does not exist")
+			elif "buyer_company_id_fkey" in error_str:
+				raise ValueError(f"Buyer company with ID {buyer_company_id} does not exist")
+			elif "product_id_fkey" in error_str or "order_items_product_id_fkey" in error_str:
+				# Извлекаем product_id из ошибки, если возможно
+				import re
+				match = re.search(r'Key \(product_id\)=\((\d+)\)', error_str)
+				if match:
+					product_id = match.group(1)
+					raise ValueError(f"Product with ID {product_id} does not exist. Use null or omit product_id for manual entry.")
+				raise ValueError("One of the products in the order does not exist. Use null or omit product_id for manual entry.")
+			raise ValueError("Database constraint violation")
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error creating deal: %s", e)
+			raise
 
-    async def get_order_by_id_only(self, deal_id: int) -> Optional[Order]:
-        """Проверка существования заказа по ID без проверки доступа."""
-        return await self.repository.get_order_by_id_only(deal_id)
+	async def get_order_by_id_only(self, deal_id: int) -> Optional[Order]:
+		"""Проверка существования заказа по ID без проверки доступа."""
+		return await self.repository.get_order_by_id_only(deal_id)
 
-    async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
-        """Получение сделки по ID"""
-        order = await self.repository.get_order_by_id(deal_id, company_id)
-        if not order:
-            return None
-        return await self._order_to_deal_response(order, company_id)
+	async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
+		"""Получение сделки по ID"""
+		order = await self.repository.get_order_by_id(deal_id, company_id)
+		if not order:
+			return None
+		return await self._order_to_deal_response(order, company_id)
 
-    async def get_deals_by_ids(self, deal_ids: List[int], company_id: int) -> List[DealResponse]:
-        """Получение сделок по списку ID. Возвращает список в том же формате, что и get_deal_by_id."""
-        result: List[DealResponse] = []
-        for deal_id in deal_ids:
-            deal = await self.get_deal_by_id(deal_id, company_id)
-            if deal:
-                result.append(deal)
-        return result
+	async def get_deals_by_ids(self, deal_ids: List[int], company_id: int) -> List[DealResponse]:
+		"""Получение сделок по списку ID. Возвращает список в том же формате, что и get_deal_by_id."""
+		result: List[DealResponse] = []
+		for deal_id in deal_ids:
+			deal = await self.get_deal_by_id(deal_id, company_id)
+			if deal:
+				result.append(deal)
+		return result
 
-    async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
-        """Проверка существования сделки и доступа без тяжелой сериализации."""
-        order = await self.repository.get_order_by_id(deal_id, company_id)
-        return order is not None
+	async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
+		"""Проверка существования сделки и доступа без тяжелой сериализации."""
+		order = await self.repository.get_order_by_id(deal_id, company_id)
+		return order is not None
 
-    async def get_buyer_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение заказов покупателя"""
-        return await self.repository.get_buyer_orders(company_id, skip, limit)
+	async def get_buyer_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
+		"""Получение заказов покупателя"""
+		return await self.repository.get_buyer_orders(company_id, skip, limit)
 
-    async def get_seller_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
-        """Получение заказов продавца"""
-        return await self.repository.get_seller_orders(company_id, skip, limit)
+	async def get_seller_deals(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
+		"""Получение заказов продавца"""
+		return await self.repository.get_seller_orders(company_id, skip, limit)
 
-    async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
-        """Обновление сделки"""
-        try:
-            order = await self.repository.update_order(deal_id, deal_data, company_id)
-            if not order:
-                return None
-            return await self._order_to_deal_response(order, company_id)
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error updating deal: %s", e)
-            raise
+	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
+		"""Обновление сделки"""
+		try:
+			order = await self.repository.update_order(deal_id, deal_data, company_id)
+			if not order:
+				return None
+			return await self._order_to_deal_response(order, company_id)
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error updating deal: %s", e)
+			raise
 
-    async def create_new_deal_version(
-        self, deal_id: int, company_id: int, deal_data: Optional[DealUpdate] = None
-    ) -> Optional[DealResponse]:
-        """Создание новой версии сделки по текущей последней версии с опциональным обновлением полей."""
-        try:
-            order = await self.repository.create_new_order_version(deal_id, company_id)
-            if not order:
-                return None
+	async def create_new_deal_version(
+		self, deal_id: int, company_id: int, deal_data: Optional[DealUpdate] = None
+	) -> Optional[DealResponse]:
+		"""Создание новой версии сделки по текущей последней версии с опциональным обновлением полей."""
+		try:
+			order = await self.repository.create_new_order_version(deal_id, company_id)
+			if not order:
+				return None
 
-            # If request body contains fields, apply them to the newly created latest version.
-            # apply_date_fields=True: bill_date, contract_date, supply_contracts_date обновляются только здесь
-            if deal_data and deal_data.model_dump(exclude_none=True):
-                updated_order = await self.repository.update_order(
-                    deal_id, deal_data, company_id, apply_date_fields=True
-                )
-                if updated_order:
-                    order = updated_order
+			# If request body contains fields, apply them to the newly created latest version.
+			# apply_date_fields=True: bill_date, contract_date, supply_contracts_date обновляются только здесь
+			if deal_data and deal_data.model_dump(exclude_none=True):
+				updated_order = await self.repository.update_order(
+					deal_id, deal_data, company_id, apply_date_fields=True
+				)
+				if updated_order:
+					order = updated_order
 
-            return await self._order_to_deal_response(order, company_id)
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error creating new deal version: %s", e)
-            raise
+			return await self._order_to_deal_response(order, company_id)
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error creating new deal version: %s", e)
+			raise
 
-    async def delete_deal(self, deal_id: int, company_id: int) -> bool:
-        """Удаление сделки"""
-        try:
-            # Проверяем, что сделка существует и пользователь имеет к ней доступ
-            order = await self.repository.get_order_by_id(deal_id, company_id)
-            if not order:
-                return False
-            
-            # Удаляем сделку
-            deleted = await self.repository.delete_order(deal_id, company_id)
-            return deleted
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error deleting deal: %s", e)
-            return False
+	async def delete_deal(self, deal_id: int, company_id: int) -> bool:
+		"""Удаление сделки"""
+		try:
+			# Проверяем, что сделка существует и пользователь имеет к ней доступ
+			order = await self.repository.get_order_by_id(deal_id, company_id)
+			if not order:
+				return False
+			
+			# Удаляем сделку
+			deleted = await self.repository.delete_order(deal_id, company_id)
+			return deleted
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error deleting deal: %s", e)
+			return False
 
-    async def delete_last_deal_version(self, deal_id: int, company_id: int) -> Optional[int]:
-        """Удаление только последней версии сделки."""
-        try:
-            return await self.repository.delete_last_order_version(deal_id, company_id)
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error deleting last deal version: %s", e)
-            return None
+	async def delete_last_deal_version(self, deal_id: int, company_id: int) -> Optional[int]:
+		"""Удаление только последней версии сделки."""
+		try:
+			return await self.repository.delete_last_order_version(deal_id, company_id)
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error deleting last deal version: %s", e)
+			return None
 
-    async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
-        """Добавление документа к сделке"""
-        try:
-            document_dict = document_data.model_dump()
-            return await self.repository.add_document(deal_id, document_dict, file_path, company_id)
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error adding document to deal %s: %s", deal_id, e)
-            raise
+	async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
+		"""Добавление документа к сделке"""
+		try:
+			document_dict = document_data.model_dump()
+			return await self.repository.add_document(deal_id, document_dict, file_path, company_id)
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error adding document to deal %s: %s", deal_id, e)
+			raise
 
-    async def get_document(self, deal_id: int, document_id: int, company_id: int) -> Optional[OrderDocument]:
-        """Получение документа по ID с проверкой доступа."""
-        return await self.repository.get_document_by_id(deal_id, document_id, company_id)
+	async def get_document(self, deal_id: int, document_id: int, company_id: int) -> Optional[OrderDocument]:
+		"""Получение документа по ID с проверкой доступа."""
+		return await self.repository.get_document_by_id(deal_id, document_id, company_id)
 
-    async def get_documents(self, deal_id: int, company_id: int) -> List[OrderDocument]:
-        """Получение списка документов заказа с проверкой доступа."""
-        return await self.repository.get_documents_by_deal_id(deal_id, company_id)
+	async def get_documents(self, deal_id: int, company_id: int) -> List[OrderDocument]:
+		"""Получение списка документов заказа с проверкой доступа."""
+		return await self.repository.get_documents_by_deal_id(deal_id, company_id)
 
-    async def delete_document(self, deal_id: int, document_id: int, company_id: int) -> bool:
-        """Удаление документа из БД (файл из S3 вызывающий код удаляет отдельно)."""
-        return await self.repository.delete_document(deal_id, document_id, company_id)
+	async def delete_document(self, deal_id: int, document_id: int, company_id: int) -> bool:
+		"""Удаление документа из БД (файл из S3 вызывающий код удаляет отдельно)."""
+		return await self.repository.delete_document(deal_id, document_id, company_id)
 
-    async def assign_bill(self, deal_id: int, company_id: int, date=None):
-        """Генерация и присвоение номера и даты счета."""
-        return await self.repository.assign_bill(deal_id, company_id, date)
+	async def assign_bill(self, deal_id: int, company_id: int, date=None):
+		"""Генерация и присвоение номера и даты счета."""
+		return await self.repository.assign_bill(deal_id, company_id, date)
 
-    async def assign_contract(self, deal_id: int, company_id: int, date=None):
-        """Генерация и присвоение номера и даты договора."""
-        return await self.repository.assign_contract(deal_id, company_id, date)
+	async def assign_contract(self, deal_id: int, company_id: int, date=None):
+		"""Генерация и присвоение номера и даты договора."""
+		return await self.repository.assign_contract(deal_id, company_id, date)
 
-    async def assign_supply_contract(self, deal_id: int, company_id: int, date=None):
-        """Генерация и присвоение номера и даты договора поставки."""
-        return await self.repository.assign_supply_contract(deal_id, company_id, date)
+	async def assign_supply_contract(self, deal_id: int, company_id: int, date=None):
+		"""Генерация и присвоение номера и даты договора поставки."""
+		return await self.repository.assign_supply_contract(deal_id, company_id, date)
 
-    async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
-        """Получение компании по ID пользователя"""
-        return await self.repository.get_company_by_user_id(user_id)
+	async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
+		"""Получение компании по ID пользователя"""
+		return await self.repository.get_company_by_user_id(user_id)
 
-    async def get_units_of_measurement(self) -> List:
-        """Получение единиц измерения"""
-        return await self.repository.get_units_of_measurement()
+	async def get_units_of_measurement(self) -> List:
+		"""Получение единиц измерения"""
+		return await self.repository.get_units_of_measurement()
 
-    async def _order_to_deal_response(self, order: Order, company_id: Optional[int] = None) -> DealResponse:
-        """Преобразование Order в DealResponse с учетом роли компании (buyer/seller)"""
-        logger.debug("_order_to_deal_response для заказа %s", order.id)
-        
-        try:
-            # Преобразуем позиции заказа
-            logger.debug("Обрабатываем %s позиций заказа", len(order.order_items))
-            items = []
-            for item in order.order_items:
-                # Рассчитываем сумму если она не задана
-                amount = item.amount if hasattr(item, 'amount') and item.amount else item.quantity * item.price
-                
-                items.append(OrderItemResponse(
-                    id=item.id,
-                    order_id=order.id,
-                    product_name=item.product_name,
-                    product_slug=item.product_slug,
-                    product_description=item.product_description,
-                    product_article=item.product_article or "",
-                    logo_url=item.logo_url,
-                    quantity=item.quantity,
-                    unit_of_measurement=item.unit_of_measurement,
-                    price=item.price,
-                    amount=amount,
-                    position=item.position,
-                    created_at=item.created_at,
-                    updated_at=item.updated_at
-                ))
-        
-            # Информация о компаниях - загружаем отдельно
-            logger.debug("Загружаем компании")
-            buyer_company_info = None
-            seller_company_info = None
-            
-            # Загружаем компании
-            logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
-            buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
-            logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
-            seller_company = await self.repository.get_company_by_id(order.seller_company_id)
+	async def _order_to_deal_response(self, order: Order, company_id: Optional[int] = None) -> DealResponse:
+		"""Преобразование Order в DealResponse с учетом роли компании (buyer/seller)"""
+		logger.debug("_order_to_deal_response для заказа %s", order.id)
+		
+		try:
+			# Преобразуем позиции заказа
+			logger.debug("Обрабатываем %s позиций заказа", len(order.order_items))
+			items = []
+			for item in order.order_items:
+				# Рассчитываем сумму если она не задана
+				amount = item.amount if hasattr(item, 'amount') and item.amount else item.quantity * item.price
+				
+				items.append(OrderItemResponse(
+					id=item.id,
+					order_id=order.id,
+					product_name=item.product_name,
+					product_slug=item.product_slug,
+					product_description=item.product_description,
+					product_article=item.product_article or "",
+					logo_url=item.logo_url,
+					quantity=item.quantity,
+					unit_of_measurement=item.unit_of_measurement,
+					price=item.price,
+					amount=amount,
+					position=item.position,
+					created_at=item.created_at,
+					updated_at=item.updated_at
+				))
+		
+			# Информация о компаниях - загружаем отдельно
+			logger.debug("Загружаем компании")
+			buyer_company_info = None
+			seller_company_info = None
+			
+			# Загружаем компании
+			logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
+			buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
+			logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
+			seller_company = await self.repository.get_company_by_id(order.seller_company_id)
 
-            def _make_company_info(company, owner_name: str, vat_rate_override: Optional[int] = None) -> CompanyInDealResponse:
-                return CompanyInDealResponse(
-                    id=company.id,
-                    company_name=company.name,
-                    name=owner_name or "",
-                    slug=company.slug or "",
-                    inn=company.inn,
-                    phone=company.phone or "",
-                    email=company.email or "",
-                    legal_address=company.legal_address or "",
-                    production_address=getattr(company, "production_address", None) or "",
-                    index=getattr(company, "index", None),
-                    kpp=company.kpp,
-                    current_account_number=company.current_account_number,
-                    correspondent_bank_account=company.correspondent_bank_account,
-                    bank_name=company.bank_name,
-                    bic=company.bic,
-                    vat_rate=vat_rate_override if vat_rate_override is not None else company.vat_rate,
-                )
+			def _make_company_info(company, owner_name: str, vat_rate_override: Optional[int] = None) -> CompanyInDealResponse:
+				return CompanyInDealResponse(
+					id=company.id,
+					company_name=company.name,
+										company_type=company.type,
+					name=owner_name or "",
+					slug=company.slug or "",
+					inn=company.inn,
+					phone=company.phone or "",
+					email=company.email or "",
+					legal_address=company.legal_address or "",
+					production_address=getattr(company, "production_address", None) or "",
+					index=getattr(company, "index", None),
+					kpp=company.kpp,
+					current_account_number=company.current_account_number,
+					correspondent_bank_account=company.correspondent_bank_account,
+					bank_name=company.bank_name,
+					bic=company.bic,
+					vat_rate=vat_rate_override if vat_rate_override is not None else company.vat_rate,
+				)
 
-            buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
-            seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
-            buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
-            seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
-            
-            logger.debug("Создаем DealResponse")
-            closing_docs = order.closing_documents if order.closing_documents is not None else []
-            others_docs = order.others_documents if order.others_documents is not None else []
+			buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
+			seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
+			buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
+			seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
+			
+			logger.debug("Создаем DealResponse")
+			closing_docs = order.closing_documents if order.closing_documents is not None else []
+			others_docs = order.others_documents if order.others_documents is not None else []
 
-            role: Optional[DealRole] = None
-            if company_id is not None:
-                if company_id == order.buyer_company_id:
-                    role = DealRole.BUYER
-                elif company_id == order.seller_company_id:
-                    role = DealRole.SELLER
+			role: Optional[DealRole] = None
+			if company_id is not None:
+				if company_id == order.buyer_company_id:
+					role = DealRole.BUYER
+				elif company_id == order.seller_company_id:
+					role = DealRole.SELLER
 
-            # bill — объект для фронтенда (number, reason, payment_terms_contract, delivery_terms_contract, additional_info, officials).
-            # officials, reason, payment_terms_contract, delivery_terms_contract и additional_info приходят только с клиента при update
-            officials_list = []
-            stored = getattr(order, "bill_officials", None)
-            if stored and isinstance(stored, list):
-                officials_list = [
-                    OfficialsInBillResponse(
-                        id=o.get("id") if isinstance(o, dict) else getattr(o, "id", None),
-                        full_name=o.get("full_name") or o.get("name", "") if isinstance(o, dict) else getattr(o, "full_name", ""),
-                        position=o.get("position", "") if isinstance(o, dict) else getattr(o, "position", ""),
-                    )
-                    for o in stored
-                ]
-            ct_raw = getattr(order, "contract_terms_contract", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
-            try:
-                contract_terms_contract = ContractTerms(ct_raw)
-            except ValueError:
-                contract_terms_contract = ContractTerms.STANDARD_DELIVERY_SUPPLIER
-            cto_raw = getattr(order, "contract_terms_offer", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
-            try:
-                contract_terms_offer = ContractTerms(cto_raw)
-            except ValueError:
-                contract_terms_offer = ContractTerms.STANDARD_DELIVERY_SUPPLIER
-            bill_obj = BillInDealResponse(
-                number=order.bill_number or "",
-                reason=order.bill_reason or "",
-                payment_terms_contract=order.payment_terms_contract or "",
-                delivery_terms_contract=getattr(order, "delivery_terms_contract", None) or "",
-                additional_info=order.additional_info or "",
-                contract_terms_contract=contract_terms_contract,
-                contract_terms_text_contract=getattr(order, "contract_terms_text_contract", None) or "",
-                payment_terms_offer=getattr(order, "payment_terms_offer", None) or "",
-                contract_terms_offer=contract_terms_offer,
-                contract_terms_text_offer=getattr(order, "contract_terms_text_offer", None) or "",
-                additional_info_offer=getattr(order, "additional_info_offer", None) or "",
-                officials=officials_list,
-            )
-            supply_contracts_list = []
-            if order.supply_contracts_number or order.supply_contracts_date:
-                supply_contracts_list.append(
-                    SupplyContractItem(number=order.supply_contracts_number, date=order.supply_contracts_date)
-                )
-            contract_list = []
-            if order.contract_number or order.contract_date:
-                contract_list.append(
-                    ContractItem(number=order.contract_number, date=order.contract_date)
-                )
+			# bill — объект для фронтенда (number, reason, payment_terms_contract, delivery_terms_contract, additional_info, officials).
+			# officials, reason, payment_terms_contract, delivery_terms_contract и additional_info приходят только с клиента при update
+			officials_list = []
+			stored = getattr(order, "bill_officials", None)
+			if stored and isinstance(stored, list):
+				officials_list = [
+					CompanyOfficialInDealResponse(
+						id=o.get("id") if isinstance(o, dict) else getattr(o, "id", None),
+						full_name=o.get("full_name") or o.get("name", "") if isinstance(o, dict) else getattr(o, "full_name", ""),
+						position=o.get("position", "") if isinstance(o, dict) else getattr(o, "position", ""),
+					)
+					for o in stored
+				]
+			ct_raw = getattr(order, "contract_terms_contract", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
+			try:
+				contract_terms_contract = ContractTerms(ct_raw)
+			except ValueError:
+				contract_terms_contract = ContractTerms.STANDARD_DELIVERY_SUPPLIER
+			cto_raw = getattr(order, "contract_terms_offer", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
+			try:
+				contract_terms_offer = ContractTerms(cto_raw)
+			except ValueError:
+				contract_terms_offer = ContractTerms.STANDARD_DELIVERY_SUPPLIER
+			bill_obj = BillInDealResponse(
+				number=order.bill_number or "",
+				reason=order.bill_reason or "",
+				payment_terms_contract=order.payment_terms_contract or "",
+				delivery_terms_contract=getattr(order, "delivery_terms_contract", None) or "",
+				additional_info=order.additional_info or "",
+				contract_terms_contract=contract_terms_contract,
+				contract_terms_text_contract=getattr(order, "contract_terms_text_contract", None) or "",
+				payment_terms_offer=getattr(order, "payment_terms_offer", None) or "",
+				contract_terms_offer=contract_terms_offer,
+				contract_terms_text_offer=getattr(order, "contract_terms_text_offer", None) or "",
+				additional_info_offer=getattr(order, "additional_info_offer", None) or "",
+				officials=officials_list,
+			)
+			supply_officials = []
+			stored_supply_officials = getattr(order, "supply_contract_officials", None)
 
-            return DealResponse(
-                id=order.id,
-                version=order.version,
-                buyer_company_id=order.buyer_company_id,
-                seller_company_id=order.seller_company_id,
-                buyer_order_number=order.buyer_order_number,
-                seller_order_number=order.seller_order_number,
-                status=DealStatus(order.status.value),
-                total_amount=order.total_amount,
-                total_amount_word=getattr(order, "total_amount_word", "") or "",
-                total_amount_excl_vat=getattr(order, "total_amount_excl_vat", 0.0),
-                amount_vat_rate=getattr(order, "amount_vat_rate", 0.0),
-                amount_with_vat_rate=getattr(order, "amount_with_vat_rate", True),
-                comments=order.comments or "",
-                contract_date=order.contract_date,
-                bill_date=order.bill_date,
-                supply_contracts_date=order.supply_contracts_date,
-                closing_documents=closing_docs,
-                others_documents=others_docs,
-                created_at=order.created_at,
-                updated_at=order.updated_at,
-                role=role or DealRole.BUYER,
-                contract=contract_list,
-                bill=bill_obj,
-                supply_contracts=supply_contracts_list,
-                items=items,
-                buyer_company=buyer_company_info,
-                seller_company=seller_company_info
-            )
-        
-        except Exception as e:
-            logger.exception("Ошибка в _order_to_deal_response для заказа %s: %s (тип: %s)", order.id, e, type(e).__name__)
-            raise
+			if stored_supply_officials and isinstance(stored_supply_officials, list):
+				supply_officials = [
+					CompanyOfficialInDealResponse(**official)
+					for official in stored_supply_officials
+				]
 
-    async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
-        """Создание заказа из корзины (соответствует фронтенду)"""
-        try:
-            # Группируем товары по продавцам
-            sellers = {}
-            for item in checkout_data.get("items", []):
-                seller_id = item.get("companyId")
-                if seller_id not in sellers:
-                    sellers[seller_id] = {
-                        "seller_company_id": seller_id,
-                        "seller_name": item.get("companyName"),
-                        "seller_slug": item.get("companySlug"),
-                        "items": []
-                    }
-                
-                sellers[seller_id]["items"].append(item)
-            
-            # Создаем заказы для каждого продавца
-            created_deals = []
-            for seller_id, seller_data in sellers.items():
-                # Преобразуем данные корзины в формат DealCreate
-                # Используем article из корзины для поиска продукта
-                from app.api.products.repositories.company_products_repository import CompanyProductsRepository
-                products_repo = CompanyProductsRepository(self.session)
-                
-                deal_items = []
-                for i, item in enumerate(seller_data["items"], 1):
-                    # Используем article из корзины
-                    article = str(item.get("article", "")) if item.get("article") else None
-                    
-                    deal_item = {
-                        "quantity": item.get("quantity"),
-                        "position": i
-                    }
-                    
-                    if article:
-                        # Если есть article, используем его для поиска продукта
-                        deal_item["article"] = article
-                    else:
-                        # Ручной ввод - все поля обязательны
-                        deal_item.update({
-                            "product_name": item.get("productName"),
-                            "product_slug": item.get("slug"),
-                            "product_description": item.get("description"),
-                            "product_article": str(item.get("article", "")),
-                            "logo_url": item.get("logoUrl"),
-                            "unit_of_measurement": item.get("units"),
-                            "price": item.get("price")
-                        })
-                    
-                    deal_items.append(deal_item)
-                
-                deal_data = DealCreate(
-                    seller_company_id=seller_id,
-                    items=deal_items,
-                    comments=checkout_data.get("comments")
-                )
-                
-                # Создаем заказ
-                deal = await self.create_deal(deal_data, buyer_company_id)
-                if deal:
-                    created_deals.append(deal)
-            
-            # Возвращаем первый созданный заказ (или можно вернуть список всех)
-            return created_deals[0] if created_deals else None
-            
-        except Exception as e:
-            await self.session.rollback()
-            logger.exception("Error creating deal from checkout: %s", e)
-            return None
+			supply_contract_obj = SupplyContractInDealResponse(
+				number=order.supply_contract_number,
+				officials=supply_officials,
+			)
+
+			contract_list = []
+			if order.contract_number or order.contract_date:
+				contract_list.append(
+					ContractItem(number=order.contract_number, date=order.contract_date)
+				)
+
+			return DealResponse(
+				id=order.id,
+				version=order.version,
+				buyer_company_id=order.buyer_company_id,
+				seller_company_id=order.seller_company_id,
+				buyer_order_number=order.buyer_order_number,
+				seller_order_number=order.seller_order_number,
+				status=DealStatus(order.status.value),
+				total_amount=order.total_amount,
+				total_amount_word=getattr(order, "total_amount_word", "") or "",
+				total_amount_excl_vat=getattr(order, "total_amount_excl_vat", 0.0),
+				amount_vat_rate=getattr(order, "amount_vat_rate", 0.0),
+				amount_with_vat_rate=getattr(order, "amount_with_vat_rate", True),
+				comments=order.comments or "",
+				contract_date=order.contract_date,
+				bill_date=order.bill_date,
+				supply_contract_date=order.supply_contract_date,
+				closing_documents=closing_docs,
+				others_documents=others_docs,
+				created_at=order.created_at,
+				updated_at=order.updated_at,
+				role=role or DealRole.BUYER,
+				contract=contract_list,
+				bill=bill_obj,
+				supply_contract=supply_contract_obj,
+				items=items,
+				buyer_company=buyer_company_info,
+				seller_company=seller_company_info
+			)
+		
+		except Exception as e:
+			logger.exception("Ошибка в _order_to_deal_response для заказа %s: %s (тип: %s)", order.id, e, type(e).__name__)
+			raise
+
+	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
+		"""Создание заказа из корзины (соответствует фронтенду)"""
+		try:
+			# Группируем товары по продавцам
+			sellers = {}
+			for item in checkout_data.get("items", []):
+				seller_id = item.get("companyId")
+				if seller_id not in sellers:
+					sellers[seller_id] = {
+						"seller_company_id": seller_id,
+						"seller_name": item.get("companyName"),
+						"seller_slug": item.get("companySlug"),
+						"items": []
+					}
+				
+				sellers[seller_id]["items"].append(item)
+			
+			# Создаем заказы для каждого продавца
+			created_deals = []
+			for seller_id, seller_data in sellers.items():
+				# Преобразуем данные корзины в формат DealCreate
+				# Используем article из корзины для поиска продукта
+				from app.api.products.repositories.company_products_repository import CompanyProductsRepository
+				products_repo = CompanyProductsRepository(self.session)
+				
+				deal_items = []
+				for i, item in enumerate(seller_data["items"], 1):
+					# Используем article из корзины
+					article = str(item.get("article", "")) if item.get("article") else None
+					
+					deal_item = {
+						"quantity": item.get("quantity"),
+						"position": i
+					}
+					
+					if article:
+						# Если есть article, используем его для поиска продукта
+						deal_item["article"] = article
+					else:
+						# Ручной ввод - все поля обязательны
+						deal_item.update({
+							"product_name": item.get("productName"),
+							"product_slug": item.get("slug"),
+							"product_description": item.get("description"),
+							"product_article": str(item.get("article", "")),
+							"logo_url": item.get("logoUrl"),
+							"unit_of_measurement": item.get("units"),
+							"price": item.get("price")
+						})
+					
+					deal_items.append(deal_item)
+				
+				deal_data = DealCreate(
+					seller_company_id=seller_id,
+					items=deal_items,
+					comments=checkout_data.get("comments")
+				)
+				
+				# Создаем заказ
+				deal = await self.create_deal(deal_data, buyer_company_id)
+				if deal:
+					created_deals.append(deal)
+			
+			# Возвращаем первый созданный заказ (или можно вернуть список всех)
+			return created_deals[0] if created_deals else None
+			
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error creating deal from checkout: %s", e)
+			return None

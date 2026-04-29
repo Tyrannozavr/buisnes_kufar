@@ -42,20 +42,13 @@ export interface Company {
 	index?: string
 }
 
-// Base type for company officials
-export interface CompanyOfficialBase {
-  position: string
-	full_name: string
-	is_base?: boolean
-	base_document?: string
-	base_document_name?: string
-}
 
 // Extended type for company officials with additional properties
-export interface CompanyOfficial extends CompanyOfficialBase {
-  id: number
-  company_id: number
-	is_base?: boolean
+export interface CompanyOfficial {
+	id: number
+	position: string
+	full_name: string
+	is_base: boolean
 	base_document?: string
 	base_document_name?: string
 }

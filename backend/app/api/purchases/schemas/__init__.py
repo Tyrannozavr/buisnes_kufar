@@ -165,19 +165,34 @@ class ContractItem(BaseModel):
 	date: Optional[datetime] = Field(None, description="Дата договора", validation_alias=AliasChoices("date", "contract_date"))
 
 
-class SupplyContractItem(BaseModel):
-	"""Элемент договора поставки в массиве supply_contracts"""
+class SupplyContractNumberResponse(BaseModel):
+	"""Номер договора поставки в ответе сделки (соответствует фронтенду SupplyContractNumberResponse)"""
 	model_config = {"extra": "ignore", "from_attributes": True}
-	number: Optional[str] = Field(None, description="Номер договора поставки", validation_alias=AliasChoices("number", "supply_contracts_number"))
-	date: Optional[datetime] = Field(None, description="Дата договора поставки", validation_alias=AliasChoices("date", "supply_contracts_date"))
+
+	supply_contract_number: str = Field("", description="Номер договора поставки")
+	supply_contract_date: Optional[datetime] = Field(None, description="Дата договора поставки", validation_alias=AliasChoices("date", "supply_contract_date"))
 
 
-class OfficialsInBillResponse(BaseModel):
-    """Должностное лицо для счёта (соответствует фронтенду OfficialsResponse)"""
-    model_config = {"extra": "ignore", "from_attributes": True}
-    id: Optional[int] = Field(None, description="ID сотрудника (в ответе — всегда, при создании — может отсутствовать)")
-    full_name: str = Field(..., description="ФИО", validation_alias=AliasChoices("full_name", "name"))
-    position: str = Field("", description="Должность")
+class CompanyOfficialInDealResponse(BaseModel):
+	"""Должностное лицо для договора поставки и счета (соответствует фронтенду CompanyOfficials)"""
+	
+	model_config = {"extra": "ignore", "from_attributes": True}
+
+	id: Optional[int] = Field(None, description="ID сотрудника (в ответе — всегда, при создании — может отсутствовать)")
+	company_id: int = Field(..., description="ID компании")
+	full_name: str = Field(..., description="ФИО", validation_alias=AliasChoices("full_name", "name"))
+	position: str = Field("", description="Должность")
+
+	is_base: bool = Field(False, description="Есть ли основание для должностного лица")
+	base_document: str = Field("", description="Основание для должностного лица")
+	base_document_name: str = Field("", description="Наименование основания для должностного лица")
+
+
+class SupplyContractInDealResponse(BaseModel):
+	"""Договор поставки в ответе сделки (соответствует фронтенду SupplyContractResponse)"""
+	model_config = {"extra": "ignore", "from_attributes": True}
+	number: str = Field("", description="Номер договора поставки")
+	officials: List[CompanyOfficialInDealResponse] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
 
 
 class BillUpdateInDeal(BaseModel):
@@ -213,7 +228,24 @@ class BillUpdateInDeal(BaseModel):
     contract_terms_offer: Optional[ContractTerms] = Field(None, description="Вариант условий оферты")
     contract_terms_text_offer: Optional[str] = Field(None, description="Текст условий оферты")
     additional_info_offer: Optional[str] = Field(None, description="Дополнительная информация (оферта)")
-    officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
+    officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
+
+
+class SupplyContractInUpdate(BaseModel):
+	"""Договор поставки для обновления (соответствует фронтенду SupplyContractInDealResponse)"""
+	model_config = ConfigDict(
+		extra="ignore",
+		from_attributes=True,
+		json_schema_extra={
+			"example": {
+				"number": "ДП-001",
+				"officials": [{"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор", "is_base": True, "base_document": "приказа", "base_document_name": "123456789фывафыв"}, {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер", "is_base": False, "base_document": "устава", "base_document_name": "1234567890фывафы"}]
+			}
+		}
+	)
+
+	number: str = Field("", description="Номер договора поставки")
+	officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
 
 
 class CompanyInDealUpdate(BaseModel):
@@ -267,7 +299,7 @@ class DealUpdate(BaseModel):
             "contract_terms_offer, contract_terms_text_offer, additional_info_offer, officials"
         ),
     )
-    supply_contracts: Optional[List[SupplyContractItem]] = Field(None, description="Договоры поставки [{number, date}]")
+    supply_contract: Optional["SupplyContractInUpdate"] = Field(None, description="Договор поставки: number, officials")
     closing_documents: Optional[List[Any]] = Field(None, description="Закрывающие документы")
     others_documents: Optional[List[Any]] = Field(None, description="Прочие документы")
     seller_company: Optional["CompanyInDealUpdate"] = Field(None, description="Частичное обновление company-данных продавца в контексте сделки")
@@ -322,52 +354,53 @@ class BillInDealResponse(BaseModel):
         description="Текст условий оферты",
     )
     additional_info_offer: str = Field("", description="Дополнительная информация (оферта)")
-    officials: List["OfficialsInBillResponse"] = Field(default_factory=list, description="Должностные лица")
+    officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
 class CompanyInDealResponse(BaseModel):
-    """Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, production_address, account_number, correspondent_bank_account, bank_name)."""
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True,
-        "json_schema_extra": {
-            "example": {
-                "company_id": 1,
-                "company_name": "ООО Пример",
-                "owner_name": "Иванов Иван Иванович",
-                "slug": "ooo-primer",
-                "inn": "7707083893",
-                "phone": "+79990000000",
-                "email": "info@example.ru",
-                "legal_address": "г. Москва, ул. Примерная, д. 1",
-                "production_address": "г. Москва, ул. Заводская, д. 5",
-                "index": "101000",
-                "kpp": "770701001",
-                "account_number": "40702810100000000000",
-                "correspondent_bank_account": "30101810100000000593",
-                "bank_name": "ПАО Сбербанк",
-                "bic": "044525225",
-                "vat_rate": 20,
-            }
-        },
-    }
+	"""Схема компании в контексте сделки (соответствует фронтенду CompanyInDealResponse: owner_name, company_id, production_address, account_number, correspondent_bank_account, bank_name)."""
+	model_config = {
+			"from_attributes": True,
+			"populate_by_name": True,
+			"json_schema_extra": {
+					"example": {
+							"company_id": 1,
+							"company_name": "ООО Пример",
+							"owner_name": "Иванов Иван Иванович",
+							"slug": "ooo-primer",
+							"inn": "7707083893",
+							"phone": "+79990000000",
+							"email": "info@example.ru",
+							"legal_address": "г. Москва, ул. Примерная, д. 1",
+							"production_address": "г. Москва, ул. Заводская, д. 5",
+							"index": "101000",
+							"kpp": "770701001",
+							"account_number": "40702810100000000000",
+							"correspondent_bank_account": "30101810100000000593",
+							"bank_name": "ПАО Сбербанк",
+							"bic": "044525225",
+							"vat_rate": 20,
+					}
+			},
+	}
 
-    id: int = Field(..., description="ID компании", serialization_alias="company_id")
-    company_name: str = Field(..., description="Название компании")
-    name: str = Field(..., description="Имя владельца компании", serialization_alias="owner_name")
-    slug: str = Field(..., description="Slug компании")
-    inn: Optional[str] = Field(None, description="ИНН компании")
-    phone: str = Field("", description="Телефон компании")
-    email: str = Field("", description="Email компании")
-    legal_address: str = Field("", description="Юридический адрес компании")
-    production_address: str = Field("", description="Адрес производства")
-    index: Optional[str] = Field(None, description="Почтовый индекс")
-    kpp: Optional[str] = Field(None, description="КПП")
-    current_account_number: Optional[str] = Field(None, description="Расчётный счёт", serialization_alias="account_number")
-    correspondent_bank_account: Optional[str] = Field(None, description="Корреспондентский счёт")
-    bank_name: Optional[str] = Field(None, description="Наименование банка")
-    bic: Optional[str] = Field(None, description="БИК")
-    vat_rate: Optional[int] = Field(None, description="Ставка НДС")
+	id: int = Field(..., description="ID компании", serialization_alias="company_id")
+	company_name: str = Field(..., description="Название компании")
+	company_type: str = Field(..., description="Тип компании")
+	name: str = Field(..., description="Имя владельца компании", serialization_alias="owner_name")
+	slug: str = Field(..., description="Slug компании")
+	inn: Optional[str] = Field(None, description="ИНН компании")
+	phone: str = Field("", description="Телефон компании")
+	email: str = Field("", description="Email компании")
+	legal_address: str = Field("", description="Юридический адрес компании")
+	production_address: str = Field("", description="Адрес производства")
+	index: Optional[str] = Field(None, description="Почтовый индекс")
+	kpp: Optional[str] = Field(None, description="КПП")
+	current_account_number: Optional[str] = Field(None, description="Расчётный счёт", serialization_alias="account_number")
+	correspondent_bank_account: Optional[str] = Field(None, description="Корреспондентский счёт")
+	bank_name: Optional[str] = Field(None, description="Наименование банка")
+	bic: Optional[str] = Field(None, description="БИК")
+	vat_rate: Optional[int] = Field(None, description="Ставка НДС")
 
 
 class DealRole(str, Enum):
@@ -396,7 +429,7 @@ class DealResponse(BaseModel):
                 "comments": None,
                 "contract_date": None,
                 "bill_date": None,
-                "supply_contracts_date": None,
+                "supply_contract_date": None,
                 "closing_documents": [],
                 "others_documents": [],
                 "created_at": "2025-01-01T12:00:00",
@@ -417,7 +450,13 @@ class DealResponse(BaseModel):
                     "additional_info_offer": "",
                     "officials": [],
                 },
-                "supply_contracts": [],
+                "supply_contract": {
+                    "number": "ДП-001",
+                    "officials": [
+                        {"id": 1, "full_name": "Иванов И.И.", "position": "Генеральный директор", "is_base": True, "base_document": "приказа", "base_document_name": "123456789фывафыв"},
+                        {"id": 2, "full_name": "Петрова П.П.", "position": "Главный бухгалтер", "is_base": False, "base_document": "устава", "base_document_name": "1234567890фывафы"}
+                    ]
+                },
                 "items": [],
                 "buyer_company": {
                     "company_id": 10,
@@ -480,7 +519,7 @@ class DealResponse(BaseModel):
     comments: Optional[str]
     contract_date: Optional[datetime] = None
     bill_date: Optional[datetime] = None
-    supply_contracts_date: Optional[datetime] = None
+    supply_contract_date: Optional[datetime] = None
     closing_documents: List[Any] = Field(default_factory=list, description="Закрывающие документы (пока пустой список)")
     others_documents: List[Any] = Field(default_factory=list, description="Прочие документы (пока пустой список)")
     created_at: datetime
@@ -501,7 +540,10 @@ class DealResponse(BaseModel):
             "contract_terms_offer, contract_terms_text_offer, additional_info_offer, officials"
         ),
     )
-    supply_contracts: List["SupplyContractItem"] = Field(default_factory=list, description="Договоры поставки [{number, date}]")
+    supply_contract: Optional["SupplyContractInDealResponse"] = Field(
+        None,
+        description="Договор поставки: number, officials (id, full_name, position, is_base, base_document, base_document_name)",
+    )
 
     # Связанные данные
     items: List[OrderItemResponse] = Field(default_factory=list)
@@ -599,15 +641,6 @@ class ContractResponse(BaseModel):
     """Ответ: номер и дата договора."""
     contract_number: str
     contract_date: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class SupplyContractResponse(BaseModel):
-    """Ответ: номер и дата договора поставки."""
-    supply_contracts_number: str
-    supply_contracts_date: datetime
 
     class Config:
         from_attributes = True

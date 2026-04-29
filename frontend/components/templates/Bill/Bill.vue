@@ -771,6 +771,9 @@ const fillBillData = () => {
 			id: official.id ,
 			position: official.position,
 			name: official.name,
+			isBase: official.isBase,
+			baseDocument: official.baseDocument,
+			baseDocumentName: official.baseDocumentName,
 		}))
 
     billData.value = {

@@ -228,7 +228,6 @@ onBeforeUnmount(() => {
 		}"
 	>
 		<UButton
-			:disabled="isDisabled"
 			label="Редактор шаблона договора поставки"
 			color="neutral"
 			variant="subtle"

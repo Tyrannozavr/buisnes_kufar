@@ -44,6 +44,11 @@ export const enum Editor {
 	CONTRACT_TERMS_CHECK_OFFER = 'contractTermsCheckOffer',
 	PAYMENT_TERMS_CHECK_OFFER = 'paymentTermsCheckOffer',
 	ADDITIONAL_INFO_CHECK_OFFER = 'additionalInfoCheckOffer',
+
+	//supply contract
+	COVER_LETTER_CHECK = 'coverLetterCheck',
+	SUPPLIER_DETAILS_CHECK = 'supplierDetailsCheck',
+	BUYER_DETAILS_CHECK = 'buyerDetailsCheck',
 }
 
 export const enum TemplateElement {

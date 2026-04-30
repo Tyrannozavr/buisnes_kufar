@@ -34,7 +34,11 @@ interface StateMap {
 	contractTermsCheckOffer: boolean
 	paymentTermsCheckOffer: boolean
 	additionalInfoCheckOffer: boolean
-	
+
+	//supply contract
+	coverLetterCheck: boolean
+	supplierDetailsCheck: boolean
+	buyerDetailsCheck: boolean
 
 	//TemplateElement
 	htmlOrder: HTMLElement | null

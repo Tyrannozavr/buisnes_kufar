@@ -18,10 +18,14 @@
 			<div class="a4-pages">
 				<div class="a4-page_document">
 					<vue-document-editor 
-					v-model:content="htmlContent" 
-					:editable="false" 
-					:do_not_break="(element) => element.tagName === 'TABLE' || element.tagName === 'TR' || element.tagName === 'TD' || element.tagName === 'TH'"/>
+						v-model:content="htmlContent" 
+						:editable="false" 
+						:do_not_break="(element) => element.tagName === 'TABLE' || element.tagName === 'TR' || element.tagName === 'TD' || element.tagName === 'TH'"
+						:overlay="coverLetterCheck && activeTab === '2' ? renderOverlay : undefined"
+						:page_margins="'15mm 10mm 15mm 20mm'"
+					/>
 				</div>
+
 			</div>
 		</div>
 	</div>
@@ -38,7 +42,11 @@ const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
 const htmlContent = ref([""])
 const slotContainerRef = ref<HTMLElement | null>(null)
 
+//supply contract
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
+const coverLetterCheck = useTypedState(Editor.COVER_LETTER_CHECK)
+const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
+const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
 
 const fillHtmlContentFromSlot = () => {
 	if (!slotContainerRef.value) return
@@ -48,7 +56,7 @@ const fillHtmlContentFromSlot = () => {
 
 // Делаем зависимость от переменных, меняющих значения внутри слота
 watch(
-	[supplyContractHTML, slotContainerRef],
+	[supplyContractHTML, slotContainerRef, supplierDetailsCheck, buyerDetailsCheck],
 	() => {
 		// Используем nextTick, чтобы дождаться, когда Vue отрендерит компоненты в слоте
 		nextTick(() => {
@@ -57,6 +65,16 @@ watch(
 	},
 	{ deep: true, immediate: true }
 )
+
+// overlay для колонтитула supply contract
+const renderOverlay = (page: number, total: number) => `
+	<div style="display:flex;flex-direction:column;height:100%;justify-content:flex-end;">
+		<div style="display: flex; justify-content: space-around; position: relative; top: 7mm; text-align:center;font-size:12px;color: #666;margin-top: 10px;">
+			<span>Поставщик:_______________</span>
+			<span>Покупатель:_______________</span>
+		</div>
+	</div>
+`
 </script>
 
 <style scoped>

@@ -16,9 +16,11 @@ import { TextAlign } from "@tiptap/extension-text-align"
 import { TableKit } from "@tiptap/extension-table"
 import type { DropdownMenuItem } from "@nuxt/ui"
 import mammoth from "mammoth"
+import { TemplateElement } from "~/constants/keys"
 
 const templateEditorOpen = ref(false)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
 
 const DEFAULT_FONT_SIZE = "14px"
 const fontSize = ref<string>(DEFAULT_FONT_SIZE)
@@ -152,8 +154,8 @@ const useDefaultTemplate = () => {
 // сохранение договора поставки
 const saveSupplyContract = () => {
 	templateEditorOpen.value = false
+	supplyContractHTML.value = editor.getHTML()
 }
-
 
 //в следующих трех функциях не вставлять пробелы и табуляции в сроках с таблицами (особенности работы библиотеки Tiptap)
 const tableBody = (data: any) => {

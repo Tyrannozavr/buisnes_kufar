@@ -39,7 +39,7 @@ interface StateMap {
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null
-	htmlSupplyContract: HTMLElement | null
+	htmlSupplyContract: string | null
 	htmlDogovorUslug: HTMLElement | null
 }
 

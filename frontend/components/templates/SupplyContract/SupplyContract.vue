@@ -1,26 +1,63 @@
 <script setup lang="ts">
 import { Editor, TemplateElement } from "~/constants/keys"
+import { normalizePrice } from "~/utils/normalize"
+import type { ProductsInOrder } from "~/types/order"
 
+const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
+const specificationHTML = useTypedState(TemplateElement.SPECIFICATION)
 const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
 const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 
-watch(
-	supplyContractHTML,
-	(newVal) => {
-		console.log(newVal)
-	},
-	{ deep: true, immediate: true }
-)
+// watch(
+// 	supplyContractHTML,
+// 	(newVal) => {
+// 		},
+// 	{ deep: true, immediate: true }
+// )
 
 // mocks
 const sellerCompanyType = ref<"ООО" | "ИП">("ООО")
 const buyerCompanyType = ref<"ООО" | "ИП">("ИП")
+
+/** Демо-строки таблицы товаров (договор поставки) */
+const MOCK_SUPPLY_CONTRACT_PRODUCTS: ProductsInOrder[] = [
+	{
+		name: 'Стол офисный «Альфа»',
+		article: 'OFF-DESK-001',
+		quantity: 2,
+		units: 'шт.',
+		price: 8500,
+		amount: 17000,
+	},
+	{
+		name: 'Кресло руководителя «Комфорт»',
+		article: 'CHR-EXE-12',
+		quantity: 3,
+		units: 'шт.',
+		price: 2500,
+		amount: 7500,
+	},
+]
+
+const billData = ref({
+	products: [...MOCK_SUPPLY_CONTRACT_PRODUCTS],
+	amountExclVat: 24500,
+	amountVatRate: 4900,
+	amount: 29400,
+})
+
+const removeProduct = (product: ProductsInOrder) => {
+	const index = billData.value.products.indexOf(product)
+	if (index === -1) return
+	billData.value.products.splice(index, 1)
+}
 </script>
 
 <template>
 	<!-- Преамбула -->
-	<div>
+	<div v-if="supplyContractType === 'supplyContract'">
 		<div>
 			<h1 class="text-center font-bold">ДОГОВОР ПОСТАВКИ № ___________</h1>
 		</div>
@@ -62,13 +99,114 @@ const buyerCompanyType = ref<"ООО" | "ИП">("ИП")
 			</p>
 		</div>
 	</div>
+	<div v-else-if="supplyContractType === 'specification'">
+		<div>
+			<div class="text-right block">
+				<p>Приложение</p>
+				<p>к договору № {НомерДоговора}</p>
+				<p>от {ДатаДоговора}</p>
+			</div>
+		</div>
+		<div>
+			<h1 class="text-center ">Спецификация № {НомерСпецификации}</h1>
+		</div>
+	</div>
 	<br />
+
+	<div v-if="supplyContractType === 'specification'">
+		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
+			<thead>
+				<tr>
+					<td class="w-5 border"><span>№</span></td>
+					<td class="w-50 border"><span>Название продукта</span></td>
+					<td class="w-15 border"><span>Артикул</span></td>
+					<td class="w-10 border"><span>Кол-во</span></td>
+					<td class="w-13 border"><span>Ед. изм.</span></td>
+					<td class="w-15 border"><span>Цена</span></td>
+					<td class="w-20 border"><span>Сумма</span></td>
+					<td class="w-1"><span></span></td>
+				</tr>
+			</thead>
+			<tbody>
+				<tr v-for="product in billData.products">
+					<td class="border">
+						<span>{{ billData.products.indexOf(product) + 1 }}</span>
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
+							v-model.lazy="product.article" />
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
+							v-model.lazy="product.quantity" />
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
+							v-model.lazy="product.units" />
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
+					</td>
+					<td class="border">
+						<span class="">{{ normalizePrice(product.amount) }}</span>
+					</td>
+					<td>
+						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
+							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
+								width="32" height="32" viewBox="0 0 24 24">
+								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
+									stroke-linejoin="round" stroke-width="3">
+									<circle cx="12" cy="12" r="10" />
+									<path d="m15 9l-6 6m0-6l6 6" />
+								</g>
+							</svg>
+						</span>
+					</td>
+				</tr> 
+
+				<tr :hidden="isDisabled">
+					<td @click="" colspan="7"
+						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
+						Добавить товар
+					</td>
+				</tr>
+
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2" >Итого:</td>
+					<td >
+						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
+					</td>
+				</tr>
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2">В том числе НДС:</td>
+					<td>
+						<span class="font-bold">{{ normalizePrice(billData.amountVatRate) }}</span>
+					</td>
+				</tr>
+				<tr class="text-right">
+					<td colspan="4"></td>
+					<td colspan="2">Всего к оплате:</td>
+					<td>
+						<span class="font-bold">{{ normalizePrice(billData.amount) }}</span>
+					</td>
+				</tr>
+				
+			</tbody> 
+		</table>
+	</div>
 
 	<!-- Тело договора из редактора -->
 	<div>
-		<div v-html="supplyContractHTML"></div>
+		<div v-if="supplyContractType === 'supplyContract'" v-html="supplyContractHTML"></div>
+		<div v-else-if="supplyContractType === 'specification'" v-html="specificationHTML"></div>
 	</div>
-
+	<br />
+	
 	<!-- Реквизиты сторон -->
 	<div>
 		<table class="table_without_border">
@@ -192,12 +330,12 @@ p {
 	line-height: 1.5em;
 }
 
-table,
+/* table,
 th,
 td {
 	border: solid gray 1px;
 	padding: 5px;
-}
+} */
 
 .table_without_border {
 	border: none;
@@ -206,5 +344,12 @@ td {
 .table_without_border td {
 	border: none;
 	padding: 1px;
+}
+
+input {
+	line-height: 1.75;
+	padding: 1px 5px;
+	vertical-align: middle;
+	field-sizing: content;
 }
 </style>

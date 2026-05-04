@@ -39,11 +39,13 @@ interface StateMap {
 	coverLetterCheck: boolean
 	supplierDetailsCheck: boolean
 	buyerDetailsCheck: boolean
+	supplyContractType: "supplyContract" | "specification"
 
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null
 	htmlSupplyContract: string | null
+	htmlSpecification: string | null
 	htmlDogovorUslug: HTMLElement | null
 }
 

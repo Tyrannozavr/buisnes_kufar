@@ -110,7 +110,7 @@ const items = computed(() => [
 	{
 		label: 'Счет',
 		slot: 'bill' as const,
-		disabled: isItemDisabled.value.bill,
+		disabled: false,
 	},
 	{
 		label: 'Договор поставки',

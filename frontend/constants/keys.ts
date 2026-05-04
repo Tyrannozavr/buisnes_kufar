@@ -49,11 +49,13 @@ export const enum Editor {
 	COVER_LETTER_CHECK = 'coverLetterCheck',
 	SUPPLIER_DETAILS_CHECK = 'supplierDetailsCheck',
 	BUYER_DETAILS_CHECK = 'buyerDetailsCheck',
+	SUPPLY_CONTRACT_TYPE = 'supplyContractType',
 }
 
 export const enum TemplateElement {
 	ORDER = 'htmlOrder',
 	BILL = 'htmlBill',
 	SUPPLY_CONTRACT = 'htmlSupplyContract',
+	SPECIFICATION = 'htmlSpecification',
 	DOGOVOR_USLUG = 'htmlDogovorUslug',
 }

@@ -19,8 +19,8 @@ import mammoth from "mammoth"
 import { TemplateElement } from "~/constants/keys"
 
 const templateEditorOpen = ref(false)
-const isDisabled = useTypedState(Editor.IS_DISABLED)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
+const specificationHTML = useTypedState(TemplateElement.SPECIFICATION)
 
 const DEFAULT_FONT_SIZE = "14px"
 const fontSize = ref<string>(DEFAULT_FONT_SIZE)
@@ -64,6 +64,9 @@ const requisitesItems: DropdownMenuItem[] = [
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
+const { label } = defineProps<{
+	label: string
+}>()
 
 // Mock объект для billData, чтобы таблица с ним работала корректно
 const Data = ref({
@@ -89,7 +92,7 @@ const Data = ref({
 
 //добавить проверку для клиента
 const editor = new TiptapEditor({
-	content: `<p>Заполните условия договора поставки</p>`,
+	content: label === 'Редактор договора поставки' ? supplyContractHTML.value : specificationHTML.value,
 	extensions: [
 		StarterKit,
 		TextStyleKit,
@@ -154,7 +157,11 @@ const useDefaultTemplate = () => {
 // сохранение договора поставки
 const saveSupplyContract = () => {
 	templateEditorOpen.value = false
-	supplyContractHTML.value = editor.getHTML()
+	if (label === 'Редактор договора поставки') {
+		supplyContractHTML.value = editor.getHTML()
+	} else if (label === 'Редактор спецификации') {
+		specificationHTML.value = editor.getHTML()
+	}
 }
 
 //в следующих трех функциях не вставлять пробелы и табуляции в сроках с таблицами (особенности работы библиотеки Tiptap)
@@ -219,7 +226,7 @@ onBeforeUnmount(() => {
 
 <template>
 	<UModal
-		title="Редактор договора поставки"
+		:title="label"
 		v-model:open="templateEditorOpen"
 		:dismissible="false"
 		:ui="{
@@ -228,10 +235,11 @@ onBeforeUnmount(() => {
 		}"
 	>
 		<UButton
-			label="Редактор шаблона договора поставки"
+			:label="label"
 			color="neutral"
 			variant="subtle"
 			@click="openTemplateEditor()"
+			class="w-full"
 		/>
 		<template #header>
 			<div class="flex flex-col gap-3 w-full">

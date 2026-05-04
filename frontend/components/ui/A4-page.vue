@@ -44,9 +44,12 @@ const slotContainerRef = ref<HTMLElement | null>(null)
 
 //supply contract
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
+const specificationHTML = useTypedState(TemplateElement.SPECIFICATION)
 const coverLetterCheck = useTypedState(Editor.COVER_LETTER_CHECK)
 const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
 const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
+const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const fillHtmlContentFromSlot = () => {
 	if (!slotContainerRef.value) return
@@ -56,7 +59,7 @@ const fillHtmlContentFromSlot = () => {
 
 // Делаем зависимость от переменных, меняющих значения внутри слота
 watch(
-	[supplyContractHTML, slotContainerRef, supplierDetailsCheck, buyerDetailsCheck],
+	[supplyContractHTML, specificationHTML, slotContainerRef, supplierDetailsCheck, buyerDetailsCheck, supplyContractType, isDisabled],
 	() => {
 		// Используем nextTick, чтобы дождаться, когда Vue отрендерит компоненты в слоте
 		nextTick(() => {

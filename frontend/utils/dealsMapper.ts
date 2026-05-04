@@ -75,7 +75,14 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 				is_base: official.isBase,
 				base_document: official.baseDocument,
 				base_document_name: official.baseDocumentName
-			}) satisfies OfficialsResponse)
+			}) satisfies OfficialsResponse),
+			specification_number: deal.supplyContract.specificationNumber,
+			specification_date: deal.supplyContract.specificationDate,
+			template_supply_contract: deal.supplyContract.templateSupplyContract,
+			template_specification: deal.supplyContract.templateSpecification,
+			supplier_details_check: deal.supplyContract.supplierDetailsCheck,
+			buyer_details_check: deal.supplyContract.buyerDetailsCheck,
+			cover_letter_check: deal.supplyContract.coverLetterCheck
 		}
 	}
 	if (deal.closingDocuments) body.closing_documents = deal.closingDocuments
@@ -193,7 +200,14 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				isBase: official.is_base,
 				baseDocument: official.base_document,
 				baseDocumentName: official.base_document_name
-			}) satisfies OfficialSupplyContract)
+			}) satisfies OfficialSupplyContract),
+			specificationNumber: dealResponse.supply_contract.specification_number,
+			specificationDate: dealResponse.supply_contract.specification_date,
+			templateSupplyContract: dealResponse.supply_contract.template_supply_contract,
+			templateSpecification: dealResponse.supply_contract.template_specification,
+			supplierDetailsCheck: dealResponse.supply_contract.supplier_details_check,
+			buyerDetailsCheck: dealResponse.supply_contract.buyer_details_check,
+			coverLetterCheck: dealResponse.supply_contract.cover_letter_check
 		} satisfies SupplyContract,
 		supplyContractDate: dealResponse.supply_contract_date,
 		closingDocuments: dealResponse.closing_documents || [],

@@ -111,6 +111,13 @@ export interface BillResponse {
 export interface SupplyContractResponse {
 	number: string
 	officials: CompanyOfficial[] // изначально поля появляются при ручном добавлении должностных лиц к договору поставки
+	specification_number: string
+	specification_date: string
+	template_supply_contract: string
+	template_specification: string
+	supplier_details_check: boolean
+	buyer_details_check: boolean
+	cover_letter_check: boolean
 }
 
 export interface DealResponse {

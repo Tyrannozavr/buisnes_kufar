@@ -14,6 +14,7 @@ export interface Company {
 	index?: string; // Индекс
   inn?: number; // ИНН
 	kpp?: string; // КПП
+	ogrn?: string; // ОГРН
 	accountNumber?: string; // Расчетный счет
 	correspondentBankAccount?: string; // Корреспондентский счет
 	bankName?: string; // Наименование банка
@@ -63,6 +64,13 @@ export interface Bill {
 export interface SupplyContract {
 	number: string
 	officials: OfficialSupplyContract[]
+	specificationNumber: string
+	specificationDate: string
+	templateSupplyContract: string
+	templateSpecification: string
+	supplierDetailsCheck: boolean
+	buyerDetailsCheck: boolean
+	coverLetterCheck: boolean
 }
 
 export interface Deal {

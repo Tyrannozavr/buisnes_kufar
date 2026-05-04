@@ -2,6 +2,7 @@
 import { Editor, TemplateElement } from "~/constants/keys"
 import { normalizePrice } from "~/utils/normalize"
 import type { ProductsInOrder } from "~/types/order"
+import type { SupplyContractData } from "~/types/supplyContract"
 
 const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
@@ -10,48 +11,33 @@ const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
 const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
-// watch(
-// 	supplyContractHTML,
-// 	(newVal) => {
-// 		},
-// 	{ deep: true, immediate: true }
-// )
+//supply contract data
+let seller: SupplyContractData['seller'] = {}
+let buyer: SupplyContractData['buyer'] = {}
+let products: SupplyContractData['products'] = []
+let officials: SupplyContractData['officials'] = []
 
-// mocks
-const sellerCompanyType = ref<"ООО" | "ИП">("ООО")
-const buyerCompanyType = ref<"ООО" | "ИП">("ИП")
-
-/** Демо-строки таблицы товаров (договор поставки) */
-const MOCK_SUPPLY_CONTRACT_PRODUCTS: ProductsInOrder[] = [
-	{
-		name: 'Стол офисный «Альфа»',
-		article: 'OFF-DESK-001',
-		quantity: 2,
-		units: 'шт.',
-		price: 8500,
-		amount: 17000,
-	},
-	{
-		name: 'Кресло руководителя «Комфорт»',
-		article: 'CHR-EXE-12',
-		quantity: 3,
-		units: 'шт.',
-		price: 2500,
-		amount: 7500,
-	},
-]
-
-const billData = ref({
-	products: [...MOCK_SUPPLY_CONTRACT_PRODUCTS],
-	amountExclVat: 24500,
-	amountVatRate: 4900,
-	amount: 29400,
+const supplyContractData = ref<SupplyContractData>({
+	number: '',
+	specificationNumber: '',
+	specificationDate: '',
+	date: '',
+	seller,
+	buyer,
+	officials,
+	products,
+	amount: 0,
+	amountExclVat: 0,
+	amountVatRate: 0,
+	amountWord: '',
+	templateSupplyContract: '',
+	templateSpecification: '',
 })
 
 const removeProduct = (product: ProductsInOrder) => {
-	const index = billData.value.products.indexOf(product)
+	const index = supplyContractData.value.products.indexOf(product)
 	if (index === -1) return
-	billData.value.products.splice(index, 1)
+	supplyContractData.value.products.splice(index, 1)
 }
 </script>
 
@@ -69,31 +55,31 @@ const removeProduct = (product: ProductsInOrder) => {
 
 		<div>
 			<!-- Поставщик -->
-			<p v-if="sellerCompanyType !== 'ИП'">
-				{ПОЛНОЕ НАЗВАНИЕ ОРГАНИЗАЦИИ}, далее -
+			<p v-if="supplyContractData.seller.companyType !== 'ИП'">
+				{{supplyContractData.seller.companyName}} далее -
 				<span class="font-bold">«Поставщик»</span>, от имени которого действует
-				{ДОЛЖНОСТЬ ФИО}, действующего (ей) на основании {ДОКУМЕНТ ОСНОВАНИЯ}
-				{НАЗВАНИЕ ДОКУМЕНТА}, с одной стороны
+				{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}, действующего (ей) на основании {{ supplyContractData.officials[0]?.baseDocument }}
+				{{ supplyContractData.officials[0]?.baseDocumentName }}, с одной стороны
 			</p>
 			<p v-else>
-				{ПОЛНОЕ НАЗВАНИЕ ОРГАНИЗАЦИИ}, далее -
+				{{ supplyContractData.seller.companyName }}, далее -
 				<span class="font-bold">«Поставщик»</span>, зарегистрированный в реестре
-				индивидуальных предпринимателей под № {ОГРН} с одной стороны
+				индивидуальных предпринимателей под № {{ supplyContractData.seller.ogrn }} с одной стороны
 			</p>
 
 			<!-- Покупатель -->
-			<p v-if="buyerCompanyType !== 'ИП'">
-				{ПОЛНОЕ НАЗВАНИЕ ОРГАНИЗАЦИИ}, далее -
+			<p v-if="supplyContractData.buyer.companyType !== 'ИП'">
+				{{ supplyContractData.buyer.companyName }}, далее -
 				<span class="font-bold">«Покупатель»</span>, от имени которого действует
-				{ДОЛЖНОСТЬ ФИО}, действующего (ей) на основании {ДОКУМЕНТ ОСНОВАНИЯ}
-				{НАЗВАНИЕ ДОКУМЕНТА}, с другой стороны, далее совместно именуемые «Стороны»,
+				{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}, действующего (ей) на основании {{ supplyContractData.officials[0]?.baseDocument }}
+				{{ supplyContractData.officials[0]?.baseDocumentName }}, с другой стороны, далее совместно именуемые «Стороны»,
 				заключили настоящий Договор поставки (далее именуемый «Договор») о
 				нижеследующем:
 			</p>
 			<p v-else>
-				{ПОЛНОЕ НАЗВАНИЕ ОРГАНИЗАЦИИ}, далее -
+				{{ supplyContractData.buyer.companyName }}, далее -
 				<span class="font-bold">«Покупатель»</span>, зарегистрированный в реестре
-				индивидуальных предпринимателей под № {ОГРН} с другой стороны, далее
+				индивидуальных предпринимателей под № {{ supplyContractData.buyer.ogrn }} с другой стороны, далее
 				совместно именуемые «Стороны», заключили настоящий Договор поставки (далее
 				именуемый «Договор») о нижеследующем:
 			</p>
@@ -103,12 +89,12 @@ const removeProduct = (product: ProductsInOrder) => {
 		<div>
 			<div class="text-right block">
 				<p>Приложение</p>
-				<p>к договору № {НомерДоговора}</p>
-				<p>от {ДатаДоговора}</p>
+				<p>к договору № {{ supplyContractData.number }}</p>
+				<p>от {{ supplyContractData.date }}</p>
 			</div>
 		</div>
 		<div>
-			<h1 class="text-center ">Спецификация № {НомерСпецификации}</h1>
+			<h1 class="text-center ">Спецификация № {{ supplyContractData.specificationNumber }}</h1>
 		</div>
 	</div>
 	<br />
@@ -128,9 +114,9 @@ const removeProduct = (product: ProductsInOrder) => {
 				</tr>
 			</thead>
 			<tbody>
-				<tr v-for="product in billData.products">
+				<tr v-for="product in supplyContractData.products">
 					<td class="border">
-						<span>{{ billData.products.indexOf(product) + 1 }}</span>
+						<span>{{ supplyContractData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
 						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
@@ -178,21 +164,21 @@ const removeProduct = (product: ProductsInOrder) => {
 					<td colspan="4"></td>
 					<td colspan="2" >Итого:</td>
 					<td >
-						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
+						<span class="font-bold">{{ normalizePrice(supplyContractData.amountExclVat) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(billData.amountVatRate) }}</span>
+						<span class="font-bold">{{ normalizePrice(supplyContractData.amountVatRate) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">Всего к оплате:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(billData.amount) }}</span>
+						<span class="font-bold">{{ normalizePrice(supplyContractData.amount) }}</span>
 					</td>
 				</tr>
 				
@@ -215,42 +201,42 @@ const removeProduct = (product: ProductsInOrder) => {
 				<td v-if="buyerDetailsCheck">ПОКУПАТЕЛЬ:</td>
 			</tr>
 			<tr class="font-bold">
-				<td v-if="supplierDetailsCheck">{ТИП ОРГАНИЗАЦИИ} {«НАЗВАНИЕ ОРГАНИЗАЦИИ»}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
 				<!-- Поставщик -->
-				<td v-if="buyerDetailsCheck">{ТИП ОРГАНИЗАЦИИ} {«НАЗВАНИЕ ОРГАНИЗАЦИИ»}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
 				<!-- Покупатель -->
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">{ИНДЕКС}, {ЮРИДИЧЕСКИЙ АДРЕС}</td>
-				<td v-if="buyerDetailsCheck">{ИНДЕКС}, {ЮРИДИЧЕСКИЙ АДРЕС}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.index }}, {{ supplyContractData.seller.legalAddress }}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.index }}, {{ supplyContractData.buyer.legalAddress }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">ИНН {ИНН}</td>
-				<td v-if="buyerDetailsCheck">ИНН {ИНН}</td>
+				<td v-if="supplierDetailsCheck">ИНН {{ supplyContractData.seller.inn }}</td>
+				<td v-if="buyerDetailsCheck">ИНН {{ supplyContractData.buyer.inn }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">КПП {КПП}</td>
-				<td v-if="buyerDetailsCheck">КПП {КПП}</td>
+				<td v-if="supplierDetailsCheck">КПП {{ supplyContractData.seller.kpp }}</td>
+				<td v-if="buyerDetailsCheck">КПП {{ supplyContractData.buyer.kpp }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">Рас/счет № {РАСЧЕТНЫЙ СЧЕТ} в {НАЗВАНИЕ БАНКА}</td>
-				<td v-if="buyerDetailsCheck">Рас/счет № {РАСЧЕТНЫЙ СЧЕТ} в {НАЗВАНИЕ БАНКА}</td>
+				<td v-if="supplierDetailsCheck">Рас/счет № {{ supplyContractData.seller.accountNumber }} в {{ supplyContractData.seller.bankName }}</td>
+				<td v-if="buyerDetailsCheck">Рас/счет № {{ supplyContractData.buyer.accountNumber }} в {{ supplyContractData.buyer.bankName }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">{КОРР.СЧЕТ БАНКА}</td>
-				<td v-if="buyerDetailsCheck">{КОРР.СЧЕТ БАНКА}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.correspondentBankAccount }}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.correspondentBankAccount }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">{БИК}</td>
-				<td v-if="buyerDetailsCheck">{БИК}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.bic }}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.bic }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">{email}</td>
-				<td v-if="buyerDetailsCheck">{email}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.email }}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.email }}</td>
 			</tr>
 			<tr>
-				<td v-if="supplierDetailsCheck">{phone}</td>
-				<td v-if="buyerDetailsCheck">{phone}</td>
+				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.phone }}</td>
+				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.phone }}</td>
 			</tr>
 			<!-- <tr class="h-5">
 				<td></td>
@@ -286,12 +272,12 @@ const removeProduct = (product: ProductsInOrder) => {
 				<td>Покупатель:</td>
 			</tr>
 			<tr class="font-bold">
-				<td>{ТИП ОРГАНИЗАЦИИ} {«НАЗВАНИЕ ОРГАНИЗАЦИИ»}</td>
-				<td>{ТИП ОРГАНИЗАЦИИ} {«НАЗВАНИЕ ОРГАНИЗАЦИИ»}</td>
+				<td>{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
+				<td>{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
 			</tr>
 			<tr class="font-bold">
-				<td>{ДОЛЖНОСТЬ}</td>
-				<td>{ДОЛЖНОСТЬ}</td>
+				<td>{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}</td>
+				<td>_____________(ДОЛЖНОСТЬ)</td>
 			</tr>
 			<!-- отступ -->
 			<tr class="h-5">
@@ -299,8 +285,8 @@ const removeProduct = (product: ProductsInOrder) => {
 				<td></td>
 			</tr>
 			<tr>
-				<td>______________________/{ФИО}/</td>
-				<td>______________________/{ФИО}/</td>
+				<td>______________________/{{ supplyContractData.officials[0]?.name }}/</td>
+				<td>______________________/_______(ФИО)/</td>
 			</tr>
 			<tr class="font-bold">
 				<td>«____» _______________ 20 г.</td>

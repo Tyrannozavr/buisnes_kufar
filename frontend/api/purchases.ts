@@ -117,7 +117,10 @@ export const usePurchasesApi = () => {
 				description: product.description ?? null,
 				logoUrl: product.logoUrl ?? null,
 				productName: String(product.productName),
-				article: Number.isFinite(product.article) ? product.article : 0,
+				article:
+					product.article != null && String(product.article).trim() !== ''
+						? String(product.article).trim()
+						: '',
 				quantity: Number.isFinite(product.quantity) ? product.quantity : 1,
 				units: product.units ? String(product.units) : "шт",
 				price: Number.isFinite(product.price) ? product.price : 0,

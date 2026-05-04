@@ -5,6 +5,7 @@
 
 import asyncio
 import asyncpg
+import json
 import os
 import random
 from typing import List, Dict, Any
@@ -218,6 +219,11 @@ COMPANIES_DATA = [
 ]
 
 
+def _dsn_for_asyncpg(url: str) -> str:
+    """asyncpg не понимает драйвер +asyncpg из SQLAlchemy."""
+    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
 class TestDataPopulator:
     def __init__(self):
         self.connection = None
@@ -225,6 +231,7 @@ class TestDataPopulator:
     async def connect(self):
         """Подключение к базе данных"""
         database_url = os.getenv("SQLALCHEMY_DATABASE_URL", "postgresql://postgres:postgres@localhost/postgres")
+        database_url = _dsn_for_asyncpg(database_url)
         self.connection = await asyncpg.connect(database_url)
         logger.info("Подключение к базе данных установлено")
         
@@ -281,8 +288,8 @@ class TestDataPopulator:
             
             # Генерируем slug
             slug = f"{company_data['name'].lower().replace(' ', '-').replace('+', 'plus')}-{i+1}"
-            
-            # Создаем компанию
+
+            # В PostgreSQL enum tradeactivity/businesstype — имена членов (SELLER, SERVICES), как в исходных данных
             company_id = await self.connection.fetchval("""
                 INSERT INTO companies (
                     name, slug, type, trade_activity, business_type, activity_type, description,
@@ -290,8 +297,8 @@ class TestDataPopulator:
                     country_id, federal_district_id, region_id, city_id,
                     full_name, inn, ogrn, kpp, registration_date, legal_address, production_address,
                     phone, email, website, total_views, monthly_views, total_purchases,
-                    user_id, is_active, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW(), NOW())
+                    is_active, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, NOW(), NOW())
                 RETURNING id
             """, 
                 company_data['name'],
@@ -322,7 +329,6 @@ class TestDataPopulator:
                 0,  # total_views
                 0,  # monthly_views
                 0,  # total_purchases
-                1,  # user_id (предполагаем, что есть пользователь с ID 1)
                 True
             )
             
@@ -385,8 +391,8 @@ class TestDataPopulator:
                     article,
                     "SERVICE",
                     price,
-                    "[]",  # images
-                    characteristics,
+                    json.dumps([]),
+                    json.dumps(characteristics, ensure_ascii=False),
                     False,  # is_hidden
                     False,  # is_deleted
                     random.choice(["час", "день", "месяц", "проект", "усл"]),

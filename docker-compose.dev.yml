@@ -109,7 +109,7 @@ services:
     command:
       - /bin/sh
       - -c
-      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+      - poetry run pip install -q "docxtpl>=0.16.7,<0.19.0" "num2words>=0.5.13,<0.6.0" || true; exec poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     depends_on:
       db:
         condition: service_healthy
@@ -188,7 +188,7 @@ services:
     command:
       - /bin/sh
       - -c
-      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app worker --loglevel=info
+      - poetry run pip install -q "docxtpl>=0.16.7,<0.19.0" "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app worker --loglevel=info
     depends_on:
       db:
         condition: service_healthy
@@ -215,7 +215,7 @@ services:
     command:
       - /bin/sh
       - -c
-      - poetry run pip install -q "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app beat --loglevel=info
+      - poetry run pip install -q "docxtpl>=0.16.7,<0.19.0" "num2words>=0.5.13,<0.6.0" || true; exec poetry run celery -A app.celery_app beat --loglevel=info
     depends_on:
       db:
         condition: service_healthy

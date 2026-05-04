@@ -14,6 +14,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _dsn_for_asyncpg(url: str) -> str:
+    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+
 # Данные для заполнения
 COUNTRIES_DATA = [
     {"id": 1, "code": "RU", "name": "Российская Федерация"}
@@ -439,7 +444,7 @@ class DatabasePopulator:
     async def connect(self):
         """Подключение к базе данных"""
         database_url = os.getenv("SQLALCHEMY_DATABASE_URL", "postgresql://postgres:postgres@localhost/postgres")
-        self.connection = await asyncpg.connect(database_url)
+        self.connection = await asyncpg.connect(_dsn_for_asyncpg(database_url))
         logger.info("Подключение к базе данных установлено")
         
     async def disconnect(self):

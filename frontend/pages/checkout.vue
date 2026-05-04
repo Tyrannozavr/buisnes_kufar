@@ -36,10 +36,9 @@
 						<UButton
                 v-if="userStore.isAuthenticated"
                 color="primary"
-                to="/checkout"
 								@click.prevent="handleOrderSubmit(cp, cp.goods)"
             >
-              Оформить заказ
+              Отправить заказ
             </UButton>
             <UButton
                 v-else
@@ -51,9 +50,9 @@
             <UButton
                 color="neutral"
                 variant="soft"
-                @click="removeItemsFromCart(cp.goods)"
+                to="/cart"
             >
-              Очистить корзину
+              Вернуть товары в корзину
             </UButton>
 					</div>
 				</div>
@@ -128,7 +127,7 @@ const sortProducts = (products: any[]): void  => {
       description: item.product.description,
       logoUrl: item.product.logo_url,
       productName: item.product.name,
-      article: Number(item.product.article),
+      article: item.product.article != null ? String(item.product.article) : '',
       quantity: item.quantity,
       units: item.product.unit_of_measurement,
       price: item.product.price,

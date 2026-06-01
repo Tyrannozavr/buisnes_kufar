@@ -312,19 +312,9 @@ class DealService:
 				additional_info_offer=getattr(order, "additional_info_offer", None) or "",
 				officials=officials_list,
 			)
-			supply_officials = []
-			stored_supply_officials = getattr(order, "supply_contract_officials", None)
+			from app.api.purchases.supply_contract_sync import build_supply_contract_in_deal_response
 
-			if stored_supply_officials and isinstance(stored_supply_officials, list):
-				supply_officials = [
-					CompanyOfficialInDealResponse(**official)
-					for official in stored_supply_officials
-				]
-
-			supply_contract_obj = SupplyContractInDealResponse(
-				number=order.supply_contract_number,
-				officials=supply_officials,
-			)
+			supply_contract_obj = await build_supply_contract_in_deal_response(self.session, order)
 
 			contract_list = []
 			if order.contract_number or order.contract_date:
@@ -348,7 +338,7 @@ class DealService:
 				comments=order.comments or "",
 				contract_date=order.contract_date,
 				bill_date=order.bill_date,
-				supply_contract_date=order.supply_contract_date,
+				supply_contract_date=order.supply_contracts_date,
 				closing_documents=closing_docs,
 				others_documents=others_docs,
 				created_at=order.created_at,

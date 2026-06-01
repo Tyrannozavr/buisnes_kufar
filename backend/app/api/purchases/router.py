@@ -8,14 +8,18 @@ from app.core.config import settings
 from app.api.authentication.dependencies import get_current_user
 from app_logging.logger import logger
 from app.api.authentication.models.user import User
-from app.api.purchases.dependencies import deal_service_dep_annotated
+from app.api.purchases.dependencies import deal_service_dep_annotated, supply_contract_service_dep_annotated
 from app.api.purchases.services import DealService
+from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
     DealIdsBody,
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem,
-    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse
+    DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
+    SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
+    BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
+    SpecificationCreate, SpecificationUpdate, SpecificationResponse,
 )
 from app.api.purchases.schemas import DealStatus
 from app.api.purchases.deal_docx_context import build_deal_docx_context
@@ -1186,7 +1190,7 @@ async def create_supply_contract(
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
 
-    return SupplyContractNumberResponse(number=result[0], date=result[1])
+    return SupplyContractNumberResponse(supply_contract_number=result[0], supply_contract_date=result[1])
 
 
 @router.post(
@@ -1248,3 +1252,278 @@ async def get_units_of_measurement(
         }
         for unit in units
     ]
+
+
+@router.get(
+	"/supply-contracts/exists",
+	response_model=SupplyContractExistsResponse,
+	tags=["supply-contract"],
+	summary="Проверить наличие договора поставки между компаниями",
+)
+async def supply_contract_exists(
+	seller_company_id: int = Query(..., gt=0),
+	buyer_company_id: int = Query(..., gt=0),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	if company.id not in (buyer_company_id, seller_company_id):
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this pair")
+	return await supply_contract_service.exists_by_pair(buyer_company_id, seller_company_id)
+
+
+@router.post(
+	"/supply-contracts",
+	response_model=SupplyContractResponse,
+	tags=["supply-contract"],
+	summary="Создать договор поставки",
+	responses={
+		409: {"description": "Договор на пару компаний уже существует"},
+		403: {"description": "Компания пользователя не участвует в паре buyer/seller"},
+	},
+)
+async def create_supply_contract_entity(
+	body: SupplyContractCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	try:
+		contract = await supply_contract_service.create_contract(company.id, body)
+	except SupplyContractAlreadyExistsError:
+		raise HTTPException(status_code=409, detail="Supply contract for this company pair already exists")
+
+	if contract is None:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this pair")
+	return contract
+
+
+@router.get(
+	"/supply-contracts/{contract_id}",
+	response_model=SupplyContractResponse,
+	tags=["supply-contract"],
+	summary="Получить договор поставки",
+	responses={
+		404: {"description": "Договор не найден"},
+		403: {"description": "Нет доступа к договору"},
+	},
+)
+async def get_supply_contract_entity(
+	contract_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	contract_exists = await supply_contract_service.get_contract_by_id_only(contract_id)
+	if not contract_exists:
+		raise HTTPException(status_code=404, detail="Supply contract not found")
+
+	contract = await supply_contract_service.get_contract(contract_id, company.id)
+	if not contract:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this contract")
+	return contract
+
+
+@router.patch(
+	"/supply-contracts/{contract_id}",
+	response_model=SupplyContractResponse,
+	tags=["supply-contract"],
+	summary="Обновить договор поставки",
+	responses={
+		404: {"description": "Договор не найден"},
+		403: {"description": "Нет доступа к договору"},
+	},
+)
+async def update_supply_contract_entity(
+	contract_id: int,
+	body: SupplyContractUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	contract_exists = await supply_contract_service.get_contract_by_id_only(contract_id)
+	if not contract_exists:
+		raise HTTPException(status_code=404, detail="Supply contract not found")
+
+	contract = await supply_contract_service.update_contract(contract_id, company.id, body)
+	if not contract:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this contract")
+	return contract
+
+
+@router.post(
+	"/supply-contracts/{contract_id}/specifications",
+	response_model=SpecificationResponse,
+	tags=["supply-contract", "specification"],
+	summary="Создать спецификацию к договору поставки",
+	responses={
+		404: {"description": "Договор не найден"},
+		403: {"description": "Нет доступа к договору"},
+	},
+)
+async def create_supply_specification(
+	contract_id: int,
+	body: SpecificationCreate | None = Body(default=None),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	contract_exists = await supply_contract_service.get_contract_by_id_only(contract_id)
+	if not contract_exists:
+		raise HTTPException(status_code=404, detail="Supply contract not found")
+
+	spec = await supply_contract_service.create_specification(contract_id, company.id)
+	if not spec:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this contract")
+	return spec
+
+
+@router.get(
+	"/supply-specifications/{spec_id}",
+	response_model=SpecificationResponse,
+	tags=["supply-contract", "specification"],
+	summary="Получить спецификацию",
+	responses={
+		404: {"description": "Спецификация не найдена"},
+		403: {"description": "Нет доступа к спецификации"},
+	},
+)
+async def get_supply_specification(
+	spec_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	spec_exists = await supply_contract_service.get_specification_by_id_only(spec_id)
+	if not spec_exists:
+		raise HTTPException(status_code=404, detail="Specification not found")
+
+	spec = await supply_contract_service.get_specification(spec_id, company.id)
+	if not spec:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this specification")
+	return spec
+
+
+@router.patch(
+	"/supply-specifications/{spec_id}",
+	response_model=SpecificationResponse,
+	tags=["supply-contract", "specification"],
+	summary="Обновить спецификацию",
+	responses={
+		404: {"description": "Спецификация не найдена"},
+		403: {"description": "Нет доступа к спецификации"},
+	},
+)
+async def update_supply_specification(
+	spec_id: int,
+	body: SpecificationUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	spec_exists = await supply_contract_service.get_specification_by_id_only(spec_id)
+	if not spec_exists:
+		raise HTTPException(status_code=404, detail="Specification not found")
+
+	spec = await supply_contract_service.update_specification(spec_id, company.id, body)
+	if not spec:
+		raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this specification")
+	return spec
+
+
+@router.post(
+	"/deals/{deal_id}/supply-contract-entity/bind",
+	tags=["supply-contract", "deals"],
+	summary="Привязать сделку к сущности договора поставки (dual-write)",
+	responses={
+		404: {"description": "Сделка или договор не найдены"},
+		403: {"description": "Нет доступа"},
+	},
+)
+async def bind_deal_supply_contract_entity(
+	deal_id: int,
+	body: BindSupplyContractToDealRequest,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	order = await deal_service.get_deal_by_id(deal_id, company.id)
+	if not order:
+		raise HTTPException(status_code=404, detail="Deal not found or access denied")
+
+	contract = await supply_contract_service.get_contract_by_id_only(body.contract_id)
+	if not contract:
+		raise HTTPException(status_code=404, detail="Supply contract not found")
+
+	ok = await supply_contract_service.bind_order_to_contract(deal_id, body.contract_id, company.id)
+	if not ok:
+		raise HTTPException(status_code=403, detail="Access denied")
+
+	return {"bound": True, "deal_id": deal_id, "contract_id": body.contract_id}
+
+
+@router.post(
+	"/deals/{deal_id}/supply-specification/bind",
+	tags=["supply-contract", "deals", "specification"],
+	summary="Привязать сделку к спецификации (dual-write)",
+	responses={
+		404: {"description": "Сделка или спецификация не найдены"},
+		403: {"description": "Нет доступа"},
+	},
+)
+async def bind_deal_supply_specification(
+	deal_id: int,
+	body: BindSupplySpecificationToDealRequest,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	supply_contract_service: supply_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	order = await deal_service.get_deal_by_id(deal_id, company.id)
+	if not order:
+		raise HTTPException(status_code=404, detail="Deal not found or access denied")
+
+	spec = await supply_contract_service.get_specification_by_id_only(body.spec_id)
+	if not spec:
+		raise HTTPException(status_code=404, detail="Specification not found")
+
+	ok = await supply_contract_service.bind_order_to_specification(deal_id, body.spec_id, company.id)
+	if not ok:
+		raise HTTPException(status_code=403, detail="Access denied")
+
+	return {"bound": True, "deal_id": deal_id, "spec_id": body.spec_id}
+

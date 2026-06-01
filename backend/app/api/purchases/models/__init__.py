@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean, Float, JSON, Integer
+from sqlalchemy import String, Enum, ForeignKey, Text, DateTime, Boolean, Float, JSON, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -81,9 +81,16 @@ class Order(Base):
 	additional_info_offer: Mapped[Optional[str]] = mapped_column(Text)  # Доп. информация (оферта)
 
 	# Договор поставки
-	supply_contract_number: Mapped[Optional[str]] = mapped_column(String(20))
-	supply_contract_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-	supply_contract_officials: Mapped[Optional[list]] = mapped_column(JSON)
+	supply_contract: Mapped[Optional["SupplyContract"]] = relationship("SupplyContract")
+	supply_contract_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supply_contract.id", ondelete="SET NULL"), index=True, nullable=True)
+	supply_spec: Mapped[Optional["SupplyContractSpecification"]] = relationship("SupplyContractSpecification")
+	supply_spec_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("supply_contract_specification.id", ondelete="SET NULL"),
+		index=True,
+		nullable=True,
+	)
+	supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))
+	supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
 	# Закрывающие и прочие документы (пока пустые)
 	closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
@@ -205,3 +212,63 @@ class OrderDocument(Base):
 
     def __str__(self):
         return f"{self.document_type} {self.document_number} от {self.document_date.strftime('%d.%m.%Y')}"
+
+
+class SupplyContract(Base):
+	"""Договор поставки"""
+	__tablename__ = "supply_contract"
+	__table_args__ = (
+		UniqueConstraint(
+			"seller_company_id",
+			"buyer_company_id",
+			"number",
+			name="uq_supply_contract_seller_buyer_number",
+		),
+	)
+
+	number: Mapped[str] = mapped_column(String(10), nullable=False)
+	date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+	officials_json: Mapped[Optional[list]] = mapped_column(JSON)
+	terms_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+	specifications: Mapped[list["SupplyContractSpecification"]] = relationship("SupplyContractSpecification", back_populates="supply_contract", cascade="all, delete-orphan")
+
+	supplier_details_check: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+	buyer_details_check: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+	cover_letter_check: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+	buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+	seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+
+
+class SupplyContractSpecification(Base):
+	"""Спецификация договора поставки"""
+	__tablename__ = "supply_contract_specification"
+	__table_args__ = (
+		UniqueConstraint("supply_contract_id", "spec_number", name="uq_supply_contract_spec_number"),
+	)
+
+	supply_contract_id: Mapped[int] = mapped_column(ForeignKey("supply_contract.id", ondelete="CASCADE"), nullable=False, index=True)
+
+	spec_number: Mapped[str] = mapped_column(String(10), nullable=False)
+	spec_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+	spec_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+	spec_items: Mapped[list["SpecificationItem"]] = relationship("SpecificationItem", back_populates="specification", cascade="all, delete-orphan")
+
+	supply_contract: Mapped["SupplyContract"] = relationship("SupplyContract", back_populates="specifications")
+
+
+class SpecificationItem(Base):
+	"""Позиция спецификации"""
+	__tablename__ = "specification_item"
+
+	specification_id: Mapped[int] = mapped_column(ForeignKey("supply_contract_specification.id", ondelete="CASCADE"), nullable=False, index=True)
+	specification: Mapped["SupplyContractSpecification"] = relationship("SupplyContractSpecification", back_populates="spec_items")
+
+	name: Mapped[str] = mapped_column(String(255), nullable=False)
+	article: Mapped[Optional[str]] = mapped_column(String(16))
+	quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+	units: Mapped[str] = mapped_column(String(32), nullable=False)
+	price: Mapped[float] = mapped_column(Float, nullable=False)
+	amount: Mapped[float] = mapped_column(Float, nullable=False)
+	position: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

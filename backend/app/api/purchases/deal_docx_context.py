@@ -53,7 +53,7 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	_apply_docx_money_formatting(data)
 	data["contract_date_fmt"] = _fmt_date(deal.contract_date)
 	data["bill_date_fmt"] = _fmt_date(deal.bill_date)
-	data["supply_contracts_date_fmt"] = _fmt_date(deal.supply_contracts_date)
+	data["supply_contracts_date_fmt"] = _fmt_date(deal.supply_contract_date)
 	data["created_at_fmt"] = _fmt_date(deal.created_at)
 	data["updated_at_fmt"] = _fmt_date(deal.updated_at)
 	# Старые шаблоны / клиентский docx использовали `total` вместо `total_amount`

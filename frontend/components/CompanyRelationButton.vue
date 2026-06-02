@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { addCompanyRelation, removeCompanyRelation, getCompanyRelations } from '~/api/company'
 import { CompanyRelationType } from '~/types/company'
-import { useToast } from 'vue-toastification'
 
 interface Props {
   companyId: number
@@ -46,9 +45,9 @@ const handleAdd = async (type: CompanyRelationType) => {
   try {
     await addCompanyRelation(props.companyId, type)
     relations.value[type] = true
-    toast.success('Компания добавлена в список')
+    toast.add({ title: 'Компания добавлена в список', color: 'success' })
   } catch (e) {
-    toast.error('Ошибка при добавлении')
+    toast.add({ title: 'Ошибка при добавлении', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -59,9 +58,9 @@ const handleRemove = async (type: CompanyRelationType) => {
   try {
     await removeCompanyRelation(props.companyId, type)
     relations.value[type] = false
-    toast.success('Компания удалена из списка')
+    toast.add({ title: 'Компания удалена из списка', color: 'success' })
   } catch (e) {
-    toast.error('Ошибка при удалении')
+    toast.add({ title: 'Ошибка при удалении', color: 'error' })
   } finally {
     loading.value = false
   }

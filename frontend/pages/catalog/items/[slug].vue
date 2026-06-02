@@ -1,65 +1,49 @@
 <script setup lang="ts">
 import type { Product, ProductItemPublic } from '~/types/product'
 import type { Service } from '~/types/service'
-import type { Company } from '~/types/company'
 import { useCart } from '~/composables/useCart'
-import {useCompaniesApi} from "~/api";
+import { useCompaniesApi } from '~/api'
 
 const route = useRoute()
-const slug = route.params.slug
+const slug = computed(() => route.params.slug as string)
 
-// Cart functionality
-const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity } = useCart()
-const quantity = computed(() => getQuantity(slug as string))
-
-// Fetch item data
-const { data: item, error: itemError, pending: itemPending } = await useApi<Product | Service>(`/v1/products/slug/${slug}`)
-
-// Fetch company data only after item is loaded
-const companyId = computed(() => {
-  if (!item.value) return null
-  // Handle both Product and Service types
-  return item.value.company_id
-})
-
-const { data: company, error: companyError, refresh: companyRefresh } = await useAsyncData(
-    'company',
-    async () => {
-      if (companyId.value) {
-        const { getCompanyById } = useCompaniesApi()
-        return await getCompanyById(companyId.value)
-      }
-      return null
-    },
-    {
-      watch: [companyId],
-      immediate: false
-    }
+const { data: item, error: itemError, pending: itemPending } = await useAsyncData(
+  () => `catalog-item-${slug.value}`,
+  () => {
+    const { $api } = useNuxtApp()
+    return $api.get<Product | Service>(`/v1/products/slug/${slug.value}`)
+  },
+  { watch: [slug] },
 )
 
-watchEffect(() => {
-  if (companyId.value) {
-    console.log('Company data refreshed', companyId.value)
-    companyRefresh()
-  }
-})
+const companyId = computed(() => item.value?.company_id ?? null)
 
-// Format price
+const { data: company, error: companyError } = await useAsyncData(
+  () => `catalog-item-company-${companyId.value ?? 'none'}`,
+  async () => {
+    if (!companyId.value) return null
+    const { getCompanyById } = useCompaniesApi()
+    return await getCompanyById(companyId.value)
+  },
+  { watch: [companyId] },
+)
+
+const { handleAddToCart, handleIncreaseQuantity, handleDecreaseQuantity, getQuantity } = useCart()
+const quantity = computed(() => getQuantity(slug.value))
+
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(price)
 }
 
-// Image slider
 const currentImageIndex = ref(0)
 const setCurrentImage = (index: number) => {
   currentImageIndex.value = index
 }
 
-// Handle add to cart
 const handleAddToCartClick = () => {
   if (item.value) {
     handleAddToCart(item.value as ProductItemPublic)
@@ -147,35 +131,37 @@ const handleAddToCartClick = () => {
                 <p class="text-2xl font-semibold text-primary-600">
                   {{ formatPrice(item.price) }}
                 </p>
-                <div v-if="quantity > 0" class="flex items-center gap-2">
-                  <UButton
-                    class="cursor-pointer"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-minus"
-                    size="sm"
-                    @click="() => handleDecreaseQuantity(slug as string, quantity)"
-                  />
-                  <span class="text-lg font-medium">{{ quantity }}</span>
-                  <UButton
-                    class="cursor-pointer"
-                    color="neutral"
-                    variant="soft"
-                    icon="i-heroicons-plus"
-                    size="sm"
-                    @click="() => handleIncreaseQuantity(slug as string, quantity)"
-                  />
-                </div>
-                <div v-else>
-                  <UButton
-                    color="primary"
-                    class="cursor-pointer"
-                    size="sm"
-                    @click="handleAddToCartClick"
-                  >
-                    Добавить в корзину
-                  </UButton>
-                </div>
+                <ClientOnly>
+                  <div v-if="quantity > 0" class="flex items-center gap-2">
+                    <UButton
+                      class="cursor-pointer"
+                      color="neutral"
+                      variant="soft"
+                      icon="i-heroicons-minus"
+                      size="sm"
+                      @click="() => handleDecreaseQuantity(slug, quantity)"
+                    />
+                    <span class="text-lg font-medium">{{ quantity }}</span>
+                    <UButton
+                      class="cursor-pointer"
+                      color="neutral"
+                      variant="soft"
+                      icon="i-heroicons-plus"
+                      size="sm"
+                      @click="() => handleIncreaseQuantity(slug, quantity)"
+                    />
+                  </div>
+                  <div v-else>
+                    <UButton
+                      color="primary"
+                      class="cursor-pointer"
+                      size="sm"
+                      @click="handleAddToCartClick"
+                    >
+                      Добавить в корзину
+                    </UButton>
+                  </div>
+                </ClientOnly>
               </div>
               <p class="text-gray-600">{{ item.description }}</p>
             </div>
@@ -200,4 +186,4 @@ const handleAddToCartClick = () => {
       </div>
     </div>
   </div>
-</template> 
+</template>

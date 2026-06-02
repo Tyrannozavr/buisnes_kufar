@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import CompaniesList from '~/components/company/CompaniesList.vue'
-import { useToast } from 'vue-toastification'
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -22,10 +21,10 @@ watch(() => props.companies, (val) => {
 const handleRemove = async (company: PartnerCompany) => {
   try {
     await props.onRemove(company)
-    toast.success('Компания удалена из списка')
+    toast.add({ title: 'Компания удалена из списка', color: 'success' })
     emit('refresh')
   } catch (error) {
-    toast.error('Не удалось удалить компанию')
+    toast.add({ title: 'Не удалось удалить компанию', color: 'error' })
   }
 }
 </script>

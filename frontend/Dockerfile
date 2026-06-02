@@ -38,6 +38,6 @@ EXPOSE 3000
 # Используем exec-form для корректной обработки сигналов
 CMD ["npm", "run", "start"]
 
-# HEALTHCHECK для мониторинга
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:3000/ || exit 1
+# HEALTHCHECK: node:20-slim не содержит curl
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s \
+  CMD node -e "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

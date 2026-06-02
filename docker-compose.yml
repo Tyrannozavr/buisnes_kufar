@@ -127,6 +127,8 @@ services:
         condition: service_healthy
 
   certbot:
+    profiles:
+      - certbot
     build:
       context: ./certbot
     env_file:
@@ -138,6 +140,8 @@ services:
       - nginx
 
   certbot-fix:
+    profiles:
+      - certbot
     build:
       context: ./certbot
     volumes:

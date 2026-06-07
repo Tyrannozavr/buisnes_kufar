@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import type { Company, Deal, ProductItem } from "~/types/dealState"
+import type { Company, Deal, Official, ProductItem } from "~/types/dealState"
 import numberToWordsRuPkg from "number-to-words-ru"
 import type { OfficialBill } from "~/types/bill"
 
@@ -153,9 +153,11 @@ export const useDealsStore = defineStore("deals", () => {
 		dealNumber: string,
 		role: "seller" | "buyer"
 	) => {
-		return deals.value?.find(
-			(d) => d.buyerOrderNumber === dealNumber && d.role === role
-		)
+		return deals.value?.find((d) => {
+			if (d.role !== role) return false
+			const orderNumber = role === "seller" ? d.sellerOrderNumber : d.buyerOrderNumber
+			return orderNumber === dealNumber
+		})
 	}
 
 	/**
@@ -291,12 +293,12 @@ export const useDealsStore = defineStore("deals", () => {
 	/**
 	 * обновление даты договора поставки после createSupplyContract
 	 * @param dealId - id сделки
-	 * @param date - дата договора поставки (supply_contracts_date)
+	 * @param date - дата договора поставки (supply_contract_date)
 	 */
-	const editSupplyContractsDate = async (dealId: number, date: string) => {
+	const editSupplyContractDate = async (dealId: number, date: string) => {
 		const deal = findDeal(dealId)
 		if (!deal) return
-		deal.supplyContractsDate = date
+		deal.supplyContractDate = date
 	}
 
 	/**
@@ -471,6 +473,105 @@ export const useDealsStore = defineStore("deals", () => {
 		deal.bill.additionalInfoOffer = additionalInfo
 	}
 
+	/**
+	 * редактирование номера договора поставки
+	 */
+	const editSupplyContractNumber = async (dealId: number, number: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.number = number
+	}
+
+	/**
+	 * редактирование номера спецификации договора поставки
+	 */
+	const editSupplyContractSpecificationNumber = async (dealId: number, specificationNumber: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.specificationNumber = specificationNumber
+	}
+
+	/**
+	 * редактирование даты спецификации договора поставки
+	 */
+	const editSupplyContractSpecificationDate = async (dealId: number, specificationDate: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.specificationDate = specificationDate
+	}
+
+	/**
+	 * редактирование должностных лиц продавца в договоре поставки
+	 */
+	const editSupplyContractOfficialsSeller = async (dealId: number, officials: Official[]) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.officialsSeller = [...officials]
+	}
+
+	/**
+	 * редактирование шаблона договора поставки
+	 */
+	const editSupplyContractTemplate = async (dealId: number, template: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.templateSupplyContract = template
+	}
+
+	/**
+	 * редактирование шаблона спецификации договора поставки
+	 */
+	const editSupplyContractSpecificationTemplate = async (dealId: number, template: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.templateSpecification = template
+	}
+
+	/**
+	 * редактирование текста договора поставки
+	 */
+	const editSupplyContractText = async (dealId: number, text: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.supplyContractText = text
+	}
+
+	/**
+	 * редактирование текста спецификации договора поставки
+	 */
+	const editSupplyContractSpecificationText = async (dealId: number, text: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.specificationText = text
+	}
+
+	/**
+	 * редактирование флага «Реквизиты поставщика»
+	 */
+	const editSupplyContractSupplierDetailsCheck = async (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.supplierDetailsCheck = value
+	}
+
+	/**
+	 * редактирование флага «Реквизиты покупателя»
+	 */
+	const editSupplyContractBuyerDetailsCheck = async (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.buyerDetailsCheck = value
+	}
+
+	/**
+	 * редактирование флага «Колонтитул»
+	 */
+	const editSupplyContractCoverLetterCheck = async (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.supplyContract.coverLetterCheck = value
+	}
+
 	return {
 		deals,
 		storedIds,
@@ -491,7 +592,7 @@ export const useDealsStore = defineStore("deals", () => {
 		editProductComments,
 		removeDeal,
 		editContractDate,
-		editSupplyContractsDate,
+		editSupplyContractDate,
 		//bill
 		editBillFields,
 		editAmountVatRate,
@@ -512,5 +613,17 @@ export const useDealsStore = defineStore("deals", () => {
 		editContractTermsOffer,
 		editContractTermsTextOffer,
 		editAdditionalInfoOffer,
+		//supply-contract
+		editSupplyContractNumber,
+		editSupplyContractSpecificationNumber,
+		editSupplyContractSpecificationDate,
+		editSupplyContractOfficialsSeller,
+		editSupplyContractTemplate,
+		editSupplyContractSpecificationTemplate,
+		editSupplyContractText,
+		editSupplyContractSpecificationText,
+		editSupplyContractSupplierDetailsCheck,
+		editSupplyContractBuyerDetailsCheck,
+		editSupplyContractCoverLetterCheck,
 	}
 })

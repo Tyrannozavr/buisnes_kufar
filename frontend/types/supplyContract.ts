@@ -1,16 +1,9 @@
 import type { ProductsInOrder } from "./order"
-import type { Company } from "./dealState"
+import type { Company, Official } from "./dealState"
 
-export interface OfficialSupplyContract {
-	id: number
-	name: string
-	position: string
-	isBase: boolean
-	baseDocument: string
-	baseDocumentName: string
-}
 
 export interface SupplyContractData {
+	dealId: number
 	number: string
 	date: string
 	specificationNumber: string
@@ -19,7 +12,7 @@ export interface SupplyContractData {
 	seller: Company
 	buyer: Company
 
-	officials: OfficialSupplyContract[]
+	officialsSeller: Official[]
 	products: ProductsInOrder[]
 
 	amount: number

@@ -50,7 +50,7 @@
             <UButton
                 color="neutral"
                 variant="soft"
-                to="/cart"
+								@click.prevent="removeItemsFromCart(cp.goods)"
             >
               Вернуть товары в корзину
             </UButton>
@@ -66,7 +66,7 @@
 import { useCartStore } from '~/stores/cart'
 import { useUserStore } from '~/stores/user'
 import type { TableColumn } from '@nuxt/ui'
-import type { Buyer, CompaniesAndProducts, ProductInCheckout } from 'types/product'
+import type { Buyer, CompaniesAndProducts, ProductInCheckout } from '~/types/product'
 import { ref, type Ref, watch } from 'vue'
 import { useChatsApi } from '~/api/chats'
 import { useCompaniesApi } from '~/api/companies'
@@ -114,7 +114,11 @@ const handleCreateOrder = async (cp: CompaniesAndProducts, items: ProductInCheck
 }
 
 const handleOrderSubmit = async (cp: CompaniesAndProducts, items: ProductInCheckout[]): Promise<void> => {
-	await handleCreateOrder(cp, items)
+	try {
+		await handleCreateOrder(cp, items)
+	} catch {
+		return
+	}
 	await messageToSaller(cp.companyId, items)
 	removeItemsFromCart(items)
 	showToast()

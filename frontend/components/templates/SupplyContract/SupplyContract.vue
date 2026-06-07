@@ -1,30 +1,64 @@
 <script setup lang="ts">
-import { Editor, TemplateElement } from "~/constants/keys"
-import { normalizePrice } from "~/utils/normalize"
-import type { ProductsInOrder } from "~/types/order"
-import type { SupplyContractData } from "~/types/supplyContract"
+import { Editor, TemplateElement } from '~/constants/keys'
+import { normalizeDate, normalizePrice, normalizeName } from '~/utils/normalize'
+import { renderSupplyContractFields } from '~/utils/supplyContractFields'
+import type { ProductsInOrder } from '~/types/order'
+import type { SupplyContractData } from '~/types/supplyContract'
+import type { Official, ProductItem } from '~/types/dealState'
+import { useRoute, useRouter } from 'vue-router'
+import { useDeals } from '~/composables/useDeals'
+import { useUserStore } from '~/stores/user'
+import { useSaveDeals } from '~/composables/useSaveDeals'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const {
+	deals,
+	findDeal,
+	deleteDeal,
+	editSupplyContractNumber,
+	editSupplyContractSpecificationNumber,
+	editSupplyContractSpecificationDate,
+	editSupplyContractOfficialsSeller,
+	editSupplyContractTemplate,
+	editSupplyContractSpecificationTemplate,
+	editSupplyContractText,
+	editSupplyContractSpecificationText,
+	editSupplyContractSupplierDetailsCheck,
+	editSupplyContractBuyerDetailsCheck,
+	editSupplyContractCoverLetterCheck,
+} = useDeals()
+const { completeSave, saveState } = useSaveDeals()
 
 const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
 const specificationHTML = useTypedState(TemplateElement.SPECIFICATION)
 const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
 const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
-const isDisabled = useTypedState(Editor.IS_DISABLED)
+const coverLetterCheck = useTypedState(Editor.COVER_LETTER_CHECK)
+const clearState = useTypedState(Editor.CLEAR_STATE)
+const removeDealState = useTypedState(Editor.REMOVE_DEAL)
+const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFICIALS_SELLER, () => ref<Official[]>([]))
+const supplyContractTableData = useTypedState(Editor.SUPPLY_CONTRACT_TABLE_DATA)
+const supplyContractSlotRevision = useTypedState(Editor.SUPPLY_CONTRACT_SLOT_REVISION, () => ref(0))
+const currentDeal = computed(() => findDeal(Number(route.query.dealId)))
 
-//supply contract data
+
 let seller: SupplyContractData['seller'] = {}
 let buyer: SupplyContractData['buyer'] = {}
 let products: SupplyContractData['products'] = []
-let officials: SupplyContractData['officials'] = []
+let officialsSeller: Official[] = []
 
 const supplyContractData = ref<SupplyContractData>({
+	dealId: 0,
 	number: '',
 	specificationNumber: '',
 	specificationDate: '',
 	date: '',
 	seller,
 	buyer,
-	officials,
+	officialsSeller,
 	products,
 	amount: 0,
 	amountExclVat: 0,
@@ -34,22 +68,277 @@ const supplyContractData = ref<SupplyContractData>({
 	templateSpecification: '',
 })
 
-const removeProduct = (product: ProductsInOrder) => {
-	const index = supplyContractData.value.products.indexOf(product)
-	if (index === -1) return
-	supplyContractData.value.products.splice(index, 1)
+//заполнение query
+const fillQuery = () => {
+	const query: Record<string, string> = { ...route.query } as Record<string, string>
+
+	if (supplyContractData.value.dealId) {
+		query.dealId = String(supplyContractData.value.dealId)
+	}
+
+	if (userStore.companyId === supplyContractData.value.buyer.companyId) {
+		query.role = 'buyer'
+	} else if (userStore.companyId === supplyContractData.value.seller.companyId) {
+		query.role = 'seller'
+	}
+
+	router.replace({
+		query,
+		hash: '#supplyContract',
+	})
 }
+
+//заполнение данных из сделки
+const fillSupplyContractData = () => {
+	const deal = findDeal(Number(route.query.dealId))
+	if (!deal) return
+
+	const productList = deal.product.productList ?? []
+	products = productList.map(
+		(product: ProductItem): ProductsInOrder => ({
+			name: product.name,
+			article: product.article,
+			quantity: product.quantity ?? 0,
+			units: product.units ?? '',
+			price: product.price ?? 0,
+			amount: product.amount ?? 0,
+		}),
+	)
+
+	const sellerData = deal.seller ?? {}
+	seller = {
+		ownerName: sellerData.ownerName,
+		companyName: sellerData.companyName,
+		companyType: sellerData.companyType,
+		city: sellerData.city,
+		fullName: sellerData.fullName,
+		companyId: sellerData.companyId,
+		phone: sellerData.phone,
+		email: sellerData.email,
+		legalAddress: sellerData.legalAddress,
+		productionAddress: sellerData.productionAddress,
+		index: sellerData.index,
+		inn: Number(sellerData.inn) || 0,
+		kpp: sellerData.kpp,
+		ogrn: sellerData.ogrn,
+		accountNumber: sellerData.accountNumber,
+		correspondentBankAccount: sellerData.correspondentBankAccount,
+		bankName: sellerData.bankName,
+		bic: sellerData.bic,
+		vatRate: sellerData.vatRate,
+	}
+
+	const buyerData = deal.buyer ?? {}
+	buyer = {
+		ownerName: buyerData.ownerName,
+		companyName: buyerData.companyName,
+		companyType: buyerData.companyType,
+		city: buyerData.city,
+		fullName: buyerData.fullName,
+		companyId: buyerData.companyId,
+		phone: buyerData.phone,
+		email: buyerData.email,
+		legalAddress: buyerData.legalAddress,
+		productionAddress: buyerData.productionAddress,
+		index: buyerData.index,
+		inn: Number(buyerData.inn) || 0,
+		kpp: buyerData.kpp,
+		ogrn: buyerData.ogrn,
+		accountNumber: buyerData.accountNumber,
+		correspondentBankAccount: buyerData.correspondentBankAccount,
+		bankName: buyerData.bankName,
+		bic: buyerData.bic,
+		vatRate: buyerData.vatRate,
+	}
+
+	const officialsData = deal.supplyContract.officialsSeller ?? []
+	officialsSeller = officialsData.map(
+		(official: Official): Official => ({
+			id: official.id,
+			companyId: official.companyId,
+			name: official.name,
+			position: official.position,
+			isBase: official.isBase,
+			baseDocument: official.baseDocument,
+			baseDocumentName: official.baseDocumentName,
+		}),
+	)
+	supplyContractOfficialsSeller.value = [...officialsSeller]
+	supplyContractHTML.value = deal.supplyContract.supplyContractText ?? ''
+	specificationHTML.value = deal.supplyContract.specificationText ?? ''
+	supplierDetailsCheck.value = deal.supplyContract.supplierDetailsCheck ?? false
+	buyerDetailsCheck.value = deal.supplyContract.buyerDetailsCheck ?? false
+	coverLetterCheck.value = deal.supplyContract.coverLetterCheck ?? false
+
+	supplyContractData.value = {
+		dealId: deal.dealId,
+		number: deal.supplyContract.number ?? '',
+		date: deal.supplyContractDate || deal.supplyContract.entityDate || '',
+		specificationNumber: deal.supplyContract.specificationNumber ?? '',
+		specificationDate: deal.supplyContract.specificationDate ?? '',
+		seller,
+		buyer,
+		officialsSeller: [...officialsSeller],
+		products: [...products],
+		amount: deal.product.amountPrice,
+		amountExclVat: deal.totalAmountExclVat,
+		amountVatRate: deal.product.amountVatRate,
+		amountWord: deal.product.amountWord,
+		templateSupplyContract: deal.supplyContract.templateSupplyContract ?? '',
+		templateSpecification: deal.supplyContract.templateSpecification ?? '',
+	}
+
+	supplyContractTableData.value = {
+		products: supplyContractData.value.products,
+		amount: supplyContractData.value.amount,
+		amountExclVat: supplyContractData.value.amountExclVat,
+		amountVatRate: supplyContractData.value.amountVatRate,
+	}
+
+	fillQuery()
+	// recalcSupplyContractAmounts()
+}
+
+//заполнение данных из query
+const fillFromQuery = () => {
+	const query = route.query
+	if (!query?.dealId || !query?.role) return
+	fillSupplyContractData()
+}
+
+//заполнение данных из query
+watch(
+	() => [
+		route.query.dealId,
+		deals?.value?.length ?? 0,
+		findDeal(Number(route.query.dealId))?.supplyContract?.number ?? '',
+	],
+	() => fillFromQuery(),
+	{ immediate: true, deep: true },
+)
+
+//заполнение данных должностных лиц из state
+watch(
+	() => supplyContractOfficialsSeller.value,
+	() => {
+		supplyContractData.value.officialsSeller = [...supplyContractOfficialsSeller.value]
+	},
+	{ deep: true, immediate: true },
+)
+
+const getRenderedSupplyContractHtml = (html: string | null | undefined): string =>
+	renderSupplyContractFields(html, {
+		seller: currentDeal.value?.seller ?? supplyContractData.value.seller,
+		buyer: currentDeal.value?.buyer ?? supplyContractData.value.buyer,
+		sellerOfficial: supplyContractOfficialsSeller.value[0],
+		paymentTerms: currentDeal.value?.bill.paymentTermsContract,
+		deliveryTerms: currentDeal.value?.bill.deliveryTermsContract,
+	})
+
+const renderedSupplyContractHTML = computed(() => getRenderedSupplyContractHtml(supplyContractHTML.value))
+const renderedSpecificationHTML = computed(() => getRenderedSupplyContractHtml(specificationHTML.value))
+
+watch(
+	[renderedSupplyContractHTML, renderedSpecificationHTML],
+	() => {
+		supplyContractSlotRevision.value += 1
+	},
+)
+
+//сохранение заказа в store при нажатии на кнопку сохранения в меню
+watch(() => saveState,
+	async () => {
+		if (!saveState.value) return
+		try {
+			const dealId = supplyContractData.value.dealId
+
+			if (route.query.role === 'seller') {
+				const deal = findDeal(dealId)
+				await editSupplyContractNumber(dealId, supplyContractData.value.number)
+				await editSupplyContractSpecificationNumber(dealId, supplyContractData.value.specificationNumber)
+				await editSupplyContractSpecificationDate(dealId, supplyContractData.value.specificationDate)
+				await editSupplyContractOfficialsSeller(dealId, supplyContractData.value.officialsSeller)
+				if (deal) {
+					await editSupplyContractTemplate(dealId, deal.supplyContract.templateSupplyContract)
+					await editSupplyContractSpecificationTemplate(dealId, deal.supplyContract.templateSpecification)
+				}
+				await editSupplyContractText(dealId, supplyContractHTML.value ?? '')
+				await editSupplyContractSpecificationText(dealId, specificationHTML.value ?? '')
+				await editSupplyContractSupplierDetailsCheck(dealId, supplierDetailsCheck.value ?? false)
+				await editSupplyContractBuyerDetailsCheck(dealId, buyerDetailsCheck.value ?? false)
+				await editSupplyContractCoverLetterCheck(dealId, coverLetterCheck.value ?? false)
+			}
+		} finally {
+			completeSave()
+		}
+	},
+	{ deep: true },
+)
+
+//очистка формы
+const clearForm = () => {
+	products = []
+	seller = {}
+	buyer = {}
+	officialsSeller = []
+	supplyContractOfficialsSeller.value = []
+
+	supplyContractData.value = {
+		dealId: 0,
+		number: '',
+		specificationNumber: '',
+		specificationDate: '',
+		date: '',
+		seller,
+		buyer,
+		officialsSeller,
+		products,
+		amount: 0,
+		amountExclVat: 0,
+		amountVatRate: 0,
+		amountWord: '',
+		templateSupplyContract: '',
+		templateSpecification: '',
+	}
+}
+
+//очистка формы при нажатии на кнопку очистки в меню
+watch(
+	() => clearState.value,
+	() => {
+		if (clearState.value) clearForm()
+	},
+	{ deep: true },
+)
+
+//удаление сделки
+const removeDeal = () => {
+	deleteDeal(supplyContractData.value.dealId)
+	clearForm()
+}
+
+//удаление сделки при нажатии на кнопку удаления в меню
+watch(
+	() => removeDealState.value,
+	() => {
+		if (removeDealState.value) removeDeal()
+	},
+	{ deep: true },
+)
 </script>
 
 <template>
+	<div>
 	<!-- Преамбула -->
 	<div v-if="supplyContractType === 'supplyContract'">
 		<div>
-			<h1 class="text-center font-bold">ДОГОВОР ПОСТАВКИ № ___________</h1>
+			<h1 class="text-center font-bold">
+				ДОГОВОР ПОСТАВКИ № {{ supplyContractData.number || '___________' }}
+			</h1>
 		</div>
 		<div class="flex justify-between">
-			<span>г. __________</span>
-			<span class="text-right">«____» _______________ 20____г.</span>
+			<span>г. {{ supplyContractData.seller.city ?? '_________' }}</span>
+			<span class="text-right">{{ normalizeDate(supplyContractData.date) ? `${normalizeDate(supplyContractData.date)} г.` : '«____» _______________ 20____г.' }}</span>
 		</div>
 		<br />
 
@@ -58,8 +347,8 @@ const removeProduct = (product: ProductsInOrder) => {
 			<p v-if="supplyContractData.seller.companyType !== 'ИП'">
 				{{supplyContractData.seller.companyName}} далее -
 				<span class="font-bold">«Поставщик»</span>, от имени которого действует
-				{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}, действующего (ей) на основании {{ supplyContractData.officials[0]?.baseDocument }}
-				{{ supplyContractData.officials[0]?.baseDocumentName }}, с одной стороны
+				{{ supplyContractOfficialsSeller[0]?.position }} {{ supplyContractOfficialsSeller[0]?.name ?? ' _____________' }}, действующего (ей) на основании {{ supplyContractOfficialsSeller[0]?.baseDocument }}
+				{{ supplyContractOfficialsSeller[0]?.baseDocumentName ?? ' _____________' }}, с одной стороны
 			</p>
 			<p v-else>
 				{{ supplyContractData.seller.companyName }}, далее -
@@ -71,8 +360,8 @@ const removeProduct = (product: ProductsInOrder) => {
 			<p v-if="supplyContractData.buyer.companyType !== 'ИП'">
 				{{ supplyContractData.buyer.companyName }}, далее -
 				<span class="font-bold">«Покупатель»</span>, от имени которого действует
-				{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}, действующего (ей) на основании {{ supplyContractData.officials[0]?.baseDocument }}
-				{{ supplyContractData.officials[0]?.baseDocumentName }}, с другой стороны, далее совместно именуемые «Стороны»,
+				{{' _____________' }}, действующего (ей) на основании
+				{{ ' _____________' }}, с другой стороны, далее совместно именуемые «Стороны»,
 				заключили настоящий Договор поставки (далее именуемый «Договор») о
 				нижеследующем:
 			</p>
@@ -89,20 +378,22 @@ const removeProduct = (product: ProductsInOrder) => {
 		<div>
 			<div class="text-right block">
 				<p>Приложение</p>
-				<p>к договору № {{ supplyContractData.number }}</p>
-				<p>от {{ supplyContractData.date }}</p>
+				<p>к договору № {{ supplyContractData.number || '—' }}</p>
+				<p>от {{ normalizeDate(supplyContractData.date, true) || '—' }} г.</p>
 			</div>
 		</div>
 		<div>
-			<h1 class="text-center ">Спецификация № {{ supplyContractData.specificationNumber }}</h1>
+			<h1 class="text-center ">
+				Спецификация № {{ supplyContractData.specificationNumber || '—' }}
+			</h1>
 		</div>
 	</div>
 	<br />
 
 	<div v-if="supplyContractType === 'specification'">
-		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
+		<table class="table-fixed p-5 mb-5 w-[99%]" id="products">
 			<thead>
-				<tr>
+				<tr class="font-bold text-center">
 					<td class="w-5 border"><span>№</span></td>
 					<td class="w-50 border"><span>Название продукта</span></td>
 					<td class="w-15 border"><span>Артикул</span></td>
@@ -114,49 +405,29 @@ const removeProduct = (product: ProductsInOrder) => {
 				</tr>
 			</thead>
 			<tbody>
-				<tr v-for="product in supplyContractData.products">
-					<td class="border">
+				<tr v-for="product in supplyContractData.products" :key="product.article + product.name">
+					<td class="text-center border">
 						<span>{{ supplyContractData.products.indexOf(product) + 1 }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
+						<span>{{ product.name }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
-							v-model.lazy="product.article" />
+						<span>{{ product.article }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
-							v-model.lazy="product.quantity" />
+						<span>{{ product.quantity }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
-							v-model.lazy="product.units" />
+						<span>{{ product.units }}</span>
 					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
+					<td class="text-right border">
+						<span>{{ normalizePrice(product.price) }}</span>
 					</td>
-					<td class="border">
+					<td class="text-right border">
 						<span class="">{{ normalizePrice(product.amount) }}</span>
 					</td>
 					<td>
-						<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
-							<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
-								width="32" height="32" viewBox="0 0 24 24">
-								<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"
-									stroke-linejoin="round" stroke-width="3">
-									<circle cx="12" cy="12" r="10" />
-									<path d="m15 9l-6 6m0-6l6 6" />
-								</g>
-							</svg>
-						</span>
-					</td>
-				</tr> 
-
-				<tr :hidden="isDisabled">
-					<td @click="" colspan="7"
-						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
-						Добавить товар
 					</td>
 				</tr>
 
@@ -181,30 +452,47 @@ const removeProduct = (product: ProductsInOrder) => {
 						<span class="font-bold">{{ normalizePrice(supplyContractData.amount) }}</span>
 					</td>
 				</tr>
-				
-			</tbody> 
+
+			</tbody>
 		</table>
 	</div>
 
+	<div v-if="supplyContractType === 'specification'">
+		<span>
+			Всего наименований: 
+			<span class="font-bold">
+				{{ supplyContractData.products.length }}
+			</span>
+			, на сумму:
+			<span class="font-bold">
+				{{ normalizePrice(supplyContractData.amount) }} p.
+			</span> 
+		</span>
+	</div>
+	<div v-if="supplyContractType === 'specification'">
+		<span class="underline underline-offset-4">
+			<span class="font-bold">{{ supplyContractData.amountWord }}</span>
+		</span>
+	</div>
+	<br>
+
 	<!-- Тело договора из редактора -->
 	<div>
-		<div v-if="supplyContractType === 'supplyContract'" v-html="supplyContractHTML"></div>
-		<div v-else-if="supplyContractType === 'specification'" v-html="specificationHTML"></div>
+		<div v-if="supplyContractType === 'supplyContract'" v-html="renderedSupplyContractHTML"></div>
+		<div v-else-if="supplyContractType === 'specification'" v-html="renderedSpecificationHTML"></div>
 	</div>
 	<br />
-	
+
 	<!-- Реквизиты сторон -->
 	<div>
-		<table class="table_without_border">
+		<table class="table_without_border w-full">
 			<tr class="font-bold">
-				<td v-if="supplierDetailsCheck">ПОСТАВЩИК:</td>
-				<td v-if="buyerDetailsCheck">ПОКУПАТЕЛЬ:</td>
+				<td v-if="supplierDetailsCheck" class="w-1/2">ПОСТАВЩИК:</td>
+				<td v-if="buyerDetailsCheck" class="w-1/2">ПОКУПАТЕЛЬ:</td>
 			</tr>
 			<tr class="font-bold">
 				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
-				<!-- Поставщик -->
 				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
-				<!-- Покупатель -->
 			</tr>
 			<tr>
 				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.index }}, {{ supplyContractData.seller.legalAddress }}</td>
@@ -238,65 +526,43 @@ const removeProduct = (product: ProductsInOrder) => {
 				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.phone }}</td>
 				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.phone }}</td>
 			</tr>
-			<!-- <tr class="h-5">
-				<td></td>
-				<td></td>
-			</tr>
-			<tr>
-				<td>
-					<div>
-						<div class="h-5 flex justify-between">
-							<span class="block mr-5">{ДОЛЖНОСТЬ}</span>
-							<span class="block mr-5">{ФИО}</span>
-						</div>
-						<div class="text-center text-xs border-t mr-5">
-							(должность, подпись, ФИО)
-						</div>
-					</div>
-				</td>
-				<td></td>
-			</tr>
-			<tr>
-				<td></td>
-				<td></td>
-			</tr> -->
 		</table>
 	</div>
 	<br />
 
 	<!-- Подписи -->
 	<div>
-		<table class="table_without_border">
+		<table class="table_without_border w-full">
 			<tr class="font-bold">
-				<td>Поставщик:</td>
-				<td>Покупатель:</td>
+				<td class="w-1/2">Поставщик:</td>
+				<td class="w-1/2">Покупатель:</td>
 			</tr>
 			<tr class="font-bold">
 				<td>{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
 				<td>{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
 			</tr>
 			<tr class="font-bold">
-				<td>{{ supplyContractData.officials[0]?.position }} {{ supplyContractData.officials[0]?.name }}</td>
-				<td>_____________(ДОЛЖНОСТЬ)</td>
+				<td>{{ supplyContractOfficialsSeller[0]?.position ?? '_________________(ДОЛЖНОСТЬ)' }}</td>
+				<td>_________________(ДОЛЖНОСТЬ)</td>
 			</tr>
-			<!-- отступ -->
 			<tr class="h-5">
 				<td></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>______________________/{{ supplyContractData.officials[0]?.name }}/</td>
-				<td>______________________/_______(ФИО)/</td>
+				<td>______________________/{{ normalizeName(supplyContractOfficialsSeller[0]?.name ?? '_____________(ФИО)') }}/</td>
+				<td>_______________/_____________(ФИО)/</td>
 			</tr>
 			<tr class="font-bold">
-				<td>«____» _______________ 20 г.</td>
-				<td>«____» _______________ 20 г.</td>
+				<td>«____» _______________ 20__г.</td>
+				<td>«____» _______________ 20__г.</td>
 			</tr>
 			<tr>
 				<td>М.П.</td>
 				<td>М.П.</td>
 			</tr>
 		</table>
+	</div>
 	</div>
 </template>
 
@@ -315,13 +581,6 @@ p {
 	text-indent: 3em;
 	line-height: 1.5em;
 }
-
-/* table,
-th,
-td {
-	border: solid gray 1px;
-	padding: 5px;
-} */
 
 .table_without_border {
 	border: none;

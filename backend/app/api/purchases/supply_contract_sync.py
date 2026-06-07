@@ -121,9 +121,10 @@ async def build_supply_contract_in_deal_response(
 			officials=officials_from_json(entity.officials_json),
 			specification_number=spec.spec_number if spec else "",
 			specification_date=spec.spec_date if spec else None,
-			template_supply_contract="",
-			template_specification="",
-			terms_text=entity.terms_text or "",
+			template_supply_contract=str(order.supply_contract_template_id or ""),
+			template_specification=str(order.supply_specification_template_id or ""),
+			supply_contract_text=entity.terms_text or "",
+			specification_text=(spec.spec_text or "") if spec else "",
 			supplier_details_check=entity.supplier_details_check,
 			buyer_details_check=entity.buyer_details_check,
 			cover_letter_check=entity.cover_letter_check,
@@ -134,6 +135,8 @@ async def build_supply_contract_in_deal_response(
 		officials=[],
 		specification_number="",
 		specification_date=None,
+		template_supply_contract=str(order.supply_contract_template_id or ""),
+		template_specification=str(order.supply_specification_template_id or ""),
 	)
 
 
@@ -188,12 +191,34 @@ async def dual_write_supply_contract_from_order_update(
 			item.setdefault("company_id", order.seller_company_id)
 	if sc.terms_text is not None:
 		entity.terms_text = sc.terms_text
+	if sc.specification_text is not None:
+		spec = _resolve_linked_specification(order, entity)
+		if spec is not None:
+			spec.spec_text = sc.specification_text
 	if sc.supplier_details_check is not None:
 		entity.supplier_details_check = sc.supplier_details_check
 	if sc.buyer_details_check is not None:
 		entity.buyer_details_check = sc.buyer_details_check
 	if sc.cover_letter_check is not None:
 		entity.cover_letter_check = sc.cover_letter_check
+
+	if sc.template_supply_contract is not None:
+		order.supply_contract_template_id = _parse_optional_template_id(sc.template_supply_contract)
+	if sc.template_specification is not None:
+		order.supply_specification_template_id = _parse_optional_template_id(sc.template_specification)
+
+
+def _parse_optional_template_id(raw: Optional[str]) -> Optional[int]:
+	if raw is None:
+		return None
+	value = str(raw).strip()
+	if not value:
+		return None
+	try:
+		parsed = int(value)
+	except ValueError:
+		return None
+	return parsed if parsed > 0 else None
 
 
 async def dual_write_assign_supply_contract(

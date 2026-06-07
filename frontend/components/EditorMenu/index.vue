@@ -265,6 +265,7 @@ const router = useRouter()
 const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const orderElement = useTypedState(TemplateElement.ORDER)
 const billElement = useTypedState(TemplateElement.BILL)
+const supplyContractPreviewElement = useTypedState(Editor.SUPPLY_CONTRACT_PREVIEW_ELEMENT)
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const billType = useTypedState(Editor.BILL_TYPE)
 const { createNewDealVersion, deleteLastDealVersion } = useDeals()
@@ -306,6 +307,10 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 						? "bill-offer"
 						: "bill"
 			await downloadDealGeneratedDocx(dealId, variant)
+			return
+		}
+		if (tab === "2") {
+			await downloadDealGeneratedDocx(dealId, "supply-contract")
 		}
 	} catch (e) {
 		console.error(e)
@@ -337,6 +342,10 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 						? "bill-offer"
 						: "bill"
 			await downloadDealGeneratedPdf(dealId, variant)
+			return
+		}
+		if (tab === "2") {
+			await downloadDealGeneratedPdf(dealId, "supply-contract")
 		}
 	} catch (e) {
 		console.error(e)
@@ -356,12 +365,18 @@ const printCurrentDocument = (activeTab: string) => {
 			? orderElement.value
 			: activeTab === "1"
 				? billElement.value
-				: null
+				: activeTab === "2"
+					? supplyContractPreviewElement.value
+					: null
 	if (!root) {
 		return
 	}
 	const cloneWithText = replaceTextareasAndInputs(root)
-	printDocument(cloneWithText)
+	const isA4Document = activeTab === "0" || activeTab === "1"
+	printDocument(cloneWithText, {
+		hidePageChrome: activeTab === "2",
+		pageMargins: isA4Document ? "10mm" : undefined,
+	})
 }
 
 //Search (как Ctrl+F: вхождения, счётчик, вперёд/назад, Enter / Shift+Enter)
@@ -385,7 +400,9 @@ const searchInCurrentDocument = (activeTab: string) => {
 			? orderElement.value
 			: activeTab === "1"
 				? billElement.value
-				: null
+				: activeTab === "2"
+					? supplyContractPreviewElement.value
+					: null
 	if (!root) {
 		return
 	}

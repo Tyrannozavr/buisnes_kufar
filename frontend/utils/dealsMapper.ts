@@ -1,8 +1,34 @@
-import type { OfficialsResponse, DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse, CompanyInDealResponse } from "~/types/dealResponse"
-import type { Deal, ProductItem, SupplyContract } from "~/types/dealState"
-import type { OfficialBill } from "~/types/bill"
+import type { DealResponse, DealUpdate, OrderItemUpdate, ProductItemResponse, CompanyInDealResponse, OfficialsResponse } from "~/types/dealResponse"
+import type { Deal, ProductItem, SupplyContract, Official } from "~/types/dealState"
 import { useDeals } from '~/composables/useDeals'
-import type { OfficialSupplyContract } from "~/types/supplyContract"
+import { normalizeSpecificationNumber } from '~/utils/normalize'
+
+
+const mapOfficialForUpdate = (
+	official: Official,
+	companyId: number,
+): OfficialsResponse => ({
+	id: official.id,
+	company_id: companyId,
+	full_name: official.name,
+	position: official.position,
+	is_base: official.isBase,
+	base_document: official.baseDocument,
+	base_document_name: official.baseDocumentName,
+})
+
+const mapOfficialsForDeal = (official: OfficialsResponse): Official => ({
+	id: official.id,
+	companyId: official.company_id,
+	name: official.full_name,
+	position: official.position,
+	isBase: official.is_base,
+	baseDocument: official.base_document,
+	baseDocumentName: official.base_document_name
+})
+
+const optionalDateField = (value: string | undefined | null): string | undefined =>
+	value?.trim() ? value : undefined
 
 
 export const createBodyForUpdate = (dealId: number): DealUpdate => {
@@ -36,7 +62,15 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	}
 
 	if (deal.status) body.status = deal.status
-	if (deal.contract.length > 0) body.contract = deal.contract
+	if (deal.contract.length > 0) {
+		body.contract = deal.contract.map((item) => {
+			const contract = item as { number?: string; date?: string }
+			return {
+				number: contract.number,
+				...(optionalDateField(contract.date) ? { date: contract.date } : {}),
+			}
+		})
+	}
 	if (deal.bill) {
 		body.bill = {
 			number: deal.bill.number ?? "",
@@ -54,35 +88,34 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 			contract_terms_offer: deal.bill.contractTermsOffer ?? "standard-delivery-supplier",
 			contract_terms_text_offer: deal.bill.contractTermsTextOffer ?? "",
 			additional_info_offer: deal.bill.additionalInfoOffer ?? "",
-			officials: deal.bill.officials.map((official: OfficialBill) => ({
-				id: official.id,
-				full_name: official.name,
-				position: official.position,
-				is_base: official.isBase,
-				base_document: official.baseDocument,
-				base_document_name: official.baseDocumentName
-			}) satisfies OfficialsResponse)
+			officials: deal.bill.officials.map((official: Official) =>
+				mapOfficialForUpdate(official, seller.companyId ?? 0),
+			),
 		}
 	}
-	if (deal.contract) body.contract = deal.contract
 	if (deal.supplyContract) {
+		const specificationDate = optionalDateField(deal.supplyContract.specificationDate)
+		const templateSupplyContract = deal.supplyContract.templateSupplyContract
+		const templateSpecification = deal.supplyContract.templateSpecification
+		const specificationNumber = normalizeSpecificationNumber(deal.supplyContract.specificationNumber)
 		body.supply_contract = {
 			number: deal.supplyContract.number,
-			officials: deal.supplyContract.officials.map((official: OfficialSupplyContract) => ({
-				id: official.id,
-				full_name: official.name,
-				position: official.position,
-				is_base: official.isBase,
-				base_document: official.baseDocument,
-				base_document_name: official.baseDocumentName
-			}) satisfies OfficialsResponse),
-			specification_number: deal.supplyContract.specificationNumber,
-			specification_date: deal.supplyContract.specificationDate,
-			template_supply_contract: deal.supplyContract.templateSupplyContract,
-			template_specification: deal.supplyContract.templateSpecification,
+			officials: deal.supplyContract.officialsSeller.map((official: Official) =>
+				mapOfficialForUpdate(official, seller.companyId ?? 0),
+			),
+			specification_number: specificationNumber || undefined,
+			...(specificationDate ? { specification_date: specificationDate } : {}),
+			terms_text: deal.supplyContract.supplyContractText ?? '',
+			specification_text: deal.supplyContract.specificationText ?? '',
+			...(templateSupplyContract
+				? { template_supply_contract: String(templateSupplyContract) }
+				: {}),
+			...(templateSpecification
+				? { template_specification: String(templateSpecification) }
+				: {}),
 			supplier_details_check: deal.supplyContract.supplierDetailsCheck,
 			buyer_details_check: deal.supplyContract.buyerDetailsCheck,
-			cover_letter_check: deal.supplyContract.coverLetterCheck
+			cover_letter_check: deal.supplyContract.coverLetterCheck,
 		}
 	}
 	if (deal.closingDocuments) body.closing_documents = deal.closingDocuments
@@ -121,11 +154,14 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			ownerName: dealResponse.seller_company.owner_name,
 			companyName: dealResponse.seller_company.company_name,
 			companyType: dealResponse.seller_company.company_type,
+			fullName: dealResponse.seller_company.full_name,
+			city: dealResponse.seller_company.city,
 			phone: dealResponse.seller_company.phone,
 			slug: dealResponse.seller_company.slug,
 			companyId: dealResponse.seller_company.company_id,
 			email: dealResponse.seller_company.email,
 			inn: dealResponse.seller_company.inn,
+			ogrn: dealResponse.seller_company.ogrn,
 			legalAddress: dealResponse.seller_company.legal_address,
 			productionAddress: dealResponse.seller_company.production_address,
 			index: dealResponse.seller_company.index,
@@ -140,11 +176,14 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			ownerName: dealResponse.buyer_company.owner_name,
 			companyName: dealResponse.buyer_company.company_name,
 			companyType: dealResponse.buyer_company.company_type,
+			fullName: dealResponse.buyer_company.full_name,
+			city: dealResponse.buyer_company.city,
 			phone: dealResponse.buyer_company.phone,
 			slug: dealResponse.buyer_company.slug,
 			companyId: dealResponse.buyer_company.company_id,
 			email: dealResponse.buyer_company.email,
 			inn: dealResponse.buyer_company.inn,
+			ogrn: dealResponse.buyer_company.ogrn,
 			legalAddress: dealResponse.buyer_company.legal_address,
 			productionAddress: dealResponse.buyer_company.production_address,
 			index: dealResponse.buyer_company.index,
@@ -177,34 +216,27 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			contractTermsTextOffer:
 				dealResponse.bill.contract_terms_text_offer ?? "",
 			additionalInfoOffer: dealResponse.bill.additional_info_offer ?? "",
-			officials: dealResponse.bill.officials.map(
-				(official: OfficialsResponse) => ({
-					id: official.id,
-					name: official.full_name,
-					position: official.position,
-					isBase: official.is_base,
-					baseDocument: official.base_document,
-					baseDocumentName: official.base_document_name
-				}) satisfies OfficialBill
-			)
+			officials: dealResponse.bill.officials.map(official => mapOfficialsForDeal(official))
 		},
 		billDate: dealResponse.bill_date,
 		contract: dealResponse.contract || [],
 		contractDate: dealResponse.contract_date,
 		supplyContract: {
+			entityId: dealResponse.supply_contract.entity_id,
+			specificationEntityId: dealResponse.supply_contract.specification_entity_id,
+			entityDate: dealResponse.supply_contract_date || undefined,
+			supplyContractText: dealResponse.supply_contract.supply_contract_text ?? '',
+			specificationText: dealResponse.supply_contract.specification_text ?? '',
 			number: dealResponse.supply_contract.number,
-			officials: dealResponse.supply_contract.officials.map((official: OfficialsResponse) => ({
-				id: official.id,
-				name: official.full_name,
-				position: official.position,
-				isBase: official.is_base,
-				baseDocument: official.base_document,
-				baseDocumentName: official.base_document_name
-			}) satisfies OfficialSupplyContract),
-			specificationNumber: dealResponse.supply_contract.specification_number,
-			specificationDate: dealResponse.supply_contract.specification_date,
-			templateSupplyContract: dealResponse.supply_contract.template_supply_contract,
-			templateSpecification: dealResponse.supply_contract.template_specification,
+			officialsSeller: (
+				dealResponse.supply_contract.officials
+				?? dealResponse.supply_contract.officialsSeller
+				?? []
+			).map(official => mapOfficialsForDeal(official)),
+			specificationNumber: normalizeSpecificationNumber(dealResponse.supply_contract.specification_number),
+			specificationDate: dealResponse.supply_contract.specification_date ?? '',
+			templateSupplyContract: dealResponse.supply_contract.template_supply_contract ?? '',
+			templateSpecification: dealResponse.supply_contract.template_specification ?? '',
 			supplierDetailsCheck: dealResponse.supply_contract.supplier_details_check,
 			buyerDetailsCheck: dealResponse.supply_contract.buyer_details_check,
 			coverLetterCheck: dealResponse.supply_contract.cover_letter_check

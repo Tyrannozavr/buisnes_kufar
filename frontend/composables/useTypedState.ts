@@ -1,3 +1,6 @@
+import type { Official } from "~/types/dealState"
+import type { SupplyContractData } from "~/types/supplyContract"
+
 //From constant/keys
 interface StateMap {
 	//Editor
@@ -40,7 +43,16 @@ interface StateMap {
 	supplierDetailsCheck: boolean
 	buyerDetailsCheck: boolean
 	supplyContractType: "supplyContract" | "specification"
-
+	supplyContractOfficialsSeller: Official[] | []
+	supplyContractTableData: {
+		products: SupplyContractData['products']
+		amount: SupplyContractData['amount'],
+		amountExclVat: SupplyContractData['amountExclVat'],
+		amountVatRate: SupplyContractData['amountVatRate'],
+	}
+	supplyContractSlotRevision: number
+	supplyContractPreviewElement: HTMLElement | null
+	
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null

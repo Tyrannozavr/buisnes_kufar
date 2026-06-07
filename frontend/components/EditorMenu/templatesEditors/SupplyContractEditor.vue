@@ -1,26 +1,65 @@
 <script setup lang="ts">
-/*
-TODO:
-- [ ] Добавить логику присвоения данного шаблона флага "шаблон по умолчанию" для дальнейшего использования в других заказах
-- [ ] Добавить логику сохранения договора поставки
-- [ ] добавить получение пропсов из компонента SupplyContractMenu.vue
-- [ ] Дополнить логику вставки таблицы с товарами(добавить реальные данные из заказа)
-- [ ] Дополнить логику выбора сроков и реквизитов
-*/
-import { Editor } from "~/constants/keys"
 import { ListItem } from "@tiptap/extension-list"
 import { TextStyleKit } from "@tiptap/extension-text-style"
 import { Editor as TiptapEditor, EditorContent } from "@tiptap/vue-3"
+import { Mark, mergeAttributes } from "@tiptap/core"
 import StarterKit from "@tiptap/starter-kit"
 import { TextAlign } from "@tiptap/extension-text-align"
 import { TableKit } from "@tiptap/extension-table"
 import type { DropdownMenuItem } from "@nuxt/ui"
 import mammoth from "mammoth"
-import { TemplateElement } from "~/constants/keys"
+import { Editor, TemplateElement } from "~/constants/keys"
+import { useSupplyContractTemplates } from "~/composables/useSupplyContractTemplates"
+import type { SupplyContractTemplateType } from "~/types/supplyContractTemplate"
+import {
+	createSupplyContractFieldTokenHtml,
+	getSupplyContractFieldLabel,
+	renderSupplyContractFields,
+	SUPPLY_CONTRACT_FIELD_ATTRIBUTE,
+	SUPPLY_CONTRACT_FIELD_LABEL_ATTRIBUTE,
+	supplyContractFieldDefinitions,
+	supplyContractTermFieldDefinitions,
+	type SupplyContractParty,
+} from "~/utils/supplyContractFields"
+
+const { label, templateType } = defineProps<{
+	label: string
+	templateType: SupplyContractTemplateType
+}>()
+
+const selectedTemplateId = defineModel<number | undefined>("selectedTemplateId")
+
+const emit = defineEmits<{
+	saved: [templateId: number]
+}>()
+
+const route = useRoute()
+const dealId = computed(() => Number(route.query.dealId) || null)
+const toast = useToast()
+const { editSupplyContractText, editSupplyContractSpecificationText, findDeal } = useDeals()
+
+const templateTypeRef = computed(() => templateType)
+const {
+	templates,
+	templateItems,
+	saveTemplate,
+} = useSupplyContractTemplates(templateTypeRef, dealId)
 
 const templateEditorOpen = ref(false)
+const templateName = ref("")
+const isDefault = ref(false)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
 const specificationHTML = useTypedState(TemplateElement.SPECIFICATION)
+const isDisabled = useTypedState(Editor.IS_DISABLED)
+const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFICIALS_SELLER, () => ref([]))
+const fileInput = ref<HTMLInputElement | null>(null)
+const currentDeal = computed(() => dealId.value ? findDeal(dealId.value) : undefined)
+
+const supplyContractTableData = useTypedState(Editor.SUPPLY_CONTRACT_TABLE_DATA)
+const tableProducts = supplyContractTableData.value?.products
+const amount = supplyContractTableData.value?.amount
+const amountExclVat = supplyContractTableData.value?.amountExclVat
+const amountVatRate = supplyContractTableData.value?.amountVatRate
 
 const DEFAULT_FONT_SIZE = "14px"
 const fontSize = ref<string>(DEFAULT_FONT_SIZE)
@@ -41,61 +80,96 @@ const fontSizeItems = [
 	{ label: '36', value: '36px' }
 ]
 
-const paymentTermsItems: DropdownMenuItem[] = [
-	{
-		label: 'Срок оплаты',
-		onClick: () => editor.chain().focus().insertContent('одна ночь').run()
+const supplyContractParties: SupplyContractParty[] = ["seller", "buyer"]
+
+const getSupplyContractFieldContext = () => ({
+	seller: currentDeal.value?.seller,
+	buyer: currentDeal.value?.buyer,
+	sellerOfficial: supplyContractOfficialsSeller.value?.[0],
+	paymentTerms: currentDeal.value?.bill.paymentTermsContract,
+	deliveryTerms: currentDeal.value?.bill.deliveryTermsContract,
+})
+
+const insertSupplyContractField = (party: SupplyContractParty, fieldKey: typeof supplyContractFieldDefinitions[number]["key"]) => {
+	editor
+		.chain()
+		.focus()
+		.insertContent(createSupplyContractFieldTokenHtml(party, fieldKey, getSupplyContractFieldContext()))
+		.run()
+}
+
+const insertSupplyContractTermField = (fieldKey: typeof supplyContractTermFieldDefinitions[number]["key"]) => {
+	editor
+		.chain()
+		.focus()
+		.insertContent(createSupplyContractFieldTokenHtml("contract", fieldKey, getSupplyContractFieldContext()))
+		.run()
+}
+
+const getTemplateHtml = () =>
+	templateType === 'supply_contract' ? supplyContractHTML.value : specificationHTML.value
+
+const getRenderedTemplateHtml = () =>
+	renderSupplyContractFields(getTemplateHtml(), getSupplyContractFieldContext())
+
+const paymentTermsItems: DropdownMenuItem[] = supplyContractTermFieldDefinitions.map((field) => ({
+	label: field.label,
+	onClick: () => insertSupplyContractTermField(field.key),
+}))
+
+const requisitesItems: DropdownMenuItem[] = supplyContractParties.flatMap((party) =>
+	supplyContractFieldDefinitions.map((field) => ({
+		label: getSupplyContractFieldLabel(party, field.key),
+		onClick: () => insertSupplyContractField(party, field.key),
+	})),
+)
+
+const scrollableDropdownMenuUi = {
+	content: 'max-h-72',
+}
+
+const SupplyContractFieldMark = Mark.create({
+	name: "supplyContractField",
+	priority: 1000,
+	inclusive: false,
+
+	addAttributes() {
+		return {
+			[SUPPLY_CONTRACT_FIELD_ATTRIBUTE]: {
+				default: null,
+				parseHTML: (element) => element.getAttribute(SUPPLY_CONTRACT_FIELD_ATTRIBUTE),
+				renderHTML: (attributes) => {
+					const value = attributes[SUPPLY_CONTRACT_FIELD_ATTRIBUTE]
+					return value ? { [SUPPLY_CONTRACT_FIELD_ATTRIBUTE]: value } : {}
+				},
+			},
+			[SUPPLY_CONTRACT_FIELD_LABEL_ATTRIBUTE]: {
+				default: null,
+				parseHTML: (element) => element.getAttribute(SUPPLY_CONTRACT_FIELD_LABEL_ATTRIBUTE),
+				renderHTML: (attributes) => {
+					const value = attributes[SUPPLY_CONTRACT_FIELD_LABEL_ATTRIBUTE]
+					return value ? { [SUPPLY_CONTRACT_FIELD_LABEL_ATTRIBUTE]: value } : {}
+				},
+			},
+		}
 	},
-	{
-		label: 'Срок поставки',
-		onClick: () => editor.chain().focus().insertContent('одна неделя').run()
-	}
-]
-const requisitesItems: DropdownMenuItem[] = [
-	{
-		label: 'ОРГН',
-		onClick: () => editor.chain().focus().insertContent('ОРГН').run()
+
+	parseHTML() {
+		return [{ tag: `span[${SUPPLY_CONTRACT_FIELD_ATTRIBUTE}]` }]
 	},
-	{
-		label: 'ИНН',
-		onClick: () => editor.chain().focus().insertContent('ИНН').run()
-	}
-]
 
-const fileInput = ref<HTMLInputElement | null>(null)
-
-const { label } = defineProps<{
-	label: string
-}>()
-
-// Mock объект для billData, чтобы таблица с ним работала корректно
-const Data = ref({
-  products: [
-    {
-      name: "Товар 1",
-      article: "A001",
-      quantity: 10,
-      units: "шт",
-      price: 500,
-      amount: 5000,
-    },
-    {
-      name: "Товар 2",
-      article: "B002",
-      quantity: 5,
-      units: "кг",
-      price: 800,
-      amount: 4000,
-    },
-  ],
+	renderHTML({ HTMLAttributes }) {
+		return ["span", mergeAttributes(HTMLAttributes), 0]
+	},
 })
 
 //добавить проверку для клиента
 const editor = new TiptapEditor({
-	content: label === 'Редактор договора поставки' ? supplyContractHTML.value : specificationHTML.value,
+	content: getRenderedTemplateHtml(),
 	extensions: [
 		StarterKit,
 		TextStyleKit,
+		SupplyContractFieldMark,
 		ListItem.configure({ HTMLAttributes: { class: "list-item" } }),
 		TextAlign.configure({ types: ["heading", "paragraph"] }),
 		TableKit.configure({
@@ -144,29 +218,68 @@ const handleFontSizeSelect = (value: string) => {
 	editor.chain().focus().setFontSize(value).run()
 }
 
+const handleTemplateSelect = (templateId: number | undefined) => {
+	selectedTemplateId.value = templateId
+
+	const selected = (templates.value ?? []).find((item) => item.id === templateId)
+	if (!selected) return
+
+	templateName.value = selected.name
+	isDefault.value = selected.is_default
+	editor.commands.setContent(renderSupplyContractFields(selected.content_html, getSupplyContractFieldContext()))
+}
+
+const handleCreateNewTemplate = () => {
+	selectedTemplateId.value = undefined
+	templateName.value = ''
+	isDefault.value = false
+	editor.commands.clearContent()
+}
+
 // открытие редактора договора поставки
 const openTemplateEditor = () => {
+	const selected = (templates.value ?? []).find((item) => item.id === selectedTemplateId.value)
+	templateName.value = selected?.name ?? ""
+	isDefault.value = selected?.is_default ?? false
+	editor.commands.setContent(getRenderedTemplateHtml())
 	templateEditorOpen.value = true
 }
 
-// FIXME: логика присвоения данного шаблона флага "шаблон по умолчанию" для дальнейшего использования в других заказах
-const useDefaultTemplate = () => {
-	editor.chain().focus().setContent(`<p>Заполните условия договора поставки</p>${"<p></p>".repeat(15)}`).run()
-}
+// сохранение шаблона в БД и HTML в превью сделки
+const saveSupplyContract = async () => {
+	const contentHtml = editor.getHTML()
 
-// сохранение договора поставки
-const saveSupplyContract = () => {
-	templateEditorOpen.value = false
-	if (label === 'Редактор договора поставки') {
-		supplyContractHTML.value = editor.getHTML()
-	} else if (label === 'Редактор спецификации') {
-		specificationHTML.value = editor.getHTML()
+	if (templateType === 'supply_contract') {
+		supplyContractHTML.value = contentHtml
+	} else {
+		specificationHTML.value = contentHtml
 	}
+
+	const saved = await saveTemplate({
+		templateId: selectedTemplateId.value,
+		name: templateName.value,
+		contentHtml,
+		isDefault: isDefault.value,
+	})
+
+	if (!saved) return
+
+	selectedTemplateId.value = saved.id
+	if (dealId.value && route.query.role === 'seller') {
+		if (templateType === 'supply_contract') {
+			editSupplyContractText(dealId.value, contentHtml)
+		} else {
+			editSupplyContractSpecificationText(dealId.value, contentHtml)
+		}
+	}
+	templateEditorOpen.value = false
+	toast.add({ title: 'Шаблон сохранён', color: 'success' })
+	emit('saved', saved.id)
 }
 
 //в следующих трех функциях не вставлять пробелы и табуляции в сроках с таблицами (особенности работы библиотеки Tiptap)
-const tableBody = (data: any) => {
-	const body = data.products.map((item: any, index: number) =>
+const tableBody = () => {
+	const body = tableProducts.map((item: any, index: number) =>
 		`<tr><td><p>${index + 1}</p></td>
 		<td><p>${item.name}</p></td>
 		<td><p>${item.article}</p></td>
@@ -178,22 +291,22 @@ const tableBody = (data: any) => {
 	return body
 }
 
-const tableFooter = (data: any) => {
+const tableFooter = () => {
 	const footer =
 		`<tr>
 		<td colspan="6"><p style="text-align: right;margin-right: 30px;">Итого:</p></td>
-		<td><p style="text-align: right">${data.products.reduce((acc: number, item: any) => acc + item.amount, 0)}</p></td></tr>
+		<td><p style="text-align: right">${ amountExclVat }</p></td></tr>
 		<tr>
 		<td colspan="6"><p style="text-align: right;margin-right: 30px;">НДС 20%:</p></td>
-		<td><p style="text-align: right">${data.products.reduce((acc: number, item: any) => acc + item.amount * 0.2, 0)}</p></td></tr>
+		<td><p style="text-align: right">${ amountVatRate }</p></td></tr>
 		<tr>
 		<td colspan="6"><p style="text-align: right;margin-right: 30px;">Итого с НДС:</p></td>
-		<td><p style="text-align: right">${data.products.reduce((acc: number, item: any) => acc + item.amount * 1.2, 0)}</p></td>
+		<td><p style="text-align: right">${ amount }</p></td>
 		</tr>`.trim()
 	return footer
 }
 
-const insertTable = (data: any) => {
+const insertTable = () => {
 	const tableHeader =
 `<tr>
 <th><p>№</p></th>
@@ -204,7 +317,7 @@ const insertTable = (data: any) => {
 <th><p>Цена</p></th>
 <th><p>Сумма</p></th>
 </tr>`
-	const table = `<table>${tableHeader}${tableBody(data)}${tableFooter(data)}</table>`
+	const table = `<table>${tableHeader}${tableBody()}${tableFooter()}</table>`
 	return table
 }
 
@@ -235,22 +348,47 @@ onBeforeUnmount(() => {
 		}"
 	>
 		<UButton
+			:disabled="isDisabled"
 			:label="label"
 			color="neutral"
-			variant="subtle"
+			variant="ghost"
 			@click="openTemplateEditor()"
-			class="w-full"
+			class="flex w-full justify-end hover:cursor-pointer hover:bg-gray-50"
 		/>
 		<template #header>
 			<div class="flex flex-col gap-3 w-full">
+				<div class="flex gap-2">
+					<USelect
+						class=""
+						:items="templateItems"
+						:model-value="selectedTemplateId"
+						placeholder="Выберите шаблон для редактирования"
+						size="lg"
+						@update:model-value="handleTemplateSelect"
+					/>
+					<UButton
+						class=" justify-center"
+						icon="i-lucide-file-plus"
+						label="Создать новый шаблон"
+						color="neutral"
+						variant="subtle"
+						@click="handleCreateNewTemplate"
+					/>
+				</div>
+
 				<div class="flex justify-between">
 					<div class="flex gap-2 w-4/5">
-						<USelect class="w-1/3" placeholder="Название шаблона" size="xl"/>
+						<UInput
+							class="w-1/3"
+							placeholder="Название шаблона"
+							size="lg"
+							v-model="templateName"
+						/>
 						<UCheckbox
-							size="xl"
+							size="lg"
 							class="w-2/3 self-center"
 							label="Использовать по умолчанию"
-							@click="useDefaultTemplate()"
+							v-model="isDefault"
 						/>
 					</div>
 
@@ -266,9 +404,9 @@ onBeforeUnmount(() => {
 					</div>
 					
 				<UCard
-					class="flex w-full mb-3"
+					class="flex w-full"
 					variant="subtle"
-					:ui="{ body: 'p-0 bg-[rgb(68,114,196)] w-full' }"
+					:ui="{ body: 'bg-[rgb(68,114,196)] w-full p-3 sm:p-3'}"
 				>
 					<div class="flex gap-2 flex-wrap justify-between">
 
@@ -433,7 +571,7 @@ onBeforeUnmount(() => {
 
 						<div class="flex gap-1 p-1 bg-gray-50 rounded-md">
 							<UButton
-								@click="editor.chain().focus().insertContent(insertTable(Data)).run()"
+								@click="editor.chain().focus().insertContent(insertTable()).run()"
 								icon="i-lucide-table"
 								color="neutral"
 								variant="ghost"
@@ -445,16 +583,16 @@ onBeforeUnmount(() => {
 						<div class="flex gap-1 p-1 bg-gray-50 rounded-md">
 							<UDropdownMenu :items="paymentTermsItems">
 								<UButton
-								label="Сроки"
-								icon="i-lucide-calendar"
-								color="neutral"
-								variant="ghost"
-								class="hover:bg-gray-300"
-								title="Сроки оплаты, поставки и т.д."
-							/>
+									label="Сроки"
+									icon="i-lucide-calendar"
+									color="neutral"
+									variant="ghost"
+									class="hover:bg-gray-300"
+									title="Сроки оплаты, поставки и т.д."
+								/>
 							</UDropdownMenu>
-							
-							<UDropdownMenu :items="requisitesItems">
+
+							<UDropdownMenu :items="requisitesItems" :ui="scrollableDropdownMenuUi">
 								<UButton
 									label="Реквизиты"
 									icon="i-lucide-file-text"

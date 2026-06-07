@@ -233,7 +233,7 @@
 						<td class="border-b w-full">
 						</td>
 						<td>
-							<span :hidden="isDisabled" class="w-[10px] cursor-pointer" @click="removePerson(official)">
+							<span :hidden="isDisabled" class="w-2.5 cursor-pointer" @click="removePerson(official)">
 								<svg class="w-7 h-5 fill-none stroke-neutral-400 hover:stroke-red-400" xmlns="http://www.w3.org/2000/svg"
 									width="32" height="32" viewBox="0 0 24 24">
 									<g class="fill-white stroke-neutral-400 hover:stroke-red-400" stroke-linecap="round"

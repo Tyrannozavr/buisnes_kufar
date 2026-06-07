@@ -61,23 +61,32 @@ class SupplyContractRepository:
 	async def _generate_spec_number(self, supply_contract_id: int) -> str:
 		current_year = datetime.utcnow().year
 		query = (
-			select(func.max(SupplyContractSpecificationModel.spec_number))
+			select(SupplyContractSpecificationModel.spec_number)
 			.where(SupplyContractSpecificationModel.supply_contract_id == supply_contract_id)
 			.where(SupplyContractSpecificationModel.spec_number.isnot(None))
 			.where(extract("year", SupplyContractSpecificationModel.spec_date) == current_year)
 		)
 		result = await self.session.execute(query)
-		max_number = result.scalar()
+		rows = result.scalars().all()
+		max_number = 0
 
-		if max_number:
+		for raw_number in rows:
+			number = str(raw_number or "").strip()
+			if not number:
+				continue
+			digits = "".join(filter(str.isdigit, number))
+			if not digits:
+				continue
 			try:
-				next_number = int("".join(filter(str.isdigit, max_number))) + 1
+				parsed = int(digits)
 			except ValueError:
-				next_number = 1
-		else:
-			next_number = 1
+				continue
+			if parsed > max_number:
+				max_number = parsed
 
-		return f"{next_number:05d}"
+		next_number = max_number + 1
+
+		return str(next_number)
 
 	async def _replace_spec_items(
 		self,

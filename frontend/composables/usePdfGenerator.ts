@@ -87,7 +87,32 @@ export const usePdfGenerator = () => {
 		return newElement;
 	};
 
-	const printDocument = (element: HTMLElement | any): void => {
+	const supplyContractPrintStyles = `
+			.page {
+				border: none !important;
+				box-shadow: none !important;
+				border-radius: 0 !important;
+				outline: none !important;
+				background: white !important;
+			}
+		`;
+
+	const a4PageMarginsStyles = (margins: string) => `
+			@page {
+				size: A4;
+				margin: 0;
+			}
+			body {
+				margin: 0;
+				padding: ${margins};
+				box-sizing: border-box;
+			}
+		`;
+
+	const printDocument = (
+		element: HTMLElement | any,
+		options?: { hidePageChrome?: boolean; pageMargins?: string },
+	): void => {
 		ensureClient();
 		const styleInjection = collectDocumentStylesMarkup();
 		const baseHref = (() => {
@@ -124,6 +149,8 @@ export const usePdfGenerator = () => {
 			th {
 				text-align: start;
 			}
+			${options?.hidePageChrome ? supplyContractPrintStyles : ""}
+			${options?.pageMargins ? a4PageMarginsStyles(options.pageMargins) : ""}
 		</style>
 	</head>
 	<body>

@@ -8,9 +8,14 @@ from app.core.config import settings
 from app.api.authentication.dependencies import get_current_user
 from app_logging.logger import logger
 from app.api.authentication.models.user import User
-from app.api.purchases.dependencies import deal_service_dep_annotated, supply_contract_service_dep_annotated
+from app.api.purchases.dependencies import (
+	deal_service_dep_annotated,
+	supply_contract_service_dep_annotated,
+	supply_contract_template_service_dep_annotated,
+)
 from app.api.purchases.services import DealService
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
+from app.api.purchases.models import SupplyContractTemplateType
 from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
     DealIdsBody,
@@ -20,6 +25,7 @@ from app.api.purchases.schemas import (
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
     SpecificationCreate, SpecificationUpdate, SpecificationResponse,
+    SupplyContractTemplateCreate, SupplyContractTemplateUpdate, SupplyContractTemplateResponse,
 )
 from app.api.purchases.schemas import DealStatus
 from app.api.purchases.deal_docx_context import build_deal_docx_context
@@ -28,6 +34,8 @@ from app.api.purchases.services.docx_template_service import (
 	BILL_DOCX_FILENAME,
 	BILL_OFFER_DOCX_FILENAME,
 	ORDER_DOCX_FILENAME,
+	SUPPLY_CONTRACT_DOCX_FILENAME,
+	DocxTemplateRenderError,
 	render_docx_bytes,
 	resolve_docx_template_path,
 )
@@ -760,6 +768,12 @@ async def _serve_deal_docx(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f"DOCX template is not configured on the server: {template_filename}",
 		) from None
+	except DocxTemplateRenderError as exc:
+		logger.exception("DOCX template render failed: %s (%s)", template_filename, exc)
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f"DOCX template render error ({template_filename}): {exc}",
+		) from None
 	filename = f"{attachment_prefix}-deal-{deal.id}.docx"
 	return Response(
 		content=content,
@@ -864,6 +878,30 @@ async def download_bill_offer_docx(
 	)
 
 
+@router.get(
+	"/deals/{deal_id}/documents/supply-contract.docx",
+	tags=["documents", "docx", "generated"],
+	summary="Скачать договор поставки (.docx) по шаблону supply_contract.docx",
+	description="Шаблон `supply_contract.docx`, контекст из сделки (см. build_deal_docx_context).",
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		**_OPENAPI_GEN_DOCX_ERRORS,
+	},
+)
+async def download_supply_contract_docx(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_docx(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=SUPPLY_CONTRACT_DOCX_FILENAME,
+		attachment_prefix="supply-contract",
+	)
+
+
 async def _serve_deal_pdf(
 	deal_id: int,
 	current_user: Annotated[User, Depends(get_current_user)],
@@ -893,6 +931,12 @@ async def _serve_deal_pdf(
 		raise HTTPException(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f"DOCX template is not configured on the server: {template_filename}",
+		) from None
+	except DocxTemplateRenderError as exc:
+		logger.exception("DOCX template render failed before PDF: %s (%s)", template_filename, exc)
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f"DOCX template render error ({template_filename}): {exc}",
 		) from None
 	try:
 		pdf_bytes = await convert_docx_bytes_to_pdf(
@@ -1016,6 +1060,30 @@ async def download_bill_offer_pdf(
 		deal_service,
 		template_filename=BILL_OFFER_DOCX_FILENAME,
 		attachment_prefix="bill-offer",
+	)
+
+
+@router.get(
+	"/deals/{deal_id}/documents/supply-contract.pdf",
+	tags=["documents", "pdf", "generated"],
+	summary="Скачать договор поставки (.pdf) через Gotenberg",
+	description="PDF из шаблона `supply_contract.docx`.",
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		**_OPENAPI_GEN_PDF_ERRORS,
+	},
+)
+async def download_supply_contract_pdf(
+	deal_id: DealGeneratedDownloadId,
+	current_user: Annotated[User, Depends(get_current_user)],
+	deal_service: deal_service_dep_annotated,
+):
+	return await _serve_deal_pdf(
+		deal_id,
+		current_user,
+		deal_service,
+		template_filename=SUPPLY_CONTRACT_DOCX_FILENAME,
+		attachment_prefix="supply-contract",
 	)
 
 
@@ -1526,4 +1594,165 @@ async def bind_deal_supply_specification(
 		raise HTTPException(status_code=403, detail="Access denied")
 
 	return {"bound": True, "deal_id": deal_id, "spec_id": body.spec_id}
+
+
+def _parse_template_type(raw_type: str) -> SupplyContractTemplateType:
+	try:
+		return SupplyContractTemplateType(raw_type)
+	except ValueError as exc:
+		raise HTTPException(
+			status_code=400,
+			detail="type must be supply_contract or specification",
+		) from exc
+
+
+@router.get(
+	"/supply-contract-templates",
+	response_model=List[SupplyContractTemplateResponse],
+	tags=["supply-contract", "templates"],
+	summary="Список шаблонов договора поставки компании",
+)
+async def list_supply_contract_templates(
+	type: str = Query(..., description="supply_contract | specification"),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	template_type = _parse_template_type(type)
+	return await supply_contract_template_service.list_templates(company.id, template_type)
+
+
+@router.get(
+	"/supply-contract-templates/default",
+	response_model=SupplyContractTemplateResponse,
+	tags=["supply-contract", "templates"],
+	summary="Шаблон по умолчанию",
+	responses={404: {"description": "Шаблон по умолчанию не найден"}},
+)
+async def get_default_supply_contract_template(
+	type: str = Query(..., description="supply_contract | specification"),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	template_type = _parse_template_type(type)
+	template = await supply_contract_template_service.get_default_template(company.id, template_type)
+	if template is None:
+		raise HTTPException(status_code=404, detail="Default template not found")
+	return template
+
+
+@router.get(
+	"/supply-contract-templates/{template_id}",
+	response_model=SupplyContractTemplateResponse,
+	tags=["supply-contract", "templates"],
+	summary="Получить шаблон по id",
+	responses={
+		404: {"description": "Шаблон не найден"},
+	},
+)
+async def get_supply_contract_template(
+	template_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	template = await supply_contract_template_service.get_template(template_id, company.id)
+	if template is None:
+		raise HTTPException(status_code=404, detail="Template not found")
+	return template
+
+
+@router.post(
+	"/supply-contract-templates",
+	response_model=SupplyContractTemplateResponse,
+	status_code=status.HTTP_201_CREATED,
+	tags=["supply-contract", "templates"],
+	summary="Создать шаблон",
+	responses={409: {"description": "Шаблон с таким именем уже существует"}},
+)
+async def create_supply_contract_template(
+	body: SupplyContractTemplateCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	try:
+		return await supply_contract_template_service.create_template(company.id, body)
+	except SupplyContractTemplateAlreadyExistsError:
+		raise HTTPException(status_code=409, detail="Template with this name already exists")
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch(
+	"/supply-contract-templates/{template_id}",
+	response_model=SupplyContractTemplateResponse,
+	tags=["supply-contract", "templates"],
+	summary="Обновить шаблон",
+	responses={
+		404: {"description": "Шаблон не найден"},
+		409: {"description": "Шаблон с таким именем уже существует"},
+	},
+)
+async def update_supply_contract_template(
+	template_id: int,
+	body: SupplyContractTemplateUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	try:
+		template = await supply_contract_template_service.update_template(template_id, company.id, body)
+	except SupplyContractTemplateAlreadyExistsError:
+		raise HTTPException(status_code=409, detail="Template with this name already exists")
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+	if template is None:
+		raise HTTPException(status_code=404, detail="Template not found")
+	return template
+
+
+@router.delete(
+	"/supply-contract-templates/{template_id}",
+	status_code=status.HTTP_204_NO_CONTENT,
+	tags=["supply-contract", "templates"],
+	summary="Удалить шаблон",
+	responses={404: {"description": "Шаблон не найден"}},
+)
+async def delete_supply_contract_template(
+	template_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	supply_contract_template_service: supply_contract_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+
+	deleted = await supply_contract_template_service.delete_template(template_id, company.id)
+	if not deleted:
+		raise HTTPException(status_code=404, detail="Template not found")
+	return Response(status_code=status.HTTP_204_NO_CONTENT)
 

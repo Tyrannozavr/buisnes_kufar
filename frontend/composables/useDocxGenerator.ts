@@ -6,7 +6,8 @@ export type DealGeneratedDocxVariant =
 	| "order"
 	| "bill"
 	| "bill-contract"
-	| "bill-offer";
+	| "bill-offer"
+	| "supply-contract";
 
 const variantToApiPath = (
 	dealId: number,
@@ -21,6 +22,8 @@ const variantToApiPath = (
 			return API_URLS.DOWNLOAD_DEAL_DOCX_BILL_CONTRACT(dealId);
 		case "bill-offer":
 			return API_URLS.DOWNLOAD_DEAL_DOCX_BILL_OFFER(dealId);
+		case "supply-contract":
+			return API_URLS.DOWNLOAD_DEAL_DOCX_SUPPLY_CONTRACT(dealId);
 	}
 };
 
@@ -37,6 +40,8 @@ const variantToPdfApiPath = (
 			return API_URLS.DOWNLOAD_DEAL_PDF_BILL_CONTRACT(dealId);
 		case "bill-offer":
 			return API_URLS.DOWNLOAD_DEAL_PDF_BILL_OFFER(dealId);
+		case "supply-contract":
+			return API_URLS.DOWNLOAD_DEAL_PDF_SUPPLY_CONTRACT(dealId);
 	}
 };
 

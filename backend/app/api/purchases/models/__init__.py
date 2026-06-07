@@ -91,6 +91,16 @@ class Order(Base):
 	)
 	supply_contracts_number: Mapped[Optional[str]] = mapped_column(String(20))
 	supply_contracts_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+	supply_contract_template_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("supply_contract_template.id", ondelete="SET NULL"),
+		index=True,
+		nullable=True,
+	)
+	supply_specification_template_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("supply_contract_template.id", ondelete="SET NULL"),
+		index=True,
+		nullable=True,
+	)
 
 	# Закрывающие и прочие документы (пока пустые)
 	closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
@@ -272,3 +282,30 @@ class SpecificationItem(Base):
 	price: Mapped[float] = mapped_column(Float, nullable=False)
 	amount: Mapped[float] = mapped_column(Float, nullable=False)
 	position: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class SupplyContractTemplateType(str, enum.Enum):
+	SUPPLY_CONTRACT = "supply_contract"
+	SPECIFICATION = "specification"
+
+
+class SupplyContractTemplate(Base):
+	"""Библиотека HTML-шаблонов договора поставки / спецификации для компании-продавца."""
+	__tablename__ = "supply_contract_template"
+	__table_args__ = (
+		UniqueConstraint(
+			"company_id",
+			"type",
+			"name",
+			name="uq_supply_contract_template_company_type_name",
+		),
+	)
+
+	id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+	company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+	type: Mapped[SupplyContractTemplateType] = mapped_column(Enum(SupplyContractTemplateType), nullable=False, index=True)
+	name: Mapped[str] = mapped_column(String(128), nullable=False)
+	content_html: Mapped[str] = mapped_column(Text, nullable=False, default="")
+	is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -24,7 +24,7 @@ const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
 
- //сделка для заполнения формы
+//сделка для заполнения формы
 const deal: Ref<Deal | undefined> = ref(undefined)
 
 let products: ProductsInOrder[] = []

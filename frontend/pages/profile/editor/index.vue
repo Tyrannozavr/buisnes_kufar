@@ -90,6 +90,7 @@ getDeals()
 const isItemDisabled = ref({
 		bill: false,
 		contract: false,
+		supplyContract: false,
 	})
 
 watch(() => [
@@ -99,6 +100,7 @@ watch(() => [
 	const deal = findDeal(Number(route.query.dealId))
 	isItemDisabled.value.bill = !deal?.billDate
 	isItemDisabled.value.contract = !deal?.contractDate
+	isItemDisabled.value.supplyContract = !deal?.supplyContractDate
 }, { immediate: true, deep: true })
 
 const items = computed(() => [
@@ -110,12 +112,12 @@ const items = computed(() => [
 	{
 		label: 'Счет',
 		slot: 'bill' as const,
-		disabled: false,
+		disabled: isItemDisabled.value.bill,
 	},
 	{
 		label: 'Договор поставки',
 		slot: 'supplyContract' as const,
-		disabled: false,
+		disabled: isItemDisabled.value.supplyContract,
 	},
 	{
 		label: 'Сопроводительные документы',

@@ -13,7 +13,7 @@ class UserBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
-    phone: constr(min_length=10, max_length=15)
+    phone: constr(min_length=10, max_length=20)
     position: Optional[str] = None
 
 
@@ -22,7 +22,7 @@ class UserCreateStep1(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
-    phone: constr(min_length=10, max_length=15)
+    phone: constr(min_length=10, max_length=20)
     recaptcha_token: Optional[str] = None  # Токен reCAPTCHA v3 (опциональный для localhost)
 
 
@@ -37,7 +37,7 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     patronymic: Optional[str] = None
-    phone: Optional[constr(min_length=10, max_length=15)] = None
+    phone: Optional[constr(min_length=10, max_length=20)] = None
     position: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

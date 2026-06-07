@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, model_validator, AliasChoices, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, AliasChoices, ConfigDict
 from enum import Enum
 
 
@@ -188,11 +188,25 @@ class CompanyOfficialInDealResponse(BaseModel):
 	base_document_name: str = Field("", description="Наименование основания для должностного лица")
 
 
-class SupplyContractInDealResponse(BaseModel):
+class 	SupplyContractInDealResponse(BaseModel):
 	"""Договор поставки в ответе сделки (соответствует фронтенду SupplyContractResponse)"""
 	model_config = {"extra": "ignore", "from_attributes": True}
+	entity_id: Optional[int] = Field(None, description="ID сущности supply_contract")
+	specification_entity_id: Optional[int] = Field(None, description="ID сущности спецификации")
 	number: str = Field("", description="Номер договора поставки")
 	officials: List[CompanyOfficialInDealResponse] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
+	specification_number: str = Field("", description="Номер спецификации")
+	specification_date: Optional[datetime] = Field(None, description="Дата спецификации")
+
+	template_supply_contract: str = Field("", description="Шаблон договора (UI)")
+	template_specification: str = Field("", description="Шаблон спецификации (UI)")
+
+	supply_contract_text: str = Field("", description="Текст договора поставки")
+	specification_text: str = Field("", description="Текст спецификации")
+
+	supplier_details_check: bool = Field(False, description="Реквизиты продавца")
+	buyer_details_check: bool = Field(False, description="Реквизиты покупателя")
+	cover_letter_check: bool = Field(False, description="Колонтитул")
 
 
 class BillUpdateInDeal(BaseModel):
@@ -236,6 +250,7 @@ class SupplyContractInUpdate(BaseModel):
 	model_config = ConfigDict(
 		extra="ignore",
 		from_attributes=True,
+		populate_by_name=True,
 		json_schema_extra={
 			"example": {
 				"number": "ДП-001",
@@ -245,7 +260,38 @@ class SupplyContractInUpdate(BaseModel):
 	)
 
 	number: str = Field("", description="Номер договора поставки")
-	officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
+	officials: List["CompanyOfficialInDealResponse"] = Field(
+		default_factory=list,
+		description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)",
+		validation_alias=AliasChoices("officials", "officialsSeller", "officials_seller"),
+	)
+	specification_number: Optional[str] = Field(None, description="Номер спецификации (legacy на сделке)")
+	specification_date: Optional[datetime] = Field(None, description="Дата спецификации (legacy на сделке)")
+	template_supply_contract: Optional[str] = Field(None, description="Шаблон договора (UI)")
+	template_specification: Optional[str] = Field(None, description="Шаблон спецификации (UI)")
+	terms_text: Optional[str] = Field(
+		None,
+		description="Текст договора поставки",
+		validation_alias=AliasChoices("terms_text", "supply_contract_text"),
+	)
+	specification_text: Optional[str] = Field(None, description="Текст спецификации")
+	supplier_details_check: Optional[bool] = Field(None, description="Реквизиты продавца")
+	buyer_details_check: Optional[bool] = Field(None, description="Реквизиты покупателя")
+	cover_letter_check: Optional[bool] = Field(None, description="Колонтитул")
+
+	@field_validator("specification_date", mode="before")
+	@classmethod
+	def empty_specification_date_to_none(cls, value):
+		if value == "" or value is None:
+			return None
+		return value
+
+	@field_validator("template_supply_contract", "template_specification", mode="before")
+	@classmethod
+	def coerce_template_id(cls, value):
+		if value is None or value == "":
+			return None
+		return str(value)
 
 
 class CompanyInDealUpdate(BaseModel):
@@ -287,7 +333,11 @@ class DealUpdate(BaseModel):
     # Плоские поля (snake_case) — даты обновляются только через POST /deals/{id}/versions
     contract_date: Optional[datetime] = Field(None, description="Дата договора")
     bill_date: Optional[datetime] = Field(None, description="Дата счета на оплату")
-    supply_contracts_date: Optional[datetime] = Field(None, description="Дата договора поставки")
+    supply_contract_date: Optional[datetime] = Field(
+        None,
+        description="Дата договора поставки",
+        validation_alias=AliasChoices("supply_contract_date", "supply_contracts_date"),
+    )
 
     # Объектные поля (формат фронтенда)
     contract: Optional[List[ContractItem]] = Field(None, description="Массив договоров [{number, date}]")
@@ -366,9 +416,12 @@ class CompanyInDealResponse(BaseModel):
 					"example": {
 							"company_id": 1,
 							"company_name": "ООО Пример",
+							"full_name": "Общество с ограниченной ответственностью Пример",
+							"city": "Москва",
 							"owner_name": "Иванов Иван Иванович",
 							"slug": "ooo-primer",
 							"inn": "7707083893",
+							"ogrn": "1027700132195",
 							"phone": "+79990000000",
 							"email": "info@example.ru",
 							"legal_address": "г. Москва, ул. Примерная, д. 1",
@@ -387,9 +440,12 @@ class CompanyInDealResponse(BaseModel):
 	id: int = Field(..., description="ID компании", serialization_alias="company_id")
 	company_name: str = Field(..., description="Название компании")
 	company_type: str = Field(..., description="Тип компании")
+	full_name: str = Field("", description="Полное название компании")
+	city: str = Field("", description="Город компании")
 	name: str = Field(..., description="Имя владельца компании", serialization_alias="owner_name")
 	slug: str = Field(..., description="Slug компании")
 	inn: Optional[str] = Field(None, description="ИНН компании")
+	ogrn: Optional[str] = Field(None, description="ОРГН компании")
 	phone: str = Field("", description="Телефон компании")
 	email: str = Field("", description="Email компании")
 	legal_address: str = Field("", description="Юридический адрес компании")
@@ -744,3 +800,136 @@ class CheckoutRequest(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SupplyContractCreate(BaseModel):
+	"""Схема создания договра поставки"""
+
+	seller_company_id: int = Field(..., description="id продавца")
+	buyer_company_id: int = Field(..., description="id покупателя")
+
+	@model_validator(mode="after")
+	def companies_are_not_equal(self):
+		if self.seller_company_id == self.buyer_company_id:
+			raise ValueError("Companies ids are equal")
+
+		return self
+
+
+class SupplyContractUpdate(BaseModel):
+	"""Схема для обновления договора поставки"""
+
+	officials_json: Optional[list["CompanyOfficialInDealResponse"]] = Field(default=None, description="словарь подписавшихся лиц")
+	terms_text: Optional[str] = Field(default=None, description="Текст договора поставки")
+	supplier_details_check: Optional[bool] = None
+	buyer_details_check: Optional[bool] = None
+	cover_letter_check: Optional[bool] = None
+
+
+class SupplyContractResponse(BaseModel):
+	"""Схема ответа договора поставки"""
+
+	id: int
+	buyer_company_id: int
+	seller_company_id: int
+
+	number: str = Field(...,max_length=10)
+	date: datetime
+	officials_json: Optional[list["CompanyOfficialInDealResponse"]] = Field(default=None, description="словарь подписавшихся лиц")
+	terms_text: Optional[str] = Field(default='', description="Текст договора поставки")
+
+	specifications: list["SpecificationResponse"] = Field(default_factory=list)
+
+	supplier_details_check: bool = Field(default=False, description="реквизиты продавца")
+	buyer_details_check: bool = Field(default=False, description="реквизиты покупателя")
+	cover_letter_check: bool = Field(default=False, description="колонтитул")
+
+	model_config = {"from_attributes": True}
+
+
+class SpecificationCreate(BaseModel):
+	"""Схема создания спецификации(изначально создается пустая спецификация, которая потом заполняется через эндпоинт обновления)"""
+
+	pass
+
+
+class SpecificationUpdate(BaseModel):
+	"""Схема обновления спецификации"""
+
+	spec_text: Optional[str] = None
+	spec_items: Optional[list["SpecificationItem"]] = None
+
+
+class SpecificationResponse(BaseModel):
+	"""Схема ответа для спецификации"""
+
+	id: int
+	supply_contract_id: int = Field(..., description="ID договора поставки, на который опирается спецификация")
+	supply_contract_number: Optional[str] = Field(None, max_length=10, description="Номер договора поставки")
+	spec_number: str = Field(..., max_length=10, description="номер спецификации")
+	spec_date: datetime
+	spec_text: Optional[str] = Field(default='', description="Текст спецификации")
+	spec_items: list["SpecificationItem"] = Field(default_factory=list, description="товары в таблице, на которые оформлена спецификация")
+
+	model_config = {"from_attributes": True, "extra": "ignore"}
+
+class SpecificationItem(BaseModel):
+	"""Товар в таблице сецификации"""
+
+	name: str = Field(..., max_length=255)
+	article: Optional[str] = Field(default=None, max_length=16)
+	quantity: int = Field(..., ge=0)
+	units: str = Field(..., max_length=32)
+	price: float = Field(..., ge=0)
+	amount: float = Field(..., ge=0)
+
+	@model_validator(mode="after")
+	def amount_matches_quantity_price(self):
+		expected = round(float(self.quantity) * float(self.price), 2)
+		actual = round(float(self.amount), 2)
+		if abs(expected - actual) > 0.01:
+			raise ValueError("amount must equal quantity * price")
+		return self
+
+
+class SupplyContractExistsResponse(BaseModel):
+	is_exist: bool
+	supply_contract: Optional[SupplyContractResponse] = None
+
+
+class BindSupplyContractToDealRequest(BaseModel):
+	contract_id: int = Field(..., gt=0, description="ID договора поставки")
+
+
+class BindSupplySpecificationToDealRequest(BaseModel):
+	spec_id: int = Field(..., gt=0, description="ID спецификации")
+
+
+class SupplyContractTemplateCreate(BaseModel):
+	model_config = ConfigDict(extra="ignore")
+
+	type: str = Field(..., description="supply_contract | specification")
+	name: str = Field(..., min_length=1, max_length=128)
+	content_html: str = Field("", description="HTML содержимое шаблона")
+	is_default: bool = Field(False, description="Использовать по умолчанию для данного типа")
+
+
+class SupplyContractTemplateUpdate(BaseModel):
+	model_config = ConfigDict(extra="ignore")
+
+	name: Optional[str] = Field(None, min_length=1, max_length=128)
+	content_html: Optional[str] = None
+	is_default: Optional[bool] = None
+
+
+class SupplyContractTemplateResponse(BaseModel):
+	model_config = ConfigDict(from_attributes=True)
+
+	id: int
+	company_id: int
+	type: str
+	name: str
+	content_html: str
+	is_default: bool
+	created_at: datetime
+	updated_at: datetime

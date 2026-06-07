@@ -12,8 +12,9 @@
 | `bill.docx` | `GET /api/v1/purchases/deals/{deal_id}/documents/bill.docx` |
 | `bill_contract.docx` | `GET /api/v1/purchases/deals/{deal_id}/documents/bill-contract.docx` |
 | `bill_offer.docx` | `GET /api/v1/purchases/deals/{deal_id}/documents/bill-offer.docx` |
+| `supply_contract.docx` | `GET /api/v1/purchases/deals/{deal_id}/documents/supply-contract.docx` |
 
-Замени содержимое на макеты из ТЗ. Контекст собирается на бэкенде из сделки (`DealResponse`); в шаблоне используется **Jinja2** так же, как в docxtpl.
+Замени содержимое на макеты из ТЗ. Если после правок в Word скачивание падает с **500** / `TemplateSyntaxError` — плейсхолдеры разбиты на несколько фрагментов: пересобери минимальный шаблон командой `python scripts/build_minimal_deal_docx_templates.py` (см. §3.3 в [DOCX_TEMPLATES_BACKEND.md](../../../../docs/DOCX_TEMPLATES_BACKEND.md)) и перенеси вёрстку аккуратно. Контекст собирается на бэкенде из сделки (`DealResponse`); в шаблоне используется **Jinja2** так же, как в docxtpl.
 
 Подробности про API и поля: [docs/DOCX_TEMPLATES_BACKEND.md](../../../../docs/DOCX_TEMPLATES_BACKEND.md).
 

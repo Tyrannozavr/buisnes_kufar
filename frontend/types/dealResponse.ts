@@ -1,4 +1,12 @@
-import type { CompanyOfficial } from "./company";
+export interface OfficialsResponse {
+	id: number
+	company_id: number
+	full_name: string
+	position: string
+	is_base: boolean
+	base_document: string
+	base_document_name: string
+}
 
 export interface DealPurchaseResponse {
   buyer_company_id: number;
@@ -36,6 +44,8 @@ export interface CompanyInDealResponse {
 	owner_name?: string // имя владельца компании
 	company_name: string
 	company_type: string
+	full_name?: string
+	city?: string
 	slug: string
 	company_id: number
 	phone: string
@@ -44,6 +54,7 @@ export interface CompanyInDealResponse {
 	production_address: string // Адрес производства
 	index: string // Индекс
 	inn: number // ИНН
+	ogrn?: string // ОРГН
 	kpp: string // КПП
 	account_number: string // Расчетный счет
 	correspondent_bank_account: string // Корреспондентский счет
@@ -72,7 +83,7 @@ export interface DealUpdate {
 	bill_date?: string
 	contract?: unknown[]
 	contract_date?: string
-	supply_contract?: SupplyContractResponse
+	supply_contract?: SupplyContractUpdate
 	supply_contract_date?: string
 	closing_documents?: unknown[]
 	others_documents?: unknown[]
@@ -83,7 +94,7 @@ export interface DealUpdate {
 export interface BillResponse {
 	number: string
 	reason: string
-	officials: CompanyOfficial[]
+	officials: OfficialsResponse[]
 	
 	// bill-payment
 	payment_terms?: string
@@ -108,10 +119,41 @@ export interface BillResponse {
 	additional_info_offer: string
 }
 
-export interface SupplyContractResponse {
+export interface SupplyContractUpdate {
 	number: string
-	officials: CompanyOfficial[] // изначально поля появляются при ручном добавлении должностных лиц к договору поставки
+	officials: OfficialsResponse[]
+	specification_number?: string
+	specification_date?: string
+	terms_text?: string
+	specification_text?: string
+	template_supply_contract?: string
+	template_specification?: string
+	supplier_details_check?: boolean
+	buyer_details_check?: boolean
+	cover_letter_check?: boolean
 }
+
+export interface SupplyContractResponse {
+	entity_id?: number
+	specification_entity_id?: number
+	number: string
+	/** Ответ API */
+	officials?: OfficialsResponse[]
+	/** @deprecated legacy alias с фронта */
+	officialsSeller?: OfficialsResponse[]
+	specification_number: string
+	specification_date: string
+	template_supply_contract: string
+	template_specification: string
+	supply_contract_text?: string
+	specification_text?: string
+	supplier_details_check: boolean
+	buyer_details_check: boolean
+	cover_letter_check: boolean
+}
+
+/** Отдельная сущность договора поставки — см. types/supplyContractEntity.ts */
+export type { SupplyContractEntityResponse } from './supplyContractEntity'
 
 export interface DealResponse {
 	id: number

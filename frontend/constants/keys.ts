@@ -50,6 +50,11 @@ export const enum Editor {
 	SUPPLIER_DETAILS_CHECK = 'supplierDetailsCheck',
 	BUYER_DETAILS_CHECK = 'buyerDetailsCheck',
 	SUPPLY_CONTRACT_TYPE = 'supplyContractType',
+	SUPPLY_CONTRACT_OFFICIALS_SELLER = 'supplyContractOfficialsSeller',
+	SUPPLY_CONTRACT_TABLE_DATA = 'supplyContractTableData',
+	/** Инкремент при изменении данных слота SupplyContract (товары, суммы и т.д.) */
+	SUPPLY_CONTRACT_SLOT_REVISION = 'supplyContractSlotRevision',
+	SUPPLY_CONTRACT_PREVIEW_ELEMENT = 'supplyContractPreviewElement',
 }
 
 export const enum TemplateElement {

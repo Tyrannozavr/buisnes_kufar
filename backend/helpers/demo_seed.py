@@ -60,7 +60,6 @@ class DemoSeeder(DatabaseSeeder):
                 last_name=last_name,
                 patronymic="Александрович" if i == 1 else "Сергеевич" if i == 2 else "Владимирович",
                 phone=f"+7 9{random.randint(10, 99)} {random.randint(100, 999)}-{random.randint(10, 99)}-{random.randint(10, 99)}",
-                inn=f"{random.randint(1000000000, 9999999999)}",
                 position=user_data["position"],
                 hashed_password=get_password_hash("password123"),
                 is_active=True

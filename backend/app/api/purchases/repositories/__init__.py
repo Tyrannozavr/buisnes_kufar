@@ -4,6 +4,7 @@ from sqlalchemy import select, and_, or_, func, desc, extract
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 import enum
+import json
 
 from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement, OrderStatus, OrderType
 from app.api.purchases.schemas import DealCreate, DealUpdate
@@ -235,7 +236,8 @@ class DealRepository:
             .limit(1)
         )
         result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        order = result.scalar_one_or_none()
+        return order
 
     async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
         """Получение latest-версий заказов покупателя."""
@@ -383,6 +385,10 @@ class DealRepository:
             additional_info_offer=getattr(latest_order, "additional_info_offer", None),
             supply_contracts_number=latest_order.supply_contracts_number,
             supply_contracts_date=self._normalize_datetime(latest_order.supply_contracts_date),
+            supply_contract_id=latest_order.supply_contract_id,
+            supply_spec_id=latest_order.supply_spec_id,
+            supply_contract_template_id=latest_order.supply_contract_template_id,
+            supply_specification_template_id=latest_order.supply_specification_template_id,
             closing_documents=latest_order.closing_documents,
             others_documents=latest_order.others_documents,
             comments=latest_order.comments,
@@ -466,25 +472,30 @@ class DealRepository:
             order.status = order_data.status
         if order_data.comments is not None:
             order.comments = order_data.comments
-        if order_data.contract is not None and order_data.contract.number is not None:
-            order.contract_number = order_data.contract.number
-        if order_data.contract is not None and order_data.contract.date is not None:
-            order.contract_date = order_data.contract.date
+        if order_data.contract:
+            first_contract = order_data.contract[0]
+            if first_contract.number is not None:
+                order.contract_number = first_contract.number
+            if first_contract.date is not None:
+                order.contract_date = first_contract.date
 
-        if apply_date_fields and order_data.bill.date is not None:
-            order.bill_date = order_data.bill.date
-            if order_data.bill is not None and order_data.bill.number is not None:
-                order.bill_number = order_data.bill.number
-            elif not order.bill_number:
-                order.bill_number = order.seller_order_number
-        elif order_data.bill is not None and order_data.bill.number is not None:
+        if apply_date_fields and order_data.contract_date is not None:
+            order.contract_date = order_data.contract_date
+
+        if apply_date_fields and order_data.bill_date is not None:
+            order.bill_date = order_data.bill_date
+
+        if order_data.bill is not None and order_data.bill.number is not None:
             order.bill_number = order_data.bill.number
+        elif apply_date_fields and not order.bill_number:
+            order.bill_number = order.seller_order_number
 
         if order_data.bill is not None and order_data.bill.officials is not None:
-            order.bill_officials = [
-                {"id": o.id, "full_name": o.full_name, "position": o.position}
-                for o in order_data.bill.officials
-            ]
+            from app.api.purchases.supply_contract_sync import officials_to_json
+
+            order.bill_officials = officials_to_json(order_data.bill.officials)
+            for item in order.bill_officials:
+                item.setdefault("company_id", order.seller_company_id)
         if order_data.bill is not None and order_data.bill.reason is not None:
             order.bill_reason = order_data.bill.reason
         if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
@@ -508,21 +519,22 @@ class DealRepository:
 
         if order_data.supply_contract is not None:
             if order_data.supply_contract.number is not None:
-                order.supply_contract_number = order_data.supply_contract.number
+                order.supply_contracts_number = order_data.supply_contract.number
 
-            order.supply_contract_officials = [
-                {
-                    "id": o.id,
-                    "company_id": order.seller_company_id,
-                    "full_name": o.full_name,
-                    "position": o.position,
-                    "is_base": o.is_base,
-                    "base_document": o.base_document,
-                    "base_document_name": o.base_document_name,
-                }
-                 for o in order_data.supply_contract.officials]
+            from app.api.purchases.supply_contract_sync import dual_write_supply_contract_from_order_update
 
-        if apply_date_fields and order_data.supply_contract.date is not None:
+            supply_date = order.supply_contracts_date
+            if apply_date_fields and order_data.supply_contract_date is not None:
+                order.supply_contracts_date = order_data.supply_contract_date
+                supply_date = order.supply_contracts_date
+
+            await dual_write_supply_contract_from_order_update(
+                self.session,
+                order,
+                order_data.supply_contract,
+                supply_date=supply_date,
+            )
+        elif apply_date_fields and order_data.supply_contract_date is not None:
             order.supply_contracts_date = order_data.supply_contract_date
 
         if order_data.closing_documents is not None:
@@ -997,6 +1009,15 @@ class DealRepository:
             order.supply_contracts_number = order.seller_order_number
         order.supply_contracts_date = supply_date
         order.updated_at = datetime.utcnow()
+
+        from app.api.purchases.supply_contract_sync import dual_write_assign_supply_contract
+
+        await dual_write_assign_supply_contract(
+            self.session,
+            order,
+            order.supply_contracts_number,
+            supply_date,
+        )
         self._add_order_history(
             order.row_id, company_id, "supply_contract_assigned",
             f"Присвоен договор поставки № {order.supply_contracts_number} от {supply_date.strftime('%d.%m.%Y')}",

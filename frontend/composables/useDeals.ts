@@ -2,7 +2,11 @@ import {
 	buyerDealsQuery,
 	dealsByIdsQuery,
 	sellerDealsQuery,
+	supplyContractExistsQuery,
 	useCreateNewDealVersionQuery,
+	useCreateOrderFromCheckoutQuery,
+	useCreateSupplyContractEntityQuery,
+	useCreateSupplySpecificationQuery,
 	useDeleteDealByIdQuery,
 	useDeleteLastDealVersionQuery,
 	useUpdateDealByIdQuery,
@@ -15,6 +19,8 @@ import { QueryKeys } from "~/constants/queryKeys"
 import { useQueryCache } from "@pinia/colada"
 import { createBodyForUpdate, responseToDeal } from "~/utils/dealsMapper"
 import { storeToRefs } from "pinia"
+import type { Buyer, ProductInCheckout } from "~/types/product"
+import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity"
 
 /**
  * Композабл для работы со сделками в store, cache, server(pinia colada).
@@ -36,7 +42,7 @@ export const useDeals = () => {
 		removeDeal,
 		editBillFields,
 		editContractDate,
-		editSupplyContractsDate,
+		editSupplyContractDate,
 		editAmountWithVatRate,
 		editPaymentTerms,
 		editAdditionalInfo,
@@ -53,6 +59,17 @@ export const useDeals = () => {
 		editAdditionalInfoOffer,
 		editPaymentTermsOffer,
 		editAmountExclVat,
+		editSupplyContractNumber,
+		editSupplyContractSpecificationNumber,
+		editSupplyContractSpecificationDate,
+		editSupplyContractOfficialsSeller,
+		editSupplyContractTemplate,
+		editSupplyContractSpecificationTemplate,
+		editSupplyContractText,
+		editSupplyContractSpecificationText,
+		editSupplyContractSupplierDetailsCheck,
+		editSupplyContractBuyerDetailsCheck,
+		editSupplyContractCoverLetterCheck,
 	} = dealsStore
 
 	/** 
@@ -166,12 +183,49 @@ export const useDeals = () => {
 	}
 
 	/**
-	 * Создание договора поставки на основании сделки
+	 * Legacy: генерирует номер/дату договора поставки на сделке -> договор поставки начинает существовать
 	 * @param dealId - id сделки
 	 */
 	const createSupplyContract = (dealId: number): void => {
 		const { createSupplyContract } = useCreateSupplyContractQuery()
 		createSupplyContract(dealId)
+	}
+
+	/**
+	 * GET /supply-contracts/exists — есть ли entity-договор на пару компаний
+	 */
+	const checkSupplyContractExists = async (
+		buyerCompanyId: number,
+		sellerCompanyId: number,
+	) => {
+		const opts = supplyContractExistsQuery({ buyerCompanyId, sellerCompanyId })
+		const entry = queryCache.ensure(opts)
+		const { data } = await queryCache.fetch(entry)
+		return data
+	}
+
+	/**
+	 * POST /supply-contracts — создать entity-договор поставки
+	 */
+	const createSupplyContractEntity = async (body: SupplyContractEntityCreate) => {
+		const { createSupplyContractEntity } = useCreateSupplyContractEntityQuery()
+		return createSupplyContractEntity(body)
+	}
+
+	/**
+	 * POST /supply-contracts/{id}/specifications — создать спецификацию
+	 */
+	const createSupplySpecification = async (contractId: number) => {
+		const { createSupplySpecification } = useCreateSupplySpecificationQuery()
+		return createSupplySpecification(contractId)
+	}
+
+	/**
+	 * POST /checkout — создать заказ из корзины
+	 */
+	const orderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
+		const { orderFromCheckout } = useCreateOrderFromCheckoutQuery()
+		await orderFromCheckout(products, buyer)
 	}
 
 	return {
@@ -190,7 +244,7 @@ export const useDeals = () => {
 		removeDeal,
 		editBillFields,
 		editContractDate,
-		editSupplyContractsDate,
+		editSupplyContractDate,
 		editAmountWithVatRate,
 		editPaymentTerms,
 		editAdditionalInfo,
@@ -207,6 +261,17 @@ export const useDeals = () => {
 		editAdditionalInfoOffer,
 		editPaymentTermsOffer,
 		editAmountExclVat,
+		editSupplyContractNumber,
+		editSupplyContractSpecificationNumber,
+		editSupplyContractSpecificationDate,
+		editSupplyContractOfficialsSeller,
+		editSupplyContractTemplate,
+		editSupplyContractSpecificationTemplate,
+		editSupplyContractText,
+		editSupplyContractSpecificationText,
+		editSupplyContractSupplierDetailsCheck,
+		editSupplyContractBuyerDetailsCheck,
+		editSupplyContractCoverLetterCheck,
 		//server functions
 		getDeals,
 		deleteDeal,
@@ -215,6 +280,10 @@ export const useDeals = () => {
 		updateDeal,
 		createBill,
 		createContract,
-		createSupplyContract
+		createSupplyContract,
+		checkSupplyContractExists,
+		createSupplyContractEntity,
+		createSupplySpecification,
+		orderFromCheckout,
 	}
 }

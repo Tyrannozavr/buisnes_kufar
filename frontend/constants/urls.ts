@@ -10,8 +10,57 @@ export const API_URLS = {
 	GET_DEALS_BY_IDS: "/api/v1/purchases/deals/by-ids",
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
-	CREATE_CONTRACT: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/contract`,
-	CREATE_SUPPLY_CONTRACT: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/supply-contract`,
+
+	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
+
+	/** Legacy: POST — присвоить номер и дату договора поставки на сделке */
+	ASSIGN_DEAL_SUPPLY_CONTRACT_NUMBER: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/supply-contract`,
+
+	/** GET — проверить наличие договора поставки между компаниями */
+	GET_SUPPLY_CONTRACT_EXISTS: "/api/v1/purchases/supply-contracts/exists",
+
+	/** POST — создать сущность договора поставки */
+	CREATE_SUPPLY_CONTRACT_ENTITY: "/api/v1/purchases/supply-contracts",
+
+	/** GET — получить сущность договора поставки по id */
+	GET_SUPPLY_CONTRACT_ENTITY: (contract_id: number) =>
+		`/api/v1/purchases/supply-contracts/${contract_id}`,
+
+	/** PATCH — обновить сущность договора поставки по id */
+	UPDATE_SUPPLY_CONTRACT_ENTITY: (contract_id: number) =>
+		`/api/v1/purchases/supply-contracts/${contract_id}`,
+
+	/** POST — создать спецификацию у договора поставки */
+	CREATE_SUPPLY_CONTRACT_SPECIFICATION: (contract_id: number) =>
+		`/api/v1/purchases/supply-contracts/${contract_id}/specifications`,
+
+	/** GET — получить спецификацию по id */
+	GET_SUPPLY_CONTRACT_SPECIFICATION: (spec_id: number) =>
+		`/api/v1/purchases/supply-specifications/${spec_id}`,
+
+	/** PATCH — обновить спецификацию по id */
+	UPDATE_SUPPLY_CONTRACT_SPECIFICATION: (spec_id: number) =>
+		`/api/v1/purchases/supply-specifications/${spec_id}`,
+
+	/** POST — привязать сделку к сущности договора поставки */
+	BIND_DEAL_SUPPLY_CONTRACT_ENTITY: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/supply-contract-entity/bind`,
+
+	/** POST — привязать сделку к спецификации */
+	BIND_DEAL_SUPPLY_SPECIFICATION: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/supply-specification/bind`,
+
+	/** GET — список шаблонов договора поставки */
+	GET_SUPPLY_CONTRACT_TEMPLATES: "/api/v1/purchases/supply-contract-templates",
+
+	/** GET — шаблон по умолчанию */
+	GET_SUPPLY_CONTRACT_TEMPLATE_DEFAULT: "/api/v1/purchases/supply-contract-templates/default",
+
+	/** GET/PATCH/DELETE — шаблон по id */
+	SUPPLY_CONTRACT_TEMPLATE: (template_id: number) =>
+		`/api/v1/purchases/supply-contract-templates/${template_id}`,
+
 	CREATE_ORDER_FROM_CHECKOUT: "/api/v1/purchases/checkout",
 	GET_UNITS_MEASUREMENT: "/api/v1/purchases/units",
 	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //удаляет все версии сделки
@@ -35,6 +84,8 @@ export const API_URLS = {
 		`/api/v1/purchases/deals/${deal_id}/documents/bill-contract.docx`,
 	DOWNLOAD_DEAL_DOCX_BILL_OFFER: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/documents/bill-offer.docx`,
+	DOWNLOAD_DEAL_DOCX_SUPPLY_CONTRACT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/supply-contract.docx`,
 
 	/** Те же сделки, конвертация Gotenberg (LibreOffice), см. docs/DOCX_TEMPLATES_BACKEND.md §9 */
 	DOWNLOAD_DEAL_PDF_ORDER: (deal_id: number) =>
@@ -45,6 +96,8 @@ export const API_URLS = {
 		`/api/v1/purchases/deals/${deal_id}/documents/bill-contract.pdf`,
 	DOWNLOAD_DEAL_PDF_BILL_OFFER: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/documents/bill-offer.pdf`,
+	DOWNLOAD_DEAL_PDF_SUPPLY_CONTRACT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/documents/supply-contract.pdf`,
 
 	// Companies
 	COMPANIES: "/v1/companies/",

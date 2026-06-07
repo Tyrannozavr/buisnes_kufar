@@ -1,10 +1,9 @@
-import type { OfficialBill } from "./bill";
-import type { OfficialSupplyContract } from "./supplyContract";
-
 export interface Company {
   ownerName?: string;
 	companyName?: string;
 	companyType?: string;
+	fullName?: string;
+	city?: string;
   slug?: string;
   companyId?: number;
   phone?: string;
@@ -14,11 +13,22 @@ export interface Company {
 	index?: string; // Индекс
   inn?: number; // ИНН
 	kpp?: string; // КПП
+	ogrn?: string; // ОГРН
 	accountNumber?: string; // Расчетный счет
 	correspondentBankAccount?: string; // Корреспондентский счет
 	bankName?: string; // Наименование банка
 	bic?: string; // БИК
 	vatRate?: number; // Ставка НДС
+}
+
+export interface Official {
+	id: number
+	companyId: number
+	name: string
+	position: string
+	isBase: boolean
+	baseDocument: string
+	baseDocumentName: string
 }
 
 export interface ProductItem {
@@ -41,7 +51,7 @@ export interface Product {
 export interface Bill {
 	number: string
 	reason: string
-	officials: OfficialBill[]
+	officials: Official[]
 
 	//bill-payment
 	paymentTerms: string
@@ -62,7 +72,22 @@ export interface Bill {
 
 export interface SupplyContract {
 	number: string
-	officials: OfficialSupplyContract[]
+	/** ID договора поставки в отдельной таблице (новое API) */
+	entityId?: number
+	/** ID спецификации в отдельной таблице (новое API) */
+	specificationEntityId?: number
+	/** Дата договора из сущности supply_contract */
+	entityDate?: string
+	supplyContractText?: string
+	specificationText?: string
+	officialsSeller: Official[]
+	specificationNumber: string
+	specificationDate: string
+	templateSupplyContract: string
+	templateSpecification: string
+	supplierDetailsCheck: boolean
+	buyerDetailsCheck: boolean
+	coverLetterCheck: boolean
 }
 
 export interface Deal {

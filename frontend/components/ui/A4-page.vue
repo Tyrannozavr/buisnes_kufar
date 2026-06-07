@@ -16,7 +16,7 @@
 
 		<div class="a4-background">
 			<div class="a4-pages">
-				<div class="a4-page_document">
+				<div ref="previewDocumentRef" class="a4-page_document">
 					<vue-document-editor 
 						v-model:content="htmlContent" 
 						:editable="false" 
@@ -37,10 +37,13 @@
 import VueDocumentEditor from "vue-document-editor"
 import { Editor } from "~/constants/keys"
 import { TemplateElement } from "~/constants/keys"
+import { usePdfGenerator } from "~/composables/usePdfGenerator"
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
 const htmlContent = ref([""])
 const slotContainerRef = ref<HTMLElement | null>(null)
+const previewDocumentRef = ref<HTMLElement | null>(null)
+const { replaceTextareasAndInputs } = usePdfGenerator()
 
 //supply contract
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
@@ -49,17 +52,33 @@ const coverLetterCheck = useTypedState(Editor.COVER_LETTER_CHECK)
 const supplierDetailsCheck = useTypedState(Editor.SUPPLIER_DETAILS_CHECK)
 const buyerDetailsCheck = useTypedState(Editor.BUYER_DETAILS_CHECK)
 const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
+const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFICIALS_SELLER, () => ref([]))
+const supplyContractSlotRevision = useTypedState(Editor.SUPPLY_CONTRACT_SLOT_REVISION, () => ref(0))
+const supplyContractPreviewElement = useTypedState(Editor.SUPPLY_CONTRACT_PREVIEW_ELEMENT, () => ref(null))
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const fillHtmlContentFromSlot = () => {
-	if (!slotContainerRef.value) return
+	if (!import.meta.client || !slotContainerRef.value) return
 
-	htmlContent.value = [slotContainerRef.value.innerHTML]
+	// innerHTML не содержит .value у input/textarea — только span/div с текстом
+	const cloneWithText = replaceTextareasAndInputs(slotContainerRef.value)
+	htmlContent.value = [cloneWithText.innerHTML]
+	cloneWithText.remove()
 }
 
 // Делаем зависимость от переменных, меняющих значения внутри слота
 watch(
-	[supplyContractHTML, specificationHTML, slotContainerRef, supplierDetailsCheck, buyerDetailsCheck, supplyContractType, isDisabled],
+	[
+		supplyContractHTML,
+		specificationHTML,
+		slotContainerRef,
+		supplierDetailsCheck,
+		buyerDetailsCheck,
+		supplyContractType,
+		supplyContractOfficialsSeller,
+		supplyContractSlotRevision,
+		isDisabled,
+	],
 	() => {
 		// Используем nextTick, чтобы дождаться, когда Vue отрендерит компоненты в слоте
 		nextTick(() => {
@@ -67,6 +86,16 @@ watch(
 		})
 	},
 	{ deep: true, immediate: true }
+)
+
+watch(
+	[activeTab, previewDocumentRef, htmlContent],
+	() => {
+		supplyContractPreviewElement.value = activeTab.value === "2"
+			? previewDocumentRef.value
+			: null
+	},
+	{ immediate: true, flush: "post" }
 )
 
 // overlay для колонтитула supply contract
@@ -81,13 +110,6 @@ const renderOverlay = (page: number, total: number) => `
 </script>
 
 <style scoped>
-:root {
-	--page-background: #d1d1d1; /* Pages background */
-	--page-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Pages box-shadow */
-	--page-border: none; /* Pages border */
-	--page-border-radius: none; /* Pages border-radius */
-}
-
 .a4-page_slot {
 	display: none;
 	position: absolute;
@@ -99,6 +121,9 @@ const renderOverlay = (page: number, total: number) => `
 }
 
 .a4-background {
+	--page-border: none;
+	--page-box-shadow: none;
+	--page-border-radius: 0;
 	background-color: #d1d1d1;
 	position: relative;
 }

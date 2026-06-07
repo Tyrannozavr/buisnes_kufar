@@ -1,6 +1,19 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
 import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
+import type {
+	SupplyContractEntityCreate,
+	SupplyContractEntityResponse,
+	SupplyContractEntityUpdate,
+	SupplyContractExistsResponse,
+	SpecificationEntityResponse,
+	SpecificationEntityUpdate,
+} from "~/types/supplyContractEntity"
+import type {
+	SupplyContractTemplate,
+	SupplyContractTemplateCreate,
+	SupplyContractTemplateUpdate,
+} from "~/types/supplyContractTemplate"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
@@ -140,6 +153,7 @@ export const usePurchasesApi = () => {
 			return response
 		} catch (err: any) {
 			console.log("POST ERROR: ", err)
+			throw err
 		}
 	}
 
@@ -184,12 +198,186 @@ export const usePurchasesApi = () => {
 		try {
 			const body = date ? { date } : {}
 			const response = await $api.post(
-				normalizeApiPath(API_URLS.CREATE_SUPPLY_CONTRACT(dealId)),
+				normalizeApiPath(API_URLS.ASSIGN_DEAL_SUPPLY_CONTRACT_NUMBER(dealId)),
 				body
 			)
 			return response
 		} catch (error) {
 			console.log("ERROR: ", error)
+		}
+	}
+
+	const checkSupplyContractExists = async (
+		buyerCompanyId: number,
+		sellerCompanyId: number,
+	): Promise<SupplyContractExistsResponse | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_SUPPLY_CONTRACT_EXISTS), {
+				query: {
+					buyer_company_id: buyerCompanyId,
+					seller_company_id: sellerCompanyId,
+				},
+			})
+		} catch (error) {
+			console.log("ERROR checkSupplyContractExists: ", error)
+			throw error
+		}
+	}
+
+	const createSupplyContractEntity = async (
+		body: SupplyContractEntityCreate,
+	): Promise<SupplyContractEntityResponse | undefined> => {
+		try {
+			return await $api.post(normalizeApiPath(API_URLS.CREATE_SUPPLY_CONTRACT_ENTITY), body)
+		} catch (error) {
+			console.log("ERROR createSupplyContractEntity: ", error)
+			throw error
+		}
+	}
+
+	const updateSupplyContractEntity = async (
+		contractId: number,
+		body: SupplyContractEntityUpdate,
+	): Promise<SupplyContractEntityResponse | undefined> => {
+		try {
+			return await $api.patch(
+				normalizeApiPath(API_URLS.UPDATE_SUPPLY_CONTRACT_ENTITY(contractId)),
+				body,
+			)
+		} catch (error) {
+			console.log("ERROR updateSupplyContractEntity: ", error)
+			throw error
+		}
+	}
+
+	const getSupplyContractEntity = async (
+		contractId: number,
+	): Promise<SupplyContractEntityResponse | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_SUPPLY_CONTRACT_ENTITY(contractId)))
+		} catch (error) {
+			console.log("ERROR getSupplyContractEntity: ", error)
+			throw error
+		}
+	}
+
+	const createSupplySpecification = async (
+		contractId: number,
+	): Promise<SpecificationEntityResponse | undefined> => {
+		try {
+			return await $api.post(
+				normalizeApiPath(API_URLS.CREATE_SUPPLY_CONTRACT_SPECIFICATION(contractId)),
+				{},
+			)
+		} catch (error) {
+			console.log("ERROR createSupplySpecification: ", error)
+			throw error
+		}
+	}
+
+	const updateSupplySpecification = async (
+		specId: number,
+		body: SpecificationEntityUpdate,
+	): Promise<SpecificationEntityResponse | undefined> => {
+		try {
+			return await $api.patch(
+				normalizeApiPath(API_URLS.UPDATE_SUPPLY_CONTRACT_SPECIFICATION(specId)),
+				body,
+			)
+		} catch (error) {
+			console.log("ERROR updateSupplySpecification: ", error)
+			throw error
+		}
+	}
+
+	const bindSupplyContractToDeal = async (
+		dealId: number,
+		contractId: number,
+	): Promise<{ bound: boolean } | undefined> => {
+		try {
+			return await $api.post(
+				normalizeApiPath(API_URLS.BIND_DEAL_SUPPLY_CONTRACT_ENTITY(dealId)),
+				{ contract_id: contractId },
+			)
+		} catch (error) {
+			console.log("ERROR bindSupplyContractToDeal: ", error)
+			throw error
+		}
+	}
+
+	const bindSupplySpecificationToDeal = async (
+		dealId: number,
+		specId: number,
+	): Promise<{ bound: boolean } | undefined> => {
+		try {
+			return await $api.post(
+				normalizeApiPath(API_URLS.BIND_DEAL_SUPPLY_SPECIFICATION(dealId)),
+				{ spec_id: specId },
+			)
+		} catch (error) {
+			console.log("ERROR bindSupplySpecificationToDeal: ", error)
+			throw error
+		}
+	}
+
+	const getSupplyContractTemplates = async (
+		type: 'supply_contract' | 'specification',
+	): Promise<SupplyContractTemplate[] | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_SUPPLY_CONTRACT_TEMPLATES), {
+				query: { type },
+			})
+		} catch (error) {
+			console.log("ERROR getSupplyContractTemplates: ", error)
+			throw error
+		}
+	}
+
+	const getDefaultSupplyContractTemplate = async (
+		type: 'supply_contract' | 'specification',
+	): Promise<SupplyContractTemplate | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_SUPPLY_CONTRACT_TEMPLATE_DEFAULT), {
+				query: { type },
+			})
+		} catch (error) {
+			console.log("ERROR getDefaultSupplyContractTemplate: ", error)
+			return undefined
+		}
+	}
+
+	const createSupplyContractTemplate = async (
+		body: SupplyContractTemplateCreate,
+	): Promise<SupplyContractTemplate | undefined> => {
+		try {
+			return await $api.post(normalizeApiPath(API_URLS.GET_SUPPLY_CONTRACT_TEMPLATES), body)
+		} catch (error) {
+			console.log("ERROR createSupplyContractTemplate: ", error)
+			throw error
+		}
+	}
+
+	const updateSupplyContractTemplate = async (
+		templateId: number,
+		body: SupplyContractTemplateUpdate,
+	): Promise<SupplyContractTemplate | undefined> => {
+		try {
+			return await $api.patch(
+				normalizeApiPath(API_URLS.SUPPLY_CONTRACT_TEMPLATE(templateId)),
+				body,
+			)
+		} catch (error) {
+			console.log("ERROR updateSupplyContractTemplate: ", error)
+			throw error
+		}
+	}
+
+	const deleteSupplyContractTemplate = async (templateId: number) => {
+		try {
+			return await $api.delete(normalizeApiPath(API_URLS.SUPPLY_CONTRACT_TEMPLATE(templateId)))
+		} catch (error) {
+			console.log("ERROR deleteSupplyContractTemplate: ", error)
+			throw error
 		}
 	}
 
@@ -209,7 +397,6 @@ export const usePurchasesApi = () => {
 		body: DealUpdate
 	): Promise<DealResponse | undefined> => {
 		try {
-			console.log("body", body)
 			const response = await $api.post(
 				normalizeApiPath(API_URLS.CREATE_NEW_DEAL_VERSION(deal_id)),
 				body
@@ -217,6 +404,7 @@ export const usePurchasesApi = () => {
 			return response
 		} catch (e) {
 			console.log("ERROR: ", e)
+			throw e
 		}
 	}
 
@@ -240,6 +428,19 @@ export const usePurchasesApi = () => {
 		createBill,
 		createContract,
 		createSupplyContract,
+		checkSupplyContractExists,
+		createSupplyContractEntity,
+		updateSupplyContractEntity,
+		getSupplyContractEntity,
+		createSupplySpecification,
+		updateSupplySpecification,
+		bindSupplyContractToDeal,
+		bindSupplySpecificationToDeal,
+		getSupplyContractTemplates,
+		getDefaultSupplyContractTemplate,
+		createSupplyContractTemplate,
+		updateSupplyContractTemplate,
+		deleteSupplyContractTemplate,
 		createOrderFromCheckout,
 		getUnitsOfMeasurement,
 		deleteDealById,

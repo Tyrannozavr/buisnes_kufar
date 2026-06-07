@@ -1,3 +1,4 @@
+import type { OfficialsResponse } from './dealResponse'
 import type { LocationItem } from './location'
 
 export type TradeActivity = 'Покупатель' | 'Продавец' | 'Покупатель и продавец'
@@ -28,7 +29,7 @@ export interface Company {
   phone: string
   email: string
   website: string | null
-  officials: CompanyOfficial[]
+  officials: OfficialsResponse[]
   totalViews: number
   monthlyViews: number
   totalPurchases: number
@@ -42,16 +43,6 @@ export interface Company {
 	index?: string
 }
 
-
-// Extended type for company officials with additional properties
-export interface CompanyOfficial {
-	id: number
-	position: string
-	full_name: string
-	is_base: boolean
-	base_document?: string
-	base_document_name?: string
-}
 
 // Type for partner company with only the required fields
 export interface PartnerCompany {
@@ -172,7 +163,7 @@ export interface CompanyResponse {
   phone: string
   email: string
   website: string | null
-  officials: CompanyOfficial[]
+  officials: OfficialsResponse[]
   total_views: number
   monthly_views: number
   total_purchases: number
@@ -207,7 +198,7 @@ export interface CompanyDataFormState {
   federalDistrict?: LocationItem
   region?: LocationItem
   city?: LocationItem
-  officials: CompanyOfficial[]
+  officials: OfficialsResponse[]
   logo: string | null
   logo_url: string | null
 	currentAccountNumber?: string
@@ -245,7 +236,7 @@ export interface CompanyUpdate {
   federal_district?: string
   region?: string
   city?: string
-  officials?: CompanyOfficial[]
+  officials?: OfficialsResponse[]
 	current_account_number?: string | null
 	bic?: string | null
 	correspondent_bank_account?: string | null

@@ -19,20 +19,40 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
-    # Удаляем поле inn из таблицы users
-    op.drop_column('users', 'inn')
-    
-    # Удаляем внешний ключ employees_user_id_fkey
-    op.drop_constraint('employees_user_id_fkey', 'employees', type_='foreignkey')
-    
-    # Создаем новый внешний ключ с каскадным удалением
-    op.create_foreign_key(
-        'employees_user_id_fkey',
-        'employees', 'users',
-        ['user_id'], ['id'],
-        ondelete='CASCADE'
-    )
+	"""Upgrade schema."""
+	conn = op.get_bind()
+
+	def column_exists(table: str, column: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.columns "
+				"WHERE table_name = :table AND column_name = :column)"
+			),
+			{"table": table, "column": column},
+		).scalar()
+
+	def constraint_exists(name: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.table_constraints "
+				"WHERE constraint_name = :name)"
+			),
+			{"name": name},
+		).scalar()
+
+	if column_exists("users", "inn"):
+		op.drop_column("users", "inn")
+
+	if constraint_exists("employees_user_id_fkey"):
+		op.drop_constraint("employees_user_id_fkey", "employees", type_="foreignkey")
+		op.create_foreign_key(
+			"employees_user_id_fkey",
+			"employees",
+			"users",
+			["user_id"],
+			["id"],
+			ondelete="CASCADE",
+		)
 
 
 def downgrade() -> None:

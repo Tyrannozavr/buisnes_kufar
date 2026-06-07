@@ -19,18 +19,49 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
-    # Добавляем новые поля в таблицу users
-    op.add_column('users', sa.Column('company_id', sa.Integer(), nullable=True))
-    op.add_column('users', sa.Column('role', sa.Enum('OWNER', 'ADMIN', 'USER', name='userrole'), nullable=False, server_default='USER'))
-    op.add_column('users', sa.Column('permissions', sa.Text(), nullable=True))
-    
-    # Добавляем внешний ключ для company_id
-    op.create_foreign_key('fk_users_company_id', 'users', 'companies', ['company_id'], ['id'])
-    
-    # Удаляем поле user_id из таблицы companies
-    op.drop_constraint('companies_user_id_fkey', 'companies', type_='foreignkey')
-    op.drop_column('companies', 'user_id')
+	"""Upgrade schema."""
+	conn = op.get_bind()
+
+	def column_exists(table: str, column: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.columns "
+				"WHERE table_name = :table AND column_name = :column)"
+			),
+			{"table": table, "column": column},
+		).scalar()
+
+	def constraint_exists(name: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.table_constraints "
+				"WHERE constraint_name = :name)"
+			),
+			{"name": name},
+		).scalar()
+
+	if not column_exists("users", "company_id"):
+		op.add_column("users", sa.Column("company_id", sa.Integer(), nullable=True))
+	if not column_exists("users", "role"):
+		op.add_column(
+			"users",
+			sa.Column(
+				"role",
+				sa.Enum("OWNER", "ADMIN", "USER", name="userrole"),
+				nullable=False,
+				server_default="USER",
+			),
+		)
+	if not column_exists("users", "permissions"):
+		op.add_column("users", sa.Column("permissions", sa.Text(), nullable=True))
+
+	if not constraint_exists("fk_users_company_id"):
+		op.create_foreign_key("fk_users_company_id", "users", "companies", ["company_id"], ["id"])
+
+	if column_exists("companies", "user_id"):
+		if constraint_exists("companies_user_id_fkey"):
+			op.drop_constraint("companies_user_id_fkey", "companies", type_="foreignkey")
+		op.drop_column("companies", "user_id")
 
 
 def downgrade() -> None:

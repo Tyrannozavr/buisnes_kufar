@@ -33,8 +33,9 @@ def upgrade() -> None:
         from app.api.common.models import country, federal_district, region, city  # noqa: F401
         from app.api.chats.models import chat, chat_participant  # noqa: F401
         from app.api.messages.models import message  # noqa: F401
-        from app.api.authentication.models import employee  # noqa: F401
-        Base.metadata.create_all(bind=conn)
+		from app.api.authentication.models import employee  # noqa: F401
+		from app.api.purchases import models as purchases_models  # noqa: F401
+		Base.metadata.create_all(bind=conn)
 
 
 def downgrade() -> None:

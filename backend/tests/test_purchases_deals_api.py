@@ -246,6 +246,7 @@ async def test_download_order_pdf_success_mock_gotenberg(client: AsyncClient, se
         f"/api/v1/purchases/deals/{deal_id}/documents/bill.pdf",
         f"/api/v1/purchases/deals/{deal_id}/documents/bill-contract.pdf",
         f"/api/v1/purchases/deals/{deal_id}/documents/bill-offer.pdf",
+        f"/api/v1/purchases/deals/{deal_id}/documents/supply-contract.pdf",
     ):
         r = await client.get(path)
         assert r.status_code == 200, r.text
@@ -279,6 +280,10 @@ async def test_download_order_docx_success(client: AsyncClient, seeded_context: 
     bo = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/bill-offer.docx")
     assert bo.status_code == 200, bo.text
     assert bo.content[:2] == b"PK"
+
+    sc = await client.get(f"/api/v1/purchases/deals/{deal_id}/documents/supply-contract.docx")
+    assert sc.status_code == 200, sc.text
+    assert sc.content[:2] == b"PK"
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,12 @@ import { defineMutation, defineQueryOptions, useMutation } from "@pinia/colada";
 import { usePurchasesApi } from "~/api/purchases";
 import { QueryKeys } from "~/constants/queryKeys";
 import type { DealResponse, DealUpdate } from "~/types/dealResponse";
+import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity";
+import type {
+	SupplyContractTemplateCreate,
+	SupplyContractTemplateType,
+	SupplyContractTemplateUpdate,
+} from "~/types/supplyContractTemplate";
 import type { Buyer, ProductInCheckout } from "~/types/product";
 import { useQueryCache } from "@pinia/colada";
 import { useDeals } from "~/composables/useDeals";
@@ -151,6 +157,44 @@ export const useCreateSupplyContractQuery = defineMutation(() => {
 	}
 })
 
+export const supplyContractExistsQuery = defineQueryOptions(
+	({
+		buyerCompanyId,
+		sellerCompanyId,
+	}: {
+		buyerCompanyId: number
+		sellerCompanyId: number
+	}) => ({
+		key: [QueryKeys.SUPPLY_CONTRACT_EXISTS, buyerCompanyId, sellerCompanyId],
+		query: () =>
+			usePurchasesApi().checkSupplyContractExists(buyerCompanyId, sellerCompanyId),
+	}),
+)
+
+export const useCreateSupplyContractEntityQuery = defineMutation(() => {
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.CREATE_SUPPLY_CONTRACT_ENTITY],
+		mutation: (body: SupplyContractEntityCreate) =>
+			usePurchasesApi().createSupplyContractEntity(body),
+	})
+	return {
+		...mutation,
+		createSupplyContractEntity: (body: SupplyContractEntityCreate) => mutateAsync(body),
+	}
+})
+
+export const useCreateSupplySpecificationQuery = defineMutation(() => {
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.CREATE_SUPPLY_SPECIFICATION],
+		mutation: ({ contractId }: { contractId: number }) =>
+			usePurchasesApi().createSupplySpecification(contractId),
+	})
+	return {
+		...mutation,
+		createSupplySpecification: (contractId: number) => mutateAsync({ contractId }),
+	}
+})
+
 export const useCreateOrderFromCheckoutQuery = defineMutation(() => {
 	const queryCache = useQueryCache()
 	const { addNewDeal } = useDeals()
@@ -163,7 +207,8 @@ export const useCreateOrderFromCheckoutQuery = defineMutation(() => {
 			products: ProductInCheckout[];
 			buyer: Buyer;
 			}) => usePurchasesApi().createOrderFromCheckout(products, buyer),
-		onSuccess: (newDeal: DealResponse) => {
+		onSuccess: (newDeal: DealResponse | undefined) => {
+			if (!newDeal) return
 			const deal = responseToDeal(newDeal)
 			addNewDeal(deal)
 			queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
@@ -211,6 +256,65 @@ export const useDeleteLastDealVersionQuery = defineMutation(() => {
 	return {
 		...mutation,
 		deleteLastDealVersion: (dealId: number) => mutate({ dealId }),
+	}
+})
+
+export const supplyContractTemplatesQuery = defineQueryOptions(
+	({ type }: { type: SupplyContractTemplateType }) => ({
+		key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATES, type],
+		query: () => usePurchasesApi().getSupplyContractTemplates(type),
+	}),
+)
+
+export const supplyContractTemplateDefaultQuery = defineQueryOptions(
+	({ type }: { type: SupplyContractTemplateType }) => ({
+		key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATE_DEFAULT, type],
+		query: () => usePurchasesApi().getDefaultSupplyContractTemplate(type),
+	}),
+)
+
+export const useCreateSupplyContractTemplateQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.CREATE_SUPPLY_CONTRACT_TEMPLATE],
+		mutation: (body: SupplyContractTemplateCreate) =>
+			usePurchasesApi().createSupplyContractTemplate(body),
+		onSuccess: (_data, body) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATES, body.type] })
+			queryCache.invalidateQueries({ key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATE_DEFAULT, body.type] })
+		},
+	})
+	return {
+		...mutation,
+		createSupplyContractTemplate: (body: SupplyContractTemplateCreate) => mutateAsync(body),
+	}
+})
+
+export const useUpdateSupplyContractTemplateQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.UPDATE_SUPPLY_CONTRACT_TEMPLATE],
+		mutation: ({
+			templateId,
+			body,
+			type,
+		}: {
+			templateId: number
+			body: SupplyContractTemplateUpdate
+			type: SupplyContractTemplateType
+		}) => usePurchasesApi().updateSupplyContractTemplate(templateId, body),
+		onSuccess: (_data, variables) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATES, variables.type] })
+			queryCache.invalidateQueries({ key: [QueryKeys.SUPPLY_CONTRACT_TEMPLATE_DEFAULT, variables.type] })
+		},
+	})
+	return {
+		...mutation,
+		updateSupplyContractTemplate: (
+			templateId: number,
+			body: SupplyContractTemplateUpdate,
+			type: SupplyContractTemplateType,
+		) => mutateAsync({ templateId, body, type }),
 	}
 })
 

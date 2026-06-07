@@ -117,7 +117,7 @@ class DealService:
 				return None
 
 			# If request body contains fields, apply them to the newly created latest version.
-			# apply_date_fields=True: bill_date, contract_date, supply_contracts_date обновляются только здесь
+			# apply_date_fields=True: bill_date, contract_date, supply_contract_date обновляются только здесь
 			if deal_data and deal_data.model_dump(exclude_none=True):
 				updated_order = await self.repository.update_order(
 					deal_id, deal_data, company_id, apply_date_fields=True
@@ -242,10 +242,13 @@ class DealService:
 				return CompanyInDealResponse(
 					id=company.id,
 					company_name=company.name,
-										company_type=company.type,
+					company_type=company.type,
+					full_name=company.full_name or "",
+					city=company.city or "",
 					name=owner_name or "",
 					slug=company.slug or "",
 					inn=company.inn,
+					ogrn=company.ogrn,
 					phone=company.phone or "",
 					email=company.email or "",
 					legal_address=company.legal_address or "",
@@ -277,17 +280,18 @@ class DealService:
 
 			# bill — объект для фронтенда (number, reason, payment_terms_contract, delivery_terms_contract, additional_info, officials).
 			# officials, reason, payment_terms_contract, delivery_terms_contract и additional_info приходят только с клиента при update
+			from app.api.purchases.supply_contract_sync import officials_from_json
+
 			officials_list = []
 			stored = getattr(order, "bill_officials", None)
 			if stored and isinstance(stored, list):
-				officials_list = [
-					CompanyOfficialInDealResponse(
-						id=o.get("id") if isinstance(o, dict) else getattr(o, "id", None),
-						full_name=o.get("full_name") or o.get("name", "") if isinstance(o, dict) else getattr(o, "full_name", ""),
-						position=o.get("position", "") if isinstance(o, dict) else getattr(o, "position", ""),
-					)
-					for o in stored
-				]
+				normalized = []
+				for o in stored:
+					if isinstance(o, dict):
+						item = dict(o)
+						item.setdefault("company_id", order.seller_company_id)
+						normalized.append(item)
+				officials_list = officials_from_json(normalized)
 			ct_raw = getattr(order, "contract_terms_contract", None) or ContractTerms.STANDARD_DELIVERY_SUPPLIER.value
 			try:
 				contract_terms_contract = ContractTerms(ct_raw)
@@ -312,19 +316,9 @@ class DealService:
 				additional_info_offer=getattr(order, "additional_info_offer", None) or "",
 				officials=officials_list,
 			)
-			supply_officials = []
-			stored_supply_officials = getattr(order, "supply_contract_officials", None)
+			from app.api.purchases.supply_contract_sync import build_supply_contract_in_deal_response
 
-			if stored_supply_officials and isinstance(stored_supply_officials, list):
-				supply_officials = [
-					CompanyOfficialInDealResponse(**official)
-					for official in stored_supply_officials
-				]
-
-			supply_contract_obj = SupplyContractInDealResponse(
-				number=order.supply_contract_number,
-				officials=supply_officials,
-			)
+			supply_contract_obj = await build_supply_contract_in_deal_response(self.session, order)
 
 			contract_list = []
 			if order.contract_number or order.contract_date:
@@ -348,7 +342,7 @@ class DealService:
 				comments=order.comments or "",
 				contract_date=order.contract_date,
 				bill_date=order.bill_date,
-				supply_contract_date=order.supply_contract_date,
+				supply_contract_date=order.supply_contracts_date,
 				closing_documents=closing_docs,
 				others_documents=others_docs,
 				created_at=order.created_at,

@@ -95,6 +95,8 @@
 
 | `/deals/{deal_id}/documents/bill-offer.docx` | `bill_offer.docx` | `bill-offer-deal-{id}.docx` |
 
+| `/deals/{deal_id}/documents/supply-contract.docx` | `supply_contract.docx` | `supply-contract-deal-{id}.docx` |
+
 
 
 **PDF** (тот же рендер docxtpl, затем **Gotenberg** `/forms/libreoffice/convert`, см. [gotenberg_pdf_service.py](../backend/app/api/purchases/services/gotenberg_pdf_service.py); нужен **`GOTENBERG_URL`** в настройках):
@@ -112,6 +114,8 @@
 | `/deals/{deal_id}/documents/bill-contract.pdf` | `bill_contract.docx` → PDF | `bill-contract-deal-{id}.pdf` |
 
 | `/deals/{deal_id}/documents/bill-offer.pdf` | `bill_offer.docx` → PDF | `bill-offer-deal-{id}.pdf` |
+
+| `/deals/{deal_id}/documents/supply-contract.pdf` | `supply_contract.docx` → PDF | `supply-contract-deal-{id}.pdf` |
 
 
 

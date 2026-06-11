@@ -20,11 +20,38 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 	"""Upgrade schema."""
-	op.drop_table("specification_item")
-	op.drop_table("supply_contract_specification")
-	op.drop_table("supply_contract")
+	conn = op.get_bind()
 
-	op.drop_column("orders", "supply_contract_officials")
+	def table_exists(table: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.tables "
+				"WHERE table_schema = 'public' AND table_name = :table)"
+			),
+			{"table": table},
+		).scalar()
+
+	def column_exists(table: str, column: str) -> bool:
+		return conn.execute(
+			sa.text(
+				"SELECT EXISTS (SELECT FROM information_schema.columns "
+				"WHERE table_name = :table AND column_name = :column)"
+			),
+			{"table": table, "column": column},
+		).scalar()
+
+	if table_exists("specification_item"):
+		op.drop_table("specification_item")
+	if table_exists("supply_contract_specification"):
+		op.drop_table("supply_contract_specification")
+	if table_exists("supply_contract"):
+		op.drop_table("supply_contract")
+
+	if column_exists("orders", "supply_contract_officials"):
+		op.drop_column("orders", "supply_contract_officials")
+
+	if table_exists("supply_contract"):
+		return
 
 	op.create_table(
 		"supply_contract",

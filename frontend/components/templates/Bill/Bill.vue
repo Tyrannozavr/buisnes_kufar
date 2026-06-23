@@ -4,7 +4,7 @@
 			<tbody>
 				<tr>
 					<td colspan="4" rowspan="1">
-						<textarea placeholder="OФП, Название компании, город" :disabled="isDisabled" class="w-full" v-model="billData.buyer.companyName"/>
+						<textarea placeholder="Наименование банка" :disabled="isDisabled" class="w-full" v-model="billData.seller.bankName"/>
 						<br />
 						<br />
 						<br />
@@ -12,17 +12,17 @@
 					</td>
 					<td class="border">БИК</td>
 					<td>
-						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full" v-model="billData.buyer.bic"/>
+						<textarea placeholder="номер БИК" :disabled="isDisabled" class="w-full" v-model="billData.seller.bic"/>
 					</td>
 				</tr>
 
 				<tr class="border-b-2 black">
 					<td colspan="4" class="border">
-						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full" v-model="billData.buyer.bankName"/>
+						<textarea placeholder="Банк получателя" :disabled="isDisabled" class="w-full" v-model="billData.seller.bankName"/>
 					</td>
 					<td class="border">Сч. №</td>
 					<td>
-						<textarea placeholder="номер счёта" :disabled="isDisabled" class="w-full" v-model="billData.buyer.accountNumber"/>
+						<textarea placeholder="корр. счёт" :disabled="isDisabled" class="w-full" v-model="billData.seller.correspondentBankAccount"/>
 					</td>
 				</tr>
 
@@ -52,7 +52,7 @@
 
 				<tr>
 					<td colspan="4" class="border">
-						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full" v-model="billData.buyer.companyName"/>
+						<textarea placeholder="Получатель" :disabled="isDisabled" class="w-full" :value="sellerRecipientLine"/>
 					</td>
 				</tr>
 			</tbody>
@@ -278,6 +278,7 @@
 import { Editor } from '~/constants/keys';
 import { useRoute, useRouter } from 'vue-router';
 import { useDeals } from '~/composables/useDeals';
+import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites';
 import { normalizeDate } from '~/utils/normalize';
 import type { BillData } from '~/types/bill';
 import { TemplateElement } from '~/constants/keys';
@@ -298,9 +299,11 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const { completeSave, saveState } = useSaveDeals()
+const { loadBillRequisites, mergeDealPartyRequisites } = useCompanyBillRequisites()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const billType = computed(() => billTypeSelected.value.value)
 
 const html = useTemplateRef('html')
@@ -672,7 +675,15 @@ watch(
 )
 
 //рассчет суммы словами
+const sellerRecipientLine = computed(() => {
+	const { companyType, companyName } = billData.value.seller ?? {}
+	return [companyType, companyName].filter(Boolean).join(' ')
+})
+
 const amountWord = computed<string>(() => {
+	if (billData.value.amountWord?.trim()) {
+		return billData.value.amountWord
+	}
 	return numberToWordsRu.convert(billData.value.amount, {
 		showNumberParts: {
 			fractional: true
@@ -719,7 +730,7 @@ const fillQuery = () => {
 } 
 
 //заполнение формы по данным сделки
-const fillBillData = () => {
+const fillBillData = async () => {
 	const deal = findDeal(Number(route.query.dealId))
 	if (deal) {
 
@@ -736,6 +747,7 @@ const fillBillData = () => {
     seller = {
       ownerName: sellerData.ownerName,
       companyName: sellerData.companyName,
+      companyType: sellerData.companyType,
       companyId: sellerData.companyId,
       phone: sellerData.phone,
 			legalAddress: sellerData.legalAddress,
@@ -776,6 +788,16 @@ const fillBillData = () => {
 			baseDocumentName: official.baseDocumentName,
 		}))
 
+		if (route.query.role === 'seller') {
+			const fresh = await loadBillRequisites(seller.companyId)
+			if (fresh) {
+				seller = mergeDealPartyRequisites(seller, fresh.party)
+				if (!officials.length) {
+					officials = [...fresh.officials]
+				}
+			}
+		}
+
     billData.value = {
       number: deal.bill.number,
       dealId: deal.dealId,
@@ -810,19 +832,21 @@ const fillBillData = () => {
 }
 
 //заполнение формы по данным сделки из query
-const fillFromQuery = () => {
+const fillFromQuery = async () => {
 	const query = route.query
 	if (!query?.dealId || !query?.role) return
 
-	fillBillData()
+	await fillBillData()
 }
 
 //заполнение формы из query при наличии данных в store
 watch(
   () => [
     route.query.dealId,
+    route.query.role,
 		deals?.value?.length ?? 0,
-		findDeal(Number(route.query.dealId))?.bill.number ?? ''
+		findDeal(Number(route.query.dealId))?.bill.number ?? '',
+    loadDealTrigger.value,
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }

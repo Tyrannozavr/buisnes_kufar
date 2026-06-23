@@ -52,7 +52,10 @@ export const normalizeApiPath = (url: string) => (url.startsWith('/api/') ? url.
 * @example 1200 -> "1,200.00"
 */
 export const normalizePrice = (price: number) => {
-	return price.toLocaleString('en')
+	return price.toLocaleString('en', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
+	})
 }
 
 /**

@@ -88,6 +88,7 @@
 <script setup lang="ts">
 import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
+import { VAT_RATE_OPTIONS } from '~/constants/vatRate';
 import { useDeals } from '~/composables/useDeals';
 import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue';
 
@@ -104,14 +105,7 @@ const billTypeOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет-договор', value: 'bill-contract'}, 
 	{label: 'Счет-оферта', value: 'bill-offer'}
 ])
-const vatRateOptions = ref<SelectMenuItem[]>([
-	{label: 'Без НДС', value: 0},
-	{label: '5%', value: 5},
-	{label: '7%', value: 7}, 
-	{label: '10%', value: 10},
-	{label: '18%', value: 18},
-	{label: '25%', value: 25},
-])
+const vatRateOptions = VAT_RATE_OPTIONS
 const contractTermsOptionsContract = ref<SelectMenuItem[]>([
 	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier'},
 	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },

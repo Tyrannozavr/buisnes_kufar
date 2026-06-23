@@ -75,7 +75,7 @@ class Company(Base):
     # Bank details / Payment information
     current_account_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     bic: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
-    vat_rate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Ставка НДС в процентах (0, 5, 7, 10, 18, 25)
+    vat_rate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Ставка НДС в процентах (0, 5, 7, 10, 18, 20, 25)
     correspondent_bank_account: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     bank_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 

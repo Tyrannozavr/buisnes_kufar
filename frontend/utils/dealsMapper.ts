@@ -147,7 +147,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 						100
 				: dealResponse.total_amount,
 			amountVatRate: dealResponse.amount_vat_rate ?? 0,
-			amountWord: "",
+			amountWord: dealResponse.total_amount_word ?? "",
 			comments: dealResponse.comments ?? ""
 		},
 		seller: {

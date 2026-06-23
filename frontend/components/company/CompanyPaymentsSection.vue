@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import type { CompanyDataFormState } from '~/types/company'
-import type { SelectMenuItem } from '@nuxt/ui';
+import { VAT_RATE_OPTIONS } from '~/constants/vatRate'
 
 const props = defineProps<{
   formState: CompanyDataFormState
@@ -65,22 +65,14 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:formState'])
 
-const updateField = (field: keyof CompanyDataFormState, value: any) => {
-  console.log("Typed new value ", value)
+const vatRateOptions = VAT_RATE_OPTIONS
+
+const updateField = (field: keyof CompanyDataFormState, value: unknown) => {
   emit('update:formState', {
     ...props.formState,
     [field]: value
   })
 }
-
-const vatRateOptions = ref<SelectMenuItem[]>([
-	{label: 'Без НДС', value: 0},
-	{label: '5%', value: 5},
-	{label: '7%', value: 7}, 
-	{label: '10%', value: 10},
-	{label: '18%', value: 18},
-	{label: '25%', value: 25},
-])
 </script>
 
 <style scoped>

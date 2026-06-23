@@ -1,0 +1,32 @@
+---
+description: Git — push в feature-ветки ок; merge в preprod/main/dev только по явному одобрению заказчика
+alwaysApply: true
+---
+
+# Git: коммиты, push и merge
+
+## Push и коммиты
+
+- Коммитить и **push** в **feature-ветку** — когда пользователь явно просит «зафиксировать», «залить на GitHub», «запушить».
+- Не коммитить `.env`, секреты, `celerybeat-schedule`, `__pycache__`, `logs.txt` без запроса.
+- Не смешивать в один коммит несвязанные изменения (docs отдельно от WIP-кода), если пользователь не просил иное.
+
+## Merge — только с явного одобрения
+
+**Запрещено без явной просьбы пользователя:**
+
+- `git merge` в `preprod`, `master`, `main`, `dev`
+- создание и **merge** pull request (через `gh pr merge` или UI)
+- fast-forward / squash merge в защищённые ветки
+
+**Разрешено после явной формулировки** вроде: «мержи в preprod», «смержи PR», «влей в dev».
+
+## Pull request
+
+- Можно **создать PR** и дать ссылку — без merge.
+- После создания PR ждать одобрения пользователя перед merge.
+
+## Текущий контекст счёта
+
+- Активная ветка: `feature/etap1-schet-dorabotki-sergeya` (от `preprod`).
+- Документация этапов: `docs/TZ_SCET_RASSHIRENNOE.md`, `docs/schet/`.

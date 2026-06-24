@@ -81,6 +81,7 @@ import type { Deal } from "~/types/dealState";
 import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
 import { Editor } from "~/constants/keys";
+import { useBillFillState } from "~/composables/useBillFillState";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
 const { type } = defineProps<{
@@ -105,7 +106,8 @@ const {
 	refreshStatus: refreshSupplyContractStatus,
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
-const { deals, findDealByDealNumber, findDeal } = useDeals()
+const { deals, findDealByDealNumber, findDeal, editBillFields } = useDeals()
+const { markBillAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 const list = deals?.value ?? []
 
 const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? list.filter(deal => deal.role === 'buyer') : list.filter(deal => deal.role === 'seller'))
@@ -385,6 +387,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (hasBill(deal)) {
+              clearBillAwaitingFill(dealId)
               openEditor(dealId, 'buyer', '#bill')
 						} else {
 							toast.add({
@@ -488,7 +491,11 @@ const editSalesDocument = async (
 			})
 		}
 		else if (documentType === 'bill') {
-			await purchasesApi.createBill(dealId)
+			const result = await purchasesApi.createBill(dealId)
+			if (result) {
+				markBillAwaitingFill(dealId)
+				await editBillFields(dealId, result.bill_date, result.bill_number)
+			}
 			router.push({
 				path: '/profile/editor',
 				query: {
@@ -844,6 +851,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
 							return
             }
 						const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+						clearBillAwaitingFill(dealId)
 						openEditor(dealId, 'seller', '#bill')
           }
         })

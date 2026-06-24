@@ -163,7 +163,7 @@
 						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
 					</td>
 				</tr>
-				<tr class="text-right">
+				<tr v-if="vatRateCheck" class="text-right">
 					<td colspan="4"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
@@ -279,6 +279,7 @@ import { Editor } from '~/constants/keys';
 import { useRoute, useRouter } from 'vue-router';
 import { useDeals } from '~/composables/useDeals';
 import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites';
+import { useBillFillState } from '~/composables/useBillFillState';
 import { normalizeDate } from '~/utils/normalize';
 import type { BillData } from '~/types/bill';
 import { TemplateElement } from '~/constants/keys';
@@ -300,6 +301,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const { completeSave, saveState } = useSaveDeals()
 const { loadBillRequisites, mergeDealPartyRequisites } = useCompanyBillRequisites()
+const { billAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
@@ -604,19 +606,18 @@ watch(reasonCheck, () => {
 })
 
 //заполнение дополнительной информации счета-оплаты
-watch(additionalInfoCheck, () => { 
+const applyAdditionalInfoFromCheck = () => {
 	const deal = findDeal(Number(route.query.dealId))
 	const dealAdditionalInfo = deal?.bill.additionalInfo
 
-	if (additionalInfoCheck.value && dealAdditionalInfo) {
-		billData.value.additionalInfo = dealAdditionalInfo
-		 return dealAdditionalInfo
-	} else if (additionalInfoCheck.value && !dealAdditionalInfo) {
-		const additionalInfo = ADDITIONAL_INFO_BILL.PAYMENT
-		billData.value.additionalInfo = additionalInfo
-		return additionalInfo
+	if (!additionalInfoCheck.value) {
+		billData.value.additionalInfo = ''
+		return
 	}
-})
+	billData.value.additionalInfo = dealAdditionalInfo || ADDITIONAL_INFO_BILL.PAYMENT
+}
+
+watch(additionalInfoCheck, applyAdditionalInfoFromCheck, { immediate: true })
 
 //заполнение дополнительной информации счета-офферты
 watch(additionalInfoCheckOffer, () => { 
@@ -729,6 +730,39 @@ const fillQuery = () => {
   })
 } 
 
+//заполнение формы только номером и датой счёта (после createBill, §1.3)
+const fillBillMinimalData = () => {
+	const deal = findDeal(Number(route.query.dealId))
+	if (!deal) return
+
+	billData.value = {
+		dealId: deal.dealId,
+		number: deal.bill.number,
+		date: deal.billDate ?? '',
+		amount: 0,
+		amountExclVat: 0,
+		amountVatRate: 0,
+		amountWord: '',
+		reason: '',
+		products: [],
+		seller: { vatRate: 0 },
+		buyer: {},
+		officials: [],
+		paymentTerms: '',
+		additionalInfo: '',
+		paymentTermsContract: '',
+		deliveryTermsContract: '',
+		contractTermsContract: 'standard-delivery-supplier',
+		contractTermsTextContract: '',
+		paymentTermsOffer: '',
+		contractTermsOffer: 'standard-delivery-supplier',
+		contractTermsTextOffer: '',
+		additionalInfoOffer: '',
+	}
+	applyAdditionalInfoFromCheck()
+	fillQuery()
+}
+
 //заполнение формы по данным сделки
 const fillBillData = async () => {
 	const deal = findDeal(Number(route.query.dealId))
@@ -827,7 +861,8 @@ const fillBillData = async () => {
 			contractTermsTextOffer: deal.bill.contractTermsTextOffer,
 			additionalInfoOffer: deal.bill.additionalInfoOffer,
     }
-	} 
+		applyAdditionalInfoFromCheck()
+	}
   fillQuery()
 }
 
@@ -835,6 +870,16 @@ const fillBillData = async () => {
 const fillFromQuery = async () => {
 	const query = route.query
 	if (!query?.dealId || !query?.role) return
+
+	const deal = findDeal(Number(query.dealId))
+	if (deal && !deal.billDate && !deal.bill?.number) {
+		clearBillAwaitingFill(deal.dealId)
+	}
+
+	if (billAwaitingFill.value) {
+		fillBillMinimalData()
+		return
+	}
 
 	await fillBillData()
 }

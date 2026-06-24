@@ -16,7 +16,11 @@ export const enum Editor {
 	CLEAR_STATE = 'clearState',
 	REMOVE_DEAL = 'removeDealState',
 	ACTIVE_TAB = 'activeTab',
-	
+	/** Инкремент при «Заполнить данными» — перезагрузка формы даже для той же сделки */
+	LOAD_DEAL_TRIGGER = 'loadDealTrigger',
+	/** Счёт создан, полное заполнение — только по кнопке (§1.3) */
+	BILL_AWAITING_FILL = 'billAwaitingFill',
+
 	//bill
 	BILL_TYPE = 'billType',
 	REASON_CHECK = 'reasonCheck',

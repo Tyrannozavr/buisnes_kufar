@@ -1,6 +1,6 @@
 # Этап 2 — 20 000 ₽. Фундамент документооборота + «Счет на оплату»
 
-**Статус:** ⏳ ожидает этап 1  
+**Статус:** ⏳ следующий (этап 1 принят)  
 **Зависимости:** [etap-01-dorabotki-sergeya.md](etap-01-dorabotki-sergeya.md) принят  
 **Следующий:** [etap-03-sozdanie-scheta-dogovor-postavki.md](etap-03-sozdanie-scheta-dogovor-postavki.md)
 

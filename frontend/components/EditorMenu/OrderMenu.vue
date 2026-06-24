@@ -40,7 +40,7 @@ const createSupplyContractHandler = () => {
 
 const createContractHandler = () => {
   createContract(Number(route.query.dealId))
-  activeTab.value = '3'
+  activeTab.value = '5'
   router.replace({...route, hash: '#contract'})
 }
 </script>

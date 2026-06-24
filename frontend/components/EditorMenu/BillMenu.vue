@@ -19,12 +19,12 @@
 		</div>
 
 		<div v-if="billType.value === 'bill'" :hidden="hiddenForBuyer" class="flex flex-col gap-2">
-			<UCheckbox :disabled="isDisabled" label="Дополнительная инфорамация" v-model="additionalInfoCheck" size="xl" />
+			<UCheckbox :disabled="isDisabled" label="Дополнительная информация" v-model="additionalInfoCheck" size="xl" />
 
 			<UCheckbox :disabled="isDisabled" label="Срок оплаты" v-model="paymentTermsCheck" size="xl" class="w-fit"/>
 			<div class="flex gap-1" v-if="paymentTermsCheck">
 				<label class="w-full self-center">Рабочих дней - </label>
-				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms" @update="console.log(paymentTerms)">
+				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTerms">
 			</div>
 		</div>
 		
@@ -90,6 +90,8 @@ import type { SelectMenuItem } from '@nuxt/ui';
 import { Editor } from '~/constants/keys';
 import { VAT_RATE_OPTIONS } from '~/constants/vatRate';
 import { useDeals } from '~/composables/useDeals';
+import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites';
+import { useBillFillState } from '~/composables/useBillFillState';
 import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue';
 
 defineProps<{
@@ -97,8 +99,10 @@ defineProps<{
 }>()
 
 const { findDeal } = useDeals()
+const { loadBillRequisites } = useCompanyBillRequisites()
 const route = useRoute()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+const billAwaitingFill = useBillFillState().billAwaitingFill
 
 const billTypeOptions = ref<SelectMenuItem[]>([
 	{label: 'Счет на оплату', value: 'bill'},
@@ -172,21 +176,37 @@ const contractTermsCheckOffer = useTypedState(Editor.CONTRACT_TERMS_CHECK_OFFER,
 const paymentTermsCheckOffer = useTypedState(Editor.PAYMENT_TERMS_CHECK_OFFER, () => initialPaymentTermsCheckOffer)
 const additionalInfoCheckOffer = useTypedState(Editor.ADDITIONAL_INFO_CHECK_OFFER, () => initialAdditionalInfoCheckOffer)
 
+const resolveSellerVatFromLk = async (deal: NonNullable<ReturnType<typeof findDeal>>) => {
+	const lk = await loadBillRequisites(deal.seller.companyId)
+	return lk?.party.vatRate ?? deal.seller.vatRate ?? 0
+}
+
 //задаем initial значения по данным сделки
 watch(
-	[() => route.query.dealId, dealForEditor],
-	() => {
+	[() => route.query.dealId, dealForEditor, billAwaitingFill],
+	async () => {
 		const deal = dealForEditor.value
 		if (!deal) return
+
+		const sellerVatFromLk = await resolveSellerVatFromLk(deal)
+		const useLkDefaults = billAwaitingFill.value || !deal.bill.number
+
 		//bill-general
 		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
-		initialVatRateCheck.value = deal.amountWithVatRate
-		initialSellerVatRate.value = deal.seller.vatRate ?? 0
+		if (useLkDefaults) {
+			initialVatRateCheck.value = sellerVatFromLk > 0
+			initialSellerVatRate.value = sellerVatFromLk
+		} else {
+			initialVatRateCheck.value = deal.amountWithVatRate
+			initialSellerVatRate.value = deal.amountWithVatRate
+				? (deal.seller.vatRate ?? sellerVatFromLk)
+				: sellerVatFromLk
+		}
 
 		//bill-payment(счет-оплата)
 		initialPaymentTerms.value = deal.bill.paymentTerms ?? ''
 		initialPaymentTermsCheck.value = deal.bill.paymentTerms !== '' ? true : false
-		initialAdditionalInfoCheck.value = deal.bill.additionalInfo !== '' ? true : false
+		initialAdditionalInfoCheck.value = true
 
 		//bill-contract
 		initialPaymentTermsContract.value = deal.bill.paymentTermsContract ?? ''

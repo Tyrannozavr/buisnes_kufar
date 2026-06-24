@@ -18,28 +18,17 @@ export const useDealsStore = defineStore("deals", () => {
 	/**
 	 * последняя сделка в store
 	 */
-	const lastDeal = computed<
-		| {
-				sales: Deal | undefined
-				purchases: Deal | undefined
-		  }
-		| undefined
-	>(() => {
-		if (!deals.value?.[0]) return undefined
-
-		let maxDealIdSales = 0
-		let maxDealIdPurchases = 0
-
-		deals.value?.forEach((deal) => {
-			if (deal.dealId > maxDealIdSales && deal.role === "seller")
-				maxDealIdSales = deal.dealId
-			if (deal.dealId > maxDealIdPurchases && deal.role === "buyer")
-				maxDealIdPurchases = deal.dealId
-		})
+	const lastDeal = computed(() => {
+		const newestByDate = (list: Deal[]): Deal | undefined => {
+			if (!list.length) return undefined
+			return [...list].sort(
+				(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+			)[0]
+		}
 
 		return {
-			sales: deals.value?.find((deal) => deal.dealId === maxDealIdSales),
-			purchases: deals.value?.find((deal) => deal.dealId === maxDealIdPurchases)
+			sales: newestByDate(deals.value.filter((deal) => deal.role === "seller")),
+			purchases: newestByDate(deals.value.filter((deal) => deal.role === "buyer")),
 		}
 	})
 

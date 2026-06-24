@@ -21,7 +21,7 @@
 			</div>
 
 			<div v-else class="flex flex-col justify-between gap-5">
-				<InsertButtons :isCancelChanges="isCancelChanges" />
+				<InsertButtons v-if="!isBuyerBillReadOnly" />
 
 				<div :hidden="isHiddenForBuyer" v-if="activeTab === '0'">
 					<OrderMenu :inDevelopment />
@@ -118,7 +118,7 @@
 					/>
 				</div>
 
-				<div class="flex flex-col gap-2">
+				<div v-if="!isBuyerBillReadOnly" class="flex flex-col gap-2">
 					<UButton
 						:disabled="!isDisabled"
 						@click="editButton()"
@@ -174,7 +174,7 @@
 					</div>
 				</div>
 
-				<div class="flex flex-col gap-2 text-center">
+				<div v-if="!isBuyerBillReadOnly" class="flex flex-col gap-2 text-center">
 					<p>Фото/Сканы документа</p>
 					<UButton
 						label="Выберите файл"
@@ -188,7 +188,7 @@
 					/>
 				</div>
 
-				<div v-if="!isDisabled" class="">
+				<div v-if="!isBuyerBillReadOnly && !isDisabled" class="">
 					<UButton
 						label="Отменить изменения"
 						size="lg"
@@ -196,11 +196,11 @@
 						color="neutral"
 						variant="subtle"
 						:disabled="isDisabled"
-						@click="(cancelChanges(activeTab), editButton())"
+						@click="editButton()"
 					/>
 				</div>
 
-				<div class="flex flex-row justify-between">
+				<div v-if="!isBuyerBillReadOnly" class="flex flex-row justify-between">
 					<UButton
 						label="Отправить контрагенту и сохранить"
 						size="xl"
@@ -222,15 +222,7 @@
 				color="success"
 				variant="subtle"
 				class="w-1/2"
-				@click="
-					saveChanges(),
-					sendMessageToCounterpart(
-						Number(route.query.dealId),
-						route.query.role as 'buyer' | 'seller',
-						counterpartData as CounterpartData
-					),
-					modalIsOpenSaveChanges = false
-				"
+				@click="confirmSaveAndNotify"
 			/>
 			</div>
 		</template>
@@ -273,7 +265,7 @@ const { createNewDealVersion, deleteLastDealVersion } = useDeals()
 const inDevelopment = () => {
 	const toast = useToast()
 	toast.add({
-		title: "Кнопка находиться в разработке...",
+		title: "Кнопка находится в разработке...",
 		icon: "i-lucide-git-compare"
 	})
 }
@@ -282,6 +274,11 @@ const inDevelopment = () => {
 const isHiddenForBuyer = computed(() => {
 	return route.query.role === "buyer"
 })
+
+/** §1.6: покупатель — только просмотр на вкладке «Счёт» (скрытие кнопок) */
+const isBuyerBillReadOnly = computed(() =>
+	isHiddenForBuyer.value && activeTab.value === '1'
+)
 
 //DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
 const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
@@ -420,6 +417,7 @@ watch(
 
 //Button edit
 const editButton = () => {
+	if (isBuyerBillReadOnly.value) return
 	isDisabled.value = !isDisabled.value
 }
 
@@ -447,44 +445,52 @@ const counterpartData: CounterpartData | null = getCounterpartData(
 	route.query.role as "buyer" | "seller"
 )
 
-const saveChanges = async (): Promise<void> => {
-	try {
-		// Сначала сохраняем форму в store (officials, products и т.д.), затем создаём новую версию.
-		await startSave()
-		await createNewDealVersion(Number(route.query.dealId))
-		editButton()
+const saveDealVersion = async (): Promise<void> => {
+	await startSave()
+	await createNewDealVersion(Number(route.query.dealId))
+	editButton()
+}
 
+const confirmSaveAndNotify = async (): Promise<void> => {
+	modalIsOpenSaveChanges.value = false
+	const dealId = Number(route.query.dealId)
+	const role = route.query.role as "buyer" | "seller"
+
+	try {
+		await saveDealVersion()
+	} catch (err) {
+		console.error("Ошибка при сохранении версии сделки:", err)
+		useToast().add({
+			title: "Не удалось сохранить изменения сделки",
+			color: "error",
+		})
+		return
+	}
+
+	if (!counterpartData?.companyId) {
+		useToast().add({
+			title: "Изменения сохранены",
+			color: "success",
+		})
+		return
+	}
+
+	try {
+		await sendMessageToCounterpart(dealId, role, counterpartData)
 		useToast().add({
 			title: "Изменения сохранены и отправлены контрагенту",
-			color: "success"
+			color: "success",
 		})
 	} catch (err) {
-		console.error("Ошибка при отправке контрагенту:", err)
+		console.error("Ошибка при отправке сообщения контрагенту:", err)
 		useToast().add({
-			title: "Ошибка при отправке сообщения контрагенту",
-			color: "error"
+			title: "Изменения сохранены, но уведомление в чат не отправлено",
+			color: "warning",
 		})
 	}
 }
 
-// cancel button
-const isCancelChanges: Ref<{
-	sales: boolean
-	purchases: boolean
-}> = ref({
-	sales: false,
-	purchases: false
-})
-
-const cancelChanges = (activeTab: string) => {
-	const role = route.query.role
-
-	if (role === "seller") {
-		isCancelChanges.value.sales = !isCancelChanges.value.sales
-	} else if (role === "buyer") {
-		isCancelChanges.value.purchases = !isCancelChanges.value.purchases
-	}
-}
+// cancel button — ранее переключал «последняя закупка/продажа»; §1.3 убрано
 
 //подтверждение изменений при изменении заказа одной из сторон
 const confirmation = ref(false)

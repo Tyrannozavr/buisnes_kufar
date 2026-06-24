@@ -46,7 +46,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 			product_name: p.name.trim() || "—",
 			quantity: p.quantity,
 			unit_of_measurement: p.units.trim() || "шт",
-			price: p.price
+			price: p.price,
+			...(p.article?.trim() ? { product_article: p.article.trim() } : {}),
 		})
 	)
 
@@ -135,7 +136,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		product: {
 			productList: dealResponse.items.map((item: ProductItemResponse) => ({
 				name: item.product_name,
-				article: item.product_article,
+				article: item.product_article ?? "",
 				quantity: item.quantity,
 				units: item.unit_of_measurement ?? "",
 				price: item.price,

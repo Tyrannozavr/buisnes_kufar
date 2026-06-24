@@ -20,6 +20,7 @@ const { completeSave, saveState } = useSaveDeals()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 
 const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
@@ -124,7 +125,9 @@ const fillFromQuery = () => {
 watch(
   () => [
     route.query.dealId,
+    route.query.role,
     deals?.value?.length ?? 0,
+    loadDealTrigger.value,
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }
@@ -289,7 +292,7 @@ onMounted(() => {
           </td>
           <td class="border">
             <input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
-              v-model.number="product.article" />
+              v-model.trim="product.article" />
           </td>
           <td class="border">
             <input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"

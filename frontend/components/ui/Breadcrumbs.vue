@@ -37,7 +37,46 @@ function getLabel(path: string): string {
   return labels[path] || path
 }
 
+function getEditorBreadcrumbs(): BreadcrumbItem[] | null {
+  if (!route.path.startsWith('/profile/editor')) return null
+
+  const editorLabel = props.currentPageTitle || 'Редактор документов'
+  const editorPath = route.path
+  const role = route.query.role
+
+  const prefix: BreadcrumbItem[] = [
+    { label: 'Главная', path: '/' },
+    { label: 'Профиль', path: '/profile' },
+  ]
+
+  if (role === 'seller') {
+    return [
+      ...prefix,
+      { label: 'Продажи', path: '/profile/sales' },
+      { label: editorLabel, path: editorPath },
+    ]
+  }
+  if (role === 'buyer') {
+    return [
+      ...prefix,
+      { label: 'Закупки', path: '/profile/purchases' },
+      { label: editorLabel, path: editorPath },
+    ]
+  }
+
+  return [
+    ...prefix,
+    { label: editorLabel, path: editorPath },
+  ]
+}
+
 async function updateBreadcrumbs() {
+  const editorItems = getEditorBreadcrumbs()
+  if (editorItems) {
+    breadcrumbs.value = editorItems
+    return
+  }
+
   const paths = route.path.split('/').filter(Boolean)
   const items: BreadcrumbItem[] = []
 
@@ -65,6 +104,7 @@ async function updateBreadcrumbs() {
 }
 
 watch(() => route.path, updateBreadcrumbs, { immediate: true })
+watch(() => route.query.role, updateBreadcrumbs)
 watch(() => props.currentPageTitle, updateBreadcrumbs)
 watch(() => route.meta, updateBreadcrumbs, { deep: true })
 </script>

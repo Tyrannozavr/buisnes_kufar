@@ -11,7 +11,7 @@ import type {
 import type { Buyer, ProductInCheckout } from "~/types/product";
 import { useQueryCache } from "@pinia/colada";
 import { useDeals } from "~/composables/useDeals";
-import { ADDITIONAL_INFO_BILL, CONTRACT_TERMS_BILL_CONTRACT, CONTRACT_TERMS_BILL_OFFER } from "~/constants/contractTerms";
+import { useBillFillState } from "~/composables/useBillFillState";
 
 export const buyerDealsQuery = defineQueryOptions(
 	({ skip = 0, limit = 100 }: { skip?: number; limit?: number }) => ({
@@ -58,76 +58,30 @@ export const unitsOfMeasurementQuery = defineQueryOptions(() => ({
 )
 
 export const useCreateBillQuery = defineMutation(() => {
-	const { editBillFields, findDealByDealNumber, findDeal, editPaymentTerms, editPaymentTermsContract, editPaymentTermsOffer, editDeliveryTermsContract, editAdditionalInfo, editAdditionalInfoOffer, editContractTermsTextContract, editContractTermsTextOffer } = useDeals()
+	const { editBillFields, findDealByDealNumber, findDeal } = useDeals()
+	const { markBillAwaitingFill } = useBillFillState()
 	const queryCache = useQueryCache()
 	const { mutate, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_BILL],
 		mutation: ({ dealId, date }: { dealId: number, date?: string }) => usePurchasesApi().createBill(dealId, date),
-		onMutate: async ({dealId}) => {
+		onMutate: async ({ dealId }) => {
+			markBillAwaitingFill(dealId)
 			const deal = findDeal(dealId)
 			if (deal) {
 				editBillFields(dealId, new Date().toISOString(), deal.sellerOrderNumber)
-				await editPaymentTerms(dealId, '3')
-				await editPaymentTermsContract(dealId, '3')
-				await editPaymentTermsOffer(dealId, '3')
-				await editDeliveryTermsContract(dealId, '10')
-				await editAdditionalInfo(dealId, ADDITIONAL_INFO_BILL.PAYMENT)
-				await editAdditionalInfoOffer(
-					dealId, ADDITIONAL_INFO_BILL.OFFER(deal.seller.companyName ?? `______________`)
-				)
-				await editContractTermsTextContract(
-					dealId,
-					CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_WITH_PAYMENT_AND_DELIVERY(
-						deal.sellerOrderNumber,
-						normalizeDate(deal.date),
-						'3',
-						'10'
-					)
-				)
-				await editContractTermsTextOffer(
-					dealId,
-					CONTRACT_TERMS_BILL_OFFER.DELIVERY_SUPPLIER_PAYMENT(
-						deal.bill.paymentTermsOffer,
-						deal.seller.productionAddress ?? `______________`
-					)
-				)
 				await queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
 			}
 		},
-		onSuccess: async(data: { bill_number: string, bill_date: string } | undefined) => {
+		onSuccess: async (data: { bill_number: string, bill_date: string } | undefined) => {
 			if (data) {
 				const deal = findDealByDealNumber(data.bill_number, 'seller')
 				if (deal) {
 					editBillFields(deal.dealId, data.bill_date, data.bill_number)
-					await editPaymentTerms(deal.dealId, "3")
-					await editPaymentTermsContract(deal.dealId, "3")
-					await editPaymentTermsOffer(deal.dealId, "3")
-					await editDeliveryTermsContract(deal.dealId, "10")
-					await editAdditionalInfo(deal.dealId, ADDITIONAL_INFO_BILL.PAYMENT)
-					await editAdditionalInfoOffer(
-						deal.dealId,
-						ADDITIONAL_INFO_BILL.OFFER(deal.seller.companyName ?? `______________`)
-					)
-					await editContractTermsTextContract(
-						deal.dealId,
-						CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_WITH_PAYMENT_AND_DELIVERY(
-							deal.sellerOrderNumber,
-							normalizeDate(deal.date),
-							"3",
-							"10"
-						)
-					)
-					await editContractTermsTextOffer(
-						deal.dealId,
-						CONTRACT_TERMS_BILL_OFFER.DELIVERY_SUPPLIER_PAYMENT(
-							deal.bill.paymentTermsOffer,
-							deal.seller.productionAddress ?? `______________`
-						)
-					)
+					markBillAwaitingFill()
 					queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
 				}
 			}
-		}
+		},
 	})
 	return {
 		...mutation,

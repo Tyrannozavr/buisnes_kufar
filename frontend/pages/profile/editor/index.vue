@@ -71,6 +71,10 @@ import DogovorUslug from '~/components/templates/DogovorUslug.vue'
 import Bill from '~/components/templates/Bill/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract/SupplyContract.vue'
 import Order from '~/components/templates/Order.vue'
+import AccompanyingDocuments from '~/components/templates/AccompanyingDocuments.vue'
+import Invoice from '~/components/templates/Invoice.vue'
+import Act from '~/components/templates/Act.vue'
+import EditorMenu from '~/components/EditorMenu/index.vue'
 import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
 import { useDeals } from '~/composables/useDeals'
@@ -81,11 +85,21 @@ definePageMeta({
 })
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
+const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const route = useRoute()
 const router = useRouter()
 const { getDeals, deals, findDeal } = useDeals()
 
 getDeals()
+
+/** Режим просмотра по умолчанию при открытии сделки / смене вкладки (isDisabled «залипал» в edit). */
+watch(
+	() => [route.query.dealId, route.query.role, route.hash],
+	() => {
+		isDisabled.value = true
+	},
+	{ immediate: true },
+)
 
 const isItemDisabled = ref({
 		bill: false,

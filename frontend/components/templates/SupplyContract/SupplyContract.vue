@@ -42,6 +42,7 @@ const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFICIALS_SELLER, () => ref<Official[]>([]))
 const supplyContractTableData = useTypedState(Editor.SUPPLY_CONTRACT_TABLE_DATA)
 const supplyContractSlotRevision = useTypedState(Editor.SUPPLY_CONTRACT_SLOT_REVISION, () => ref(0))
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const currentDeal = computed(() => findDeal(Number(route.query.dealId)))
 
 
@@ -210,8 +211,10 @@ const fillFromQuery = () => {
 watch(
 	() => [
 		route.query.dealId,
+		route.query.role,
 		deals?.value?.length ?? 0,
 		findDeal(Number(route.query.dealId))?.supplyContract?.number ?? '',
+		loadDealTrigger.value,
 	],
 	() => fillFromQuery(),
 	{ immediate: true, deep: true },

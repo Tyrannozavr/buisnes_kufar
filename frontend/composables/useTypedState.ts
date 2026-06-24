@@ -9,6 +9,8 @@ interface StateMap {
 	clearState: boolean
 	removeDealState: boolean
 	activeTab: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+	loadDealTrigger: number
+	billAwaitingFill: boolean
 
 	//bill
 	billType: { value: "bill" | "bill-contract" | "bill-offer"; label: string }

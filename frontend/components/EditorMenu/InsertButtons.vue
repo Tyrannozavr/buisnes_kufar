@@ -1,76 +1,91 @@
 <script setup lang="ts">
-import { useRouter } from 'nuxt/app'; 
-import { Editor } from '~/constants/keys';
-import { useDeals } from '~/composables/useDeals';
+import { Editor } from '~/constants/keys'
+import { useDeals } from '~/composables/useDeals'
+import { useBillFillState } from '~/composables/useBillFillState'
 
 const toast = useToast()
-const router = useRouter()
-const { lastDeal } = useDeals()
+const route = useRoute()
+const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+const { findDeal } = useDeals()
+const { clearBillAwaitingFill } = useBillFillState()
 
-const { isCancelChanges } = defineProps<{
-  isCancelChanges: {
-    sales: boolean
-    purchases: boolean
-  }
-}>()
+const confirmOpen = ref(false)
 
-const insertLastPurchases = (): void => {
-	const lastDealId = lastDeal?.value?.purchases?.dealId
-	router.replace({ query: { role: 'buyer', dealId: String(lastDealId) } })
+const canFill = computed(() => Boolean(route.query.dealId && route.query.role))
 
-	if (!lastDealId) {
-		toast.add({
-			title: 'Нет последней закупки',
-			color: 'warning',
-		})
-		return
-	}
-}
-
-const insertLastSales = (): void => {
-	const lastDealId = lastDeal?.value?.sales?.dealId
-	router.replace({ query: { role: 'seller', dealId: String(lastDealId) } })
-
-	if (!lastDealId) {
-		toast.add({
-			title: 'Нет последней продажи',
-			color: 'warning',
-		})
-		return
-	}
-}
-
-watch(() => isCancelChanges,
-  () => {
-    if (isCancelChanges.sales) {
-      insertLastSales()
-    }
-    if (isCancelChanges.purchases) {
-      insertLastPurchases()
-    }
-  }, { deep: true }
+const isBuyerBillReadOnly = computed(() =>
+	route.query.role === 'buyer' && activeTab.value === '1'
 )
+
+const openConfirm = () => {
+	if (isBuyerBillReadOnly.value) return
+
+	if (!canFill.value) {
+		toast.add({ title: 'Сделка не выбрана', color: 'warning' })
+		return
+	}
+
+	const deal = findDeal(Number(route.query.dealId))
+	if (!deal) {
+		toast.add({ title: 'Сделка не найдена', color: 'warning' })
+		return
+	}
+
+	confirmOpen.value = true
+}
+
+const applyFill = () => {
+	confirmOpen.value = false
+
+	if (activeTab.value === '1') {
+		clearBillAwaitingFill()
+	}
+
+	loadDealTrigger.value++
+
+	toast.add({
+		title: 'Данные подставлены',
+		description: activeTab.value === '1'
+			? 'Счёт заполнен данными текущей сделки'
+			: 'Заказ заполнен данными текущей сделки',
+		color: 'success',
+	})
+}
 </script>
 
 <template>
-  <div class="w-full">
-    <UCollapsible>
-      <UButton label="Заполнить данными" icon="i-lucide-file-input" class="w-full justify-center"
-        :disabled="!isDisabled" />
+	<div class="w-full">
+		<UButton
+			label="Заполнить данными"
+			icon="i-lucide-file-input"
+			class="w-full justify-center"
+			:disabled="!isDisabled || !canFill"
+			@click="openConfirm"
+		/>
 
-      <template #content>
-        <div class="flex gap-2 mt-4 justify-center">
-          <div class="w-1/2">
-            <UButton label="Последняя закупка" color="neutral" variant="subtle" class="w-full justify-center py-2"
-              @click="insertLastPurchases" />
-          </div>
-          <div class="w-1/2">
-            <UButton label="Последняя продажа" color="neutral" variant="subtle" class="w-full justify-center py-2"
-              @click="insertLastSales" />
-          </div>
-        </div>
-      </template>
-    </UCollapsible>
-  </div>
+		<UModal v-model:open="confirmOpen" title="Данные будут изменены. Продолжить?">
+			<template #body>
+				<p class="text-sm text-gray-600 mb-4">
+					Текущие данные формы будут заменены данными этой сделки.
+				</p>
+				<div class="flex gap-2">
+					<UButton
+						label="Отмена"
+						color="neutral"
+						variant="subtle"
+						class="flex-1 justify-center"
+						@click="confirmOpen = false"
+					/>
+					<UButton
+						label="Продолжить"
+						color="primary"
+						class="flex-1 justify-center"
+						@click="applyFill"
+					/>
+				</div>
+			</template>
+		</UModal>
+	</div>
 </template>

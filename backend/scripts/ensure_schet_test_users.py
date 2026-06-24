@@ -212,13 +212,21 @@ async def ensure_seller_official(session, company_id: int) -> None:
     print("  official CREATED")
 
 
-async def ensure_deal(session, buyer_company_id: int, seller_company_id: int) -> Order:
+async def ensure_deal(
+    session,
+    buyer_company_id: int,
+    seller_company_id: int,
+    *,
+    comments: str,
+    items: list[OrderItemCreate],
+) -> Order:
     existing = (
         await session.execute(
             select(Order)
             .where(
                 Order.buyer_company_id == buyer_company_id,
                 Order.seller_company_id == seller_company_id,
+                Order.comments == comments,
                 Order.status == "Активная",
             )
             .order_by(Order.created_at.desc())
@@ -237,21 +245,8 @@ async def ensure_deal(session, buyer_company_id: int, seller_company_id: int) ->
     repo = DealRepository(session)
     deal_data = DealCreate(
         seller_company_id=seller_company_id,
-        comments="Тестовая сделка для этапа 1 (счёт)",
-        items=[
-            OrderItemCreate(
-                product_name="Болт М8×40",
-                quantity=100,
-                unit_of_measurement="шт",
-                price=12.50,
-            ),
-            OrderItemCreate(
-                product_name="Гайка М8",
-                quantity=100,
-                unit_of_measurement="шт",
-                price=5.00,
-            ),
-        ],
+        comments=comments,
+        items=items,
     )
     order = await repo.create_order(deal_data, buyer_company_id)
     await session.commit()
@@ -260,9 +255,14 @@ async def ensure_deal(session, buyer_company_id: int, seller_company_id: int) ->
         f"  deal CREATED: id={order.id}, "
         f"seller_order={order.seller_order_number}, "
         f"buyer_order={order.buyer_order_number}, "
-        f"sum={order.total_amount}"
+        f"sum={order.total_amount}, "
+        f"bill={'да' if order.bill_date else 'нет'}"
     )
     return order
+
+
+DEAL_MAIN_COMMENTS = "Тестовая сделка для этапа 1 (счёт)"
+DEAL_NO_BILL_COMMENTS = "Тест §1.3 — счёт не создан (для createBill)"
 
 
 async def main() -> None:
@@ -281,16 +281,62 @@ async def main() -> None:
 
         await session.commit()
 
-        print("\nСделка:")
-        order = await ensure_deal(session, buyer_company.id, seller_company.id)
+        print("\nСделка 1 (основная, может быть со счётом):")
+        order_main = await ensure_deal(
+            session,
+            buyer_company.id,
+            seller_company.id,
+            comments=DEAL_MAIN_COMMENTS,
+            items=[
+                OrderItemCreate(
+                    product_name="Болт М8×40",
+                    product_article="BOLT-M8-40",
+                    quantity=100,
+                    unit_of_measurement="шт",
+                    price=12.50,
+                ),
+                OrderItemCreate(
+                    product_name="Гайка М8",
+                    product_article="NUT-M8",
+                    quantity=100,
+                    unit_of_measurement="шт",
+                    price=5.00,
+                ),
+            ],
+        )
+
+        print("\nСделка 2 (для теста §1.3 — без счёта):")
+        order_no_bill = await ensure_deal(
+            session,
+            buyer_company.id,
+            seller_company.id,
+            comments=DEAL_NO_BILL_COMMENTS,
+            items=[
+                OrderItemCreate(
+                    product_name="Шайба M8",
+                    product_article="WASH-M8",
+                    quantity=200,
+                    unit_of_measurement="шт",
+                    price=2.00,
+                ),
+                OrderItemCreate(
+                    product_name="Винт M6×20",
+                    product_article="SCR-M6-20",
+                    quantity=50,
+                    unit_of_measurement="шт",
+                    price=8.00,
+                ),
+            ],
+        )
 
     print("\n--- Готово ---")
     print(f"Пароль для всех тестовых: {TEST_PASSWORD}")
     print(f"\nВход поставщика (счёт): {PRIMARY_EMAILS[0]}")
     print(f"  (алиас локального admin: {PRIMARY_EMAILS[1]})")
     print(f"Контрагент-покупатель:     {COUNTERPARTY_USER['email']}")
-    print(f"\nСделка id={order.id}, номер продавца={order.seller_order_number}")
-    print("Продажи → «Создать счет» → редактор #bill")
+    print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
+    print(f"Сделка 2: id={order_no_bill.id}, заказ {order_no_bill.seller_order_number} — без счёта")
+    print("§1.3: Продажи → сделка 2 → «Создать счет» → на бланке только № и дата → «Заполнить данными»")
 
 
 if __name__ == "__main__":

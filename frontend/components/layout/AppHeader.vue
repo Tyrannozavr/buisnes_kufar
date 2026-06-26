@@ -39,18 +39,7 @@ const toggleSidebar = () => {
               class="flex items-center space-x-4"
               to="/"
           >
-            <NuxtImg
-                src="/images/logo.jpg"
-                alt="БизнесТорг"
-                class="h-12 w-auto mr-0"
-                loading="eager"
-            />
-            <NuxtImg
-                src="/images/companyNameWhite.png"
-                alt="trade_synergy"
-                class="h-14 w-auto hidden sm:block"
-                loading="eager"
-            />
+            <Logo class="h-12 w-auto max-w-[220px]" />
           </NuxtLink>
         </div>
 

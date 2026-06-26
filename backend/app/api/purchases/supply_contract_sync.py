@@ -95,13 +95,21 @@ def _resolve_linked_specification(
 	order: Order,
 	entity: SupplyContractModel,
 ) -> Optional[SupplyContractSpecificationModel]:
-	if not entity.specifications:
+	"""Не обращаться к entity.specifications без eager load — иначе MissingGreenlet в async."""
+	from sqlalchemy.orm import attributes
+
+	state = attributes.instance_state(entity)
+	if state.attrs.specifications.loaded_value is attributes.NO_VALUE:
+		return None
+
+	specs = entity.specifications
+	if not specs:
 		return None
 	if order.supply_spec_id:
-		for spec in entity.specifications:
+		for spec in specs:
 			if spec.id == order.supply_spec_id:
 				return spec
-	return entity.specifications[-1]
+	return specs[-1]
 
 
 async def build_supply_contract_in_deal_response(
@@ -168,7 +176,8 @@ async def ensure_supply_contract_entity_for_order(
 			entity.date = resolved_date
 
 	order.supply_contract_id = entity.id
-	return entity
+	reloaded = await _load_entity_by_id(session, entity.id)
+	return reloaded or entity
 
 
 async def dual_write_supply_contract_from_order_update(
@@ -191,7 +200,7 @@ async def dual_write_supply_contract_from_order_update(
 			item.setdefault("company_id", order.seller_company_id)
 	if sc.terms_text is not None:
 		entity.terms_text = sc.terms_text
-	if sc.specification_text is not None:
+	if sc.specification_text:
 		spec = _resolve_linked_specification(order, entity)
 		if spec is not None:
 			spec.spec_text = sc.specification_text

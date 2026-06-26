@@ -1,0 +1,131 @@
+смотри вот логи с сервера - "backend-1  | 2026-04-06 20:17:12,879 - DEBUG - Добавляем 2 позиций заказа
+backend-1  | 2026-04-06 20:17:12,881 - ERROR - Ошибка в create_order: Product with article '1' not found (тип: ValueError)
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:12,883 - ERROR - Error creating deal: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:12,884 - ERROR - Error creating deal from checkout: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 416, in create_deal_from_checkout
+backend-1  |     deal = await self.create_deal(deal_data, buyer_company_id)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | INFO:     172.18.0.9:41602 - "POST /api/v1/purchases/checkout HTTP/1.1" 400 Bad Request
+backend-1  | 2026-04-06 20:17:14,066 - DEBUG - Начинаем создание заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:14,068 - DEBUG - Генерируем номер заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:14,069 - DEBUG - Номер покупателя: 00005
+backend-1  | 2026-04-06 20:17:14,069 - DEBUG - Генерируем номер заказа для продавца 79
+backend-1  | 2026-04-06 20:17:14,070 - DEBUG - Номер продавца: 00001
+backend-1  | 2026-04-06 20:17:14,070 - DEBUG - Создаем объект Order
+backend-1  | 2026-04-06 20:17:14,072 - DEBUG - Добавляем заказ в сессию
+backend-1  | 2026-04-06 20:17:14,072 - DEBUG - Выполняем flush для получения ID
+backend-1  | 2026-04-06 20:17:14,074 - DEBUG - Получен ID заказа: 47
+backend-1  | 2026-04-06 20:17:14,074 - DEBUG - Добавляем 2 позиций заказа
+backend-1  | 2026-04-06 20:17:14,076 - ERROR - Ошибка в create_order: Product with article '1' not found (тип: ValueError)
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:14,077 - ERROR - Error creating deal: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:14,078 - ERROR - Error creating deal from checkout: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 416, in create_deal_from_checkout
+backend-1  |     deal = await self.create_deal(deal_data, buyer_company_id)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | INFO:     172.18.0.9:41602 - "POST /api/v1/purchases/checkout HTTP/1.1" 400 Bad Request
+backend-1  | 2026-04-06 20:17:15,901 - DEBUG - Начинаем создание заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:15,903 - DEBUG - Генерируем номер заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:15,904 - DEBUG - Номер покупателя: 00005
+backend-1  | 2026-04-06 20:17:15,904 - DEBUG - Генерируем номер заказа для продавца 79
+backend-1  | 2026-04-06 20:17:15,905 - DEBUG - Номер продавца: 00001
+backend-1  | 2026-04-06 20:17:15,905 - DEBUG - Создаем объект Order
+backend-1  | 2026-04-06 20:17:15,906 - DEBUG - Добавляем заказ в сессию
+backend-1  | 2026-04-06 20:17:15,906 - DEBUG - Выполняем flush для получения ID
+backend-1  | 2026-04-06 20:17:15,908 - DEBUG - Получен ID заказа: 47
+backend-1  | 2026-04-06 20:17:15,908 - DEBUG - Добавляем 2 позиций заказа
+backend-1  | 2026-04-06 20:17:15,909 - ERROR - Ошибка в create_order: Product with article '1' not found (тип: ValueError)
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:15,910 - ERROR - Error creating deal: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:15,911 - ERROR - Error creating deal from checkout: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 416, in create_deal_from_checkout
+backend-1  |     deal = await self.create_deal(deal_data, buyer_company_id)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | INFO:     172.18.0.9:41602 - "POST /api/v1/purchases/checkout HTTP/1.1" 400 Bad Request
+backend-1  | 2026-04-06 20:17:16,729 - DEBUG - Начинаем создание заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:16,730 - DEBUG - Генерируем номер заказа для покупателя 77
+backend-1  | 2026-04-06 20:17:16,731 - DEBUG - Номер покупателя: 00005
+backend-1  | 2026-04-06 20:17:16,731 - DEBUG - Генерируем номер заказа для продавца 79
+backend-1  | 2026-04-06 20:17:16,732 - DEBUG - Номер продавца: 00001
+backend-1  | 2026-04-06 20:17:16,732 - DEBUG - Создаем объект Order
+backend-1  | 2026-04-06 20:17:16,733 - DEBUG - Добавляем заказ в сессию
+backend-1  | 2026-04-06 20:17:16,733 - DEBUG - Выполняем flush для получения ID
+backend-1  | 2026-04-06 20:17:16,735 - DEBUG - Получен ID заказа: 47
+backend-1  | 2026-04-06 20:17:16,735 - DEBUG - Добавляем 2 позиций заказа
+backend-1  | 2026-04-06 20:17:16,736 - ERROR - Ошибка в create_order: Product with article '1' not found (тип: ValueError)
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:16,738 - ERROR - Error creating deal: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+backend-1  | 2026-04-06 20:17:16,738 - ERROR - Error creating deal from checkout: Product with article '1' not found
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 416, in create_deal_from_checkout
+backend-1  |     deal = await self.create_deal(deal_data, buyer_company_id)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/services/__init__.py", line 38, in create_deal
+backend-1  |     order = await self.repository.create_order(deal_data, buyer_company_id)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/app/app/api/purchases/repositories/__init__.py", line 101, in create_order
+backend-1  |     raise ValueError(f"Product with article '{item_data.article}' not found")
+backend-1  | ValueError: Product with article '1' not found
+"  проект находится на ветке preprod проанализируй бэк и скажи, как могла возникнуть такая ошибка. Можешь подключиться к серверу и посмотреть состояние базы данных или что тееб необходимо

@@ -303,7 +303,15 @@ class SupplyContractTemplate(Base):
 
 	id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 	company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
-	type: Mapped[SupplyContractTemplateType] = mapped_column(Enum(SupplyContractTemplateType), nullable=False, index=True)
+	type: Mapped[SupplyContractTemplateType] = mapped_column(
+		Enum(
+			SupplyContractTemplateType,
+			name="supplycontracttemplatetype",
+			values_callable=lambda enum_cls: [member.value for member in enum_cls],
+		),
+		nullable=False,
+		index=True,
+	)
 	name: Mapped[str] = mapped_column(String(128), nullable=False)
 	content_html: Mapped[str] = mapped_column(Text, nullable=False, default="")
 	is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

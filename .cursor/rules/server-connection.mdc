@@ -1,0 +1,40 @@
+---
+description: Подключение к продакшн-серверу TradeSynergy
+alwaysApply: false
+globs:
+---
+
+# Сервер TradeSynergy (продакшн)
+
+## Подключение по SSH
+
+```bash
+ssh root@77.222.47.33
+```
+
+- **Хост:** 77.222.47.33  
+- **Пользователь:** root  
+- **Домен:** tradesynergy.ru  
+
+## Расположение на сервере
+
+- **Проект:** `/root/buisnes_kufar` — весь репозиторий (backend, frontend, nginx, docker-compose).
+- **Стек:** Docker Compose. Системный nginx не используется (сервис inactive).
+- **Контейнеры:**
+  - `buisnes_kufar-nginx-1` — nginx (порты 80, 443), конфиг в контейнере: `/etc/nginx/conf.d/nginx.conf`.
+  - `buisnes_kufar-backend-1` — бэкенд (порт 8000).
+  - `buisnes_kufar-frontend-1` — Nuxt (порт 3000).
+  - `buisnes_kufar-db-1`, `buisnes_kufar-rabbitmq-1`, celery-worker, celery-beat, certbot (по необходимости).
+- **Nginx:** конфиг на хосте — `/root/buisnes_kufar/nginx/nginx.conf`. В контейнер попадает при сборке образа (см. Dockerfile в `nginx/`).
+- **SSL:** Let's Encrypt, том в проект — `./nginx/letsencrypt`, в контейнере — `/etc/letsencrypt`; домены: `tradesynergy.ru`, `www.tradesynergy.ru`. Обновление: скрипт `generate_ssl_on_server.sh` или контейнер certbot.
+- **Логи:** `docker logs buisnes_kufar-nginx-1`, `docker logs buisnes_kufar-backend-1`; внутри nginx — `/var/log/nginx/error.log`, `access.log`.
+
+При 502 по API: проверить, что бэкенд отвечает на `http://127.0.0.1:8000`, не использовать `sub_filter` для location API (ломает JSON).
+
+## Обновление SSL-сертификатов
+
+- **Симлинк** `live/tradesynergy.ru` всегда указывает на последнюю версию (tradesynergy.ru-XXXX): скрипты `update-certificate-links.sh` и `fix-certificate-links.sh` выставляют относительную ссылку; после выдачи/обновления сертификата nginx сразу видит актуальный сертификат.
+- Проверка срока: `openssl s_client -connect tradesynergy.ru:443 -servername tradesynergy.ru </dev/null 2>/dev/null | openssl x509 -noout -dates`
+- **Обновление (renew):** `cd /root/buisnes_kufar && docker compose run --rm certbot /usr/local/bin/renew.sh` — продление и автообновление симлинка. После: `docker exec buisnes_kufar-nginx-1 nginx -s reload`.
+- **Принудительная выдача:** `docker compose run --rm certbot` (запускает `generate-certificate.sh`). После: `docker exec buisnes_kufar-nginx-1 nginx -s reload`.
+- Только поправить симлинк на последний сертификат: `docker compose run --rm certbot /usr/local/bin/update-certificate-links.sh`.

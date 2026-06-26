@@ -58,6 +58,15 @@ class CompanyRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_by_user_id(self, user_id: int) -> Optional[Company]:
+        from app.api.authentication.models.user import User
+
+        user_result = await self.session.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if not user or not user.company_id:
+            return None
+        return await self.get_by_id(user.company_id)
+
     async def create(self, company_data: CompanyCreate) -> Company:
         from app.api.common.repositories.city_repository import CityRepository
         

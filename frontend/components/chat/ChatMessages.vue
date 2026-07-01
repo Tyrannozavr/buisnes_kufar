@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/types/chat'
+import { formatMoscowDateTime } from '~/utils/datetime'
 
 const props = defineProps<{
   messages: ChatMessage[]
@@ -22,16 +23,7 @@ const emit = defineEmits<{
 const newMessage = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
+const formatDate = (dateString: string) => formatMoscowDateTime(dateString)
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {

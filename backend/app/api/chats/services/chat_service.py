@@ -19,9 +19,14 @@ class ChatService:
         existing_chat = await self.repository.find_existing_chat(current_company_id, chat_data.participant_company_id)
 
         if existing_chat:
-            return await self._format_chat_response(existing_chat, current_company_id)
-
-        # Получаем компанию-участника
+            await self._sync_chat_participants(
+                existing_chat.id,
+                current_company_id,
+                current_user_id,
+                chat_data.participant_company_id,
+            )
+            updated_chat = await self.repository.get_chat_by_id(existing_chat.id)
+            return await self._format_chat_response(updated_chat, current_company_id)
         participant_company = await self.repository.get_company_by_id(chat_data.participant_company_id)
         if not participant_company:
             raise ValueError(f"Company with ID {chat_data.participant_company_id} not found")
@@ -34,17 +39,22 @@ class ChatService:
         chat = await self.repository.create_chat(title=chat_data.title)
 
         # Добавляем участников
-        await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        await self.repository.add_participant(chat.id, chat_data.participant_company_id, participant_user_id)
+        await self.repository.ensure_participant(chat.id, current_company_id, current_user_id)
+        await self.repository.ensure_participant(
+            chat.id, chat_data.participant_company_id, participant_user_id
+        )
 
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)
         return await self._format_chat_response(updated_chat, current_company_id)
 
-    async def get_user_chats(self, user_id: int) -> List[ChatListResponse]:
-        """Получает все чаты пользователя"""
-        chats = await self.repository.get_user_chats(user_id)
-        return [await self._format_chat_list_response(chat) for chat in chats]
+    async def get_user_chats(self, user_id: int, company_id: Optional[int] = None) -> List[ChatListResponse]:
+        """Получает все чаты пользователя (по user_id и company_id)."""
+        chats = await self.repository.get_user_chats(user_id, company_id)
+        return [
+            await self._format_chat_list_response(chat, company_id)
+            for chat in chats
+        ]
 
     async def get_chat_by_id(self, chat_id: int) -> Optional[ChatResponse]:
         """Получает чат по ID"""
@@ -69,18 +79,38 @@ class ChatService:
         existing_chat = await self.repository.find_existing_chat(current_company_id, participant_company.id)
 
         if existing_chat:
-            return await self._format_chat_response(existing_chat, current_company_id)
+            await self._sync_chat_participants(
+                existing_chat.id,
+                current_company_id,
+                current_user_id,
+                participant_company.id,
+            )
+            updated_chat = await self.repository.get_chat_by_id(existing_chat.id)
+            return await self._format_chat_response(updated_chat, current_company_id)
 
         # Создаем новый чат
         chat = await self.repository.create_chat()
 
         # Добавляем участников
-        await self.repository.add_participant(chat.id, current_company_id, current_user_id)
-        await self.repository.add_participant(chat.id, participant_company.id, participant_user_id)
+        await self.repository.ensure_participant(chat.id, current_company_id, current_user_id)
+        await self.repository.ensure_participant(chat.id, participant_company.id, participant_user_id)
 
         # Получаем обновленный чат с участниками
         updated_chat = await self.repository.get_chat_by_id(chat.id)
         return await self._format_chat_response(updated_chat, current_company_id)
+
+    async def _sync_chat_participants(
+        self,
+        chat_id: int,
+        current_company_id: int,
+        current_user_id: int,
+        other_company_id: int,
+    ) -> None:
+        """Привязать актуальных пользователей к существующему чату между компаниями."""
+        await self.repository.ensure_participant(chat_id, current_company_id, current_user_id)
+        other_user_id = await self.repository.get_company_user_id(other_company_id)
+        if other_user_id:
+            await self.repository.ensure_participant(chat_id, other_company_id, other_user_id)
 
     async def _format_chat_response(self, chat: Chat, current_company_id: int = None) -> ChatResponse:
         """Форматирует чат для ответа"""
@@ -108,7 +138,9 @@ class ChatService:
             updated_at=chat.updated_at
         )
 
-    async def _format_chat_list_response(self, chat: Chat) -> ChatListResponse:
+    async def _format_chat_list_response(
+        self, chat: Chat, company_id: Optional[int] = None
+    ) -> ChatListResponse:
         """Форматирует чат для списка чатов"""
         participants = []
         for participant in chat.participants:
@@ -134,12 +166,68 @@ class ChatService:
                 "created_at": last_msg.created_at.isoformat()
             }
 
+        unread_count = 0
+        if company_id is not None:
+            unread_count = await self.repository.count_unread_for_chat(chat.id, company_id)
+
         return ChatListResponse(
             id=chat.id,
             title=chat.title,
             is_group=chat.is_group,
             participants=participants,
             last_message=last_message,
+            unread_count=unread_count,
             created_at=chat.created_at,
             updated_at=chat.updated_at
         )
+
+    async def mark_chat_as_read(self, chat_id: int, reader_company_id: int) -> list[int]:
+        """Пометить входящие сообщения чата прочитанными."""
+        return await self.repository.mark_incoming_messages_read(chat_id, reader_company_id)
+
+    async def send_message(
+        self,
+        chat_id: int,
+        sender_company_id: int,
+        sender_user_id: int,
+        content: str,
+    ):
+        """Сохранить сообщение в чат и разослать подписчикам WebSocket."""
+        from app.api.messages.models.message import Message
+
+        message = Message(
+            chat_id=chat_id,
+            sender_company_id=sender_company_id,
+            sender_user_id=sender_user_id,
+            content=content,
+        )
+        self.db.add(message)
+        await self.db.commit()
+        await self.db.refresh(message)
+
+        try:
+            from app.api.chats.websocket_manager import chat_manager
+
+            message_data = {
+                "id": message.id,
+                "chat_id": message.chat_id,
+                "sender_company_id": message.sender_company_id,
+                "sender_user_id": message.sender_user_id,
+                "content": message.content,
+                "file_path": None,
+                "file_name": None,
+                "file_size": None,
+                "file_type": None,
+                "is_read": message.is_read,
+                "created_at": message.created_at,
+                "updated_at": message.updated_at,
+            }
+            await chat_manager.send_message_to_chat(
+                chat_id, message_data, sender_user_id
+            )
+        except Exception as exc:
+            from app_logging.logger import logger
+
+            logger.warning("WebSocket broadcast failed for chat %s: %s", chat_id, exc)
+
+        return message

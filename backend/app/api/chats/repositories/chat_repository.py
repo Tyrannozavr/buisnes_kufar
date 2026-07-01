@@ -9,6 +9,7 @@ from app.api.authentication.models.roles_positions import UserRole
 from app.api.chats.models.chat import Chat
 from app.api.chats.models.chat_participant import ChatParticipant
 from app.api.company.models.company import Company
+from app.api.messages.models.message import Message
 
 
 class ChatRepository:
@@ -22,6 +23,26 @@ class ChatRepository:
         await self.db.commit()
         await self.db.refresh(chat)
         return chat
+
+    async def ensure_participant(
+        self, chat_id: int, company_id: int, user_id: int, is_admin: bool = False
+    ) -> ChatParticipant:
+        """Участник чата для компании: добавить или обновить user_id (актуальный сотрудник)."""
+        stmt = select(ChatParticipant).where(
+            ChatParticipant.chat_id == chat_id,
+            ChatParticipant.company_id == company_id,
+        )
+        result = await self.db.execute(stmt)
+        participant = result.scalar_one_or_none()
+
+        if participant:
+            if participant.user_id != user_id:
+                participant.user_id = user_id
+                await self.db.commit()
+                await self.db.refresh(participant)
+            return participant
+
+        return await self.add_participant(chat_id, company_id, user_id, is_admin)
 
     async def add_participant(self, chat_id: int, company_id: int, user_id: int,
                               is_admin: bool = False) -> ChatParticipant:
@@ -47,17 +68,40 @@ class ChatRepository:
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
 
-    async def get_user_chats(self, user_id: int) -> List[Chat]:
-        """Получает все чаты пользователя"""
-        stmt = select(Chat).join(ChatParticipant).where(
-            ChatParticipant.user_id == user_id
-        ).options(
-            joinedload(Chat.participants).joinedload(ChatParticipant.company),
-            joinedload(Chat.participants).joinedload(ChatParticipant.user),
-            joinedload(Chat.messages)
+    async def get_user_chats(self, user_id: int, company_id: Optional[int] = None) -> List[Chat]:
+        """Чаты пользователя: по user_id и (если задано) по company_id компании."""
+        stmt = (
+            select(Chat)
+            .join(ChatParticipant)
+            .where(ChatParticipant.user_id == user_id)
+            .options(
+                joinedload(Chat.participants).joinedload(ChatParticipant.company),
+                joinedload(Chat.participants).joinedload(ChatParticipant.user),
+                joinedload(Chat.messages),
+            )
         )
         result = await self.db.execute(stmt)
-        return result.unique().scalars().all()
+        chats = list(result.unique().scalars().all())
+        seen_ids = {chat.id for chat in chats}
+
+        if company_id is not None:
+            stmt_company = (
+                select(Chat)
+                .join(ChatParticipant)
+                .where(ChatParticipant.company_id == company_id)
+                .options(
+                    joinedload(Chat.participants).joinedload(ChatParticipant.company),
+                    joinedload(Chat.participants).joinedload(ChatParticipant.user),
+                    joinedload(Chat.messages),
+                )
+            )
+            company_result = await self.db.execute(stmt_company)
+            for chat in company_result.unique().scalars().all():
+                if chat.id not in seen_ids:
+                    chats.append(chat)
+                    seen_ids.add(chat.id)
+
+        return chats
 
     async def get_company_chats(self, company_id: int) -> List[Chat]:
         """Получает все чаты компании"""
@@ -125,3 +169,32 @@ class ChatRepository:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
+
+    async def count_unread_for_chat(self, chat_id: int, reader_company_id: int) -> int:
+        """Непрочитанные входящие сообщения для компании-получателя."""
+        stmt = select(func.count(Message.id)).where(
+            Message.chat_id == chat_id,
+            Message.sender_company_id != reader_company_id,
+            Message.is_read.is_(False),
+        )
+        result = await self.db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def mark_incoming_messages_read(
+        self, chat_id: int, reader_company_id: int
+    ) -> list[int]:
+        """Пометить прочитанными все входящие сообщения чата для компании."""
+        stmt = select(Message).where(
+            Message.chat_id == chat_id,
+            Message.sender_company_id != reader_company_id,
+            Message.is_read.is_(False),
+        )
+        result = await self.db.execute(stmt)
+        messages = result.scalars().all()
+        message_ids: list[int] = []
+        for message in messages:
+            message.is_read = True
+            message_ids.append(message.id)
+        if message_ids:
+            await self.db.commit()
+        return message_ids

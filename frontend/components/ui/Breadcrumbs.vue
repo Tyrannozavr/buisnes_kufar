@@ -70,10 +70,28 @@ function getEditorBreadcrumbs(): BreadcrumbItem[] | null {
   ]
 }
 
+function getMessagesChatBreadcrumbs(): BreadcrumbItem[] | null {
+  const match = route.path.match(/^\/profile\/messages\/(\d+)$/)
+  if (!match) return null
+
+  return [
+    { label: 'Главная', path: '/' },
+    { label: 'Профиль', path: '/profile' },
+    { label: 'Сообщения', path: '/profile/messages' },
+    { label: 'Чат', path: route.path },
+  ]
+}
+
 async function updateBreadcrumbs() {
   const editorItems = getEditorBreadcrumbs()
   if (editorItems) {
     breadcrumbs.value = editorItems
+    return
+  }
+
+  const messagesChatItems = getMessagesChatBreadcrumbs()
+  if (messagesChatItems) {
+    breadcrumbs.value = messagesChatItems
     return
   }
 

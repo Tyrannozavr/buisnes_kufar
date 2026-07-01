@@ -92,8 +92,18 @@ async def get_user_chats(
 
 ):
     """Получает все чаты пользователя"""
+    result = await db.execute(
+        select(User).where(User.id == token_data.user_id)
+    )
+    current_user = result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     chat_service = ChatService(db)
-    chats = await chat_service.get_user_chats(token_data.user_id)
+    chats = await chat_service.get_user_chats(
+        token_data.user_id,
+        current_user.company_id,
+    )
     return chats
 
 
@@ -123,9 +133,58 @@ async def check_user_in_chat(chat_id: int, token_data, db):
     chat = await chat_service.repository.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if not any(p.user_id == token_data.user_id for p in chat.participants):
+
+    result = await db.execute(select(User).where(User.id == token_data.user_id))
+    current_user = result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    allowed = any(
+        p.user_id == token_data.user_id
+        or (
+            current_user.company_id is not None
+            and p.company_id == current_user.company_id
+        )
+        for p in chat.participants
+    )
+    if not allowed:
         raise HTTPException(status_code=403, detail="Access denied: not a chat participant")
+
+    if current_user.company_id is not None:
+        await chat_service.repository.ensure_participant(
+            chat_id, current_user.company_id, current_user.id
+        )
+
     return chat
+
+
+@router.post("/{chat_id}/read", response_model=dict)
+async def mark_chat_messages_read(
+        chat_id: int,
+        db: async_db_dep,
+        token_data: token_data_dep,
+):
+    """Пометить входящие сообщения чата прочитанными."""
+    await check_user_in_chat(chat_id, token_data, db)
+
+    result = await db.execute(select(User).where(User.id == token_data.user_id))
+    current_user = result.scalar_one_or_none()
+    if not current_user or not current_user.company_id:
+        raise HTTPException(status_code=404, detail="Company not found for current user")
+
+    chat_service = ChatService(db)
+    message_ids = await chat_service.mark_chat_as_read(chat_id, current_user.company_id)
+
+    if message_ids:
+        await chat_manager.send_messages_read(
+            chat_id, message_ids, reader_user_id=current_user.id
+        )
+
+    return {
+        "chat_id": chat_id,
+        "marked_count": len(message_ids),
+        "message_ids": message_ids,
+    }
 
 
 @router.get("/{chat_id}/messages", response_model=List[dict])
@@ -303,6 +362,54 @@ async def send_message(
     return message_data
 
 
+@router.websocket("/presence/ws")
+async def presence_websocket_endpoint(websocket: WebSocket):
+    """Глобальный WebSocket: пользователь онлайн на сайте (не только внутри чата)."""
+    user_id: int | None = None
+    try:
+        token = websocket.query_params.get("token")
+        if not token:
+            await websocket.close(code=4001, reason="Token required")
+            return
+
+        try:
+            payload = decode_token(token)
+            user_id = int(payload.get("sub"))
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
+        chat_ids: set[int] = set()
+        async for db in get_async_db():
+            chat_service = ChatService(db)
+            user = await db.get(User, user_id)
+            company_id = user.company_id if user else None
+            chats = await chat_service.get_user_chats(user_id, company_id)
+            chat_ids = {chat.id for chat in chats}
+            break
+
+        await chat_manager.connect_presence(websocket, user_id, chat_ids)
+
+        while True:
+            try:
+                data = await websocket.receive_text()
+                message_data = json.loads(data)
+
+                if message_data.get("type") == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error("Presence WebSocket error: %s", e)
+                break
+
+    except Exception as e:
+        logger.error("Presence WebSocket connection error: %s", e)
+    finally:
+        if user_id is not None:
+            chat_manager.disconnect_presence(user_id)
+
+
 @router.websocket("/{chat_id}/ws")
 async def websocket_endpoint(websocket: WebSocket, chat_id: int):
     """WebSocket endpoint для чата"""
@@ -378,8 +485,9 @@ async def get_chat_online_status(
     # Проверяем, что пользователь участвует в чате
     chat = await check_user_in_chat(chat_id, token_data, db)
 
-    # Получаем список онлайн пользователей
-    online_user_ids = chat_manager.get_online_users_in_chat(chat_id)
+    # Получаем список онлайн пользователей (presence на сайте или WS конкретного чата)
+    participant_user_ids = {participant.user_id for participant in chat.participants}
+    online_user_ids = chat_manager.get_online_users_in_chat(chat_id, participant_user_ids)
 
     # Формируем ответ с онлайн статусом для каждого участника
     participants_status = {}

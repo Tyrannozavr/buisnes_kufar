@@ -23,6 +23,17 @@ export const useChatsApi = () => {
     return useApi<any>(`/v1/chats/${chatId}/online-status`, options)
   }
 
+  const markChatAsRead = async (
+    chatId: number,
+  ): Promise<{ chat_id: number; marked_count: number; message_ids: number[] }> => {
+    const { $api } = useNuxtApp()
+    return await $api.post(`/v1/chats/${chatId}/read`) as {
+      chat_id: number
+      marked_count: number
+      message_ids: number[]
+    }
+  }
+
   const sendMessage = async (chatId: number, data: { content: string; file?: File }): Promise<ChatMessage> => {
     const { $api } = useNuxtApp()
     const formData = new FormData()
@@ -81,6 +92,7 @@ export const useChatsApi = () => {
     getChatMessages,
     getChatFiles,
     getChatOnlineStatus,
+    markChatAsRead,
     sendMessage,
     createChat
   }

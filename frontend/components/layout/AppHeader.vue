@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import {useUserStore} from '~/stores/user'
 import { useCartStore } from '~/stores/cart'
+import { useChatUnreadStore } from '~/stores/chatUnread'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const userStore = useUserStore()
 const cartStore = useCartStore()
+const chatUnreadStore = useChatUnreadStore()
+const { chatsWithUnread } = storeToRefs(chatUnreadStore)
 const totalItems = computed(() => cartStore.totalUniqueItems)
+const unreadChatsBadge = computed(() => {
+  if (chatsWithUnread.value <= 0) return ''
+  return chatsWithUnread.value > 99 ? '99+' : String(chatsWithUnread.value)
+})
 const route = useRoute()
 
 const handleLogout = async () => {
@@ -92,23 +100,29 @@ const toggleSidebar = () => {
           </UButton>
 
           <template v-else>
-            <!-- Profile Button -->
-            <UButton
-                to="/profile"
-                color="neutral"
-                variant="ghost"
-                class="flex items-center space-x-2"
-            >
-              <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full hidden sm:block">
-                <NuxtImg
-                    :src="userStore.companyLogo"
-                    :alt="userStore.companyName"
-                    class="h-full w-full object-cover"
-                />
-              </div>
-              <UIcon name="i-heroicons-user-circle" class="sm:hidden h-8 w-8"/>
-              <span class="hidden sm:inline">{{ userStore.companyName || 'Профиль' }}</span>
-            </UButton>
+            <div class="relative inline-flex">
+              <UButton
+                  to="/profile"
+                  color="neutral"
+                  variant="ghost"
+                  class="flex items-center space-x-2"
+              >
+                <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full hidden sm:block">
+                  <NuxtImg
+                      :src="userStore.companyLogo"
+                      :alt="userStore.companyName"
+                      class="h-full w-full object-cover"
+                  />
+                </div>
+                <UIcon name="i-heroicons-user-circle" class="sm:hidden h-8 w-8"/>
+                <span class="hidden sm:inline">{{ userStore.companyName || 'Профиль' }}</span>
+              </UButton>
+              <ChatUnreadBadge
+                  v-if="unreadChatsBadge"
+                  :count="unreadChatsBadge"
+                  class="absolute -top-0.5 -right-1 pointer-events-none"
+              />
+            </div>
 
             <!-- Logout Button with Tooltip -->
             <UTooltip text="Выйти">

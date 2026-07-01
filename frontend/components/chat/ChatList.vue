@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Chat } from '~/types/chat'
+import { formatMoscowDateTime } from '~/utils/datetime'
 
 const props = defineProps<{
   chats: Chat[]
@@ -11,16 +12,7 @@ const emit = defineEmits<{
   (e: 'select', chatId: string): void
 }>()
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
+const formatDate = (dateString: string) => formatMoscowDateTime(dateString)
 </script>
 
 <template>
@@ -69,9 +61,9 @@ const formatDate = (dateString: string) => {
               {{ chat.lastMessage?.content || 'Нет сообщений' }}
             </p>
           </div>
-          <div v-if="chat.unreadCount > 0" class="flex-shrink-0">
+          <div v-if="(chat.unread_count ?? 0) > 0" class="flex-shrink-0">
             <UBadge color="primary" size="sm">
-              {{ chat.unreadCount }}
+              {{ (chat.unread_count ?? 0) > 99 ? '99+' : chat.unread_count }}
             </UBadge>
           </div>
         </div>

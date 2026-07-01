@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Chat } from '~/types/chat'
+import { formatMoscowDate } from '~/utils/datetime'
 import { useChatsApi } from '~/api/chats'
 import { useUserStore } from '~/stores/user'
 
@@ -25,18 +26,7 @@ const getOtherParticipant = (chat: any) => {
   return chat.participants.find((p: any) => p.company_id !== currentCompanyId)
 }
 
-// Функция для форматирования даты
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) {
-      return 'Нет даты'
-    }
-    return date.toLocaleDateString('ru-RU')
-  } catch {
-    return 'Нет даты'
-  }
-}
+const formatDate = (dateString: string) => formatMoscowDate(dateString)
 </script>
 
 <template>
@@ -115,6 +105,11 @@ const formatDate = (dateString: string) => {
               <p class="text-sm text-gray-500 truncate leading-relaxed">
                 {{ chat.last_message?.content || 'Нет сообщений' }}
               </p>
+            </div>
+            <div v-if="(chat.unread_count ?? 0) > 0" class="flex-shrink-0">
+              <UBadge color="primary" size="sm">
+                {{ (chat.unread_count ?? 0) > 99 ? '99+' : chat.unread_count }}
+              </UBadge>
             </div>
           </div>
         </div>

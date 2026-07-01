@@ -2,8 +2,12 @@
 import type { NavigationMenuItem } from '~/types/navigation'
 import Breadcrumbs from "~/components/ui/Breadcrumbs.vue"
 import AppLayout from "~/components/layout/AppLayout.vue";
+import { useChatUnreadStore } from '~/stores/chatUnread'
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
+const chatUnreadStore = useChatUnreadStore()
+const { badgeText } = storeToRefs(chatUnreadStore)
 
 // Define navigation items using the NavigationMenuItem type
 const navigationItems = computed((): NavigationMenuItem[][] => [
@@ -94,7 +98,8 @@ const navigationItems = computed((): NavigationMenuItem[][] => [
           label: 'Сообщения',
           icon: 'i-heroicons-chat-bubble-left-right',
           to: '/profile/messages',
-          active: route.path.startsWith('/profile/messages')
+          active: route.path.startsWith('/profile/messages'),
+          slot: 'messages',
         },
         {
           label: 'Авторизация',
@@ -154,7 +159,11 @@ const alternativeLayout = () =>
 				<div class="w-full md:w-64 shrink-0 md:pl-0 md:pr-4">
 					<UCard class="sticky top-8 md:w-64 w-full">
 						<UNavigationMenu orientation="vertical" :items="navigationItems"
-							class="data-[orientation=vertical]:w-full" />
+							class="data-[orientation=vertical]:w-full">
+							<template #messages-trailing>
+								<ChatUnreadBadge v-if="badgeText" :count="badgeText" />
+							</template>
+						</UNavigationMenu>
 					</UCard>
 				</div>
 			</div>

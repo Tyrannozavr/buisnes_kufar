@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type {ChatParticipant} from '~/types/chat'
+import type { ChatParticipant } from '~/types/chat'
+import { formatMoscowTime } from '~/utils/datetime'
 import {useChatsApi} from '~/api/chats'
 import { useWebSocket } from '~/composables/useWebSocket'
+import { onChatPresenceMessage } from '~/composables/useChatPresence'
+import { useChatUnreadStore } from '~/stores/chatUnread'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
   layout: 'profile',
   title: 'Сообщения',
-  hideLastBreadcrumb: true
 })
 
 const route = useRoute()
@@ -16,8 +18,9 @@ const chatId = parseInt(route.params.id as string)
 
 // Получаем данные пользователя из store
 const userStore = useUserStore()
+const chatUnreadStore = useChatUnreadStore()
 
-const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles, getChatOnlineStatus} = useChatsApi()
+const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles, getChatOnlineStatus, markChatAsRead} = useChatsApi()
 
 // Получаем список всех чатов для боковой панели
 const {data: chats, pending: chatsPending} = await getChats()
@@ -57,6 +60,76 @@ const scrollToBottom = () => {
 }
 
 // Функция для добавления нового сообщения
+const isOwnMessage = (message: { sender_company_id?: number }) =>
+	message.sender_company_id?.toString() === userStore.companyId?.toString()
+
+const applyReadStatusToMessages = (messageIds: number[]) => {
+	if (!messages.value?.length || !messageIds.length) return
+	const idSet = new Set(messageIds)
+	messages.value.forEach((message) => {
+		if (idSet.has(message.id)) {
+			message.is_read = true
+		}
+	})
+}
+
+const updateChatUnreadInList = (targetChatId: number, count: number) => {
+	if (!chats.value) return
+	const chatItem = chats.value.find((item) => item.id === targetChatId)
+	if (chatItem) {
+		chatItem.unread_count = count
+	}
+}
+
+const markIncomingMessagesAsReadLocally = () => {
+	if (!messages.value) return
+	messages.value.forEach((message) => {
+		if (!isOwnMessage(message) && !message.is_temp) {
+			message.is_read = true
+		}
+	})
+}
+
+const markCurrentChatAsRead = async () => {
+	try {
+		const result = await markChatAsRead(chatId)
+		if (result?.message_ids?.length) {
+			applyReadStatusToMessages(result.message_ids)
+		}
+		markIncomingMessagesAsReadLocally()
+		updateChatUnreadInList(chatId, 0)
+		await chatUnreadStore.refresh()
+	} catch (error) {
+		console.error('Failed to mark chat as read:', error)
+	}
+}
+
+const handleIncomingChatMessage = (message: Record<string, unknown>) => {
+	if ((message as { is_temp?: boolean }).is_temp) return
+	addNewMessage(message)
+	if (!isOwnMessage(message as { sender_company_id?: number })) {
+		markCurrentChatAsRead()
+	}
+}
+
+const handleChatEvent = (message: Record<string, unknown>) => {
+	if (message.chat_id !== chatId) return
+
+	if (message.type === 'user_online' || message.type === 'user_offline') {
+		refreshOnlineStatus()
+		return
+	}
+
+	if (message.type === 'new_message' && message.message) {
+		handleIncomingChatMessage(message.message as Record<string, unknown>)
+		return
+	}
+
+	if (message.type === 'messages_read' && Array.isArray(message.message_ids)) {
+		applyReadStatusToMessages(message.message_ids as number[])
+	}
+}
+
 const addNewMessage = (message: any) => {
   if (messages.value) {
     // Проверяем, нет ли уже такого сообщения
@@ -80,9 +153,8 @@ const {
     console.log('WebSocket message received:', message)
     
     if (message.type === 'new_message') {
-      // Добавляем новое сообщение в список только если это не наше временное сообщение
       if (!message.message.is_temp) {
-        addNewMessage(message.message)
+        handleIncomingChatMessage(message.message)
       }
     } else if (message.type === 'typing_indicator') {
       // Обрабатываем индикатор печати
@@ -92,8 +164,9 @@ const {
     } else if (message.type === 'connection_established') {
       console.log('WebSocket connection established')
     } else if (message.type === 'user_online' || message.type === 'user_offline') {
-      // Обновляем онлайн статус при изменении
       refreshOnlineStatus()
+    } else if (message.type === 'messages_read' && Array.isArray(message.message_ids)) {
+      applyReadStatusToMessages(message.message_ids as number[])
     }
   },
   onOpen: () => {
@@ -107,19 +180,20 @@ const {
   }
 })
 
-// Подключаемся к WebSocket при загрузке страницы
+// Подключаемся к WebSocket чата при загрузке страницы
 onMounted(() => {
   connectWs()
-  // Прокручиваем к последнему сообщению при загрузке
+
+  const unsubscribePresence = onChatPresenceMessage(handleChatEvent)
+
   scrollToBottom()
-  
-  // Периодически обновляем онлайн статус
+
   const onlineStatusInterval = setInterval(() => {
     refreshOnlineStatus()
-  }, 30000) // Обновляем каждые 30 секунд
-  
-  // Очищаем интервал при размонтировании
+  }, 30000)
+
   onUnmounted(() => {
+    unsubscribePresence()
     clearInterval(onlineStatusInterval)
   })
 })
@@ -131,6 +205,16 @@ onUnmounted(() => {
     clearTimeout(typingTimeout.value)
   }
 })
+
+watch(
+	() => messagesPending.value,
+	(pending) => {
+		if (!pending) {
+			markCurrentChatAsRead()
+		}
+	},
+	{ immediate: true },
+)
 
 // Следим за изменениями в сообщениях
 watch(messages, () => {
@@ -350,6 +434,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                 {{ chatItem.last_message.content }}
               </p>
             </div>
+            <div v-if="(chatItem.unread_count ?? 0) > 0" class="flex-shrink-0">
+              <UBadge color="primary" size="sm">
+                {{ (chatItem.unread_count ?? 0) > 99 ? '99+' : chatItem.unread_count }}
+              </UBadge>
+            </div>
           </div>
         </div>
       </div>
@@ -443,16 +532,16 @@ const formatMessageContent = (content: string, isMine: boolean) => {
               v-for="message in messages"
               :key="message.id"
               class="flex"
-              :class="{ 'justify-end': message.sender_company_id?.toString() === userStore.companyId?.toString() }"
+              :class="{ 'justify-end': isOwnMessage(message) }"
           >
             <div
                 class="max-w-[70%] p-4 rounded-lg"
-                :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'bg-blue-500 text-white' : 'bg-gray-100'"
+                :class="isOwnMessage(message) ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
               <div
                 v-if="message.content"
                 class="mb-2 break-words"
-                v-html="formatMessageContent(message.content, message.sender_company_id?.toString() === userStore.companyId?.toString())"
+                v-html="formatMessageContent(message.content, isOwnMessage(message))"
               >
               </div>
               <div v-if="message.file_path" class="mt-2">
@@ -460,7 +549,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                     :href="message.file_path"
                     target="_blank"
                     class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
-                    :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'text-blue-100' : 'text-blue-600'"
+                    :class="isOwnMessage(message) ? 'text-blue-100' : 'text-blue-600'"
                 >
                   <UIcon
                       :name="getFileIcon(message.file_type || '')"
@@ -475,9 +564,30 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                   <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0"/>
                 </a>
               </div>
-              <p class="text-xs mt-2" :class="message.sender_company_id?.toString() === userStore.companyId?.toString() ? 'text-blue-100' : 'text-gray-500'">
-                {{ new Date(message.created_at).toLocaleTimeString() }}
-              </p>
+              <div
+                class="flex items-center gap-1 mt-2"
+                :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"
+              >
+                <span
+                  class="text-xs"
+                  :class="isOwnMessage(message) ? 'text-blue-100' : 'text-gray-500'"
+                >
+                  {{ formatMoscowTime(message.created_at) }}
+                </span>
+                <span
+                  v-if="!message.is_temp"
+                  class="inline-flex"
+                  :title="message.is_read ? 'Прочитано' : 'Доставлено'"
+                >
+                  <UIcon
+                    :name="message.is_read ? 'i-lucide-check-check' : 'i-lucide-check'"
+                    class="w-3.5 h-3.5"
+                    :class="isOwnMessage(message)
+                      ? (message.is_read ? 'text-blue-100' : 'text-blue-200')
+                      : (message.is_read ? 'text-gray-500' : 'text-gray-400')"
+                  />
+                </span>
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,9 @@
-import {defineStore} from 'pinia'
+import { defineStore} from 'pinia'
 import { useAuthApi } from "~/api/auth";
 import { useQueryCache } from "@pinia/colada";
 import { useDeals } from '~/composables/useDeals';
+import { disconnectChatPresence } from '~/composables/useChatPresence';
+import { useChatUnreadStore } from '~/stores/chatUnread';
 
 interface UserState {
   isAuthenticated: boolean
@@ -83,6 +85,8 @@ export const useUserStore = defineStore('user', {
       }
       
       // Clear store state
+      disconnectChatPresence()
+      useChatUnreadStore().clear()
       this.isAuthenticated = false
       this.companyName = ''
       this.companyLogo = ''

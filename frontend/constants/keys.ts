@@ -18,6 +18,8 @@ export const enum Editor {
 	ACTIVE_TAB = 'activeTab',
 	/** Инкремент при «Заполнить данными» — перезагрузка формы даже для той же сделки */
 	LOAD_DEAL_TRIGGER = 'loadDealTrigger',
+	/** Diff заказа для подсветки изменений при согласовании */
+	ORDER_CHANGE_DIFF = 'orderChangeDiff',
 	/** Счёт создан, полное заполнение — только по кнопке (§1.3) */
 	BILL_AWAITING_FILL = 'billAwaitingFill',
 

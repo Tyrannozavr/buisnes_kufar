@@ -287,6 +287,22 @@ async def test_download_order_docx_success(client: AsyncClient, seeded_context: 
 
 
 @pytest.mark.asyncio
+async def test_buyer_cannot_update_deal(client: AsyncClient, seeded_context: dict):
+    """PUT /api/v1/purchases/deals/{id} — покупатель не может редактировать сделку (§2.3)."""
+    payload = _valid_deal_payload(seeded_context["seller_company_id"])
+    create_resp = await client.post("/api/v1/purchases/deals", json=payload)
+    assert create_resp.status_code == 200
+    deal_id = create_resp.json()["id"]
+
+    response = await client.put(
+        f"/api/v1/purchases/deals/{deal_id}",
+        json={"comments": "попытка правки покупателем"},
+    )
+    assert response.status_code == 403, response.text
+    assert "seller" in response.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
 async def test_create_deal_validation_missing_required(client: AsyncClient, seeded_context: dict):
     """POST /api/v1/purchases/deals — 422 при отсутствии обязательных полей."""
     payload = {

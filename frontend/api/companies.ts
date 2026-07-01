@@ -79,7 +79,11 @@ export const useCompaniesApi = () => {
   }
 
   const getCompanyById = async (id: string | number, short: boolean = true) => {
-    return await $api.get(`${API_URLS.COMPANIES}${id}`, {
+    const numericId = Number(id)
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      throw new Error(`Invalid company id: ${String(id)}`)
+    }
+    return await $api.get(`${API_URLS.COMPANIES}${numericId}`, {
       params: { short }
     }) as Company
   }

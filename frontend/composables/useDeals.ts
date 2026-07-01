@@ -18,14 +18,21 @@ import { useDealsStore } from "~/stores/deals"
 import { QueryKeys } from "~/constants/queryKeys"
 import { useQueryCache } from "@pinia/colada"
 import { createBodyForUpdate, responseToDeal } from "~/utils/dealsMapper"
+import { usePurchasesApi } from "~/api/purchases"
 import { storeToRefs } from "pinia"
-import type { Buyer, ProductInCheckout } from "~/types/product"
+import type { ProductInCheckout } from "~/types/product"
 import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity"
+
+type DealsLoadRole = 'buyer' | 'seller' | 'both'
 
 /**
  * Композабл для работы со сделками в store, cache, server(pinia colada).
+ * @param options.role — на странице Продажи только seller, Закупки — buyer (быстрее загрузка).
  */
-export const useDeals = () => {
+export const useDeals = (options?: { role?: DealsLoadRole }) => {
+	const loadRole: DealsLoadRole = options?.role ?? 'both'
+	const loadBuyer = loadRole === 'both' || loadRole === 'buyer'
+	const loadSeller = loadRole === 'both' || loadRole === 'seller'
 	const queryCache = useQueryCache()
 	const dealsStore = useDealsStore()
 	const { storedIds, deals, lastDeal } = storeToRefs(dealsStore)
@@ -72,16 +79,52 @@ export const useDeals = () => {
 		editSupplyContractCoverLetterCheck,
 	} = dealsStore
 
+	/** Подтянуть последнюю версию сделки с API и обновить store (для согласования изменений). */
+	const refreshDealFromServer = async (dealId: number): Promise<boolean> => {
+		try {
+			const response = await usePurchasesApi().getDealById(dealId)
+			if (!response) return false
+			dealsStore.upsertDeal(responseToDeal(response))
+			queryCache.setQueryData([QueryKeys.DEAL_BY_ID, dealId], response)
+			return true
+		} catch (error) {
+			console.error("refreshDealFromServer:", error)
+			return false
+		}
+	}
+
 	/** 
 	 * Получение сделок с сервера и сохранение в store
 	 */
 	const getDeals = (): void => {
-		const { data: buyerDeals, status: buyerDealsStatus } = useQuery(() =>
-			buyerDealsQuery({})
-		)
-		const { data: sellerDeals, status: sellerDealsStatus } = useQuery(() =>
-			sellerDealsQuery({})
-		)
+		const buyerDealsStatus = ref(loadBuyer ? 'pending' : 'success')
+		const sellerDealsStatus = ref(loadSeller ? 'pending' : 'success')
+		const buyerDeals = ref<{ id: number }[] | undefined>(loadBuyer ? undefined : [])
+		const sellerDeals = ref<{ id: number }[] | undefined>(loadSeller ? undefined : [])
+
+		if (loadBuyer) {
+			const buyerQuery = useQuery(() => buyerDealsQuery({}))
+			watch(
+				() => [buyerQuery.status.value, buyerQuery.data.value] as const,
+				([status, data]) => {
+					buyerDealsStatus.value = status
+					buyerDeals.value = data
+				},
+				{ immediate: true },
+			)
+		}
+
+		if (loadSeller) {
+			const sellerQuery = useQuery(() => sellerDealsQuery({}))
+			watch(
+				() => [sellerQuery.status.value, sellerQuery.data.value] as const,
+				([status, data]) => {
+					sellerDealsStatus.value = status
+					sellerDeals.value = data
+				},
+				{ immediate: true },
+			)
+		}
 
 		const ids = computed<number[]>(() => {
 			const set = new Set<number>()
@@ -94,12 +137,11 @@ export const useDeals = () => {
 			return Array.from(set)
 		})
 
-		const isReadyToGetDealsByIds = computed(
-			() =>
-				buyerDealsStatus.value === "success" &&
-				sellerDealsStatus.value === "success" &&
-				ids.value.length > 0
-		)
+		const isReadyToGetDealsByIds = computed(() => {
+			const buyerOk = !loadBuyer || buyerDealsStatus.value === "success"
+			const sellerOk = !loadSeller || sellerDealsStatus.value === "success"
+			return buyerOk && sellerOk && ids.value.length > 0
+		})
 
 		watch(
 			[isReadyToGetDealsByIds, ids],
@@ -165,12 +207,15 @@ export const useDeals = () => {
 	}
 
 	/**
-	 * Создание счета на основании сделки
-	 * @param dealId - id сделки
+	 * Создание счета на основании сделки.
+	 * @param fillFromDeal — сразу заполнить бланк (таблица «Продажи», «СЧЕТ на основании» в заказе)
 	 */
-	const createBill = (dealId: number): void => {
-		const { createBill } = useCreateBillQuery()
-		createBill(dealId)
+	const createBill = (
+		dealId: number,
+		options?: { date?: string; fillFromDeal?: boolean },
+	): Promise<{ bill_number: string; bill_date: string } | undefined> => {
+		const { createBill: createBillMutation } = useCreateBillQuery()
+		return createBillMutation(dealId, options?.date, options?.fillFromDeal)
 	}
 
 	/**
@@ -186,9 +231,12 @@ export const useDeals = () => {
 	 * Legacy: генерирует номер/дату договора поставки на сделке -> договор поставки начинает существовать
 	 * @param dealId - id сделки
 	 */
-	const createSupplyContract = (dealId: number): void => {
-		const { createSupplyContract } = useCreateSupplyContractQuery()
-		createSupplyContract(dealId)
+	const createSupplyContract = (
+		dealId: number,
+		date?: string,
+	): Promise<{ supply_contract_number: string; supply_contract_date: string } | undefined> => {
+		const { createSupplyContract: createSupplyContractMutation } = useCreateSupplyContractQuery()
+		return createSupplyContractMutation(dealId, date)
 	}
 
 	/**
@@ -223,9 +271,9 @@ export const useDeals = () => {
 	/**
 	 * POST /checkout — создать заказ из корзины
 	 */
-	const orderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
+	const orderFromCheckout = async (products: ProductInCheckout[]) => {
 		const { orderFromCheckout } = useCreateOrderFromCheckoutQuery()
-		await orderFromCheckout(products, buyer)
+		return orderFromCheckout(products)
 	}
 
 	return {
@@ -285,5 +333,6 @@ export const useDeals = () => {
 		createSupplyContractEntity,
 		createSupplySpecification,
 		orderFromCheckout,
+		refreshDealFromServer,
 	}
 }

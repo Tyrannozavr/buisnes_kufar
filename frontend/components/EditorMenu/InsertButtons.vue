@@ -9,18 +9,25 @@ const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const { findDeal } = useDeals()
-const { clearBillAwaitingFill } = useBillFillState()
+const { billAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 
 const confirmOpen = ref(false)
 
 const canFill = computed(() => Boolean(route.query.dealId && route.query.role))
 
-const isBuyerBillReadOnly = computed(() =>
-	route.query.role === 'buyer' && activeTab.value === '1'
-)
+/** Продавец сразу в режиме редактирования — кнопка должна быть доступна для пустого счёта и заказа. */
+const isFillDisabled = computed(() => {
+	if (!canFill.value || isHiddenForBuyer.value) return true
+	if (activeTab.value === '1') {
+		return !(billAwaitingFill.value || isDisabled.value)
+	}
+	return !(isDisabled.value || route.query.role === 'seller')
+})
+
+const isHiddenForBuyer = computed(() => route.query.role === 'buyer')
 
 const openConfirm = () => {
-	if (isBuyerBillReadOnly.value) return
+	if (isHiddenForBuyer.value) return
 
 	if (!canFill.value) {
 		toast.add({ title: 'Сделка не выбрана', color: 'warning' })
@@ -44,6 +51,8 @@ const applyFill = () => {
 	}
 
 	loadDealTrigger.value++
+	// После подстановки данных — режим редактирования, чтобы можно было сохранить
+	isDisabled.value = false
 
 	toast.add({
 		title: 'Данные подставлены',
@@ -61,14 +70,16 @@ const applyFill = () => {
 			label="Заполнить данными"
 			icon="i-lucide-file-input"
 			class="w-full justify-center"
-			:disabled="!isDisabled || !canFill"
+			:disabled="isFillDisabled"
 			@click="openConfirm"
 		/>
 
 		<UModal v-model:open="confirmOpen" title="Данные будут изменены. Продолжить?">
 			<template #body>
 				<p class="text-sm text-gray-600 mb-4">
-					Текущие данные формы будут заменены данными этой сделки.
+					Текущие данные формы будут заменены данными этой сделки (заказ, реквизиты, товары).
+					Если счёт уже заполнен теми же данными — на экране ничего не изменится.
+					Кнопка нужна после «Создать счёт» (только номер и дата) или чтобы сбросить ручные правки.
 				</p>
 				<div class="flex gap-2">
 					<UButton

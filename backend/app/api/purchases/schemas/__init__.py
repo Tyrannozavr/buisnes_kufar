@@ -243,6 +243,7 @@ class BillUpdateInDeal(BaseModel):
     )
     number: str = Field("", description="Номер счёта")
     reason: Optional[str] = Field("", description="Основание")
+    payment_terms: Optional[str] = Field(None, description="Срок оплаты (Счет на оплату), рабочих дней")
     payment_terms_contract: Optional[str] = Field(None, description="Условия оплаты")
     delivery_terms_contract: Optional[str] = Field(None, description="Условия / срок поставки")
     additional_info: Optional[str] = Field(None, description="Дополнительная информация")
@@ -354,7 +355,7 @@ class DealUpdate(BaseModel):
     bill: Optional["BillUpdateInDeal"] = Field(
         None,
         description=(
-            "Счёт: number, reason, payment_terms_contract, delivery_terms_contract, additional_info, "
+            "Счёт: number, reason, payment_terms, payment_terms_contract, delivery_terms_contract, additional_info, "
             "contract_terms_contract, contract_terms_text_contract, payment_terms_offer, "
             "contract_terms_offer, contract_terms_text_offer, additional_info_offer, officials"
         ),
@@ -390,6 +391,7 @@ class BillInDealResponse(BaseModel):
     )
     number: str = Field("", description="Номер счёта")
     reason: str = Field("", description="Основание")
+    payment_terms: str = Field("", description="Срок оплаты (Счет на оплату), рабочих дней")
     payment_terms_contract: str = Field("", description="Условия оплаты")
     delivery_terms_contract: str = Field("", description="Условия / срок поставки")
     additional_info: str = Field("", description="Дополнительная информация")
@@ -957,5 +959,36 @@ class SupplyContractTemplateResponse(BaseModel):
 	name: str
 	content_html: str
 	is_default: bool
-	created_at: datetime
-	updated_at: datetime
+
+
+class DealChangeReviewResponse(BaseModel):
+	"""Статус ожидания согласования изменений по последней версии сделки."""
+
+	has_pending_changes: bool = Field(..., description="Есть неподтверждённая новая версия")
+	can_respond: bool = Field(..., description="Текущая компания может принять или отклонить")
+	is_proposer: bool = Field(..., description="Текущая компания предложила изменения")
+	proposed_by_company_id: Optional[int] = Field(None, description="ID компании-инициатора изменений")
+	version: int = Field(..., description="Номер последней версии сделки")
+	diff: Optional["DealOrderChangeDiffResponse"] = Field(
+		None, description="Сравнение с предыдущей версией (только при pending)"
+	)
+
+
+class OrderLineChangeResponse(BaseModel):
+	status: str = Field(..., description="added | removed | modified")
+	match_key: str = Field(..., description="Ключ сопоставления позиции")
+	product_name: Optional[str] = None
+	product_article: Optional[str] = None
+	quantity: Optional[float] = None
+	unit_of_measurement: Optional[str] = None
+	price: Optional[float] = None
+	amount: Optional[float] = None
+	changed_fields: List[str] = Field(default_factory=list)
+
+
+class DealOrderChangeDiffResponse(BaseModel):
+	baseline_version: int
+	proposed_version: int
+	comments_changed: bool = False
+	total_amount_changed: bool = False
+	items: List[OrderLineChangeResponse] = Field(default_factory=list)

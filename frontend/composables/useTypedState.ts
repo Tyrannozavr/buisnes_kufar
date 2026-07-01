@@ -10,6 +10,7 @@ interface StateMap {
 	removeDealState: boolean
 	activeTab: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
 	loadDealTrigger: number
+	orderChangeDiff: import("~/types/dealResponse").DealOrderChangeDiff | null
 	billAwaitingFill: boolean
 
 	//bill

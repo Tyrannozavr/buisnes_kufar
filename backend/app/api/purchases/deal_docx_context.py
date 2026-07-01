@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 from typing import Any
 
-from app.api.purchases.docx_plain_text import sanitize_supply_contract_docx_fields
+from app.api.purchases.company_party_line import format_company_party_line
 from app.api.purchases.schemas import DealResponse
 
 
@@ -48,6 +48,33 @@ def _ensure_supply_contract_defaults(data: dict[str, Any]) -> None:
 		supply_contract["officials"] = [_EMPTY_SUPPLY_CONTRACT_OFFICIAL.copy()]
 
 
+def _enrich_bill_payment_docx(data: dict[str, Any]) -> None:
+	"""Поля для bill.docx: срок оплаты, НДС, строки поставщика/покупателя."""
+	bill = data.get("bill")
+	if not isinstance(bill, dict):
+		return
+
+	payment_days = (bill.get("payment_terms") or "").strip()
+	if payment_days:
+		bill["payment_validity_text"] = (
+			f"Счет действителен в течении {payment_days} рабочих дней с момента выставления"
+		)
+	else:
+		bill["payment_validity_text"] = ""
+
+	show_vat = bool(data.get("amount_with_vat_rate"))
+	bill["show_vat_row"] = show_vat
+	bill["vat_amount_display"] = data.get("amount_vat_rate", "") if show_vat else ""
+
+	seller = data.get("seller_company") if isinstance(data.get("seller_company"), dict) else {}
+	buyer = data.get("buyer_company") if isinstance(data.get("buyer_company"), dict) else {}
+
+	data["seller_party_line"] = format_company_party_line(seller)
+	data["buyer_party_line"] = format_company_party_line(buyer)
+	data["bill_number"] = bill.get("number") or data.get("seller_order_number") or ""
+	data["items_count"] = len(data.get("items") or [])
+
+
 def _apply_docx_money_formatting(data: dict[str, Any]) -> None:
 	"""Подменяет числовые суммы на отформатированные строки только для рендера docx."""
 	for key in ("total_amount", "total_amount_excl_vat", "amount_vat_rate"):
@@ -62,6 +89,29 @@ def _apply_docx_money_formatting(data: dict[str, Any]) -> None:
 		for col in ("price", "quantity", "amount"):
 			if col in row:
 				row[col] = _fmt_money_us(row[col])
+
+
+def _ensure_order_docx_signatures(data: dict[str, Any]) -> None:
+	"""
+	Шаблон order.docx (legacy): блок «Менеджер» читает bill.officials[0].full_name.
+	Для заказа без счёта подставляем ФИО продавца из seller_company.owner_name.
+	"""
+	seller_company = data.get("seller_company") if isinstance(data.get("seller_company"), dict) else {}
+	seller_block = data.get("seller") if isinstance(data.get("seller"), dict) else {}
+	seller_name = seller_company.get("owner_name") or seller_block.get("full_name") or ""
+	data["seller_manager_name"] = seller_name
+
+	bill = data.get("bill")
+	if not isinstance(bill, dict):
+		bill = {}
+		data["bill"] = bill
+	officials = bill.get("officials")
+	if not isinstance(officials, list) or len(officials) == 0:
+		bill["officials"] = [{"id": 0, "full_name": seller_name, "position": ""}]
+		return
+	first = officials[0]
+	if isinstance(first, dict) and not first.get("full_name"):
+		first["full_name"] = seller_name
 
 
 def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
@@ -97,6 +147,8 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	}
 
 	_ensure_supply_contract_defaults(data)
+	_ensure_order_docx_signatures(data)
+	_enrich_bill_payment_docx(data)
 	sanitize_supply_contract_docx_fields(data)
 	if "specification_date_fmt" not in data:
 		data["specification_date_fmt"] = ""

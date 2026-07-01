@@ -6,6 +6,7 @@ from app.api.purchases.schemas import (
 	DealCreate,
 	DealUpdate,
 	DealResponse,
+	DealChangeReviewResponse,
 	BuyerDealResponse,
 	SellerDealResponse,
 	OrderItemResponse,
@@ -27,12 +28,33 @@ from app.api.products.repositories.company_products_repository import CompanyPro
 from app_logging.logger import logger
 
 
+class OnlySellerCanModifyDealError(Exception):
+	"""Покупатель не может изменять документы сделки (§2.3 read-only)."""
+
+
+class DealChangeReviewForbiddenError(Exception):
+	"""Компания не может принять или отклонить эти изменения (не контрагент / инициатор)."""
+
+
 class DealService:
 	"""Сервис для работы с заказами и сделками"""
 	
 	def __init__(self, session: AsyncSession):
 		self.session = session
 		self.repository = DealRepository(session)
+
+	async def _ensure_seller_on_deal(self, deal_id: int, company_id: int) -> Optional[Order]:
+		"""Доступ к сделке + запрет мутаций для компании-покупателя."""
+		order = await self.repository.get_order_by_id(deal_id, company_id)
+		if not order:
+			return None
+		if company_id == order.buyer_company_id:
+			raise OnlySellerCanModifyDealError()
+		return order
+
+	async def ensure_seller_can_modify_deal(self, deal_id: int, company_id: int) -> Optional[Order]:
+		"""Публичная обёртка: доступ к сделке; покупатель → OnlySellerCanModifyDealError."""
+		return await self._ensure_seller_on_deal(deal_id, company_id)
 
 	async def create_deal(self, deal_data: DealCreate, buyer_company_id: int) -> Optional[DealResponse]:
 		"""Создание новой сделки"""
@@ -75,12 +97,26 @@ class DealService:
 		return await self._order_to_deal_response(order, company_id)
 
 	async def get_deals_by_ids(self, deal_ids: List[int], company_id: int) -> List[DealResponse]:
-		"""Получение сделок по списку ID. Возвращает список в том же формате, что и get_deal_by_id."""
+		"""Получение сделок по списку ID — пакетная загрузка заказов и владельцев."""
+		if not deal_ids:
+			return []
+
+		orders = await self.repository.get_orders_by_ids(deal_ids, company_id)
+		if not orders:
+			return []
+
+		company_ids: set[int] = set()
+		for order in orders:
+			company_ids.add(order.buyer_company_id)
+			company_ids.add(order.seller_company_id)
+		owner_names = await self.repository.get_company_owner_names(list(company_ids))
+
 		result: List[DealResponse] = []
-		for deal_id in deal_ids:
-			deal = await self.get_deal_by_id(deal_id, company_id)
-			if deal:
-				result.append(deal)
+		for order in orders:
+			deal = await self._order_to_deal_response(
+				order, company_id, owner_names=owner_names,
+			)
+			result.append(deal)
 		return result
 
 	async def has_deal_access(self, deal_id: int, company_id: int) -> bool:
@@ -99,10 +135,14 @@ class DealService:
 	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
 		"""Обновление сделки"""
 		try:
+			if not await self._ensure_seller_on_deal(deal_id, company_id):
+				return None
 			order = await self.repository.update_order(deal_id, deal_data, company_id)
 			if not order:
 				return None
 			return await self._order_to_deal_response(order, company_id)
+		except OnlySellerCanModifyDealError:
+			raise
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error updating deal: %s", e)
@@ -113,6 +153,8 @@ class DealService:
 	) -> Optional[DealResponse]:
 		"""Создание новой версии сделки по текущей последней версии с опциональным обновлением полей."""
 		try:
+			if not await self._ensure_seller_on_deal(deal_id, company_id):
+				return None
 			order = await self.repository.create_new_order_version(deal_id, company_id)
 			if not order:
 				return None
@@ -127,6 +169,8 @@ class DealService:
 					order = updated_order
 
 			return await self._order_to_deal_response(order, company_id)
+		except OnlySellerCanModifyDealError:
+			raise
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error creating new deal version: %s", e)
@@ -135,33 +179,65 @@ class DealService:
 	async def delete_deal(self, deal_id: int, company_id: int) -> bool:
 		"""Удаление сделки"""
 		try:
-			# Проверяем, что сделка существует и пользователь имеет к ней доступ
-			order = await self.repository.get_order_by_id(deal_id, company_id)
-			if not order:
+			if not await self._ensure_seller_on_deal(deal_id, company_id):
 				return False
-			
-			# Удаляем сделку
 			deleted = await self.repository.delete_order(deal_id, company_id)
 			return deleted
+		except OnlySellerCanModifyDealError:
+			raise
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error deleting deal: %s", e)
 			return False
 
 	async def delete_last_deal_version(self, deal_id: int, company_id: int) -> Optional[int]:
-		"""Удаление только последней версии сделки."""
+		"""Удаление только последней версии сделки (отклонение контрагентом)."""
 		try:
+			order = await self.repository.get_order_by_id(deal_id, company_id)
+			if not order:
+				return None
+			if not await self.repository._ensure_counterparty_can_review(order, company_id):
+				raise DealChangeReviewForbiddenError()
 			return await self.repository.delete_last_order_version(deal_id, company_id)
+		except DealChangeReviewForbiddenError:
+			raise
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error deleting last deal version: %s", e)
 			return None
 
+	async def get_deal_change_review(
+		self, deal_id: int, company_id: int
+	) -> Optional[DealChangeReviewResponse]:
+		state = await self.repository.get_change_review_state(deal_id, company_id)
+		if not state:
+			return None
+		return DealChangeReviewResponse(**state)
+
+	async def accept_deal_changes(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
+		try:
+			order = await self.repository.accept_order_changes(deal_id, company_id)
+			if not order:
+				return None
+			return await self._order_to_deal_response(order, company_id)
+		except Exception as e:
+			await self.session.rollback()
+			logger.exception("Error accepting deal changes: %s", e)
+			return None
+
+	async def reject_deal_changes(self, deal_id: int, company_id: int) -> Optional[int]:
+		"""Отклонение изменений — удаление последней версии (только контрагент)."""
+		return await self.delete_last_deal_version(deal_id, company_id)
+
 	async def add_document(self, deal_id: int, document_data: DocumentUpload, file_path: str, company_id: int) -> Optional[OrderDocument]:
 		"""Добавление документа к сделке"""
 		try:
+			if not await self._ensure_seller_on_deal(deal_id, company_id):
+				return None
 			document_dict = document_data.model_dump()
 			return await self.repository.add_document(deal_id, document_dict, file_path, company_id)
+		except OnlySellerCanModifyDealError:
+			raise
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error adding document to deal %s: %s", deal_id, e)
@@ -177,18 +253,32 @@ class DealService:
 
 	async def delete_document(self, deal_id: int, document_id: int, company_id: int) -> bool:
 		"""Удаление документа из БД (файл из S3 вызывающий код удаляет отдельно)."""
-		return await self.repository.delete_document(deal_id, document_id, company_id)
+		try:
+			if not await self._ensure_seller_on_deal(deal_id, company_id):
+				return False
+			return await self.repository.delete_document(deal_id, document_id, company_id)
+		except OnlySellerCanModifyDealError:
+			raise
+		except Exception as e:
+			logger.exception("Error deleting document from deal %s: %s", deal_id, e)
+			raise
 
 	async def assign_bill(self, deal_id: int, company_id: int, date=None):
 		"""Генерация и присвоение номера и даты счета."""
+		if not await self._ensure_seller_on_deal(deal_id, company_id):
+			return None
 		return await self.repository.assign_bill(deal_id, company_id, date)
 
 	async def assign_contract(self, deal_id: int, company_id: int, date=None):
 		"""Генерация и присвоение номера и даты договора."""
+		if not await self._ensure_seller_on_deal(deal_id, company_id):
+			return None
 		return await self.repository.assign_contract(deal_id, company_id, date)
 
 	async def assign_supply_contract(self, deal_id: int, company_id: int, date=None):
 		"""Генерация и присвоение номера и даты договора поставки."""
+		if not await self._ensure_seller_on_deal(deal_id, company_id):
+			return None
 		return await self.repository.assign_supply_contract(deal_id, company_id, date)
 
 	async def get_company_by_user_id(self, user_id: int) -> Optional[Company]:
@@ -199,7 +289,12 @@ class DealService:
 		"""Получение единиц измерения"""
 		return await self.repository.get_units_of_measurement()
 
-	async def _order_to_deal_response(self, order: Order, company_id: Optional[int] = None) -> DealResponse:
+	async def _order_to_deal_response(
+		self,
+		order: Order,
+		company_id: Optional[int] = None,
+		owner_names: Optional[dict[int, str]] = None,
+	) -> DealResponse:
 		"""Преобразование Order в DealResponse с учетом роли компании (buyer/seller)"""
 		logger.debug("_order_to_deal_response для заказа %s", order.id)
 		
@@ -228,16 +323,32 @@ class DealService:
 					updated_at=item.updated_at
 				))
 		
-			# Информация о компаниях - загружаем отдельно
+			# Информация о компаниях — из eager load или отдельным запросом
 			logger.debug("Загружаем компании")
-			buyer_company_info = None
-			seller_company_info = None
-			
-			# Загружаем компании
-			logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
-			buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
-			logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
-			seller_company = await self.repository.get_company_by_id(order.seller_company_id)
+			buyer_company = getattr(order, "buyer_company", None)
+			seller_company = getattr(order, "seller_company", None)
+			if buyer_company is None:
+				logger.debug("Загружаем компанию покупателя %s", order.buyer_company_id)
+				buyer_company = await self.repository.get_company_by_id(order.buyer_company_id)
+			if seller_company is None:
+				logger.debug("Загружаем компанию продавца %s", order.seller_company_id)
+				seller_company = await self.repository.get_company_by_id(order.seller_company_id)
+
+			def _owner_name(cid: int) -> str:
+				if owner_names and cid in owner_names:
+					return owner_names[cid] or ""
+				return ""
+
+			buyer_owner_name = (
+				_owner_name(order.buyer_company_id)
+				if owner_names is not None
+				else (await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else "")
+			)
+			seller_owner_name = (
+				_owner_name(order.seller_company_id)
+				if owner_names is not None
+				else (await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else "")
+			)
 
 			def _make_company_info(company, owner_name: str, vat_rate_override: Optional[int] = None) -> CompanyInDealResponse:
 				return CompanyInDealResponse(
@@ -263,10 +374,8 @@ class DealService:
 					vat_rate=vat_rate_override if vat_rate_override is not None else company.vat_rate,
 				)
 
-			buyer_owner_name = await self.repository.get_company_owner_name(order.buyer_company_id) if buyer_company else ""
-			seller_owner_name = await self.repository.get_company_owner_name(order.seller_company_id) if seller_company else ""
-			buyer_company_info = _make_company_info(buyer_company, buyer_owner_name) if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
-			seller_company_info = _make_company_info(seller_company, seller_owner_name, getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
+			buyer_company_info = _make_company_info(buyer_company, buyer_owner_name or "") if buyer_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
+			seller_company_info = _make_company_info(seller_company, seller_owner_name or "", getattr(order, "seller_vat_rate", None)) if seller_company else CompanyInDealResponse(id=0, company_name="", name="", slug="", phone="", email="", legal_address="", production_address="")
 			
 			logger.debug("Создаем DealResponse")
 			closing_docs = order.closing_documents if order.closing_documents is not None else []
@@ -306,6 +415,7 @@ class DealService:
 			bill_obj = BillInDealResponse(
 				number=order.bill_number or "",
 				reason=order.bill_reason or "",
+				payment_terms=getattr(order, "payment_terms", None) or "",
 				payment_terms_contract=order.payment_terms_contract or "",
 				delivery_terms_contract=getattr(order, "delivery_terms_contract", None) or "",
 				additional_info=order.additional_info or "",

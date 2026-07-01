@@ -45,9 +45,29 @@ const setCurrentImage = (index: number) => {
 }
 
 const handleAddToCartClick = () => {
-  if (item.value) {
-    handleAddToCart(item.value as ProductItemPublic)
-  }
+	const cartProduct = toCartProduct()
+	if (cartProduct) {
+		handleAddToCart(cartProduct)
+	}
+}
+
+const toCartProduct = (): ProductItemPublic | null => {
+	if (!item.value) return null
+
+	const raw = item.value as Product & { company_id?: number; images?: string[] }
+	return {
+		name: raw.name,
+		logo_url: raw.images?.[0] ?? null,
+		slug: raw.slug,
+		description: raw.description ?? '',
+		article: raw.article,
+		type: raw.type as ProductItemPublic['type'],
+		price: raw.price,
+		unit_of_measurement: raw.unit_of_measurement ?? 'шт',
+		company_id: raw.company_id ?? companyId.value ?? 0,
+		company_name: company.value?.name ?? '',
+		company_slug: company.value?.slug ?? undefined,
+	}
 }
 </script>
 

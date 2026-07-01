@@ -66,6 +66,7 @@ class Order(Base):
 	bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
 	bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
 	bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
+	payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Срок оплаты «Счет на оплату» (дней, только с клиента)
 	payment_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
 	delivery_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
 	additional_info: Mapped[Optional[str]] = mapped_column(Text)  # Дополнительная информация в счёте (обновляется только с клиента)
@@ -114,6 +115,16 @@ class Order(Base):
 	total_amount_excl_vat: Mapped[float] = mapped_column(Float, default=0.0)
 	amount_vat_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Сумма НДС по сделке
 	amount_with_vat_rate: Mapped[bool] = mapped_column(Boolean, default=True)  # Сумма с учётом НДС
+
+	# Согласование новой версии заказа контрагентом
+	proposed_by_company_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+	)
+	buyer_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+	seller_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+	rejected_by_company_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("companies.id", ondelete="SET NULL"), nullable=True
+	)
 
 	# Timestamps
 	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

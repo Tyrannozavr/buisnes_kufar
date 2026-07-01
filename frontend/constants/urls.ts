@@ -68,6 +68,9 @@ export const API_URLS = {
 	//versions
 	CREATE_NEW_DEAL_VERSION: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/versions`,
 	DELETE_LAST_DEAL_VERSION: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/versions/last`,
+	GET_DEAL_CHANGE_REVIEW: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/change-review`,
+	ACCEPT_DEAL_CHANGES: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/changes/accept`,
+	REJECT_DEAL_CHANGES: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/changes/reject`,
 
 	// Documents
 	GET_DOCUMENTS_BY_DEAL_ID: (deal_id: number) =>`/api/v1/purchases/deals/${deal_id}/documents`,

@@ -155,6 +155,35 @@ export interface SupplyContractResponse {
 /** Отдельная сущность договора поставки — см. types/supplyContractEntity.ts */
 export type { SupplyContractEntityResponse } from './supplyContractEntity'
 
+export interface OrderLineChange {
+	status: "added" | "removed" | "modified"
+	match_key: string
+	product_name?: string | null
+	product_article?: string | null
+	quantity?: number | null
+	unit_of_measurement?: string | null
+	price?: number | null
+	amount?: number | null
+	changed_fields: string[]
+}
+
+export interface DealOrderChangeDiff {
+	baseline_version: number
+	proposed_version: number
+	comments_changed: boolean
+	total_amount_changed: boolean
+	items: OrderLineChange[]
+}
+
+export interface DealChangeReviewResponse {
+	has_pending_changes: boolean
+	can_respond: boolean
+	is_proposer: boolean
+	proposed_by_company_id: number | null
+	version: number
+	diff?: DealOrderChangeDiff | null
+}
+
 export interface DealResponse {
 	id: number
 	version: number

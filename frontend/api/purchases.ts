@@ -410,9 +410,23 @@ export const usePurchasesApi = () => {
 			const response = await $api.delete(
 				normalizeApiPath(API_URLS.DELETE_LAST_DEAL_VERSION(deal_id))
 			)
+			return response
 		} catch (e) {
 			console.log("ERROR: ", e)
+			throw e
 		}
+	}
+
+	const getDealChangeReview = async (deal_id: number) => {
+		return await $api.get(normalizeApiPath(API_URLS.GET_DEAL_CHANGE_REVIEW(deal_id)))
+	}
+
+	const acceptDealChanges = async (deal_id: number) => {
+		return await $api.post(normalizeApiPath(API_URLS.ACCEPT_DEAL_CHANGES(deal_id)))
+	}
+
+	const rejectDealChanges = async (deal_id: number) => {
+		return await $api.post(normalizeApiPath(API_URLS.REJECT_DEAL_CHANGES(deal_id)))
 	}
 
 	return {
@@ -442,6 +456,9 @@ export const usePurchasesApi = () => {
 		getUnitsOfMeasurement,
 		deleteDealById,
 		createNewDealVersion,
-		deleteLastDealVersion
+		deleteLastDealVersion,
+		getDealChangeReview,
+		acceptDealChanges,
+		rejectDealChanges,
 	}
 }

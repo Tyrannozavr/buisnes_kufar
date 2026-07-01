@@ -1,7 +1,7 @@
 import { defineMutation, defineQueryOptions, useMutation } from "@pinia/colada";
 import { usePurchasesApi } from "~/api/purchases";
 import { QueryKeys } from "~/constants/queryKeys";
-import type { DealResponse, DealUpdate, CheckoutResponse } from "~/types/dealResponse";
+import type { DealResponse, DealUpdate, CheckoutResponse, DealChangeReviewResponse } from "~/types/dealResponse";
 import type { ProductInCheckout } from "~/types/product";
 import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity";
 import type {
@@ -30,6 +30,14 @@ export const dealByIdQuery = defineQueryOptions(
 	({ dealId }: { dealId: number }) => ({
 		key: [QueryKeys.DEAL_BY_ID, dealId],
 		query: () => usePurchasesApi().getDealById(dealId)
+	})
+)
+
+export const dealChangeReviewQuery = defineQueryOptions(
+	({ dealId }: { dealId: number }) => ({
+		key: [QueryKeys.DEAL_CHANGE_REVIEW, dealId],
+		query: (): Promise<DealChangeReviewResponse> =>
+			usePurchasesApi().getDealChangeReview(dealId),
 	})
 )
 
@@ -122,13 +130,24 @@ export const useCreateContractQuery = defineMutation(() => {
 })
 
 export const useCreateSupplyContractQuery = defineMutation(() => {
-	const { mutate, ...mutation } = useMutation({
+	const { editSupplyContractDate, editSupplyContractNumber, findDeal } = useDeals()
+	const { mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_SUPPLY_CONTRACT],
-		mutation: ({ dealId, date }: { dealId: number, date?: string }) => usePurchasesApi().createSupplyContract(dealId, date),
+		mutation: ({ dealId, date }: { dealId: number, date?: string }) =>
+			usePurchasesApi().createSupplyContract(dealId, date),
+		onSuccess: async (
+			data: { supply_contract_number: string; supply_contract_date: string } | undefined,
+			{ dealId },
+		) => {
+			if (data && findDeal(dealId)) {
+				await editSupplyContractDate(dealId, data.supply_contract_date)
+				await editSupplyContractNumber(dealId, data.supply_contract_number)
+			}
+		},
 	})
 	return {
 		...mutation,
-		createSupplyContract: (dealId: number, date?: string) => mutate({ dealId, date }),
+		createSupplyContract: (dealId: number, date?: string) => mutateAsync({ dealId, date }),
 	}
 })
 
@@ -233,6 +252,40 @@ export const useDeleteLastDealVersionQuery = defineMutation(() => {
 	return {
 		...mutation,
 		deleteLastDealVersion: (dealId: number) => mutate({ dealId }),
+	}
+})
+
+export const useAcceptDealChangesQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.ACCEPT_DEAL_CHANGES],
+		mutation: ({ dealId }: { dealId: number }) => usePurchasesApi().acceptDealChanges(dealId),
+		onSuccess: (_data, { dealId }) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_CHANGE_REVIEW, dealId] })
+			queryCache.invalidateQueries({ key: [QueryKeys.DEALS_BY_IDS] })
+			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
+		},
+	})
+	return {
+		...mutation,
+		acceptDealChangesAsync: (dealId: number) => mutateAsync({ dealId }),
+	}
+})
+
+export const useRejectDealChangesQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.REJECT_DEAL_CHANGES],
+		mutation: ({ dealId }: { dealId: number }) => usePurchasesApi().rejectDealChanges(dealId),
+		onSuccess: (_data, { dealId }) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_CHANGE_REVIEW, dealId] })
+			queryCache.invalidateQueries({ key: [QueryKeys.DEALS_BY_IDS] })
+			queryCache.invalidateQueries({ key: [QueryKeys.DEAL_BY_ID, dealId] })
+		},
+	})
+	return {
+		...mutation,
+		rejectDealChangesAsync: (dealId: number) => mutateAsync({ dealId }),
 	}
 })
 

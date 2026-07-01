@@ -16,6 +16,42 @@ def _para(doc: Document, text: str) -> None:
 	p.add_run(text)
 
 
+def write_bill_payment(path: Path) -> None:
+	doc = Document()
+	doc.add_heading("Счет на оплату № {{ bill_number }} от {{ bill_date_fmt }} г.", level=0)
+	_para(doc, "Банк: {{ seller_company.bank_name }}, БИК {{ seller_company.bic }}")
+	_para(
+		doc,
+		"ИНН {{ seller_company.inn }}, КПП {{ seller_company.kpp }}, "
+		"р/с {{ seller_company.account_number }}, к/с {{ seller_company.correspondent_bank_account }}",
+	)
+	_para(doc, "Получатель: {{ seller_company.company_type }} {{ seller_company.company_name }}")
+	_para(doc, "Поставщик (исполнитель): {{ seller_party_line }}")
+	_para(doc, "Покупатель (заказчик): {{ buyer_party_line }}")
+	_para(doc, "{% if bill.reason %}Основание: {{ bill.reason }}{% endif %}")
+	_para(
+		doc,
+		"{% for item in items %}"
+		"{{ loop.index }}. {{ item.product_name }} — {{ item.quantity }} {{ item.unit_of_measurement }} × "
+		"{{ item.price }} = {{ item.amount }}; "
+		"{% endfor %}",
+	)
+	_para(doc, "Итого: {{ total_amount_excl_vat }}")
+	_para(doc, "В том числе НДС: {% if bill.show_vat_row %}{{ bill.vat_amount_display }}{% endif %}")
+	_para(doc, "Всего к оплате: {{ total_amount }}")
+	_para(doc, "Всего наименований: {{ items_count }}, на сумму: {{ total_amount }} руб.")
+	_para(doc, "{{ total_word }}")
+	_para(doc, "{% if bill.payment_validity_text %}{{ bill.payment_validity_text }}{% endif %}")
+	_para(doc, "{% if bill.additional_info %}{{ bill.additional_info }}{% endif %}")
+	_para(
+		doc,
+		"{% for o in bill.officials %}{{ o.position }} {{ o.full_name }}{% if not loop.last %}; {% endif %}{% endfor %}",
+	)
+	path.parent.mkdir(parents=True, exist_ok=True)
+	doc.save(str(path))
+	print("Wrote", path)
+
+
 def write_bill_variant(path: Path, title: str) -> None:
 	doc = Document()
 	doc.add_heading(title, level=0)
@@ -111,7 +147,7 @@ def write_supply_contract(path: Path) -> None:
 def main() -> None:
 	root = Path(__file__).resolve().parents[1]
 	docx_dir = root / "app" / "templates" / "docx"
-	write_bill_variant(docx_dir / "bill.docx", "Счёт")
+	write_bill_payment(docx_dir / "bill.docx")
 	write_bill_variant(docx_dir / "bill_contract.docx", "Счёт (договор)")
 	write_bill_variant(docx_dir / "bill_offer.docx", "Счёт (оферта)")
 	write_supply_contract(docx_dir / "supply_contract.docx")

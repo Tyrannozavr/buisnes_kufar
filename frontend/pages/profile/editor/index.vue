@@ -105,15 +105,21 @@ watch(
 			router.replace({ query, hash: route.hash })
 			return
 		}
-		isDisabled.value = route.query.role === 'buyer'
+		isDisabled.value = true
 	},
 	{ immediate: true },
 )
 
+/** Покупатель не может перейти в режим редактирования даже программно */
+watch(isDisabled, (val) => {
+	if (route.query.role === 'buyer' && !val) {
+		isDisabled.value = true
+	}
+})
+
 const isItemDisabled = ref({
 		bill: false,
 		contract: false,
-		supplyContract: false,
 	})
 
 watch(() => [
@@ -123,7 +129,6 @@ watch(() => [
 	const deal = findDeal(Number(route.query.dealId))
 	isItemDisabled.value.bill = !deal?.billDate
 	isItemDisabled.value.contract = !deal?.contractDate
-	isItemDisabled.value.supplyContract = !deal?.supplyContractDate
 }, { immediate: true, deep: true })
 
 const items = computed(() => [
@@ -140,7 +145,7 @@ const items = computed(() => [
 	{
 		label: 'Договор поставки',
 		slot: 'supplyContract' as const,
-		disabled: isItemDisabled.value.supplyContract,
+		disabled: false,
 	},
 	{
 		label: 'Сопроводительные документы',

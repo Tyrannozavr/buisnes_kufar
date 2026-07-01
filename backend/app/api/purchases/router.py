@@ -13,7 +13,7 @@ from app.api.purchases.dependencies import (
 	supply_contract_service_dep_annotated,
 	supply_contract_template_service_dep_annotated,
 )
-from app.api.purchases.services import DealService
+from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
 from app.api.purchases.models import SupplyContractTemplateType
 from app.api.purchases.schemas import (
@@ -26,6 +26,7 @@ from app.api.purchases.schemas import (
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
     SpecificationCreate, SpecificationUpdate, SpecificationResponse,
     SupplyContractTemplateCreate, SupplyContractTemplateUpdate, SupplyContractTemplateResponse,
+    DealChangeReviewResponse,
 )
 from app.api.purchases.schemas import DealStatus
 from app.api.purchases.deal_docx_context import build_deal_docx_context
@@ -116,6 +117,7 @@ _DEAL_RESPONSE_EXAMPLE = {
     "bill": {
         "number": "СЧ-001",
         "reason": "Оплата по счёту № СЧ-001",
+        "payment_terms": "3",
         "payment_terms_contract": "Оплата в течение 5 рабочих дней",
         "delivery_terms_contract": "",
         "additional_info": "Счет действителен 3 банковских дня",
@@ -436,6 +438,8 @@ async def update_deal(
 
     try:
         deal = await deal_service.update_deal(deal_id, deal_data, company.id)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -515,7 +519,10 @@ async def delete_deal(
             detail="Company not found for this user"
         )
     
-    deleted = await deal_service.delete_deal(deal_id, company.id)
+    try:
+        deleted = await deal_service.delete_deal(deal_id, company.id)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -582,7 +589,10 @@ async def create_new_deal_version(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
 
-    new_version_deal = await deal_service.create_new_deal_version(deal_id, company.id, deal_data)
+    try:
+        new_version_deal = await deal_service.create_new_deal_version(deal_id, company.id, deal_data)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not new_version_deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return new_version_deal
@@ -631,7 +641,13 @@ async def delete_last_deal_version(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
 
-    deleted_version = await deal_service.delete_last_deal_version(deal_id, company.id)
+    try:
+        deleted_version = await deal_service.delete_last_deal_version(deal_id, company.id)
+    except DealChangeReviewForbiddenError:
+        raise HTTPException(
+            status_code=403,
+            detail="Only counterparty can reject pending changes",
+        )
     if deleted_version is None:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
 
@@ -639,6 +655,92 @@ async def delete_last_deal_version(
         deal_id=deal_id,
         deleted_version=deleted_version,
     )
+
+
+@router.get(
+    "/deals/{deal_id}/change-review",
+    response_model=DealChangeReviewResponse,
+    tags=["deals", "orders", "versions"],
+    summary="Проверка неподтверждённых изменений по сделке",
+)
+async def get_deal_change_review(
+    deal_id: int = Path(..., description="ID сделки", gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    review = await deal_service.get_deal_change_review(deal_id, company.id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return review
+
+
+class AcceptDealChangesResponse(BaseModel):
+    message: str = "Deal changes accepted"
+    deal: DealResponse
+
+
+@router.post(
+    "/deals/{deal_id}/changes/accept",
+    response_model=AcceptDealChangesResponse,
+    tags=["deals", "orders", "versions"],
+    summary="Принять изменения контрагента",
+)
+async def accept_deal_changes(
+    deal_id: int = Path(..., description="ID сделки", gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    deal = await deal_service.accept_deal_changes(deal_id, company.id)
+    if not deal:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot accept changes: not found, not pending, or you are the proposer",
+        )
+    return AcceptDealChangesResponse(deal=deal)
+
+
+class RejectDealChangesResponse(BaseModel):
+    message: str = "Deal changes rejected"
+    deal_id: int
+    deleted_version: int
+
+
+@router.post(
+    "/deals/{deal_id}/changes/reject",
+    response_model=RejectDealChangesResponse,
+    tags=["deals", "orders", "versions"],
+    summary="Отклонить изменения контрагента",
+)
+async def reject_deal_changes(
+    deal_id: int = Path(..., description="ID сделки", gt=0),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+
+    try:
+        deleted_version = await deal_service.reject_deal_changes(deal_id, company.id)
+    except DealChangeReviewForbiddenError:
+        raise HTTPException(
+            status_code=403,
+            detail="Only counterparty can reject pending changes",
+        )
+    if deleted_version is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot reject changes: not found, not pending, or you are the proposer",
+        )
+    return RejectDealChangesResponse(deal_id=deal_id, deleted_version=deleted_version)
 
 
 @router.post("/deals/{deal_id}/documents", tags=["documents", "upload", "files"])
@@ -664,9 +766,11 @@ async def upload_document(
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    deal = await deal_service.get_deal_by_id(deal_id, company.id)
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    try:
+        if not await deal_service.ensure_seller_can_modify_deal(deal_id, company.id):
+            raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
 
     content = await file.read()
     from app.core.s3 import upload_document as s3_upload_document
@@ -695,6 +799,8 @@ async def upload_document(
     )
     try:
         document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except Exception as e:
         logger.exception("Failed to add document to deal %s: %s", deal_id, e)
         raise HTTPException(
@@ -1157,6 +1263,11 @@ async def delete_document(
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
+    try:
+        if not await deal_service.ensure_seller_can_modify_deal(deal_id, company.id):
+            raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     doc = await deal_service.get_document(deal_id, document_id, company.id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1167,7 +1278,10 @@ async def delete_document(
             s3_delete_document(doc.document_file_path)
         except Exception:
             pass
-    deleted = await deal_service.delete_document(deal_id, document_id, company.id)
+    try:
+        deleted = await deal_service.delete_document(deal_id, document_id, company.id)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not deleted:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -1195,7 +1309,10 @@ async def create_bill(
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    result = await deal_service.assign_bill(deal_id, company.id, body.date if (body and body.date) else None)
+    try:
+        result = await deal_service.assign_bill(deal_id, company.id, body.date if (body and body.date) else None)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return BillResponse(bill_number=result[0], bill_date=result[1])
@@ -1224,7 +1341,10 @@ async def create_contract(
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    result = await deal_service.assign_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    try:
+        result = await deal_service.assign_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return ContractResponse(contract_number=result[0], contract_date=result[1])
@@ -1254,7 +1374,10 @@ async def create_supply_contract(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
 
-    result = await deal_service.assign_supply_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    try:
+        result = await deal_service.assign_supply_contract(deal_id, company.id, body.date if (body and body.date) else None)
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
 

@@ -70,7 +70,7 @@
 						(исполнитель):</p>
 				</td>
 				<td>
-					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full font-bold" :value="billData.seller.companyName ? `${billData.seller.companyName}, ${billData.seller.inn}, ${billData.seller.kpp}, ${billData.seller.index}, ${billData.seller.legalAddress}` : ''"/>
+					<textarea placeholder="Поставщик" :disabled="isDisabled" class="w-full font-bold" :value="sellerPartyLine"/>
 				</td>
 			</tr>
 			<tr>
@@ -80,7 +80,7 @@
 						(заказчик):</p>
 				</td>
 				<td>
-					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full font-bold" :value="billData.buyer.companyName ? `${billData.buyer.companyName}, ${billData.buyer.inn}, ${billData.buyer.kpp}, ${billData.buyer.index}, ${billData.buyer.legalAddress}` : ''"/>
+					<textarea placeholder="Покупатель" :disabled="isDisabled" class="w-full font-bold" :value="buyerPartyLine"/>
 				</td>
 			</tr>
 			<tr v-if="reasonCheck">
@@ -200,11 +200,11 @@
 						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
 					</td>
 				</tr>
-				<tr v-if="vatRateCheck" class="text-right">
+				<tr class="text-right">
 					<td colspan="5"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
-						<span class="font-bold">{{ normalizePrice(billData.amountVatRate) }}</span>
+						<span class="font-bold">{{ vatRateCheck ? normalizePrice(billData.amountVatRate) : '' }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
@@ -226,7 +226,7 @@
 				</span>
 				, на сумму:
 				<span class="font-bold">
-					{{ normalizePrice(billData.amount) }} p.
+					{{ normalizePrice(billData.amount) }} руб.
 				</span> 
 			</span>
 		</p>
@@ -240,18 +240,24 @@
 		<div v-if="billType === 'bill'">
 			<div v-if="paymentTermsCheck">
 				<p>
-					<span>Срок оплаты: 
-						<span class="font-bold">
-							{{ billData.paymentTerms }} рабочих дней
-						</span>
-					</span>
+					Счет действителен в течении
+					<span class="font-bold">{{ billData.paymentTerms }}</span>
+					рабочих дней с момента выставления
 				</p>
 			</div>
 
 			<br>
 
 			<div v-if="additionalInfoCheck">
-				<p v-for="line in billData.additionalInfo.split('\n')">{{ line }}</p>
+				<textarea
+					v-if="!isDisabled"
+					class="w-full min-h-24 text-sm"
+					v-model="billData.additionalInfo"
+					placeholder="Дополнительная информация"
+				/>
+				<template v-else>
+					<p v-for="(line, idx) in billData.additionalInfo.split('\n')" :key="idx">{{ line }}</p>
+				</template>
 			</div>
 
 			<br>
@@ -282,7 +288,7 @@
 							</span>
 						</td>
 					</tr>
-					<tr v-if="officials.length < 3" :hidden="isDisabled" class="w-full">
+					<tr v-if="billData.officials.length < 3" :hidden="isDisabled" class="w-full">
 						<td colspan="4">
 							<PersonSelector :isDisabled="isDisabled" @addPerson="addPerson($event)" />
 						</td>
@@ -330,6 +336,7 @@ import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
 import { CONTRACT_TERMS_BILL_OFFER, CONTRACT_TERMS_BILL_CONTRACT, ADDITIONAL_INFO_BILL } from '~/constants/contractTerms';
+import { formatCompanyPartyLine, formatCompanyRecipientLine } from '~/utils/companyPartyLine';
 
 const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer, editAmountExclVat } = useDeals()
 
@@ -578,37 +585,6 @@ watch(() => [paymentTermsCheck, paymentTerms],
 }, { deep: true }
 )
 
-//заполнение срока оплаты и доставки счета-договора
-watch(() => [
-	paymentTermsCheckContract,
-	paymentTermsContract,
-	deliveryTermsCheckContract,
-	deliveryTermsContract
-], () => {
-	if (paymentTermsCheck.value) {
-		billData.value.paymentTerms = paymentTerms.value
-	} else {
-		billData.value.paymentTerms = ''
-	}
-
-	if (deliveryTermsCheckContract) {
-		billData.value.deliveryTermsContract = deliveryTermsContract.value
-	} else {
-		billData.value.deliveryTermsContract = ''
-	}
-}, { deep: true }
-)
-
-//заполнение срока оплаты счета-оплаты
-watch(() => [paymentTermsCheck, paymentTerms], () => {
-	if (paymentTermsCheck.value) {
-		billData.value.paymentTerms = paymentTerms.value
-	} else {
-		billData.value.paymentTerms = ''
-	}
-}, { deep: true }
-)
-
 //заполнение срока оплаты счета-договора
 watch(() => [paymentTermsCheckContract, paymentTermsContract], () => {
 	if (paymentTermsCheckContract.value) {
@@ -714,10 +690,10 @@ watch(
 )
 
 //рассчет суммы словами
-const sellerRecipientLine = computed(() => {
-	const { companyType, companyName } = billData.value.seller ?? {}
-	return [companyType, companyName].filter(Boolean).join(' ')
-})
+const sellerRecipientLine = computed(() => formatCompanyRecipientLine(billData.value.seller))
+
+const sellerPartyLine = computed(() => formatCompanyPartyLine(billData.value.seller))
+const buyerPartyLine = computed(() => formatCompanyPartyLine(billData.value.buyer))
 
 const amountWord = computed<string>(() => {
 	if (billData.value.amountWord?.trim()) {
@@ -837,6 +813,7 @@ const fillBillData = async () => {
     buyer = {
       ownerName: buyerData.ownerName,
       companyName: buyerData.companyName,
+			companyType: buyerData.companyType,
 			companyId: buyerData.companyId,
 			phone: buyerData.phone,
 			legalAddress: buyerData.legalAddress,
@@ -930,6 +907,7 @@ watch(
 		deals?.value?.length ?? 0,
 		findDeal(Number(route.query.dealId))?.bill.number ?? '',
     loadDealTrigger.value,
+		billAwaitingFill.value,
   ],
   () => fillFromQuery(),
   { immediate: true, deep: true }
@@ -987,37 +965,35 @@ const addProduct = () => {
 	billData.value.products.push(product)
 }
 
-//очистка формы
+//очистка формы (§5: номер и дата сохраняются)
 const clearForm = () => {
+	const preserved = {
+		dealId: billData.value.dealId,
+		number: billData.value.number,
+		date: billData.value.date,
+	}
 	products = []
-  seller = {}
+	seller = { vatRate: 0 }
 	buyer = {}
 	officials = []
 
 	billData.value = {
-		dealId: 0,
-		number: '',
-		date: '',
+		...preserved,
 		amount: 0,
 		amountExclVat: 0,
 		amountVatRate: 0,
 		amountWord: '',
 		reason: '',
 		products,
-		seller: {
-			vatRate: 0,
-		},
+		seller,
 		buyer,
 		officials,
-		//bill-payment
 		paymentTerms: '',
 		additionalInfo: '',
-		//bill-contract
 		paymentTermsContract: '',
 		deliveryTermsContract: '',
 		contractTermsContract: 'standard-delivery-supplier',
 		contractTermsTextContract: '',
-		//bill-offer
 		paymentTermsOffer: '',
 		contractTermsOffer: 'standard-delivery-supplier',
 		contractTermsTextOffer: '',

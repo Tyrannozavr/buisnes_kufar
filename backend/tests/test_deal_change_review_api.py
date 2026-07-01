@@ -40,10 +40,14 @@ def _build_company_payload(suffix: str, inn_seed: int) -> dict:
 
 
 @pytest.fixture
-async def seeded_context():
+async def seller_user_context():
     unique = uuid4().hex[:8]
-    buyer_data = _build_company_payload(f"buyer-{unique}", inn_seed=1000000000 + int(unique[:4], 16) % 899999999)
-    seller_data = _build_company_payload(f"seller-{unique}", inn_seed=2000000000 + int(unique[4:], 16) % 799999999)
+    buyer_data = _build_company_payload(
+        f"buyer-cr-{unique}", 1000000000 + int(unique[:4], 16) % 899999999
+    )
+    seller_data = _build_company_payload(
+        f"seller-cr-{unique}", 2000000000 + int(unique[4:], 16) % 799999999
+    )
 
     async with AsyncSessionLocal() as session:
         buyer_company = Company(**buyer_data)
@@ -54,8 +58,8 @@ async def seeded_context():
         buyer_user = User(
             email=f"buyer-{unique}@example.com",
             phone="+79001112233",
-            first_name="Version",
-            last_name="Buyer",
+            first_name="Buyer",
+            last_name="Tester",
             hashed_password="test",
             is_active=True,
             company_id=buyer_company.id,
@@ -63,8 +67,8 @@ async def seeded_context():
         seller_user = User(
             email=f"seller-{unique}@example.com",
             phone="+79001112234",
-            first_name="Version",
-            last_name="Seller",
+            first_name="Seller",
+            last_name="Tester",
             hashed_password="test",
             is_active=True,
             company_id=seller_company.id,
@@ -79,10 +83,9 @@ async def seeded_context():
         context = {
             "buyer_user": buyer_user,
             "seller_user": seller_user,
-            "user_id": buyer_user.id,
             "buyer_company_id": buyer_company.id,
             "seller_company_id": seller_company.id,
-            "current_user": buyer_user,
+            "current_user": seller_user,
         }
 
     async def _override_current_user():
@@ -97,8 +100,8 @@ async def seeded_context():
     async with AsyncSessionLocal() as session:
         await session.execute(
             delete(Order).where(
-                (Order.buyer_company_id == context["buyer_company_id"]) |
-                (Order.seller_company_id == context["seller_company_id"])
+                (Order.buyer_company_id == context["buyer_company_id"])
+                | (Order.seller_company_id == context["seller_company_id"])
             )
         )
         await session.execute(
@@ -106,7 +109,11 @@ async def seeded_context():
                 User.id.in_([context["buyer_user"].id, context["seller_user"].id])
             )
         )
-        await session.execute(delete(Company).where(Company.id.in_([context["buyer_company_id"], context["seller_company_id"]])))
+        await session.execute(
+            delete(Company).where(
+                Company.id.in_([context["buyer_company_id"], context["seller_company_id"]])
+            )
+        )
         await session.commit()
 
 
@@ -115,26 +122,6 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
-
-
-async def _create_deal(client: AsyncClient, seller_company_id: int) -> dict:
-    payload = {
-        "seller_company_id": seller_company_id,
-        "deal_type": "Товары",
-        "items": [
-            {
-                "article": None,
-                "quantity": 2,
-                "product_name": "Тестовая позиция",
-                "unit_of_measurement": "шт",
-                "price": 123.45,
-            }
-        ],
-        "comments": "initial",
-    }
-    response = await client.post("/api/v1/purchases/deals", json=payload)
-    assert response.status_code == 200, response.text
-    return response.json()
 
 
 def _set_current_user(context: dict, user: User) -> None:
@@ -146,77 +133,107 @@ def _set_current_user(context: dict, user: User) -> None:
     app.dependency_overrides[get_current_user] = _override_current_user
 
 
+async def _create_deal(client: AsyncClient, seller_company_id: int) -> dict:
+    payload = {
+        "seller_company_id": seller_company_id,
+        "deal_type": "Товары",
+        "items": [
+            {
+                "article": None,
+                "quantity": 1,
+                "product_name": "Тестовая позиция",
+                "unit_of_measurement": "шт",
+                "price": 100.0,
+            }
+        ],
+        "comments": "initial",
+    }
+    response = await client.post("/api/v1/purchases/deals", json=payload)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 @pytest.mark.asyncio
-async def test_deal_versioning_scenarios(client: AsyncClient, seeded_context: dict):
-    context = seeded_context
-    # 1) Create deal -> version=1 (buyer)
+async def test_change_review_only_counterparty_can_respond(
+    client: AsyncClient, seller_user_context: dict
+):
+    context = seller_user_context
+    _set_current_user(context, context["buyer_user"])
+
     created = await _create_deal(client, context["seller_company_id"])
     deal_id = created["id"]
-    assert created["version"] == 1
 
-    # 2) Seller creates version=2
     _set_current_user(context, context["seller_user"])
-    create_v2_response = await client.post(
+    create_v2 = await client.post(
         f"/api/v1/purchases/deals/{deal_id}/versions",
-        json={"comments": "created-from-version-endpoint"},
+        json={"comments": "seller proposal"},
     )
-    assert create_v2_response.status_code == 200, create_v2_response.text
-    version2 = create_v2_response.json()
-    assert version2["id"] == deal_id
-    assert version2["version"] == 2
-    assert version2["comments"] == "created-from-version-endpoint"
+    assert create_v2.status_code == 200, create_v2.text
 
-    # 3) GET by id returns latest version (v2)
-    get_active_response = await client.get(f"/api/v1/purchases/deals/{deal_id}")
-    assert get_active_response.status_code == 200, get_active_response.text
-    active = get_active_response.json()
-    assert active["id"] == deal_id
-    assert active["version"] == 2
-    assert active["comments"] == "created-from-version-endpoint"
+    seller_review = await client.get(f"/api/v1/purchases/deals/{deal_id}/change-review")
+    assert seller_review.status_code == 200, seller_review.text
+    seller_data = seller_review.json()
+    assert seller_data["has_pending_changes"] is True
+    assert seller_data["can_respond"] is False
+    assert seller_data["is_proposer"] is True
 
-    # 4) PUT updates latest version in-place (v2 remains, comments updated)
-    update_payload = {"comments": "updated-latest"}
-    put_response = await client.put(f"/api/v1/purchases/deals/{deal_id}", json=update_payload)
-    assert put_response.status_code == 200, put_response.text
-    updated_latest = put_response.json()
-    assert updated_latest["version"] == 2
-    assert updated_latest["comments"] == "updated-latest"
-
-    # Ensure v1 is still unchanged in DB
-    async with AsyncSessionLocal() as session:
-        version1_order = (
-            await session.execute(
-                select(Order).where(Order.id == deal_id, Order.version == 1)
-            )
-        ).scalar_one()
-        version2_order = (
-            await session.execute(
-                select(Order).where(Order.id == deal_id, Order.version == 2)
-            )
-        ).scalar_one()
-        assert version1_order.comments == "initial"
-        assert version2_order.comments == "updated-latest"
-
-    # 5) Buyer rejects pending v2 (DELETE_LAST_VERSION)
     _set_current_user(context, context["buyer_user"])
-    delete_last_response = await client.delete(f"/api/v1/purchases/deals/{deal_id}/versions/last")
-    assert delete_last_response.status_code == 200, delete_last_response.text
-    delete_last_data = delete_last_response.json()
-    assert delete_last_data["deal_id"] == deal_id
-    assert delete_last_data["deleted_version"] == 2
+    buyer_review = await client.get(f"/api/v1/purchases/deals/{deal_id}/change-review")
+    assert buyer_review.status_code == 200, buyer_review.text
+    buyer_data = buyer_review.json()
+    assert buyer_data["has_pending_changes"] is True
+    assert buyer_data["can_respond"] is True
+    assert buyer_data["is_proposer"] is False
+    assert buyer_data.get("diff") is not None
+    assert any(item["status"] == "modified" for item in buyer_data["diff"]["items"]) or buyer_data["diff"]["comments_changed"]
 
-    after_delete_last = await client.get(f"/api/v1/purchases/deals/{deal_id}")
-    assert after_delete_last.status_code == 200, after_delete_last.text
-    reverted_active = after_delete_last.json()
-    assert reverted_active["version"] == 1
-    assert reverted_active["comments"] == "initial"
-
-    # 6) Seller deletes all versions
     _set_current_user(context, context["seller_user"])
-    delete_all_response = await client.delete(f"/api/v1/purchases/deals/{deal_id}")
-    assert delete_all_response.status_code == 200, delete_all_response.text
-    delete_all_data = delete_all_response.json()
-    assert delete_all_data["deal_id"] == deal_id
+    proposer_accept = await client.post(f"/api/v1/purchases/deals/{deal_id}/changes/accept")
+    assert proposer_accept.status_code == 403
 
-    get_after_delete_all = await client.get(f"/api/v1/purchases/deals/{deal_id}")
-    assert get_after_delete_all.status_code == 404
+    proposer_reject = await client.post(f"/api/v1/purchases/deals/{deal_id}/changes/reject")
+    assert proposer_reject.status_code == 403
+
+    _set_current_user(context, context["buyer_user"])
+    buyer_accept = await client.post(f"/api/v1/purchases/deals/{deal_id}/changes/accept")
+    assert buyer_accept.status_code == 200, buyer_accept.text
+
+    after_accept = await client.get(f"/api/v1/purchases/deals/{deal_id}/change-review")
+    assert after_accept.json()["has_pending_changes"] is False
+
+    async with AsyncSessionLocal() as session:
+        latest = (
+            await session.execute(
+                select(Order).where(Order.id == deal_id).order_by(Order.version.desc()).limit(1)
+            )
+        ).scalar_one()
+        assert latest.proposed_by_company_id is None
+        assert latest.buyer_accepted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_change_review_buyer_can_reject_seller_proposal(
+    client: AsyncClient, seller_user_context: dict
+):
+    context = seller_user_context
+    _set_current_user(context, context["buyer_user"])
+
+    created = await _create_deal(client, context["seller_company_id"])
+    deal_id = created["id"]
+
+    _set_current_user(context, context["seller_user"])
+    create_v2 = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={"comments": "seller proposal v2"},
+    )
+    assert create_v2.status_code == 200, create_v2.text
+
+    _set_current_user(context, context["buyer_user"])
+    reject_response = await client.post(f"/api/v1/purchases/deals/{deal_id}/changes/reject")
+    assert reject_response.status_code == 200, reject_response.text
+    assert reject_response.json()["deleted_version"] == 2
+
+    get_deal = await client.get(f"/api/v1/purchases/deals/{deal_id}")
+    assert get_deal.status_code == 200
+    assert get_deal.json()["version"] == 1
+    assert get_deal.json()["comments"] == "initial"

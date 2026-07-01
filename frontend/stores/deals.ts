@@ -132,6 +132,19 @@ export const useDealsStore = defineStore("deals", () => {
 		}
 	}
 
+	/** Заменить сделку в store актуальными данными с сервера (новая версия заказа). */
+	const upsertDeal = (deal: Deal) => {
+		if (!deal) return
+		const list = deals.value
+		if (!list) return
+		const idx = list.findIndex((d) => d.dealId === deal.dealId)
+		if (idx >= 0) {
+			list[idx] = deal
+		} else {
+			list.push(deal)
+		}
+	}
+
 	/**
 	 * поиск сделки по номеру заказа
 	 * @param dealNumber - номер заказа
@@ -569,6 +582,7 @@ export const useDealsStore = defineStore("deals", () => {
 		lastDeal,
 		clearStore,
 		addNewDeal,
+		upsertDeal,
 		amountPriceInProductItem,
 		editAmountExclVat,
 		amountPriceInProductWithoutVat,

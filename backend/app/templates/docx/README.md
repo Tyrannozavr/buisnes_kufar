@@ -82,6 +82,8 @@
 |-----------|--------|
 | `bill.number` | Номер счёта |
 | `bill.reason` | Основание |
+| `bill.payment_terms` | Срок оплаты «Счет на оплату» (рабочих дней) |
+| `bill.payment_validity_text` | Текст «Счет действителен в течении …» (docx-контекст) |
 | `bill.payment_terms_contract`, `bill.delivery_terms_contract` | Условия оплаты и поставки |
 | `bill.additional_info` | Доп. информация |
 | `bill.contract_terms_contract` | Пресет: `standard-delivery-supplier` / `standard-delivery-buyer` / `custom` |

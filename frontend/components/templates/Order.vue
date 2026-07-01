@@ -8,6 +8,12 @@ import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '~/stores/user'; 
 import { useSaveDeals } from '~/composables/useSaveDeals';
+import {
+	buildOrderDisplayRows,
+	findLineChange,
+	orderCellHighlightClass,
+	orderRowHighlightClass,
+} from '~/utils/orderChangeDiff';
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +28,33 @@ const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
+
+const displayProducts = computed(() =>
+	buildOrderDisplayRows(orderData.value.products, orderChangeDiff.value),
+)
+
+const removedDisplayRows = computed(() =>
+	displayProducts.value.filter((row) => row.isRemovedRow),
+)
+
+const lineChangeFor = (product: ProductsInOrder) =>
+	findLineChange(orderChangeDiff.value, product)
+
+const rowClass = (product: ProductsInOrder) =>
+	orderRowHighlightClass({
+		changeStatus: lineChangeFor(product)?.status,
+		changedFields: lineChangeFor(product)?.changed_fields ?? [],
+	})
+
+const cellClass = (product: ProductsInOrder, field: string) =>
+	orderCellHighlightClass(
+		{
+			changeStatus: lineChangeFor(product)?.status,
+			changedFields: lineChangeFor(product)?.changed_fields ?? [],
+		},
+		field,
+	)
 
 const html = useTemplateRef('html')
 const htmlOrder = useTypedState(TemplateElement.ORDER, () => ref(null))
@@ -296,11 +329,15 @@ onMounted(() => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="product in orderData.products">
+        <tr
+          v-for="(product, index) in orderData.products"
+          :key="`${product.article}-${product.name}-${index}`"
+          :class="rowClass(product)"
+        >
           <td class="border">
-            <span>{{ orderData.products.indexOf(product) + 1 }}</span>
+            <span>{{ index + 1 }}</span>
           </td>
-          <td class="border align-top">
+          <td class="border align-top" :class="cellClass(product, 'name')">
             <textarea
               v-if="!isDisabled"
               rows="2"
@@ -310,7 +347,7 @@ onMounted(() => {
             />
             <span v-else class="product-name-field">{{ product.name }}</span>
           </td>
-          <td class="border align-top">
+          <td class="border align-top" :class="cellClass(product, 'article')">
             <input
               v-if="!isDisabled"
               class="product-article-field w-full min-w-0 px-1 text-center text-sm"
@@ -319,11 +356,15 @@ onMounted(() => {
             />
             <span v-else class="product-article-field">{{ product.article }}</span>
           </td>
-          <td class="border">
-            <input :disabled="isDisabled" class="w-full min-w-0 px-1 text-center text-sm" placeholder="Кол-во"
-              v-model.number="product.quantity" />
+          <td class="border" :class="cellClass(product, 'quantity')">
+            <input
+              :disabled="isDisabled"
+              class="w-full min-w-0 px-1 text-center text-sm"
+              placeholder="Кол-во"
+              v-model.number="product.quantity"
+            />
           </td>
-          <td class="border">
+          <td class="border" :class="cellClass(product, 'units')">
             <select
               v-if="!isDisabled"
               :value="product.units"
@@ -340,11 +381,16 @@ onMounted(() => {
           <td class="border">
             <span class="block w-full text-center text-sm">{{ getOkeiCode(product.units) || '—' }}</span>
           </td>
-          <td class="border">
-            <input :disabled="isDisabled" class="w-full min-w-0 px-1 text-center text-sm" placeholder="Цена" v-model.number="product.price" />
+          <td class="border" :class="cellClass(product, 'price')">
+            <input
+              :disabled="isDisabled"
+              class="w-full min-w-0 px-1 text-center text-sm"
+              placeholder="Цена"
+              v-model.number="product.price"
+            />
           </td>
-          <td class="border">
-            <span class="">{{ product.amount }}</span>
+          <td class="border" :class="cellClass(product, 'amount')">
+            <span>{{ product.amount }}</span>
           </td>
           <td>
             <span v-show="!isDisabled" class="w-[10px] cursor-pointer" @click="removeProduct(product)">
@@ -360,6 +406,21 @@ onMounted(() => {
           </td>
 
         </tr>
+        <tr
+          v-for="(product, index) in removedDisplayRows"
+          :key="`removed-${product.article}-${index}`"
+          class="order-change-row-removed"
+        >
+          <td class="border order-change-removed"><span>—</span></td>
+          <td class="border order-change-removed"><span>{{ product.name }}</span></td>
+          <td class="border order-change-removed"><span>{{ product.article }}</span></td>
+          <td class="border order-change-removed"><span>{{ product.quantity }}</span></td>
+          <td class="border order-change-removed"><span>{{ product.units || '—' }}</span></td>
+          <td class="border order-change-removed"><span>{{ getOkeiCode(product.units) || '—' }}</span></td>
+          <td class="border order-change-removed"><span>{{ product.price }}</span></td>
+          <td class="border order-change-removed"><span>{{ product.amount }}</span></td>
+          <td />
+        </tr>
         <tr v-show="!isDisabled">
           <td colspan="8" class="border text-left">
             <button
@@ -374,9 +435,13 @@ onMounted(() => {
       </tbody>
     </table>
 
-		<p><span>Всего наименований:{{ orderData.products.length }}, на сумму:
+		<p
+			:class="{ 'order-change-modified-inline': orderChangeDiff?.total_amount_changed }"
+		>
+			<span>Всего наименований:{{ orderData.products.length }}, на сумму:
 				<span v-if="orderData.amount">{{ normalizePrice(orderData.amount) }} </span>
-				p.</span></p>
+				p.</span>
+		</p>
 		<p><span class="underline underline-offset-4">{{ orderData.amountWord }}</span></p>
 		<br />
 
@@ -395,8 +460,18 @@ onMounted(() => {
       </tbody>
 		</table>
 		<br />
-    <textarea :disabled="isDisabled" placeholder="Комментарии" v-model.lazy="orderData.comments"
-      class="w-full h-15 max-h-40" />
+		<UTooltip
+			:text="isDisabled && route.query.role === 'seller' ? 'Нажмите «Редактировать» в меню справа' : ''"
+			:disabled="!(isDisabled && route.query.role === 'seller')"
+		>
+			<textarea
+				:disabled="isDisabled"
+				placeholder="Комментарии"
+				v-model.lazy="orderData.comments"
+				class="w-full h-15 max-h-40"
+				:class="{ 'order-change-modified': orderChangeDiff?.comments_changed }"
+			/>
+		</UTooltip>
 	</div>
 </template>
 
@@ -448,5 +523,25 @@ textarea {
 	background: #fff;
 	padding: 2px 4px;
 	line-height: 1.35;
+}
+
+.order-change-modified,
+.order-change-modified-inline {
+	background-color: #fef3c7;
+}
+
+.order-change-added {
+	background-color: #dcfce7;
+}
+
+.order-change-row-added td {
+	background-color: #ecfdf5;
+}
+
+.order-change-row-removed td,
+.order-change-removed {
+	background-color: #fee2e2;
+	text-decoration: line-through;
+	opacity: 0.9;
 }
 </style>

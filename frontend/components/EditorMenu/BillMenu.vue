@@ -98,6 +98,8 @@ defineProps<{
 	hiddenForBuyer?: boolean
 }>()
 
+const DEFAULT_PAYMENT_TERMS_DAYS = '3'
+
 const { findDeal } = useDeals()
 const { loadBillRequisites } = useCompanyBillRequisites()
 const route = useRoute()
@@ -175,6 +177,26 @@ const contractTermsOffer = useTypedState(Editor.CONTRACT_TERMS_OFFER, () => init
 const contractTermsCheckOffer = useTypedState(Editor.CONTRACT_TERMS_CHECK_OFFER, () => initialContractTermsCheckOffer)
 const paymentTermsCheckOffer = useTypedState(Editor.PAYMENT_TERMS_CHECK_OFFER, () => initialPaymentTermsCheckOffer)
 const additionalInfoCheckOffer = useTypedState(Editor.ADDITIONAL_INFO_CHECK_OFFER, () => initialAdditionalInfoCheckOffer)
+
+const clearState = useTypedState(Editor.CLEAR_STATE)
+
+watch(paymentTermsCheck, (checked) => {
+	if (checked && !paymentTerms.value) {
+		paymentTerms.value = DEFAULT_PAYMENT_TERMS_DAYS
+	}
+})
+
+watch(
+	() => clearState.value,
+	(clearing) => {
+		if (!clearing) return
+		reasonCheck.value = false
+		vatRateCheck.value = false
+		paymentTermsCheck.value = false
+		paymentTerms.value = ''
+		additionalInfoCheck.value = true
+	},
+)
 
 const resolveSellerVatFromLk = async (deal: NonNullable<ReturnType<typeof findDeal>>) => {
 	const lk = await loadBillRequisites(deal.seller.companyId)

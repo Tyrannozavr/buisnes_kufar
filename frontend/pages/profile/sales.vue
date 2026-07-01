@@ -25,6 +25,6 @@ const tabItems = [
   { label: 'Услуги' },
 ]
 
-const { getDeals } = useDeals()
+const { getDeals } = useDeals({ role: 'seller' })
 getDeals()
 </script>

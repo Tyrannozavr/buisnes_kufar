@@ -1,8 +1,8 @@
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Tuple, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, extract
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 import json
 
@@ -17,6 +17,11 @@ from app.api.purchases.deal_bill_defaults import (
 )
 from app.api.company.models.company import Company
 from app_logging.logger import logger
+
+
+def _utc_now() -> datetime:
+	"""Naive UTC timestamp for DateTime columns without timezone=True."""
+	return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class DealRepository:
@@ -222,7 +227,12 @@ class DealRepository:
         """Получение latest-версии заказа по ID с проверкой доступа (компания — покупатель или продавец)."""
         query = (
             select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.order_history),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
             .where(
                 and_(
                     Order.id == order_id,
@@ -238,6 +248,46 @@ class DealRepository:
         result = await self.session.execute(query)
         order = result.scalar_one_or_none()
         return order
+
+    async def get_orders_by_ids(self, order_ids: List[int], company_id: int) -> List[Order]:
+        """Latest-версии заказов по списку ID — один запрос вместо N."""
+        if not order_ids:
+            return []
+
+        unique_ids = list(dict.fromkeys(order_ids))
+        latest_subquery = (
+            select(Order.id.label("deal_id"), func.max(Order.version).label("max_version"))
+            .where(
+                Order.id.in_(unique_ids),
+                or_(
+                    Order.buyer_company_id == company_id,
+                    Order.seller_company_id == company_id,
+                ),
+            )
+            .group_by(Order.id)
+            .subquery()
+        )
+
+        query = (
+            select(Order)
+            .join(
+                latest_subquery,
+                and_(
+                    Order.id == latest_subquery.c.deal_id,
+                    Order.version == latest_subquery.c.max_version,
+                ),
+            )
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.order_history),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
+        )
+        result = await self.session.execute(query)
+        orders = list(result.scalars().all())
+        order_by_id = {order.id: order for order in orders}
+        return [order_by_id[oid] for oid in unique_ids if oid in order_by_id]
 
     async def get_buyer_orders(self, company_id: int, skip: int = 0, limit: int = 100) -> Tuple[List[Order], int]:
         """Получение latest-версий заказов покупателя."""
@@ -346,10 +396,139 @@ class DealRepository:
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
+        if not await self._ensure_counterparty_can_review(order, company_id):
+            return None
         deleted_version = order.version
         await self.session.delete(order)
         await self.session.commit()
         return deleted_version
+
+    async def infer_proposed_by_company_id(self, order: Order) -> Optional[int]:
+        """Определяет инициатора версии по явному полю или записи в истории."""
+        if order.proposed_by_company_id is not None:
+            return order.proposed_by_company_id
+        query = (
+            select(OrderHistory.changed_by_company_id)
+            .where(
+                and_(
+                    OrderHistory.order_row_id == order.row_id,
+                    OrderHistory.change_type == "version_created",
+                )
+            )
+            .order_by(desc(OrderHistory.created_at))
+            .limit(1)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def _is_pending_change_review(self, order: Order, proposed_by: Optional[int]) -> bool:
+        if order.version <= 1 or proposed_by is None or order.rejected_by_company_id is not None:
+            return False
+        if order.proposed_by_company_id is not None:
+            return True
+        return order.buyer_accepted_at is None and order.seller_accepted_at is None
+
+    async def _ensure_counterparty_can_review(self, order: Order, company_id: int) -> bool:
+        """Только контрагент инициатора может отклонить (удалить) pending-версию."""
+        proposed_by = await self.infer_proposed_by_company_id(order)
+        if not await self._is_pending_change_review(order, proposed_by):
+            return False
+        return proposed_by != company_id
+
+    async def accept_order_changes(self, order_id: int, company_id: int) -> Optional[Order]:
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        if not await self._ensure_counterparty_can_review(order, company_id):
+            return None
+        now = _utc_now()
+        if company_id == order.buyer_company_id:
+            order.buyer_accepted_at = now
+        elif company_id == order.seller_company_id:
+            order.seller_accepted_at = now
+        order.proposed_by_company_id = None
+        await self.session.commit()
+        return await self.get_order_by_id(order_id, company_id)
+
+    async def get_change_review_state(self, order_id: int, company_id: int) -> Optional[dict]:
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        proposed_by = await self.infer_proposed_by_company_id(order)
+        has_pending = await self._is_pending_change_review(order, proposed_by)
+        is_proposer = proposed_by == company_id if proposed_by else False
+        can_respond = has_pending and not is_proposer
+        diff = None
+        if has_pending and order.version > 1:
+            baseline = await self.get_order_by_id_and_version(
+                order_id, order.version - 1, company_id
+            )
+            if baseline:
+                diff = self._compute_order_diff(baseline, order)
+        return {
+            "has_pending_changes": has_pending,
+            "can_respond": can_respond,
+            "is_proposer": is_proposer,
+            "proposed_by_company_id": proposed_by,
+            "version": order.version,
+            "diff": diff,
+        }
+
+    @staticmethod
+    def _item_match_key(item: OrderItem) -> str:
+        article = (item.product_article or "").strip()
+        if article:
+            return f"a:{article}"
+        return f"n:{(item.product_name or '').strip().lower()}"
+
+    def _compute_order_diff(self, baseline: Order, proposed: Order) -> dict:
+        baseline_map = {self._item_match_key(i): i for i in baseline.order_items}
+        proposed_map = {self._item_match_key(i): i for i in proposed.order_items}
+        items: List[dict] = []
+
+        def _line_payload(item: OrderItem, status: str, changed_fields: List[str]) -> dict:
+            return {
+                "status": status,
+                "match_key": self._item_match_key(item),
+                "product_name": item.product_name,
+                "product_article": item.product_article,
+                "quantity": item.quantity,
+                "unit_of_measurement": item.unit_of_measurement,
+                "price": item.price,
+                "amount": item.amount,
+                "changed_fields": changed_fields,
+            }
+
+        field_getters = (
+            ("quantity", lambda i: i.quantity),
+            ("price", lambda i: i.price),
+            ("name", lambda i: i.product_name),
+            ("article", lambda i: (i.product_article or "").strip()),
+            ("units", lambda i: i.unit_of_measurement),
+        )
+
+        for key, prop_item in proposed_map.items():
+            if key not in baseline_map:
+                items.append(_line_payload(prop_item, "added", []))
+                continue
+            base_item = baseline_map[key]
+            changed_fields = [
+                name for name, getter in field_getters if getter(base_item) != getter(prop_item)
+            ]
+            if changed_fields:
+                items.append(_line_payload(prop_item, "modified", changed_fields))
+
+        for key, base_item in baseline_map.items():
+            if key not in proposed_map:
+                items.append(_line_payload(base_item, "removed", []))
+
+        return {
+            "baseline_version": baseline.version,
+            "proposed_version": proposed.version,
+            "comments_changed": (baseline.comments or "") != (proposed.comments or ""),
+            "total_amount_changed": baseline.total_amount != proposed.total_amount,
+            "items": items,
+        }
 
     async def create_new_order_version(self, order_id: int, company_id: int) -> Optional[Order]:
         """Создание новой версии заказа по latest snapshot."""
@@ -374,6 +553,7 @@ class DealRepository:
             bill_date=self._normalize_datetime(latest_order.bill_date),
             bill_officials=latest_order.bill_officials,
             bill_reason=latest_order.bill_reason,
+            payment_terms=getattr(latest_order, "payment_terms", None),
             payment_terms_contract=latest_order.payment_terms_contract,
             delivery_terms_contract=getattr(latest_order, "delivery_terms_contract", None),
             additional_info=latest_order.additional_info,
@@ -397,6 +577,10 @@ class DealRepository:
             total_amount_excl_vat=getattr(latest_order, "total_amount_excl_vat", 0.0),
             amount_vat_rate=latest_order.amount_vat_rate,
             amount_with_vat_rate=getattr(latest_order, "amount_with_vat_rate", True),
+            proposed_by_company_id=company_id,
+            buyer_accepted_at=None,
+            seller_accepted_at=None,
+            rejected_by_company_id=None,
         )
 
         self.session.add(new_order)
@@ -448,6 +632,7 @@ class DealRepository:
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
+            "payment_terms": getattr(order, "payment_terms", None),
             "payment_terms_contract": order.payment_terms_contract,
             "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
             "additional_info": order.additional_info,
@@ -498,6 +683,8 @@ class DealRepository:
                 item.setdefault("company_id", order.seller_company_id)
         if order_data.bill is not None and order_data.bill.reason is not None:
             order.bill_reason = order_data.bill.reason
+        if order_data.bill is not None and order_data.bill.payment_terms is not None:
+            order.payment_terms = order_data.bill.payment_terms
         if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
             order.payment_terms_contract = order_data.bill.payment_terms_contract
         if order_data.bill is not None and order_data.bill.delivery_terms_contract is not None:
@@ -650,7 +837,7 @@ class DealRepository:
             order.total_amount = total_amount + order.amount_vat_rate if order.amount_with_vat_rate else total_amount
             self._sync_total_amount_word(order)
 
-        order.updated_at = datetime.utcnow()
+        order.updated_at = _utc_now()
         
         # Записываем в историю
         new_data = {
@@ -660,6 +847,7 @@ class DealRepository:
             "bill_number": order.bill_number,
             "bill_date": order.bill_date,
             "bill_reason": order.bill_reason,
+            "payment_terms": getattr(order, "payment_terms", None),
             "payment_terms_contract": order.payment_terms_contract,
             "delivery_terms_contract": getattr(order, "delivery_terms_contract", None),
             "additional_info": order.additional_info,
@@ -700,7 +888,7 @@ class DealRepository:
             order_row_id=order.row_id,
             document_type=document_data.get("document_type"),
             document_number=(document_data.get("document_number") or "").strip() or "-",
-            document_date=document_data.get("document_date") or datetime.utcnow(),
+            document_date=document_data.get("document_date") or _utc_now(),
             document_file_path=file_path
         )
         
@@ -846,6 +1034,51 @@ class DealRepository:
         
         return None
 
+    @staticmethod
+    def _format_user_display_name(user) -> str:
+        name_parts = []
+        if user.first_name:
+            name_parts.append(user.first_name)
+        if user.last_name:
+            name_parts.append(user.last_name)
+        if user.patronymic:
+            name_parts.append(user.patronymic)
+        if name_parts:
+            return " ".join(name_parts)
+        return user.email or ""
+
+    async def get_company_owner_names(self, company_ids: List[int]) -> Dict[int, str]:
+        """Имена владельцев компаний одним запросом (для пакетной загрузки сделок)."""
+        if not company_ids:
+            return {}
+
+        from app.api.authentication.models.user import User
+        from app.api.authentication.models.roles_positions import UserRole
+
+        unique_ids = list(dict.fromkeys(company_ids))
+        query = (
+            select(User)
+            .where(User.company_id.in_(unique_ids))
+            .order_by(User.company_id.asc(), User.id.asc())
+        )
+        result = await self.session.execute(query)
+        users = list(result.scalars().all())
+
+        names: Dict[int, str] = {}
+        for user in users:
+            cid = user.company_id
+            if cid in names:
+                continue
+            if user.role == UserRole.OWNER:
+                names[cid] = self._format_user_display_name(user)
+
+        for user in users:
+            cid = user.company_id
+            if cid not in names:
+                names[cid] = self._format_user_display_name(user)
+
+        return names
+
     async def get_units_of_measurement(self) -> List[UnitOfMeasurement]:
         """Получение всех единиц измерения"""
         query = select(UnitOfMeasurement).order_by(UnitOfMeasurement.name)
@@ -858,7 +1091,7 @@ class DealRepository:
         order_type: "buyer" — max(buyer_order_number) по buyer_company_id;
                    "seller" — max(seller_order_number) по seller_company_id.
         """
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         if order_type == "buyer":
             col = Order.buyer_order_number
             filter_col = Order.buyer_company_id
@@ -892,7 +1125,7 @@ class DealRepository:
 
     async def _generate_bill_number(self, seller_company_id: int) -> str:
         """Генерация номера счета на оплату (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         # Используем bill_date если есть, иначе created_at
         date_col = func.coalesce(Order.bill_date, Order.created_at)
         query = (
@@ -917,7 +1150,7 @@ class DealRepository:
 
     async def _generate_supply_contract_number(self, seller_company_id: int) -> str:
         """Генерация номера договора поставки (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         date_col = func.coalesce(Order.supply_contracts_date, Order.created_at)
         query = (
             select(func.max(Order.supply_contracts_number))
@@ -941,7 +1174,7 @@ class DealRepository:
 
     async def _generate_contract_number(self, seller_company_id: int) -> str:
         """Генерация номера договора (маска 00001, ежегодное обнуление)."""
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         date_col = func.coalesce(Order.contract_date, Order.created_at)
         query = (
             select(func.max(Order.contract_number))
@@ -968,11 +1201,11 @@ class DealRepository:
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
-        bill_date = date or datetime.utcnow()
+        bill_date = date or _utc_now()
         if not order.bill_number:
             order.bill_number = order.seller_order_number
         order.bill_date = bill_date
-        order.updated_at = datetime.utcnow()
+        order.updated_at = _utc_now()
         self._add_order_history(
             order.row_id, company_id, "bill_assigned",
             f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
@@ -986,11 +1219,11 @@ class DealRepository:
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
-        contract_date = date or datetime.utcnow()
+        contract_date = date or _utc_now()
         if not order.contract_number:
             order.contract_number = order.seller_order_number
         order.contract_date = contract_date
-        order.updated_at = datetime.utcnow()
+        order.updated_at = _utc_now()
         self._add_order_history(
             order.row_id, company_id, "contract_assigned",
             f"Присвоен договор № {order.contract_number} от {contract_date.strftime('%d.%m.%Y')}",
@@ -1004,11 +1237,11 @@ class DealRepository:
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
-        supply_date = date or datetime.utcnow()
+        supply_date = date or _utc_now()
         if not order.supply_contracts_number:
             order.supply_contracts_number = order.seller_order_number
         order.supply_contracts_date = supply_date
-        order.updated_at = datetime.utcnow()
+        order.updated_at = _utc_now()
 
         from app.api.purchases.supply_contract_sync import dual_write_assign_supply_contract
 

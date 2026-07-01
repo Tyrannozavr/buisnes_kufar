@@ -1,11 +1,21 @@
 <template>
-	<UTable
-		sticky
-		v-model:sorting="tableSorting"
-		:data="type === 'purchases' ? purchasesTable : salesTable"
-		:columns="type === 'purchases' ? columnsPurchasesGoodsDeals : columnsSalesGoodsDeals"
-		class="max-h-100 overflow-y-auto overscroll-auto "
-	/>
+	<div class="px-4 pb-4">
+		<UTable
+			v-model:sorting="tableSorting"
+			v-model:pagination="tablePagination"
+			:pagination-options="paginationOptions"
+			:data="type === 'purchases' ? purchasesTable : salesTable"
+			:columns="type === 'purchases' ? columnsPurchasesGoodsDeals : columnsSalesGoodsDeals"
+		/>
+
+		<div v-if="tableRowCount > PAGE_SIZE" class="mt-4 flex justify-center">
+			<UPagination
+				v-model="currentPage"
+				:total="tableRowCount"
+				:per-page="PAGE_SIZE"
+			/>
+		</div>
+	</div>
 
 	<UModal v-model:open="isSupplyContractChoiceModalOpen" title="Договор поставки уже существует">
 		<template #body>
@@ -74,6 +84,7 @@
 
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
+import { getPaginationRowModel } from "@tanstack/vue-table";
 import { normalizeDate, normalizeSpecificationNumber, formatDocumentLinkLabel } from "~/utils/normalize";
 import { useRouter } from "vue-router";
 import { useDeals } from "~/composables/useDeals";
@@ -108,15 +119,37 @@ const {
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
 const { deals, findDealByDealNumber, findDeal, createBill } = useDeals()
-const { markBillAwaitingFill, clearBillAwaitingFill } = useBillFillState()
-const list = deals?.value ?? []
-const tableSorting = ref<{ id: string; desc: boolean }[]>([])
+const { clearBillAwaitingFill } = useBillFillState()
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
+const PAGE_SIZE = 10
+const tableSorting = ref<{ id: string; desc: boolean }[]>([{ id: 'date', desc: true }])
+const tablePagination = ref({ pageIndex: 0, pageSize: PAGE_SIZE })
+const paginationOptions = { getPaginationRowModel: getPaginationRowModel() }
 
-const dealsList: Ref<Deal[]> = computed(() =>
-	type === 'purchases'
+const currentPage = computed({
+	get: () => tablePagination.value.pageIndex + 1,
+	set: (page: number) => {
+		tablePagination.value = {
+			...tablePagination.value,
+			pageIndex: Math.max(0, page - 1),
+		}
+	},
+})
+
+const sortDealsNewestFirst = (deals: Deal[]) =>
+	[...deals].sort((a, b) => {
+		const byDate = (b.date || '').localeCompare(a.date || '')
+		if (byDate !== 0) return byDate
+		return (b.dealId ?? 0) - (a.dealId ?? 0)
+	})
+
+const dealsList = computed(() => {
+	const list = deals.value ?? []
+	return type === 'purchases'
 		? list.filter(deal => deal.role === 'buyer')
-		: list.filter(deal => deal.role === 'seller'),
-)
+		: list.filter(deal => deal.role === 'seller')
+})
 
 /** Закладка «Товары» — только сделки типа «Товары» (§2.3). */
 const goodsDealsList = computed(() =>
@@ -124,6 +157,10 @@ const goodsDealsList = computed(() =>
 )
 const purchasesTable: Ref<BuyerTableItems[]> = ref([])
 const salesTable: Ref<SellerTableItems[]> = ref([])
+
+const tableRowCount = computed(() =>
+	type === 'purchases' ? purchasesTable.value.length : salesTable.value.length,
+)
 
 
 const getDealIdByDealNumber = (dealNumber: string, role: 'buyer' | 'seller'): number | undefined => {
@@ -208,16 +245,18 @@ const formatSupplyContractLabel = (deal: Deal): string => {
 	return `${contractLine}\nСпецификация №${specNumber}`
 }
 
+const TABLE_LINK_CLASS = 'text-sky-500 text-wrap cursor-pointer'
+
 const renderSupplyContractButton = (label: string, onClick: () => void) => h(
 	UButton,
 	{
 		color: 'neutral',
 		variant: 'ghost',
-		class: 'text-sky-500 h-auto',
-		ui: { base: 'items-start' },
+		class: `${TABLE_LINK_CLASS} h-auto`,
+		ui: { base: 'items-start cursor-pointer' },
 		onClick,
 	},
-	() => h('span', { class: 'whitespace-pre-line text-left leading-snug' }, label),
+	() => h('span', { class: 'whitespace-pre-line text-left leading-snug cursor-pointer' }, label),
 )
 
 type SupplyContractSelectionOption = {
@@ -245,7 +284,7 @@ const supplyContractSelectionOptions = computed<SupplyContractSelectionOption[]>
 	const buyerCompanyId = selectedDeal.buyer.companyId
 	const sellerCompanyId = selectedDeal.seller.companyId
 
-	for (const deal of list) {
+	for (const deal of deals.value ?? []) {
 		if (deal.role !== 'seller') continue
 		if (deal.buyer.companyId !== buyerCompanyId) continue
 		if (deal.seller.companyId !== sellerCompanyId) continue
@@ -290,7 +329,8 @@ const supplyContractSelectionItems = computed(() =>
 )
 
 watch(goodsDealsList, () => {
-  purchasesTable.value = [...goodsDealsList.value.map(deal => ({
+	tablePagination.value = { pageIndex: 0, pageSize: PAGE_SIZE }
+  purchasesTable.value = sortDealsNewestFirst(goodsDealsList.value).map(deal => ({
     dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
@@ -300,7 +340,7 @@ watch(goodsDealsList, () => {
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),
     othersDocument: formatOthersCellLabel(deal),
-  }))]
+  }))
 }, { immediate: true, deep: true })
 
 const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
@@ -331,7 +371,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: `№ ${row.getValue('dealNumber')}`,
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (dealId != null) {
               router.push({
@@ -433,7 +473,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('bill'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (hasBill(deal)) {
               clearBillAwaitingFill(dealId)
@@ -478,7 +518,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('accompanyingDocuments'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (dealId) {
               openEditor(dealId, 'buyer', '#accompanyingDocuments')
@@ -503,7 +543,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('invoice'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (dealId) {
               openEditor(dealId, 'buyer', '#invoice')
@@ -522,7 +562,7 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('othersDocument'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (dealId) {
               openEditor(dealId, 'buyer', '#othersDocument')
@@ -553,8 +593,9 @@ const editSalesDocument = async (
 
 	if (documentType === 'bill') {
 		try {
-			await createBill(dealId)
-			markBillAwaitingFill(dealId)
+			clearBillAwaitingFill(dealId)
+			await createBill(dealId, { fillFromDeal: true })
+			activeTab.value = '1'
 			await router.push({
 				path: '/profile/editor',
 				query: {
@@ -562,6 +603,12 @@ const editSalesDocument = async (
 					role: 'seller',
 				},
 				hash,
+			})
+			loadDealTrigger.value++
+			toast.add({
+				title: 'Счёт создан',
+				description: 'Данные заказа подставлены в счёт',
+				color: 'success',
 			})
 		} catch {
 			toast.add({
@@ -598,11 +645,13 @@ const editSalesDocument = async (
 			deal.supplyContractDate = createdSupplyContract.supply_contract_date
 		}
 
+		activeTab.value = '2'
 		await router.push({
 			path: '/profile/editor',
 			query: { dealId: dealId.toString(), role: 'seller' },
 			hash,
 		})
+		loadDealTrigger.value++
 		return
 	}
 
@@ -809,7 +858,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: `№ ${row.getValue('dealNumber')}`,
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             editSalesDocument('order', row.getValue('dealNumber'))
           }
@@ -903,7 +952,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('bill'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             if (row.getValue('bill') === 'Создать счет') {
               editSalesDocument('bill', dealNumber)
@@ -940,7 +989,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('accompanyingDocuments'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             editSalesDocument('accompanyingDocuments', row.getValue('dealNumber'))
           }
@@ -956,7 +1005,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('invoice'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             editSalesDocument('invoice', row.getValue('dealNumber'))
           }
@@ -972,7 +1021,7 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           color: 'neutral',
           variant: 'ghost',
           label: row.getValue('othersDocument'),
-          class: 'text-sky-500 text-wrap',
+          class: TABLE_LINK_CLASS,
           onClick: () => {
             editSalesDocument('othersDocument', row.getValue('dealNumber'))
           }
@@ -982,7 +1031,8 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
 ]
 
 watch(goodsDealsList, () => {
-  salesTable.value = [...goodsDealsList.value.map(deal => ({
+	tablePagination.value = { pageIndex: 0, pageSize: PAGE_SIZE }
+  salesTable.value = sortDealsNewestFirst(goodsDealsList.value).map(deal => ({
     dealNumber: deal.sellerOrderNumber || '',
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',
@@ -992,6 +1042,6 @@ watch(goodsDealsList, () => {
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),
     othersDocument: formatOthersCellLabel(deal),
-  }))]
+  }))
 }, { immediate: true, deep: true })
 </script>

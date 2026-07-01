@@ -113,9 +113,10 @@ docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/
 
 ---
 
-## Куда зайти и что проверить — §2.6 Фото/Сканы
+## Куда зайти и что проверить — §2.6 Фото/Сканы ⏸
 
-> Нужен MinIO/S3 в dev (`docker compose -f docker-compose.dev.yml`).
+> **Статус:** реализовано в коде, ручная проверка не пройдена.  
+> Dev подготовлен: миграции `head`, MinIO bucket `documents`, S3 в `.env`.
 
 ### Поставщик
 

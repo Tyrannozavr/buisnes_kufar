@@ -86,17 +86,26 @@ definePageMeta({
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const route = useRoute()
 const router = useRouter()
 const { getDeals, deals, findDeal } = useDeals()
 
 getDeals()
 
-/** Режим просмотра по умолчанию при открытии сделки / смене вкладки (isDisabled «залипал» в edit). */
+/** Режим просмотра: покупатель read-only; поставщик редактирует. billEdit=1 — явное редактирование счёта. */
 watch(
-	() => [route.query.dealId, route.query.role, route.hash],
+	() => [route.query.dealId, route.query.role, route.hash, route.query.billEdit],
 	() => {
-		isDisabled.value = true
+		if (route.query.billEdit === '1') {
+			isDisabled.value = false
+			loadDealTrigger.value++
+			const query = { ...route.query }
+			delete query.billEdit
+			router.replace({ query, hash: route.hash })
+			return
+		}
+		isDisabled.value = route.query.role === 'buyer'
 	},
 	{ immediate: true },
 )
@@ -136,12 +145,12 @@ const items = computed(() => [
 	{
 		label: 'Сопроводительные документы',
 		slot: 'accompanyingDocuments' as const,
-		disabled: true,
+		disabled: false,
 	},
 	{
 		label: 'Счет-фактура',
 		slot: 'invoice' as const,
-		disabled: true,
+		disabled: false,
 	},
 	{
 		label: 'Договор',
@@ -202,6 +211,12 @@ watch(
         query: route.query,
         hash: '#supplyContract'
       })
+    } else if (activeTab.value === '3') {
+      router.replace({ query: route.query, hash: '#accompanyingDocuments' })
+    } else if (activeTab.value === '4') {
+      router.replace({ query: route.query, hash: '#invoice' })
+    } else if (activeTab.value === '7') {
+      router.replace({ query: route.query, hash: '#othersDocument' })
     }
   }
 )

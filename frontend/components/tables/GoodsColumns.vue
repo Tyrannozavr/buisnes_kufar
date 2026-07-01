@@ -1,6 +1,7 @@
 <template>
 	<UTable
 		sticky
+		v-model:sorting="tableSorting"
 		:data="type === 'purchases' ? purchasesTable : salesTable"
 		:columns="type === 'purchases' ? columnsPurchasesGoodsDeals : columnsSalesGoodsDeals"
 		class="max-h-100 overflow-y-auto overscroll-auto "
@@ -73,7 +74,7 @@
 
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
-import { normalizeDate, normalizeSpecificationNumber } from "~/utils/normalize";
+import { normalizeDate, normalizeSpecificationNumber, formatDocumentLinkLabel } from "~/utils/normalize";
 import { useRouter } from "vue-router";
 import { useDeals } from "~/composables/useDeals";
 import { useSupplyContractEntity } from "~/composables/useSupplyContractEntity";
@@ -106,11 +107,21 @@ const {
 	refreshStatus: refreshSupplyContractStatus,
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
-const { deals, findDealByDealNumber, findDeal, editBillFields } = useDeals()
+const { deals, findDealByDealNumber, findDeal, createBill } = useDeals()
 const { markBillAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 const list = deals?.value ?? []
+const tableSorting = ref<{ id: string; desc: boolean }[]>([])
 
-const dealsList: Ref<Deal[]> = computed(() => type === 'purchases' ? list.filter(deal => deal.role === 'buyer') : list.filter(deal => deal.role === 'seller'))
+const dealsList: Ref<Deal[]> = computed(() =>
+	type === 'purchases'
+		? list.filter(deal => deal.role === 'buyer')
+		: list.filter(deal => deal.role === 'seller'),
+)
+
+/** Закладка «Товары» — только сделки типа «Товары» (§2.3). */
+const goodsDealsList = computed(() =>
+	dealsList.value.filter(deal => deal.dealType === 'Товары'),
+)
 const purchasesTable: Ref<BuyerTableItems[]> = ref([])
 const salesTable: Ref<SellerTableItems[]> = ref([])
 
@@ -134,6 +145,46 @@ const hasSpecification = (deal?: Deal) => Boolean(
 	deal?.supplyContract.specificationEntityId || deal?.supplyContract.specificationNumber,
 )
 
+const formatBillCellLabel = (deal: Deal): string => {
+	if (!hasBill(deal)) {
+		return type === 'sales' ? 'Создать счет' : 'Просмотр'
+	}
+	return formatDocumentLinkLabel(deal.bill.number, deal.billDate)
+}
+
+const formatAccompanyingCellLabel = (deal: Deal): string => {
+	const names = (deal.closingDocuments ?? [])
+		.map((document: { name?: string }) => document?.name)
+		.filter(Boolean)
+	if (names.length) return names.join(', ')
+	return type === 'sales' ? 'Создать документ' : 'Просмотр'
+}
+
+const formatInvoiceCellLabel = (_deal: Deal): string =>
+	type === 'sales' ? 'Создать счет-фактуру' : 'Просмотр'
+
+const formatOthersCellLabel = (deal: Deal): string => {
+	const names = (deal.othersDocuments ?? [])
+		.map((document: { name?: string }) => document?.name)
+		.filter(Boolean)
+	if (names.length) return names.join(', ')
+	return 'Просмотр'
+}
+
+const editorHashForDocument = (
+	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument',
+): string => {
+	const map = {
+		order: '#order',
+		bill: '#bill',
+		supplyContract: '#supplyContract',
+		accompanyingDocuments: '#accompanyingDocuments',
+		invoice: '#invoice',
+		othersDocument: '#othersDocument',
+	} as const
+	return map[documentType]
+}
+
 const getSupplyContractEmptyLabel = () => type === 'sales' ? 'Создать договор поставки' : 'Просмотр'
 
 const formatSupplyContractLabel = (deal: Deal): string => {
@@ -143,10 +194,7 @@ const formatSupplyContractLabel = (deal: Deal): string => {
 
 	const contractNumber = deal.supplyContract.number || deal.sellerOrderNumber || ''
 	const contractDate = deal.supplyContract.entityDate || deal.supplyContractDate || ''
-	const normalizedDate = normalizeDate(contractDate)
-	const contractLine = normalizedDate
-		? `${contractNumber} от ${normalizedDate} г.`
-		: contractNumber
+	const contractLine = formatDocumentLinkLabel(contractNumber, contractDate)
 
 	if (!hasSpecification(deal)) {
 		return contractLine
@@ -241,16 +289,17 @@ const supplyContractSelectionItems = computed(() =>
 	})),
 )
 
-watch(dealsList, () => {
-  purchasesTable.value = [...dealsList.value.map(deal => ({
+watch(goodsDealsList, () => {
+  purchasesTable.value = [...goodsDealsList.value.map(deal => ({
     dealNumber: deal.buyerOrderNumber || '',
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
     status: deal.status,
-    bill: hasBill(deal) ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Просмотр',
+    bill: formatBillCellLabel(deal),
     supplyContract: formatSupplyContractLabel(deal),
-    closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
-    othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Просмотр',
+    accompanyingDocuments: formatAccompanyingCellLabel(deal),
+    invoice: formatInvoiceCellLabel(deal),
+    othersDocument: formatOthersCellLabel(deal),
   }))]
 }, { immediate: true, deep: true })
 
@@ -420,19 +469,19 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     }
   },
   {
-    accessorKey: 'closingDocuments',
-    header: 'Закрывающие документы',
+    accessorKey: 'accompanyingDocuments',
+    header: 'Сопроводительные документы',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       return h(UButton,
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('closingDocuments'),
+          label: row.getValue('accompanyingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
             if (dealId) {
-              openEditor(dealId, 'buyer', '#closingDocuments')
+              openEditor(dealId, 'buyer', '#accompanyingDocuments')
             } else {
 							toast.add({
 								title: 'Нет доступных документов', 
@@ -440,6 +489,25 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
 								icon: 'i-lucide-file-x',
 							})
 						}
+          }
+        })
+    }
+  },
+  {
+    accessorKey: 'invoice',
+    header: 'Счет-фактура',
+    cell: ({ row }) => {
+      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('invoice'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            if (dealId) {
+              openEditor(dealId, 'buyer', '#invoice')
+            }
           }
         })
     }
@@ -474,84 +542,75 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
 
 //sales
 const editSalesDocument = async (
-	documentType: 'order' | 'bill' | 'supplyContract' | 'closingDocuments' | 'othersDocument',
+	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument',
 	dealNumber: string,
 ) => {
 	const dealId = getDealIdByDealNumber(dealNumber, 'seller')
 
-	if (dealId) {
-		if (documentType === 'order') {
-			router.push({
-				path: '/profile/editor',
-				query: {
-					dealId: dealId.toString(),
-					role: 'seller',
-				},
-				hash: '#order',
-			})
-		}
-		else if (documentType === 'bill') {
-			const result = await purchasesApi.createBill(dealId)
-			if (result) {
-				markBillAwaitingFill(dealId)
-				await editBillFields(dealId, result.bill_date, result.bill_number)
-			}
-			router.push({
-				path: '/profile/editor',
-				query: {
-					dealId: dealId.toString(),
-					role: 'seller',
-				},
-				hash: '#bill',
-			})
-		}
-		else if (documentType === 'supplyContract') {
-			const createdSupplyContract = await purchasesApi.createSupplyContract(dealId)
-			if (!createdSupplyContract) {
-				toast.add({
-					title: 'Ошибка',
-					description: 'Не удалось создать договор поставки',
-					color: 'error',
-				})
-				return
-			}
+	if (!dealId) return
 
-			const deal = findDeal(dealId)
-			if (deal) {
-				deal.supplyContract.number = createdSupplyContract.supply_contract_number
-				deal.supplyContractDate = createdSupplyContract.supply_contract_date
-			}
+	const hash = editorHashForDocument(documentType)
 
-			router.push({
+	if (documentType === 'bill') {
+		try {
+			await createBill(dealId)
+			markBillAwaitingFill(dealId)
+			await router.push({
 				path: '/profile/editor',
 				query: {
 					dealId: dealId.toString(),
 					role: 'seller',
 				},
-				hash: '#supplyContract',
+				hash,
+			})
+		} catch {
+			toast.add({
+				title: 'Не удалось создать счёт',
+				color: 'error',
 			})
 		}
-		else if (documentType === 'closingDocuments') {
-			router.push({
-				path: '/profile/editor',
-				query: {
-					dealId: dealId.toString(),
-					role: 'seller',
-				},
-				hash: '#closingDocuments',
-			})
-		}
-		else if (documentType === 'othersDocument') {
-			router.push({
-				path: '/profile/editor',
-				query: {
-					dealId: dealId.toString(),
-					role: 'seller',
-				},
-				hash: '#othersDocument',
-			})
-		}
+		return
 	}
+
+	if (documentType === 'order') {
+		await router.push({
+			path: '/profile/editor',
+			query: { dealId: dealId.toString(), role: 'seller' },
+			hash,
+		})
+		return
+	}
+
+	if (documentType === 'supplyContract') {
+		const createdSupplyContract = await purchasesApi.createSupplyContract(dealId)
+		if (!createdSupplyContract) {
+			toast.add({
+				title: 'Ошибка',
+				description: 'Не удалось создать договор поставки',
+				color: 'error',
+			})
+			return
+		}
+
+		const deal = findDeal(dealId)
+		if (deal) {
+			deal.supplyContract.number = createdSupplyContract.supply_contract_number
+			deal.supplyContractDate = createdSupplyContract.supply_contract_date
+		}
+
+		await router.push({
+			path: '/profile/editor',
+			query: { dealId: dealId.toString(), role: 'seller' },
+			hash,
+		})
+		return
+	}
+
+	await router.push({
+		path: '/profile/editor',
+		query: { dealId: dealId.toString(), role: 'seller' },
+		hash,
+	})
 }
 
 const handleSupplyContractCreateClick = async (dealNumber: string) => {
@@ -873,17 +932,33 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
     }
   },
   {
-    accessorKey: 'closingDocuments',
-    header: 'Закрывающие документы',
+    accessorKey: 'accompanyingDocuments',
+    header: 'Сопроводительные документы',
     cell: ({ row }) => {
       return h(UButton,
         {
           color: 'neutral',
           variant: 'ghost',
-          label: row.getValue('closingDocuments'),
+          label: row.getValue('accompanyingDocuments'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            editSalesDocument('closingDocuments', row.getValue('dealNumber'))
+            editSalesDocument('accompanyingDocuments', row.getValue('dealNumber'))
+          }
+        })
+    }
+  },
+  {
+    accessorKey: 'invoice',
+    header: 'Счет-фактура',
+    cell: ({ row }) => {
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label: row.getValue('invoice'),
+          class: 'text-sky-500 text-wrap',
+          onClick: () => {
+            editSalesDocument('invoice', row.getValue('dealNumber'))
           }
         })
     }
@@ -899,26 +974,24 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           label: row.getValue('othersDocument'),
           class: 'text-sky-500 text-wrap',
           onClick: () => {
-            router.push({
-              path: '/profile/documents',
-              query: { dealId: getDealIdByDealNumber(row.getValue('dealNumber'), 'seller')?.toString() }
-            })
+            editSalesDocument('othersDocument', row.getValue('dealNumber'))
           }
         })
     }
   },
 ]
 
-watch(dealsList, () => {
-  salesTable.value = [...dealsList.value.map(deal => ({
+watch(goodsDealsList, () => {
+  salesTable.value = [...goodsDealsList.value.map(deal => ({
     dealNumber: deal.sellerOrderNumber || '',
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',
     status: deal.status,
-    bill: hasBill(deal) ? `${deal.bill.number} от ${normalizeDate(deal.billDate)}` : 'Создать счет',
+    bill: formatBillCellLabel(deal),
     supplyContract: formatSupplyContractLabel(deal),
-    closingDocuments: deal.closingDocuments?.map((document: any) => document.name).join(', ') || 'Создать',
-    othersDocument: deal.othersDocuments?.map((document: any) => document.name).join(', ') || 'Загрузить',
+    accompanyingDocuments: formatAccompanyingCellLabel(deal),
+    invoice: formatInvoiceCellLabel(deal),
+    othersDocument: formatOthersCellLabel(deal),
   }))]
 }, { immediate: true, deep: true })
 </script>

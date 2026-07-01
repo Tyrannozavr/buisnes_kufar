@@ -105,6 +105,14 @@ export const normalizeSpecificationNumber = (rawValue: unknown): string => {
 	return String(Number(value))
 }
 
+/** Маска документа в таблицах: `00012 от 08.04.2025 г.` (§A.3 ТЗ). */
+export const formatDocumentLinkLabel = (number: string, date: string): string => {
+	const num = String(number ?? '').trim()
+	if (!num) return ''
+	const formattedDate = normalizeDate(date)
+	return formattedDate ? `${num} от ${formattedDate} г.` : num
+}
+
 
 /**
  * @param fullName string

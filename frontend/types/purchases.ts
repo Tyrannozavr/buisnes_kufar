@@ -2,10 +2,11 @@ export interface BuyerTableItems {
 	dealNumber: string
 	date: string
 	sellerCompany: string
-	state?: string
+	status?: string
 	bill?: string
 	supplyContract?: string
-	closingDocuments?: string
+	accompanyingDocuments?: string
+	invoice?: string
 	othersDocument?: string
 }
 
@@ -13,9 +14,10 @@ export interface SellerTableItems {
   dealNumber: string;
   date: string;
   buyerCompany: string;
-  state?: string;
+  status?: string;
   bill?: string;
   supplyContract?: string;
-  closingDocuments?: string;
+  accompanyingDocuments?: string;
+  invoice?: string;
   othersDocument?: string;
 }

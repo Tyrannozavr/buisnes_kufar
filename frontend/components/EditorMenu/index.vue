@@ -1,13 +1,25 @@
 <template>
 	<div>
 		<UCard variant="subtle" class="top-26">
-			<div v-if="confirmation" class="flex flex-col justify-between gap-5">
+			<div v-if="canRespondToChanges" class="flex flex-col justify-between gap-5">
+				<p class="text-sm text-neutral-500 text-center px-1">
+					Слева показана предложенная версия заказа. Изменения выделены цветом.
+				</p>
+				<p v-if="changeReview?.diff?.items?.length" class="text-xs text-neutral-400 text-center px-1">
+					<span class="inline-block w-3 h-3 bg-amber-200 border border-amber-300 align-middle mr-1" />
+					изменено
+					<span class="inline-block w-3 h-3 bg-green-100 border border-green-300 align-middle mx-1" />
+					добавлено
+					<span class="inline-block w-3 h-3 bg-red-100 border border-red-300 align-middle mx-1" />
+					удалено
+				</p>
 				<UButton
 					label="Принять изменения"
 					icon="i-lucide-check"
 					color="success"
 					variant="solid"
 					class="w-full justify-center"
+					:loading="changeReviewActionLoading"
 					@click="confirm()"
 				/>
 				<UButton
@@ -16,12 +28,19 @@
 					color="error"
 					variant="soft"
 					class="w-full justify-center"
-					@click="(reject(), clearCurrentForm(activeTab))"
+					:loading="changeReviewActionLoading"
+					@click="reject()"
 				/>
 			</div>
 
 			<div v-else class="flex flex-col justify-between gap-5">
-				<InsertButtons v-if="!isBuyerBillReadOnly" />
+				<p
+					v-if="pendingReviewHint"
+					class="text-sm text-neutral-500 text-center px-1"
+				>
+					Изменения отправлены контрагенту. Ожидайте ответа.
+				</p>
+				<InsertButtons v-if="!isHiddenForBuyer" />
 
 				<div :hidden="isHiddenForBuyer" v-if="activeTab === '0'">
 					<OrderMenu :inDevelopment />
@@ -31,7 +50,7 @@
 					<BillMenu :hiddenForBuyer="isHiddenForBuyer" />
 				</div>
 
-				<div v-if="activeTab === '2'">
+				<div v-if="activeTab === '2' && !isHiddenForBuyer">
 					<SupplyContractMenu />
 				</div>
 
@@ -95,43 +114,66 @@
 						</template>
 					</UCollapsible>
 
-					<UButton
-						label="Печать"
-						@click="printCurrentDocument(activeTab)"
-						icon="i-lucide-printer"
-						class="p-1 w-[97px] h-10 text-sm"
-						:disabled="!isDisabled"
-					/>
-					<UButton
-						label="DOC"
-						@click="handleDownloadCurrentDocx(activeTab)"
-						icon="i-lucide-dock"
-						class="p-1 w-[81px] h-10 text-sm"
-						:disabled="!isDisabled"
-					/>
-					<UButton
-						label="PDF"
-						@click="handleDownloadCurrentPdf(activeTab)"
-						icon="i-lucide-dock"
-						class="p-1 w-[77px] h-10 text-sm"
-						:disabled="!isDisabled"
-					/>
+					<UTooltip :text="tooltipPreviewExport" :disabled="!tooltipPreviewExport">
+						<span class="inline-block" :class="{ 'cursor-not-allowed': tooltipPreviewExport }">
+							<UButton
+								label="Печать"
+								@click="printCurrentDocument(activeTab)"
+								icon="i-lucide-printer"
+								class="p-1 w-[97px] h-10 text-sm"
+								:disabled="!isDisabled"
+							/>
+						</span>
+					</UTooltip>
+					<UTooltip :text="tooltipPreviewExport" :disabled="!tooltipPreviewExport">
+						<span class="inline-block" :class="{ 'cursor-not-allowed': tooltipPreviewExport }">
+							<UButton
+								label="DOC"
+								@click="handleDownloadCurrentDocx(activeTab)"
+								icon="i-lucide-dock"
+								class="p-1 w-[81px] h-10 text-sm"
+								:disabled="!isDisabled"
+							/>
+						</span>
+					</UTooltip>
+					<UTooltip :text="tooltipPreviewExport" :disabled="!tooltipPreviewExport">
+						<span class="inline-block" :class="{ 'cursor-not-allowed': tooltipPreviewExport }">
+							<UButton
+								label="PDF"
+								@click="handleDownloadCurrentPdf(activeTab)"
+								icon="i-lucide-dock"
+								class="p-1 w-[77px] h-10 text-sm"
+								:disabled="!isDisabled"
+							/>
+						</span>
+					</UTooltip>
 				</div>
 
-				<div v-if="!isBuyerBillReadOnly" class="flex flex-col gap-2">
-					<UButton
-						:disabled="!isDisabled"
-						@click="editButton()"
-						label="Редактировать"
-						icon="i-lucide-file-pen"
-						color="neutral"
-						variant="subtle"
-						class="active:bg-green-500"
-					/>
+				<p
+					v-if="!isHiddenForBuyer && isDisabled"
+					class="text-xs text-neutral-500 dark:text-neutral-400 text-center -mt-1"
+				>
+					Режим просмотра. Нажмите «Редактировать» для правок.
+				</p>
+
+				<div v-if="!isHiddenForBuyer" class="flex flex-col gap-2">
+					<UTooltip :text="tooltipEdit" :disabled="!tooltipEdit">
+						<span class="block w-full" :class="{ 'cursor-not-allowed': tooltipEdit }">
+							<UButton
+								:disabled="!isDisabled"
+								@click="editButton()"
+								label="Редактировать"
+								icon="i-lucide-file-pen"
+								color="neutral"
+								variant="subtle"
+								class="active:bg-green-500 w-full justify-center"
+							/>
+						</span>
+					</UTooltip>
 
 					<div class="flex gap-2">
 						<UButton
-							label="Oчистить форму"
+							label="Удалить данные"
 							icon="lucide:remove-formatting"
 							color="neutral"
 							variant="subtle"
@@ -174,21 +216,15 @@
 					</div>
 				</div>
 
-				<div v-if="!isBuyerBillReadOnly" class="flex flex-col gap-2 text-center">
-					<p>Фото/Сканы документа</p>
-					<UButton
-						label="Выберите файл"
-						icon="i-lucide-folder-search"
-						color="neutral"
-						variant="subtle"
-						size="xl"
-						class="justify-center"
-						:disabled="!isDisabled"
-						@click="inDevelopment()"
-					/>
-				</div>
+				<DealDocumentScans
+					v-if="activeTab === '0' || activeTab === '1'"
+					:deal-id="dealIdForReview"
+					:document-type="activeTab === '0' ? 'order' : 'bill'"
+					:read-only="isHiddenForBuyer"
+					:edit-enabled="!isDisabled"
+				/>
 
-				<div v-if="!isBuyerBillReadOnly && !isDisabled" class="">
+				<div v-if="!isHiddenForBuyer && !isDisabled" class="">
 					<UButton
 						label="Отменить изменения"
 						size="lg"
@@ -200,14 +236,21 @@
 					/>
 				</div>
 
-				<div v-if="!isBuyerBillReadOnly" class="flex flex-row justify-between">
-					<UButton
-						label="Отправить контрагенту и сохранить"
-						size="xl"
-						class="w-full justify-center"
-						:disabled="isDisabled"
-						@click="modalIsOpenSaveChanges = true"
-					/>
+				<div v-if="!isHiddenForBuyer" class="flex flex-row justify-between">
+					<UTooltip
+						:text="tooltipSave"
+						:disabled="!tooltipSave"
+					>
+						<span class="block w-full" :class="{ 'cursor-not-allowed': tooltipSave }">
+							<UButton
+								label="Отправить контрагенту и сохранить"
+								size="xl"
+								class="w-full justify-center pointer-events-auto"
+								:disabled="isDisabled"
+								@click="modalIsOpenSaveChanges = true"
+							/>
+						</span>
+					</UTooltip>
 				</div>
 			</div>
 		</UCard>
@@ -234,6 +277,7 @@ import SupplyContractMenu from "./SupplyContractMenu.vue"
 import InsertButtons from "./InsertButtons.vue"
 import OrderMenu from "./OrderMenu.vue"
 import BillMenu from "./BillMenu.vue"
+import DealDocumentScans from "./DealDocumentScans.vue"
 import { useDocxGenerator } from "~/composables/useDocxGenerator"
 import { usePdfGenerator } from "~/composables/usePdfGenerator"
 import { useSearch } from "~/composables/useSearch"
@@ -250,6 +294,13 @@ import {
 } from "~/utils/counterpart"
 import type { CounterpartData } from "~/utils/counterpart"
 import { useDeals } from "~/composables/useDeals"
+import {
+	useAcceptDealChangesQuery,
+	useRejectDealChangesQuery,
+} from "~/queries/purchases"
+import { useQuery } from "@pinia/colada"
+import { QueryKeys } from "~/constants/queryKeys"
+import { usePurchasesApi } from "~/api/purchases"
 
 const modalIsOpen = ref(false)
 const route = useRoute()
@@ -260,7 +311,9 @@ const billElement = useTypedState(TemplateElement.BILL)
 const supplyContractPreviewElement = useTypedState(Editor.SUPPLY_CONTRACT_PREVIEW_ELEMENT)
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const billType = useTypedState(Editor.BILL_TYPE)
-const { createNewDealVersion, deleteLastDealVersion } = useDeals()
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
+const { createNewDealVersion, refreshDealFromServer } = useDeals()
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -270,15 +323,28 @@ const inDevelopment = () => {
 	})
 }
 
-//Hidden buttons for buyer
-const isHiddenForBuyer = computed(() => {
-	return route.query.role === "buyer"
+/** §2.3: покупатель — только просмотр на всех вкладках редактора */
+const isHiddenForBuyer = computed(() => route.query.role === 'buyer')
+
+const tooltipEdit = computed(() => {
+	if (isHiddenForBuyer.value) return ''
+	if (!isDisabled.value) return 'Режим редактирования уже включён — поля формы активны'
+	return ''
 })
 
-/** §1.6: покупатель — только просмотр на вкладке «Счёт» (скрытие кнопок) */
-const isBuyerBillReadOnly = computed(() =>
-	isHiddenForBuyer.value && activeTab.value === '1'
-)
+const tooltipPreviewExport = computed(() => {
+	if (isHiddenForBuyer.value) return ''
+	if (!isDisabled.value) {
+		return 'Печать и экспорт доступны в режиме просмотра. Сохраните изменения или нажмите «Отменить изменения».'
+	}
+	return ''
+})
+
+const tooltipSave = computed(() => {
+	if (isHiddenForBuyer.value) return ''
+	if (isDisabled.value) return 'Сначала нажмите «Редактировать», чтобы изменить документ'
+	return ''
+})
 
 //DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
 const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
@@ -417,7 +483,7 @@ watch(
 
 //Button edit
 const editButton = () => {
-	if (isBuyerBillReadOnly.value) return
+	if (isHiddenForBuyer.value) return
 	isDisabled.value = !isDisabled.value
 }
 
@@ -446,8 +512,13 @@ const counterpartData: CounterpartData | null = getCounterpartData(
 )
 
 const saveDealVersion = async (): Promise<void> => {
+	const dealId = Number(route.query.dealId)
 	await startSave()
-	await createNewDealVersion(Number(route.query.dealId))
+	await createNewDealVersion(dealId)
+	const ok = await refreshDealFromServer(dealId)
+	if (ok) {
+		loadDealTrigger.value++
+	}
 	editButton()
 }
 
@@ -481,6 +552,7 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 			title: "Изменения сохранены и отправлены контрагенту",
 			color: "success",
 		})
+		void refetchChangeReview()
 	} catch (err) {
 		console.error("Ошибка при отправке сообщения контрагенту:", err)
 		useToast().add({
@@ -492,49 +564,138 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 
 // cancel button — ранее переключал «последняя закупка/продажа»; §1.3 убрано
 
-//подтверждение изменений при изменении заказа одной из сторон
-const confirmation = ref(false)
+// Согласование изменений заказа — по API, не только по query confirmation=
+const dealIdForReview = computed(() => Number(route.query.dealId) || 0)
 
-watch(
-	() => route.fullPath,
-	() => {
-		confirmation.value = route.query.confirmation === "true" ? true : false
-	},
-	{ immediate: true, deep: true }
+const { data: changeReview, refetch: refetchChangeReview } = useQuery({
+	key: () => [QueryKeys.DEAL_CHANGE_REVIEW, dealIdForReview.value],
+	query: () => usePurchasesApi().getDealChangeReview(dealIdForReview.value),
+	enabled: () => dealIdForReview.value > 0,
+})
+
+const canRespondToChanges = computed(() => changeReview.value?.can_respond === true)
+const pendingReviewHint = computed(
+	() =>
+		Boolean(changeReview.value?.has_pending_changes && changeReview.value?.is_proposer)
 )
 
-const confirm = () => {
-	router.replace({ query: { ...route.query, confirmation: "false" } })
-	sendMessageToCounterpart(
-		Number(route.query.dealId),
-		route.query.role as "buyer" | "seller",
-		counterpartData as CounterpartData,
-		true
-	) //true если изменения приняты
+let changeReviewPollTimer: ReturnType<typeof setInterval> | null = null
 
-	useToast().add({
-		title: "Изменения приняты",
-		color: "success"
-	})
+watch(dealIdForReview, (id) => {
+	if (id > 0) {
+		void refetchChangeReview()
+	}
+})
+
+onMounted(() => {
+	changeReviewPollTimer = setInterval(() => {
+		if (dealIdForReview.value > 0) {
+			void refetchChangeReview()
+		}
+	}, 15000)
+})
+
+onUnmounted(() => {
+	if (changeReviewPollTimer) {
+		clearInterval(changeReviewPollTimer)
+	}
+})
+
+/** При pending-изменениях подтягиваем latest-версию с API в форму заказа. */
+const lastSyncedReviewKey = ref("")
+
+watch(
+	() => changeReview.value,
+	async (review) => {
+		const dealId = dealIdForReview.value
+		if (!dealId || !review) return
+
+		orderChangeDiff.value =
+			review.has_pending_changes && review.diff ? review.diff : null
+
+		const reviewKey = `${review.has_pending_changes}:${review.version}`
+		if (reviewKey === lastSyncedReviewKey.value) return
+
+		const wasPending = lastSyncedReviewKey.value.startsWith("true:")
+		const shouldSync = review.has_pending_changes || wasPending
+		lastSyncedReviewKey.value = reviewKey
+
+		if (!shouldSync) return
+
+		const ok = await refreshDealFromServer(dealId)
+		if (ok) {
+			loadDealTrigger.value++
+		}
+	},
+	{ immediate: true },
+)
+
+const { acceptDealChangesAsync } = useAcceptDealChangesQuery()
+const { rejectDealChangesAsync } = useRejectDealChangesQuery()
+const changeReviewActionLoading = ref(false)
+
+const confirm = async () => {
+	const dealId = Number(route.query.dealId)
+	const role = route.query.role as "buyer" | "seller"
+	if (!dealId) return
+
+	changeReviewActionLoading.value = true
+	try {
+		await acceptDealChangesAsync(dealId)
+		loadDealTrigger.value++
+		await refetchChangeReview()
+		if (counterpartData?.companyId) {
+			await sendMessageToCounterpart(dealId, role, counterpartData, true)
+		}
+		useToast().add({
+			title: "Изменения приняты",
+			color: "success",
+		})
+	} catch (err) {
+		console.error("Ошибка при принятии изменений:", err)
+		useToast().add({
+			title: "Не удалось принять изменения",
+			color: "error",
+		})
+	} finally {
+		changeReviewActionLoading.value = false
+		if (route.query.confirmation === "true") {
+			const { confirmation: _removed, ...restQuery } = route.query
+			router.replace({ query: restQuery })
+		}
+	}
 }
 
 const reject = async () => {
-	router.replace({ query: { ...route.query, confirmation: "false" } })
-	sendMessageToCounterpart(
-		Number(route.query.dealId),
-		route.query.role as "buyer" | "seller",
-		counterpartData as CounterpartData,
-		false
-	) //false если изменения отклонены
 	const dealId = Number(route.query.dealId)
+	const role = route.query.role as "buyer" | "seller"
+	if (!dealId) return
 
-	if (dealId) {
-		await deleteLastDealVersion(dealId)
+	changeReviewActionLoading.value = true
+	try {
+		await rejectDealChangesAsync(dealId)
+		await refreshDealFromServer(dealId)
+		loadDealTrigger.value++
+		await refetchChangeReview()
+		if (counterpartData?.companyId) {
+			await sendMessageToCounterpart(dealId, role, counterpartData, false)
+		}
+		useToast().add({
+			title: "Изменения отклонены",
+			color: "warning",
+		})
+	} catch (err) {
+		console.error("Ошибка при отклонении изменений:", err)
+		useToast().add({
+			title: "Не удалось отклонить изменения",
+			color: "error",
+		})
+	} finally {
+		changeReviewActionLoading.value = false
+		if (route.query.confirmation === "true") {
+			const { confirmation: _removed, ...restQuery } = route.query
+			router.replace({ query: restQuery })
+		}
 	}
-
-	useToast().add({
-		title: "Изменения отклонены",
-		color: "warning"
-	})
 }
 </script>

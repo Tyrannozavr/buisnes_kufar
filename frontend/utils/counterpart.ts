@@ -44,6 +44,53 @@ export const getCounterpartData = (
 }
 
 /**
+ * Уведомление контрагента о загруженном скане документа (§2.6, §4.3 ТЗ).
+ */
+export const sendScanToCounterpart = async (
+	dealId: number,
+	role: "buyer" | "seller",
+	counterpartData: CounterpartData,
+	documentType: "order" | "bill",
+	filename: string,
+): Promise<void> => {
+	if (!counterpartData?.companyId) return
+
+	const { createChat, sendMessage } = useChatsApi()
+	const nuxtApp = useNuxtApp()
+	const router = nuxtApp.$router as Router | undefined
+	if (!router?.resolve) {
+		console.warn("sendScanToCounterpart: router is not available")
+		return
+	}
+
+	const orderNumber = String(await Promise.resolve(counterpartData.dealNumber ?? ""))
+	const chatData = await createChat({
+		participantId: counterpartData.companyId,
+	})
+
+	if (!chatData?.id) return
+
+	const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
+	const path = router.currentRoute.value.path
+	const resolvedDealRoute = router.resolve({
+		path,
+		query: {
+			dealId: String(dealId),
+			role: counterpartRole,
+		},
+	})
+	const reviewUrl = process.client
+		? new URL(resolvedDealRoute.href, window.location.origin).toString()
+		: resolvedDealRoute.href
+
+	const docLabel =
+		documentType === "order" ? "заказа" : "счёта на оплату"
+	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). [Просмотр](${reviewUrl})`
+
+	await sendMessage(chatData.id, { content })
+}
+
+/**
  * Отправляет сообщение контрагенту о принятии/отклонении изменений или о внесенных изменениях
  * @param dealId - ID сделки
  * @param role - роль пользователя (buyer или seller)
@@ -75,14 +122,18 @@ export const sendMessageToCounterpart = async (
 	})
 
 	if (chatData?.id) {
+		const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
 		const path = router.currentRoute.value.path
+		const query: Record<string, string> = {
+			dealId: String(dealId),
+			role: counterpartRole,
+		}
+		if (isConfirm === undefined) {
+			query.confirmation = "true"
+		}
 		const resolvedDealRoute = router.resolve({
 			path,
-			query: {
-				dealId: dealId,
-				role: role,
-				confirmation: isConfirm === undefined ? "true" : "false" //выставляем true если изменения приняты или отклонены, false если мы отправляем сообщение об изменениях
-			}
+			query,
 		})
 		const reviewUrl = process.client
 			? new URL(resolvedDealRoute.href, window.location.origin).toString()

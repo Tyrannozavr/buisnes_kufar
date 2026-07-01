@@ -97,16 +97,28 @@
 		<br>
 
 		<table class="table-fixed p-5 mb-5 w-[99%] text-center" id="products">
+			<colgroup>
+				<col style="width: 3%">
+				<col style="width: 24%">
+				<col style="width: 17%">
+				<col style="width: 7%">
+				<col style="width: 9%">
+				<col style="width: 6%">
+				<col style="width: 9%">
+				<col style="width: 10%">
+				<col style="width: 3%">
+			</colgroup>
 			<thead>
 				<tr>
-					<td class="w-5 border"><span>№</span></td>
-					<td class="w-50 border"><span>Название продукта</span></td>
-					<td class="w-15 border"><span>Артикул</span></td>
-					<td class="w-10 border"><span>Кол-во</span></td>
-					<td class="w-13 border"><span>Ед. изм.</span></td>
-					<td class="w-15 border"><span>Цена</span></td>
-					<td class="w-20 border"><span>Сумма</span></td>
-					<td class="w-1"><span></span></td>
+					<td class="border"><span>№</span></td>
+					<td class="border"><span>Название продукта</span></td>
+					<td class="border"><span>Артикул</span></td>
+					<td class="border"><span>Кол-во</span></td>
+					<td class="border"><span>Ед. изм.</span></td>
+					<td class="border"><span>ОКЕИ</span></td>
+					<td class="border"><span>Цена</span></td>
+					<td class="border"><span>Сумма</span></td>
+					<td><span></span></td>
 				</tr>
 			</thead>
 			<tbody>
@@ -114,23 +126,48 @@
 					<td class="border">
 						<span>{{ billData.products.indexOf(product) + 1 }}</span>
 					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-72" placeholder="Название" v-model.lazy="product.name" />
+					<td class="border align-top">
+						<textarea
+							v-if="!isDisabled"
+							rows="2"
+							class="product-name-field w-full min-w-0 px-1 text-left text-sm resize-none"
+							placeholder="Название"
+							v-model.lazy="product.name"
+						/>
+						<span v-else class="product-name-field">{{ product.name }}</span>
+					</td>
+					<td class="border align-top">
+						<input
+							v-if="!isDisabled"
+							class="product-article-field w-full min-w-0 px-1 text-center text-sm"
+							placeholder="Артикул"
+							v-model.lazy="product.article"
+						/>
+						<span v-else class="product-article-field">{{ product.article }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Артикул"
-							v-model.lazy="product.article" />
-					</td>
-					<td class="border">
-						<input :disabled="isDisabled" class="w-14 text-center" placeholder="Кол-во"
+						<input :disabled="isDisabled" class="w-full min-w-0 px-1 text-center text-sm" placeholder="Кол-во"
 							v-model.lazy="product.quantity" />
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-18 text-center" placeholder="Ед. изм."
-							v-model.lazy="product.units" />
+						<select
+							v-if="!isDisabled"
+							:value="product.units"
+							class="product-unit-select w-full min-w-0 px-1 text-center text-sm"
+							@change="product.units = ($event.target as HTMLSelectElement).value"
+						>
+							<option value="">—</option>
+							<option v-for="opt in unitOptions" :key="opt.value" :value="opt.value">
+								{{ opt.label }}
+							</option>
+						</select>
+						<span v-else class="block w-full text-center text-sm">{{ product.units || '—' }}</span>
 					</td>
 					<td class="border">
-						<input :disabled="isDisabled" class="w-21 text-center" placeholder="Цена" v-model.lazy="product.price" />
+						<span class="block w-full text-center text-sm">{{ getOkeiCode(product.units) || '—' }}</span>
+					</td>
+					<td class="border">
+						<input :disabled="isDisabled" class="w-full min-w-0 px-1 text-center text-sm" placeholder="Цена" v-model.lazy="product.price" />
 					</td>
 					<td class="border">
 						<span class="">{{ normalizePrice(product.amount) }}</span>
@@ -150,28 +187,28 @@
 				</tr> 
 
 				<tr :hidden="isDisabled">
-					<td @click="addProduct()" colspan="7"
+					<td @click="addProduct()" colspan="8"
 						class="border text-left text-gray-400 hover:text-gray-700 cursor-pointer">
 						Добавить товар
 					</td>
 				</tr>
 
 				<tr class="text-right">
-					<td colspan="4"></td>
+					<td colspan="5"></td>
 					<td colspan="2" >Итого:</td>
 					<td >
 						<span class="font-bold">{{ normalizePrice(billData.amountExclVat) }}</span>
 					</td>
 				</tr>
 				<tr v-if="vatRateCheck" class="text-right">
-					<td colspan="4"></td>
+					<td colspan="5"></td>
 					<td colspan="2">В том числе НДС:</td>
 					<td>
 						<span class="font-bold">{{ normalizePrice(billData.amountVatRate) }}</span>
 					</td>
 				</tr>
 				<tr class="text-right">
-					<td colspan="4"></td>
+					<td colspan="5"></td>
 					<td colspan="2">Всего к оплате:</td>
 					<td>
 						<span class="font-bold">{{ normalizePrice(billData.amount) }}</span>
@@ -300,6 +337,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const { completeSave, saveState } = useSaveDeals()
+const { unitOptions, getOkeiCode } = useUnitsOfMeasurement()
 const { loadBillRequisites, mergeDealPartyRequisites } = useCompanyBillRequisites()
 const { billAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
@@ -1053,5 +1091,31 @@ textarea {
 	padding: 1px 5px;
 	vertical-align: middle;
 	field-sizing: content;
+}
+
+.product-name-field {
+	display: block;
+	white-space: normal;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+	text-align: left;
+	line-height: 1.35;
+}
+
+.product-article-field {
+	display: block;
+	white-space: normal;
+	word-break: break-all;
+	overflow-wrap: anywhere;
+	text-align: center;
+	line-height: 1.35;
+}
+
+.product-unit-select {
+	border: 1px solid #d4d4d4;
+	border-radius: 0.375rem;
+	background: #fff;
+	padding: 2px 4px;
+	line-height: 1.35;
 }
 </style>

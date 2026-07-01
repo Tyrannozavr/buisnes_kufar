@@ -20,7 +20,7 @@ from app.api.purchases.schemas import (
     DealCreate, DealUpdate, DealResponse, DealListResponse,
     DealIdsBody,
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
-    CheckoutRequest, CheckoutItem,
+    CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
@@ -1263,12 +1263,12 @@ async def create_supply_contract(
 
 @router.post(
     "/checkout",
-    response_model=DealResponse,
+    response_model=CheckoutResponse,
     tags=["checkout", "orders", "create"],
     responses={
         200: {
-            "description": "Заказ из корзины создан",
-            "content": {"application/json": {"example": _DEAL_RESPONSE_EXAMPLE}},
+            "description": "Заказы из корзины созданы",
+            "content": {"application/json": {"example": {"deals": [_DEAL_RESPONSE_EXAMPLE]}}},
         },
     },
 )
@@ -1278,27 +1278,29 @@ async def create_order_from_checkout(
     deal_service: deal_service_dep_annotated
 ):
     """
-    Создание заказа из корзины
-    
-    Создает заказы на основе данных корзины. Автоматически группирует товары по продавцам
-    и создает отдельные заказы для каждого продавца.
+    Создание заказов из корзины
+
+    Группирует позиции по продавцам и типу (товары / услуги),
+    создаёт отдельный заказ на каждую группу.
     """
-    # Получаем компанию пользователя
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
-    
-    # Преобразуем данные корзины в формат для сервиса
+
     checkout_dict = {
         "items": [item.dict() for item in checkout_data.items],
         "comments": checkout_data.comments
     }
-    
-    deal = await deal_service.create_deal_from_checkout(checkout_dict, company.id)
-    if not deal:
+
+    deals = await deal_service.create_deals_from_checkout(
+        checkout_dict,
+        company.id,
+        buyer_user_id=current_user.id,
+    )
+    if not deals:
         raise HTTPException(status_code=400, detail="Failed to create order from checkout")
-    
-    return deal
+
+    return CheckoutResponse(deals=deals)
 
 
 @router.get("/units", response_model=List[dict], tags=["units", "measurement"])

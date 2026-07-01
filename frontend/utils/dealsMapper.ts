@@ -130,6 +130,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		dealId: dealResponse.id,
 		buyerOrderNumber: dealResponse.buyer_order_number,
 		sellerOrderNumber: dealResponse.seller_order_number,
+		dealType: dealResponse.deal_type ?? 'Товары',
 		role: dealResponse.role as "buyer" | "seller",
 		date: dealResponse.created_at,
 		totalAmountExclVat: dealResponse.total_amount_excl_vat ?? 0,

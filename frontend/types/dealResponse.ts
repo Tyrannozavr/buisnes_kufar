@@ -163,6 +163,7 @@ export interface DealResponse {
 	seller_company_id: number
 	buyer_order_number: string
 	seller_order_number: string
+	deal_type?: 'Товары' | 'Услуги'
 	status: "Активная" | "Завершенная"
 	created_at: string
 	updated_at: string
@@ -185,6 +186,10 @@ export interface DealResponse {
 	items: ProductItemResponse[]
 	buyer_company: CompanyInDealResponse
 	seller_company: CompanyInDealResponse
+}
+
+export interface CheckoutResponse {
+	deals: DealResponse[]
 }
 
 export interface BuyerDealResponse {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Тестовые пользователи и сделка для проверки счёта (этап 1).
+Тестовые пользователи и сделки для проверки счёта (этапы 1–2).
 
 Запуск (dev Docker):
   docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/ensure_schet_test_users.py
@@ -21,7 +21,8 @@ from app.api.authentication.models.user import User
 from app.api.authentication.permissions import PermissionManager
 from app.api.company.models.company import BusinessType, Company, TradeActivity
 from app.api.company.models.official import CompanyOfficial
-from app.api.purchases.models import Order
+from app.api.products.models.product import Product, ProductType
+from app.api.purchases.models import Order, UnitOfMeasurement
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.schemas import DealCreate, OrderItemCreate
 from app.core.security import get_password_hash
@@ -29,28 +30,28 @@ from app.db.base import AsyncSessionLocal
 
 TEST_PASSWORD = "123456"
 
-# Канонический email + опечатка из ensure_local_admin.py (dmitriy vs dmitiry)
+# Канонические тестовые аккаунты этапа 2
+SELLER_USER = {
+    "email": "seller@gmail.com",
+    "first_name": "Сергей",
+    "last_name": "Поставщик",
+    "patronymic": "Петрович",
+    "phone": "79001234001",
+}
+
+BUYER_USER = {
+    "email": "buyer@gmail.com",
+    "first_name": "Анна",
+    "last_name": "Покупатель",
+    "patronymic": "Ивановна",
+    "phone": "79001234002",
+}
+
+# Алиас разработчика (привязывается к компании поставщика)
 PRIMARY_EMAILS = (
     "dmitiry40647274@gmail.com",
     "dmitriy40647274@gmail.com",
 )
-
-PRIMARY_USER = {
-    "email": PRIMARY_EMAILS[0],
-    "first_name": "Дмитрий",
-    "last_name": "Тестов",
-    "patronymic": "Сергеевич",
-    "phone": "79001234001",
-}
-
-# Контрагент-покупатель
-COUNTERPARTY_USER = {
-    "email": "seller@gmail.com",
-    "first_name": "Иван",
-    "last_name": "Покупатель",
-    "patronymic": "Иванович",
-    "phone": "79001234002",
-}
 
 SELLER_COMPANY = {
     "name": "ООО Поставщик Тест",
@@ -63,7 +64,7 @@ SELLER_COMPANY = {
     "trade_activity": TradeActivity.SELLER,
     "business_type": BusinessType.GOODS,
     "activity_type": "Производство товаров",
-    "description": "Тестовый поставщик для проверки счёта (этап 1)",
+    "description": "Тестовый поставщик (seller@gmail.com) — этап 2",
     "country": "Россия",
     "federal_district": "Центральный федеральный округ",
     "region": "Москва",
@@ -72,7 +73,7 @@ SELLER_COMPANY = {
     "legal_address": "101000, г. Москва, ул. Поставщика, д. 1",
     "production_address": "101000, г. Москва, ул. Складская, д. 2",
     "phone": "+79001234001",
-    "email": "dmitiry40647274@gmail.com",
+    "email": "seller@gmail.com",
     "current_account_number": "40702810100000001234",
     "bic": "044525225",
     "correspondent_bank_account": "30101810400000000225",
@@ -91,7 +92,7 @@ BUYER_COMPANY = {
     "trade_activity": TradeActivity.BUYER,
     "business_type": BusinessType.GOODS,
     "activity_type": "Торговля",
-    "description": "Тестовый покупатель-контрагент (seller@gmail.com)",
+    "description": "Тестовый покупатель (buyer@gmail.com) — этап 2",
     "country": "Россия",
     "federal_district": "Центральный федеральный округ",
     "region": "Москва",
@@ -100,23 +101,95 @@ BUYER_COMPANY = {
     "legal_address": "109012, г. Москва, ул. Покупателя, д. 10",
     "production_address": "109012, г. Москва, ул. Покупателя, д. 10",
     "phone": "+79001234002",
-    "email": "seller@gmail.com",
+    "email": "buyer@gmail.com",
     "vat_rate": 0,
 }
 
 SELLER_OFFICIAL = {
     "position": "Генеральный директор",
-    "full_name": "Тестов Дмитрий Сергеевич",
+    "full_name": "Поставщик Сергей Петрович",
     "is_base": True,
     "base_document": "Устав",
     "base_document_name": "Устав",
 }
+
+UNITS_DATA = [
+    ("Штука", "шт", "796"),
+    ("Бобина", "боб", "616"),
+    ("Лист", "л.", "625"),
+    ("Набор", "набор", "704"),
+    ("Пара", "пар", "715"),
+    ("Рулон", "рул", "736"),
+    ("Миллиметр", "мм", "003"),
+    ("Сантиметр", "см", "004"),
+    ("Метр", "м", "006"),
+    ("Километр", "км", "008"),
+    ("Погонный метр", "пог. м", "018"),
+    ("Квадратный миллиметр", "мм²", "050"),
+    ("Квадратный сантиметр", "см²", "051"),
+    ("Квадратный метр", "м²", "055"),
+    ("Квадратный километр", "км²", "061"),
+    ("Гектар", "га", "059"),
+    ("Миллилитр", "мл", "111"),
+    ("Литр", "л", "112"),
+    ("Кубический миллиметр", "мм³", "110"),
+    ("Кубический сантиметр", "см³", "111"),
+    ("Кубический метр", "м³", "113"),
+    ("Миллиграмм", "мг", "161"),
+    ("Грамм", "г", "163"),
+    ("Килограмм", "кг", "166"),
+    ("Тонна", "т", "168"),
+]
+
+DEAL_MAIN_COMMENTS = "Этап 2 — тест ОКЕИ (заказ + счёт)"
+DEAL_NO_BILL_COMMENTS = "Этап 2 — сделка без счёта (createBill)"
+
+# Каталог поставщика для §2.2 checkout (товар + услуга → два заказа)
+CHECKOUT_CATALOG = [
+    {
+        "slug": "test-checkout-bolt-m8",
+        "name": "Болт М8 (checkout)",
+        "article": "CHK-BOLT-M8",
+        "type": ProductType.GOOD,
+        "price": 15.00,
+        "unit_of_measurement": "шт",
+        "description": "Тестовый товар для checkout §2.2",
+    },
+    {
+        "slug": "test-checkout-montazh",
+        "name": "Монтаж оборудования (checkout)",
+        "article": "CHK-SVC-MONT",
+        "type": ProductType.SERVICE,
+        "price": 5000.00,
+        "unit_of_measurement": "усл",
+        "description": "Тестовая услуга для checkout §2.2",
+    },
+]
+
+
+async def ensure_units(session) -> None:
+    count = (
+        await session.execute(select(UnitOfMeasurement))
+    ).scalars().all()
+    if count:
+        print(f"  units EXISTS: {len(count)} записей")
+        return
+
+    for name, symbol, code in UNITS_DATA:
+        session.add(UnitOfMeasurement(name=name, symbol=symbol, code=code))
+    await session.flush()
+    print(f"  units CREATED: {len(UNITS_DATA)} записей ОКЕИ")
 
 
 async def upsert_company(session, data: dict) -> Company:
     company = (
         await session.execute(select(Company).where(Company.slug == data["slug"]))
     ).scalar_one_or_none()
+
+    if not company and data.get("inn"):
+        company = (
+            await session.execute(select(Company).where(Company.inn == data["inn"]))
+        ).scalar_one_or_none()
 
     payload = {
         **data,
@@ -176,7 +249,6 @@ async def upsert_user(session, spec: dict, company_id: int) -> User:
 
 
 async def link_primary_users(session, seller_company_id: int) -> None:
-    """Привязать все варианты email разработчика к компании-поставщику (есть сделка в Продажах)."""
     for email in PRIMARY_EMAILS:
         user = (
             await session.execute(select(User).where(User.email == email))
@@ -189,7 +261,39 @@ async def link_primary_users(session, seller_company_id: int) -> None:
         if user.role != UserRole.ADMIN:
             user.role = UserRole.OWNER
             user.permissions = PermissionManager.set_permissions_for_role(UserRole.OWNER)
-        print(f"  user LINKED: {email} → company_id={seller_company_id} (role={user.role})")
+        print(f"  user LINKED: {email} → company_id={seller_company_id}")
+
+
+async def ensure_catalog_products(session, company_id: int) -> list[Product]:
+    """Товар и услуга поставщика для проверки checkout (§2.2)."""
+    products: list[Product] = []
+    for spec in CHECKOUT_CATALOG:
+        product = (
+            await session.execute(select(Product).where(Product.slug == spec["slug"]))
+        ).scalar_one_or_none()
+
+        payload = {
+            **spec,
+            "images": [],
+            "characteristics": [],
+            "is_hidden": False,
+            "is_deleted": False,
+            "company_id": company_id,
+        }
+
+        if product:
+            for key, value in payload.items():
+                setattr(product, key, value)
+            print(f"  catalog UPDATED: {product.name} ({product.slug})")
+        else:
+            product = Product(**payload)
+            session.add(product)
+            await session.flush()
+            print(f"  catalog CREATED: {product.name} ({product.slug})")
+
+        products.append(product)
+
+    return products
 
 
 async def ensure_seller_official(session, company_id: int) -> None:
@@ -255,33 +359,34 @@ async def ensure_deal(
         f"  deal CREATED: id={order.id}, "
         f"seller_order={order.seller_order_number}, "
         f"buyer_order={order.buyer_order_number}, "
-        f"sum={order.total_amount}, "
-        f"bill={'да' if order.bill_date else 'нет'}"
+        f"sum={order.total_amount}"
     )
     return order
 
 
-DEAL_MAIN_COMMENTS = "Тестовая сделка для этапа 1 (счёт)"
-DEAL_NO_BILL_COMMENTS = "Тест §1.3 — счёт не создан (для createBill)"
-
-
 async def main() -> None:
-    print("=== Тестовые пользователи для счёта (этап 1) ===\n")
+    print("=== Тестовые данные: этап 2 (ОКЕИ, seller/buyer) ===\n")
 
     async with AsyncSessionLocal() as session:
-        print("Поставщик (основной пользователь):")
+        print("Справочник ОКЕИ:")
+        await ensure_units(session)
+
+        print("\nПоставщик:")
         seller_company = await upsert_company(session, SELLER_COMPANY)
-        await upsert_user(session, PRIMARY_USER, seller_company.id)
+        await upsert_user(session, SELLER_USER, seller_company.id)
         await link_primary_users(session, seller_company.id)
         await ensure_seller_official(session, seller_company.id)
 
-        print("\nПокупатель (контрагент):")
+        print("\nКаталог для checkout §2.2:")
+        catalog = await ensure_catalog_products(session, seller_company.id)
+
+        print("\nПокупатель:")
         buyer_company = await upsert_company(session, BUYER_COMPANY)
-        await upsert_user(session, COUNTERPARTY_USER, buyer_company.id)
+        await upsert_user(session, BUYER_USER, buyer_company.id)
 
         await session.commit()
 
-        print("\nСделка 1 (основная, может быть со счётом):")
+        print("\nСделка 1 (ОКЕИ: шт→796, кг→166):")
         order_main = await ensure_deal(
             session,
             buyer_company.id,
@@ -296,16 +401,16 @@ async def main() -> None:
                     price=12.50,
                 ),
                 OrderItemCreate(
-                    product_name="Гайка М8",
-                    product_article="NUT-M8",
-                    quantity=100,
-                    unit_of_measurement="шт",
-                    price=5.00,
+                    product_name="Профиль алюминиевый",
+                    product_article="ALU-PROF-01",
+                    quantity=25,
+                    unit_of_measurement="кг",
+                    price=180.00,
                 ),
             ],
         )
 
-        print("\nСделка 2 (для теста §1.3 — без счёта):")
+        print("\nСделка 2 (без счёта):")
         order_no_bill = await ensure_deal(
             session,
             buyer_company.id,
@@ -319,24 +424,25 @@ async def main() -> None:
                     unit_of_measurement="шт",
                     price=2.00,
                 ),
-                OrderItemCreate(
-                    product_name="Винт M6×20",
-                    product_article="SCR-M6-20",
-                    quantity=50,
-                    unit_of_measurement="шт",
-                    price=8.00,
-                ),
             ],
         )
 
+    good = next(p for p in catalog if p.type == ProductType.GOOD)
+    service = next(p for p in catalog if p.type == ProductType.SERVICE)
+
     print("\n--- Готово ---")
     print(f"Пароль для всех тестовых: {TEST_PASSWORD}")
-    print(f"\nВход поставщика (счёт): {PRIMARY_EMAILS[0]}")
-    print(f"  (алиас локального admin: {PRIMARY_EMAILS[1]})")
-    print(f"Контрагент-покупатель:     {COUNTERPARTY_USER['email']}")
+    print(f"Поставщик:  {SELLER_USER['email']}  ({SELLER_COMPANY['name']})")
+    print(f"Покупатель: {BUYER_USER['email']}  ({BUYER_COMPANY['name']})")
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
-    print(f"Сделка 2: id={order_no_bill.id}, заказ {order_no_bill.seller_order_number} — без счёта")
-    print("§1.3: Продажи → сделка 2 → «Создать счет» → на бланке только № и дата → «Заполнить данными»")
+    print(f"Сделка 2: id={order_no_bill.id}, заказ {order_no_bill.seller_order_number}")
+    print("\n§2.1 ОКЕИ — seller@gmail.com → Продажи → сделка 1 → Заказ (ОКЕИ 796, 166)")
+    print("\n§2.2 Checkout — buyer@gmail.com:")
+    print("  1) http://localhost:8080/auth/login")
+    print(f"  2) В корзину: /catalog/items/{good.slug} и /catalog/items/{service.slug}")
+    print("  3) Корзина → Оформить заказ → /checkout")
+    print("  4) Два блока: товары и услуги → «Подтвердить» в каждом")
+    print("  5) Закупки — два новых заказа; seller@gmail.com → Продажи + чат с уведомлением")
 
 
 if __name__ == "__main__":

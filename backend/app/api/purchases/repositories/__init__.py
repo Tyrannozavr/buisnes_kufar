@@ -68,7 +68,7 @@ class DealRepository:
                 buyer_company_id=buyer_company_id,
                 seller_company_id=order_data.seller_company_id,
                 seller_vat_rate=seller_company.vat_rate if seller_company else None,
-                deal_type=OrderType.GOODS,
+                deal_type=OrderType(order_data.deal_type.value),
                 status=OrderStatus.ACTIVE,
                 comments=order_data.comments,
                 payment_terms_contract=DEFAULT_BILL_PAYMENT_TERMS_DAYS,

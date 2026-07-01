@@ -58,6 +58,7 @@ export interface ProductItemPublic {
   unit_of_measurement: string;
   company_id: number;
   company_name: string;
+  company_slug?: string;
 }
 
 export interface ProductPaginatedPublicResponse {
@@ -76,16 +77,28 @@ export interface ProductListPublicResponse {
 }
 
 //интерфесы для страницы подтверждения
+export type CheckoutOrderType = 'Товары' | 'Услуги'
+
 export interface ProductInCheckout {
   slug: string;
   productName: string;
   article: string;
+  productType: 'Товар' | 'Услуга';
   quantity: number;
   units: string;
   price: number;
   amount: number;
   description: string;
   logoUrl: string;
+}
+
+export interface CheckoutOrderGroup {
+  key: string;
+  companyId: number;
+  companyName: string;
+  companySlug?: string;
+  orderType: CheckoutOrderType;
+  items: ProductInCheckout[];
 }
 
 export interface CompaniesAndProducts {

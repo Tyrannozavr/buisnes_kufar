@@ -18,8 +18,9 @@ from app.api.purchases.schemas import (
 	CompanyOfficialInDealResponse,
 	ContractItem,
 	ContractTerms,
+	OrderTypeSchema,
 )
-from app.api.purchases.models import Order, OrderItem, OrderDocument
+from app.api.purchases.models import Order, OrderItem, OrderDocument, OrderType
 from app.api.company.models.company import Company
 from app.api.products.models.product import Product
 from app.api.products.repositories.company_products_repository import CompanyProductsRepository
@@ -333,6 +334,7 @@ class DealService:
 				seller_company_id=order.seller_company_id,
 				buyer_order_number=order.buyer_order_number,
 				seller_order_number=order.seller_order_number,
+				deal_type=OrderTypeSchema(order.deal_type.value),
 				status=DealStatus(order.status.value),
 				total_amount=order.total_amount,
 				total_amount_word=getattr(order, "total_amount_word", "") or "",
@@ -379,30 +381,91 @@ class DealService:
 			)
 		return None
 
-	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
-		"""Создание заказа из корзины (соответствует фронтенду)"""
+	async def _resolve_order_type_for_checkout_item(
+		self,
+		products_repo: CompanyProductsRepository,
+		seller_company_id: int,
+		item: dict,
+		catalog_product: Optional[Product] = None,
+	) -> OrderType:
+		"""Тип заказа по productType из корзины или типу позиции в каталоге."""
+		raw_type = item.get("productType")
+		if raw_type is not None and str(raw_type).strip():
+			if str(raw_type).strip() == "Услуга":
+				return OrderType.SERVICES
+			return OrderType.GOODS
+
+		if catalog_product is None:
+			catalog_product = await self._resolve_catalog_product_for_checkout(
+				products_repo, seller_company_id, item
+			)
+		if catalog_product and catalog_product.type:
+			from app.api.products.models.product import ProductType
+
+			if catalog_product.type == ProductType.SERVICE:
+				return OrderType.SERVICES
+		return OrderType.GOODS
+
+	async def _resolve_seller_id_for_checkout_item(
+		self,
+		products_repo: CompanyProductsRepository,
+		item: dict,
+	) -> tuple[Optional[int], Optional[Product]]:
+		"""Продавец: из companyId в корзине или по slug товара в каталоге."""
+		seller_id = item.get("companyId")
+		catalog_product: Optional[Product] = None
+
+		slug = item.get("slug")
+		if slug and str(slug).strip():
+			catalog_product = await products_repo.get_by_slug(str(slug).strip())
+
+		if seller_id is None and catalog_product:
+			seller_id = catalog_product.company_id
+
+		if seller_id is None:
+			return None, catalog_product
+
+		return int(seller_id), catalog_product
+
+	async def create_deals_from_checkout(
+		self, checkout_data: dict, buyer_company_id: int, buyer_user_id: int | None = None
+	) -> List[DealResponse]:
+		"""Создание заказов из корзины: группировка по продавцу и типу (товары / услуги)."""
 		try:
-			# Группируем товары по продавцам
-			sellers = {}
+			groups: dict[tuple[int, OrderType], dict] = {}
+
 			for item in checkout_data.get("items", []):
-				seller_id = item.get("companyId")
-				if seller_id not in sellers:
-					sellers[seller_id] = {
-						"seller_company_id": seller_id,
-						"seller_name": item.get("companyName"),
-						"seller_slug": item.get("companySlug"),
-						"items": []
-					}
-
-				sellers[seller_id]["items"].append(item)
-
-			# Создаем заказы для каждого продавца
-			created_deals = []
-			for seller_id, seller_data in sellers.items():
 				products_repo = CompanyProductsRepository(self.session)
+				seller_id, catalog_product = await self._resolve_seller_id_for_checkout_item(
+					products_repo, item
+				)
+				if seller_id is None:
+					logger.warning(
+						"Checkout: не удалось определить продавца для позиции slug=%s",
+						item.get("slug"),
+					)
+					continue
+
+				order_type = await self._resolve_order_type_for_checkout_item(
+					products_repo, seller_id, item, catalog_product=catalog_product
+				)
+				key = (seller_id, order_type)
+				if key not in groups:
+					groups[key] = {
+						"seller_company_id": seller_id,
+						"order_type": order_type,
+						"items": [],
+					}
+				groups[key]["items"].append(item)
+
+			created_deals: List[DealResponse] = []
+			for group in groups.values():
+				products_repo = CompanyProductsRepository(self.session)
+				seller_id = group["seller_company_id"]
+				order_type: OrderType = group["order_type"]
 
 				deal_items = []
-				for i, item in enumerate(seller_data["items"], 1):
+				for i, item in enumerate(group["items"], 1):
 					catalog_product = await self._resolve_catalog_product_for_checkout(
 						products_repo, seller_id, item
 					)
@@ -431,21 +494,48 @@ class DealService:
 
 					deal_items.append(deal_item)
 
+				from app.api.purchases.schemas import OrderTypeSchema
+
 				deal_data = DealCreate(
 					seller_company_id=seller_id,
+					deal_type=OrderTypeSchema(order_type.value),
 					items=deal_items,
-					comments=checkout_data.get("comments")
+					comments=checkout_data.get("comments"),
 				)
 
-				# Создаем заказ
-				deal = await self.create_deal(deal_data, buyer_company_id)
-				if deal:
-					created_deals.append(deal)
+				order = await self.repository.create_order(deal_data, buyer_company_id)
+				if buyer_user_id:
+					from app.api.purchases.services.checkout_chat_notify import (
+						notify_seller_about_checkout_order,
+					)
 
-			# Возвращаем первый созданный заказ (или можно вернуть список всех)
-			return created_deals[0] if created_deals else None
+					product_names = [
+						str(item.get("productName") or "").strip()
+						for item in group["items"]
+						if str(item.get("productName") or "").strip()
+					]
+					await notify_seller_about_checkout_order(
+						self.session,
+						buyer_company_id=buyer_company_id,
+						buyer_user_id=buyer_user_id,
+						seller_company_id=seller_id,
+						deal_id=order.id,
+						seller_order_number=order.seller_order_number,
+						order_type=order_type,
+						product_names=product_names,
+					)
+				created_deals.append(
+					await self._order_to_deal_response(order, buyer_company_id)
+				)
+
+			return created_deals
 
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error creating deal from checkout: %s", e)
-			return None
+			return []
+
+	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
+		"""Обратная совместимость: первый заказ из checkout."""
+		deals = await self.create_deals_from_checkout(checkout_data, buyer_company_id)
+		return deals[0] if deals else None

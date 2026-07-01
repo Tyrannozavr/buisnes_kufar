@@ -1,6 +1,6 @@
 import { API_URLS } from "~/constants/urls"
 import type { Buyer, ProductInCheckout } from "~/types/product"
-import type { DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
+import type { CheckoutResponse, DealResponse, DealUpdate, BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
 import type {
 	SupplyContractEntityCreate,
 	SupplyContractEntityResponse,
@@ -120,8 +120,7 @@ export const usePurchasesApi = () => {
 
 	const createOrderFromCheckout = async (
 		products: ProductInCheckout[],
-		buyer: Buyer
-	) => {
+	): Promise<CheckoutResponse | undefined> => {
 		if (!products?.length) return
 
 		const bodyPost = {
@@ -130,6 +129,7 @@ export const usePurchasesApi = () => {
 				description: product.description ?? null,
 				logoUrl: product.logoUrl ?? null,
 				productName: String(product.productName),
+				productType: product.productType ?? 'Товар',
 				article:
 					product.article != null && String(product.article).trim() !== ''
 						? String(product.article).trim()
@@ -138,9 +138,6 @@ export const usePurchasesApi = () => {
 				units: product.units ? String(product.units) : "шт",
 				price: Number.isFinite(product.price) ? product.price : 0,
 				amount: Number.isFinite(product.amount) ? product.amount : 0,
-				companyId: buyer.companyId,
-				companyName: String(buyer.companyName),
-				companySlug: String(buyer.companySlug)
 			})),
 			comments: ""
 		}
@@ -149,7 +146,7 @@ export const usePurchasesApi = () => {
 			const response = await $api.post(
 				normalizeApiPath(API_URLS.CREATE_ORDER_FROM_CHECKOUT),
 				bodyPost
-			)
+			) as CheckoutResponse
 			return response
 		} catch (err: any) {
 			console.log("POST ERROR: ", err)

@@ -1,14 +1,14 @@
 import { defineMutation, defineQueryOptions, useMutation } from "@pinia/colada";
 import { usePurchasesApi } from "~/api/purchases";
 import { QueryKeys } from "~/constants/queryKeys";
-import type { DealResponse, DealUpdate } from "~/types/dealResponse";
+import type { DealResponse, DealUpdate, CheckoutResponse } from "~/types/dealResponse";
+import type { ProductInCheckout } from "~/types/product";
 import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity";
 import type {
 	SupplyContractTemplateCreate,
 	SupplyContractTemplateType,
 	SupplyContractTemplateUpdate,
 } from "~/types/supplyContractTemplate";
-import type { Buyer, ProductInCheckout } from "~/types/product";
 import { useQueryCache } from "@pinia/colada";
 import { useDeals } from "~/composables/useDeals";
 import { useBillFillState } from "~/composables/useBillFillState";
@@ -59,25 +59,42 @@ export const unitsOfMeasurementQuery = defineQueryOptions(() => ({
 
 export const useCreateBillQuery = defineMutation(() => {
 	const { editBillFields, findDealByDealNumber, findDeal } = useDeals()
-	const { markBillAwaitingFill } = useBillFillState()
+	const { markBillAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 	const queryCache = useQueryCache()
-	const { mutate, ...mutation } = useMutation({
+	const { mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.CREATE_BILL],
-		mutation: ({ dealId, date }: { dealId: number, date?: string }) => usePurchasesApi().createBill(dealId, date),
-		onMutate: async ({ dealId }) => {
-			markBillAwaitingFill(dealId)
+		mutation: ({
+			dealId,
+			date,
+		}: {
+			dealId: number
+			date?: string
+			fillFromDeal?: boolean
+		}) => usePurchasesApi().createBill(dealId, date),
+		onMutate: async ({ dealId, fillFromDeal }) => {
+			if (!fillFromDeal) {
+				markBillAwaitingFill(dealId)
+			}
 			const deal = findDeal(dealId)
 			if (deal) {
 				editBillFields(dealId, new Date().toISOString(), deal.sellerOrderNumber)
 				await queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
 			}
 		},
-		onSuccess: async (data: { bill_number: string, bill_date: string } | undefined) => {
+		onSuccess: async (
+			data: { bill_number: string, bill_date: string } | undefined,
+			{ dealId, fillFromDeal },
+		) => {
 			if (data) {
-				const deal = findDealByDealNumber(data.bill_number, 'seller')
+				const deal =
+					findDealByDealNumber(data.bill_number, 'seller') ?? findDeal(dealId)
 				if (deal) {
 					editBillFields(deal.dealId, data.bill_date, data.bill_number)
-					markBillAwaitingFill()
+					if (fillFromDeal) {
+						clearBillAwaitingFill(deal.dealId)
+					} else {
+						markBillAwaitingFill(deal.dealId)
+					}
 					queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
 				}
 			}
@@ -85,7 +102,11 @@ export const useCreateBillQuery = defineMutation(() => {
 	})
 	return {
 		...mutation,
-		createBill: (dealId: number, date?: string) => mutate({ dealId, date }),
+		createBill: (
+			dealId: number,
+			date?: string,
+			fillFromDeal?: boolean,
+		) => mutateAsync({ dealId, date, fillFromDeal }),
 	}
 })
 
@@ -156,21 +177,23 @@ export const useCreateOrderFromCheckoutQuery = defineMutation(() => {
 		key: [QueryKeys.CREATE_ORDER_FROM_CHECKOUT],
 		mutation: ({
 			products,
-			buyer,
 		}: {
 			products: ProductInCheckout[];
-			buyer: Buyer;
-			}) => usePurchasesApi().createOrderFromCheckout(products, buyer),
-		onSuccess: (newDeal: DealResponse | undefined) => {
-			if (!newDeal) return
-			const deal = responseToDeal(newDeal)
-			addNewDeal(deal)
-			queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
+			}) => usePurchasesApi().createOrderFromCheckout(products),
+		onSuccess: (response: CheckoutResponse | undefined) => {
+			if (!response?.deals?.length) return
+			response.deals.forEach((newDeal: DealResponse) => {
+				const deal = responseToDeal(newDeal)
+				addNewDeal(deal)
+				queryCache.setQueryData([QueryKeys.DEAL_BY_ID, deal.dealId], deal)
+			})
+			queryCache.invalidateQueries({ key: [QueryKeys.BUYER_DEALS] })
+			queryCache.invalidateQueries({ key: [QueryKeys.SELLER_DEALS] })
 		}
 	})
 
-	const orderFromCheckout = async (products: ProductInCheckout[], buyer: Buyer) => {
-		await mutateAsync({ products, buyer })
+	const orderFromCheckout = async (products: ProductInCheckout[]) => {
+		return mutateAsync({ products })
 	}
 
 	return {

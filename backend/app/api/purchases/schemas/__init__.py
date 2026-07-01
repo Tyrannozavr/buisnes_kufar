@@ -9,6 +9,12 @@ class DealStatus(str, Enum):
     COMPLETED = "Завершенная"
 
 
+class OrderTypeSchema(str, Enum):
+    """Тип заказа: товары или услуги (соответствует OrderType в БД)."""
+    GOODS = "Товары"
+    SERVICES = "Услуги"
+
+
 class ContractTerms(str, Enum):
     """Условия договора в счёте (BillResponse.contract_terms_contract)."""
     STANDARD_DELIVERY_SUPPLIER = "standard-delivery-supplier"
@@ -144,6 +150,10 @@ class OrderItemResponse(OrderItemBase):
 class DealCreate(BaseModel):
     """Схема для создания заказа между покупателем и продавцом."""
     seller_company_id: int = Field(..., description="ID компании-продавца")
+    deal_type: OrderTypeSchema = Field(
+        default=OrderTypeSchema.GOODS,
+        description="Тип заказа: товары или услуги",
+    )
     items: List[OrderItemCreate] = Field(..., min_items=1, description="Позиции заказа")
     comments: Optional[str] = Field(None, description="Комментарии к заказу")
 
@@ -560,6 +570,10 @@ class DealResponse(BaseModel):
     seller_company_id: int
     buyer_order_number: str
     seller_order_number: str
+    deal_type: OrderTypeSchema = Field(
+        default=OrderTypeSchema.GOODS,
+        description="Тип заказа: товары или услуги",
+    )
     status: DealStatus
     total_amount: float
     total_amount_word: str = Field(
@@ -781,13 +795,20 @@ class CheckoutItem(BaseModel):
     logoUrl: Optional[str]
     productName: str
     article: str
+    productType: Optional[str] = Field(
+        None,
+        description="Тип позиции каталога: «Товар» или «Услуга»",
+    )
     quantity: float
     units: str
     price: float
     amount: float
-    companyId: int
-    companyName: str
-    companySlug: str
+    companyId: Optional[int] = Field(
+        None,
+        description="ID продавца; если не передан — определяется по slug товара в каталоге",
+    )
+    companyName: Optional[str] = None
+    companySlug: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -800,6 +821,11 @@ class CheckoutRequest(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CheckoutResponse(BaseModel):
+    """Ответ checkout: один или несколько заказов (по продавцу и типу товар/услуга)."""
+    deals: List["DealResponse"] = Field(default_factory=list)
 
 
 class SupplyContractCreate(BaseModel):

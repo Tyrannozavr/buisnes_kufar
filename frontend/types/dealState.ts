@@ -94,6 +94,7 @@ export interface Deal {
   dealId: number;
   buyerOrderNumber: string;
   sellerOrderNumber: string;
+  dealType: 'Товары' | 'Услуги';
   role: "buyer" | "seller";
   product: Product;
   date: string;

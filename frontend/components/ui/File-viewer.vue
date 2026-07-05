@@ -1,54 +1,131 @@
 <script setup lang="ts">
-import { useDocumentsApi } from '~/api/documents';
-import type { DocumentDownloadResponse } from '~/types/documents';
+import { useDocumentsApi } from "~/api/documents"
 
-const props = defineProps<{ 
-  isModalOpen: boolean
-  name?: string
-  type?: string
-  dealId: number
-  documentId: number
+const props = defineProps<{
+	isModalOpen: boolean
+	name?: string
+	type?: string
+	dealId: number
+	documentId: number
 }>()
 
-defineEmits<{
-  (e: 'close'): void
+const emit = defineEmits<{
+	(e: "close"): void
+	(e: "update:isModalOpen", value: boolean): void
 }>()
 
-const isModalOpen = computed(() => props.isModalOpen)
 const { downloadDocument } = useDocumentsApi()
-const url = ref<string | undefined>(undefined)
+const blobUrl = ref<string | null>(null)
+const loading = ref(false)
+const loadError = ref(false)
 
-watch(() => props,
-  async () => {
-  const response = await downloadDocument(props.dealId, props.documentId, false) as unknown as DocumentDownloadResponse
-  url.value = response?.url
-}, { deep: true })
+const isImageType = computed(() => {
+	const t = (props.type ?? "").toLowerCase()
+	return ["jpeg", "jpg", "png", "gif", "webp", "bmp"].includes(t)
+})
 
+const isPdfType = computed(() => (props.type ?? "").toLowerCase() === "pdf")
+
+const modalOpen = computed({
+	get: () => props.isModalOpen,
+	set: (value: boolean) => {
+		if (!value) handleClose()
+	},
+})
+
+const revokeBlobUrl = (): void => {
+	if (blobUrl.value) {
+		URL.revokeObjectURL(blobUrl.value)
+		blobUrl.value = null
+	}
+}
+
+const loadPreview = async (): Promise<void> => {
+	if (!props.isModalOpen || !props.dealId || !props.documentId) return
+
+	loading.value = true
+	loadError.value = false
+	revokeBlobUrl()
+
+	try {
+		const result = await downloadDocument(props.dealId, props.documentId, true)
+		const blob =
+			result instanceof Blob
+				? result
+				: result != null
+					? new Blob([result as BlobPart])
+					: null
+		if (!blob || blob.size === 0) {
+			throw new Error("Не удалось получить файл")
+		}
+		blobUrl.value = URL.createObjectURL(blob)
+	} catch (error) {
+		loadError.value = true
+		if (import.meta.dev) console.error("File-viewer load:", error)
+	} finally {
+		loading.value = false
+	}
+}
+
+watch(
+	() => [props.isModalOpen, props.dealId, props.documentId] as const,
+	([open]) => {
+		if (open) {
+			void loadPreview()
+		} else {
+			revokeBlobUrl()
+			loadError.value = false
+			loading.value = false
+		}
+	},
+	{ immediate: true },
+)
+
+const handleClose = (): void => {
+	emit("update:isModalOpen", false)
+	emit("close")
+}
+
+onUnmounted(() => {
+	revokeBlobUrl()
+})
 </script>
-  <template>
-    <div v-if="url">
-    <UModal fullscreen v-model:open="isModalOpen" size="4xl" class="">
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-xl font-semibold">Просмотр документа: {{ name }}</h3>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-x-mark"
-            @click="$emit('close')"
-          />
-        </div>
-      </template>
 
-      <template #body>
-        <div v-if="type === 'pdf'" class="h-[80vh] min-h-0 overflow-hidden flex flex-col">
-          <iframe :src="url" class="w-full flex-1 min-h-0 border-0" />
-        </div>
+<template>
+	<UModal
+		v-model:open="modalOpen"
+		fullscreen
+		size="4xl"
+	>
+		<template #header>
+			<div class="flex items-center justify-between w-full">
+				<h3 class="text-xl font-semibold">Просмотр документа: {{ name }}</h3>
+				<UButton
+					color="neutral"
+					variant="ghost"
+					icon="i-heroicons-x-mark"
+					@click="handleClose"
+				/>
+			</div>
+		</template>
 
-        <div v-else-if="type === 'jpeg' || type === 'jpg' || type === 'png'">
-          <img :src="url" :alt="name">
-        </div>
-      </template>
-    </UModal>
-  </div>
+		<template #body>
+			<p v-if="loading" class="text-center text-neutral-500 py-8">Загрузка…</p>
+			<p v-else-if="loadError" class="text-center text-red-500 py-8">
+				Не удалось открыть файл. Попробуйте «Сохранить локально».
+			</p>
+			<div
+				v-else-if="blobUrl && isPdfType"
+				class="h-[80vh] min-h-0 overflow-hidden flex flex-col"
+			>
+				<iframe :src="blobUrl" class="w-full flex-1 min-h-0 border-0" />
+			</div>
+			<div v-else-if="blobUrl && isImageType" class="flex justify-center p-4">
+				<img :src="blobUrl" :alt="name" class="max-h-[80vh] object-contain" />
+			</div>
+			<p v-else-if="blobUrl" class="text-center text-neutral-500 py-8">
+				Предпросмотр недоступен для этого типа файла. Используйте «Сохранить локально».
+			</p>
+		</template>
+	</UModal>
 </template>

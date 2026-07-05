@@ -1,7 +1,6 @@
 import { useDeals } from "~/composables/useDeals"
 import { useChatsApi } from "~/api/chats"
-import { useNuxtApp } from "nuxt/app"
-import type { Router } from "vue-router"
+import { buildEditorDealAbsoluteUrl } from "~/utils/editorNavigation"
 
 export interface CounterpartData {
 	companyId: number
@@ -56,12 +55,6 @@ export const sendScanToCounterpart = async (
 	if (!counterpartData?.companyId) return
 
 	const { createChat, sendMessage } = useChatsApi()
-	const nuxtApp = useNuxtApp()
-	const router = nuxtApp.$router as Router | undefined
-	if (!router?.resolve) {
-		console.warn("sendScanToCounterpart: router is not available")
-		return
-	}
 
 	const orderNumber = String(await Promise.resolve(counterpartData.dealNumber ?? ""))
 	const chatData = await createChat({
@@ -71,21 +64,11 @@ export const sendScanToCounterpart = async (
 	if (!chatData?.id) return
 
 	const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
-	const path = router.currentRoute.value.path
-	const resolvedDealRoute = router.resolve({
-		path,
-		query: {
-			dealId: String(dealId),
-			role: counterpartRole,
-		},
-	})
-	const reviewUrl = process.client
-		? new URL(resolvedDealRoute.href, window.location.origin).toString()
-		: resolvedDealRoute.href
+	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, documentType)
 
 	const docLabel =
 		documentType === "order" ? "заказа" : "счёта на оплату"
-	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). [Просмотр](${reviewUrl})`
+	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). Это не изменение условий заказа — только файл. [Открыть сканы](${reviewUrl})`
 
 	await sendMessage(chatData.id, { content })
 }
@@ -107,12 +90,6 @@ export const sendMessageToCounterpart = async (
 	if (!counterpartData?.companyId) return
 
 	const { createChat, sendMessage } = useChatsApi()
-	const nuxtApp = useNuxtApp()
-	const router = nuxtApp.$router as Router | undefined
-	if (!router?.resolve) {
-		console.warn("sendMessageToCounterpart: router is not available")
-		return
-	}
 
 	const orderNumber = String(
 		await Promise.resolve(counterpartData.dealNumber ?? "")
@@ -123,23 +100,10 @@ export const sendMessageToCounterpart = async (
 
 	if (chatData?.id) {
 		const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
-		const path = router.currentRoute.value.path
-		const query: Record<string, string> = {
-			dealId: String(dealId),
-			role: counterpartRole,
-		}
-		if (isConfirm === undefined) {
-			query.confirmation = "true"
-		}
-		const resolvedDealRoute = router.resolve({
-			path,
-			query,
-		})
-		const reviewUrl = process.client
-			? new URL(resolvedDealRoute.href, window.location.origin).toString()
-			: resolvedDealRoute.href
-
-		const normalizedReviewUrl = String(await Promise.resolve(reviewUrl))
+		const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, "order")
+		const normalizedReviewUrl = isConfirm === undefined
+			? `${reviewUrl}&confirmation=true`
+			: reviewUrl
 
 		let content = ""
 		if (isConfirm === true) {

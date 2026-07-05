@@ -1,6 +1,7 @@
 <template>
 	<div>
 		<UCard variant="subtle" class="top-26">
+			<div class="flex flex-col gap-5">
 			<div v-if="canRespondToChanges" class="flex flex-col justify-between gap-5">
 				<p class="text-sm text-neutral-500 text-center px-1">
 					Слева показана предложенная версия заказа. Изменения выделены цветом.
@@ -12,6 +13,9 @@
 					добавлено
 					<span class="inline-block w-3 h-3 bg-red-100 border border-red-300 align-middle mx-1" />
 					удалено
+				</p>
+				<p class="text-xs text-neutral-500 text-center px-1">
+					Сканы документа (фото/PDF) — в блоке «Фото/Сканы» ниже, отдельно от согласования заказа.
 				</p>
 				<UButton
 					label="Принять изменения"
@@ -216,14 +220,6 @@
 					</div>
 				</div>
 
-				<DealDocumentScans
-					v-if="activeTab === '0' || activeTab === '1'"
-					:deal-id="dealIdForReview"
-					:document-type="activeTab === '0' ? 'order' : 'bill'"
-					:read-only="isHiddenForBuyer"
-					:edit-enabled="!isDisabled"
-				/>
-
 				<div v-if="!isHiddenForBuyer && !isDisabled" class="">
 					<UButton
 						label="Отменить изменения"
@@ -252,6 +248,16 @@
 						</span>
 					</UTooltip>
 				</div>
+			</div>
+
+			<!-- Сканы видны всегда (в т.ч. при согласовании изменений заказа у контрагента) -->
+			<DealDocumentScans
+				v-if="activeTab === '0' || activeTab === '1'"
+				:deal-id="dealIdForReview"
+				:document-type="activeTab === '0' ? 'order' : 'bill'"
+				:read-only="isHiddenForBuyer"
+				:edit-enabled="!isDisabled && !canRespondToChanges"
+			/>
 			</div>
 		</UCard>
 	</div>

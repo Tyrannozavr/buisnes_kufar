@@ -357,7 +357,12 @@ async def send_message(
         "updated_at": message.updated_at,
     }
 
-    await chat_manager.send_message_to_chat(chat_id, message_data, current_user.id)
+    await chat_manager.send_message_to_chat(
+        chat_id,
+        message_data,
+        current_user.id,
+        participant_user_ids={p.user_id for p in chat.participants},
+    )
 
     return message_data
 
@@ -396,6 +401,15 @@ async def presence_websocket_endpoint(websocket: WebSocket):
                 message_data = json.loads(data)
 
                 if message_data.get("type") == "ping":
+                    async for db in get_async_db():
+                        chat_service = ChatService(db)
+                        user = await db.get(User, user_id)
+                        company_id = user.company_id if user else None
+                        chats = await chat_service.get_user_chats(user_id, company_id)
+                        chat_manager.update_presence_chat_ids(
+                            user_id, {chat.id for chat in chats}
+                        )
+                        break
                     await websocket.send_text(json.dumps({"type": "pong"}))
             except WebSocketDisconnect:
                 break

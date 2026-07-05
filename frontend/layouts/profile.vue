@@ -140,6 +140,22 @@ const alternativeLayout = () =>
 
 			<!-- Альтернативное меню навигации ??? -->
 			<div v-if="alternativeLayout()" class="flex flex-col md:flex-col gap-6 md:gap-8">
+				<div class="flex justify-end px-2">
+					<UButton
+						to="/profile/messages"
+						color="neutral"
+						variant="soft"
+						icon="i-heroicons-chat-bubble-left-right"
+						class="relative"
+					>
+						Сообщения
+						<ChatUnreadBadge
+							v-if="badgeText"
+							:count="badgeText"
+							class="absolute -top-1 -right-1 pointer-events-none"
+						/>
+					</UButton>
+				</div>
 				<!-- Main Content -->
 				<div class="w-full md:max-w-full order-2">
 					<slot />

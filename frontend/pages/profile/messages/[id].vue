@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { ChatParticipant } from '~/types/chat'
 import { formatMoscowTime } from '~/utils/datetime'
+import { isInternalAppUrl } from '~/utils/editorNavigation'
 import {useChatsApi} from '~/api/chats'
 import { useWebSocket } from '~/composables/useWebSocket'
 import { onChatPresenceMessage } from '~/composables/useChatPresence'
 import { useChatUnreadStore } from '~/stores/chatUnread'
+import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -23,7 +25,7 @@ const chatUnreadStore = useChatUnreadStore()
 const {getChats, getChatById, getChatMessages, sendMessage, getChatFiles, getChatOnlineStatus, markChatAsRead} = useChatsApi()
 
 // Получаем список всех чатов для боковой панели
-const {data: chats, pending: chatsPending} = await getChats()
+const {data: chats, pending: chatsPending, refresh: refreshChats} = await getChats()
 
 // Получаем информацию о текущем чате
 const {data: chat, pending: chatPending} = await getChatById(chatId)
@@ -90,7 +92,16 @@ const markIncomingMessagesAsReadLocally = () => {
 	})
 }
 
-const markCurrentChatAsRead = async () => {
+const isViewingThisChat = (): boolean => {
+	if (!import.meta.client) return false
+	return (
+		getActiveChatIdFromRoute(route) === chatId &&
+		document.visibilityState === 'visible'
+	)
+}
+
+const markCurrentChatAsRead = async (): Promise<void> => {
+	if (!isViewingThisChat()) return
 	try {
 		const result = await markChatAsRead(chatId)
 		if (result?.message_ids?.length) {
@@ -107,9 +118,24 @@ const markCurrentChatAsRead = async () => {
 const handleIncomingChatMessage = (message: Record<string, unknown>) => {
 	if ((message as { is_temp?: boolean }).is_temp) return
 	addNewMessage(message)
-	if (!isOwnMessage(message as { sender_company_id?: number })) {
-		markCurrentChatAsRead()
+	if (isOwnMessage(message as { sender_company_id?: number })) return
+
+	if (isViewingThisChat()) {
+		void markCurrentChatAsRead()
+		return
 	}
+
+	const current = chats.value?.find((item) => item.id === chatId)
+	updateChatUnreadInList(chatId, (current?.unread_count ?? 0) + 1)
+	chatUnreadStore.noteIncomingMessage({
+		chatId,
+		senderCompanyId: Number((message as { sender_company_id?: number }).sender_company_id),
+		viewerCompanyId: userStore.companyId ? Number(userStore.companyId) : null,
+		activeChatId: getActiveChatIdFromRoute(route),
+		pageVisible: import.meta.client && document.visibilityState === 'visible',
+	})
+	void chatUnreadStore.refresh()
+	void refreshChats()
 }
 
 const handleChatEvent = (message: Record<string, unknown>) => {
@@ -184,7 +210,14 @@ const {
 onMounted(() => {
   connectWs()
 
-  const unsubscribePresence = onChatPresenceMessage(handleChatEvent)
+  const unsubscribePresence = onChatPresenceMessage((message) => {
+    if (message.type === 'new_message' || message.type === 'messages_read') {
+      void refreshChats()
+      void chatUnreadStore.refresh()
+    }
+  })
+
+  const unsubscribePresenceEvents = onChatPresenceMessage(handleChatEvent)
 
   scrollToBottom()
 
@@ -194,6 +227,7 @@ onMounted(() => {
 
   onUnmounted(() => {
     unsubscribePresence()
+    unsubscribePresenceEvents()
     clearInterval(onlineStatusInterval)
   })
 })
@@ -209,14 +243,17 @@ onUnmounted(() => {
 watch(
 	() => messagesPending.value,
 	(pending) => {
-		if (!pending) {
-			markCurrentChatAsRead()
+		if (!pending && isViewingThisChat()) {
+			void markCurrentChatAsRead()
 		}
 	},
 	{ immediate: true },
 )
 
-// Следим за изменениями в сообщениях
+onBeforeRouteLeave(() => {
+	disconnectWs()
+})
+
 watch(messages, () => {
   scrollToBottom()
 }, { deep: true })
@@ -369,6 +406,14 @@ const formatMessageContent = (content: string, isMine: boolean) => {
   const linkClass = isMine ? 'underline text-blue-100' : 'underline text-blue-600'
   const linkTokens: string[] = []
 
+  const linkTag = (url: string, label: string) => {
+    const internal = isInternalAppUrl(url)
+    const attrs = internal
+      ? `href="${url}" class="${linkClass}"`
+      : `href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}"`
+    return `<a ${attrs}>${label}</a>`
+  }
+
   const replaceWithToken = (html: string) => {
     const token = `__LINK_TOKEN_${linkTokens.length}__`
     linkTokens.push(html)
@@ -378,17 +423,13 @@ const formatMessageContent = (content: string, isMine: boolean) => {
   const withMarkdownLinks = escaped.replace(
     markdownLinkRegex,
     (_, label: string, url: string) =>
-      replaceWithToken(
-        `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${label}</a>`
-      )
+      replaceWithToken(linkTag(url, label))
   )
 
   const withAutoLinks = withMarkdownLinks.replace(
       urlRegex,
       (url) =>
-        replaceWithToken(
-          `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${url}</a>`
-        )
+        replaceWithToken(linkTag(url, url))
   )
 
   const restoredLinks = withAutoLinks.replace(

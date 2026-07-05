@@ -1,6 +1,14 @@
 <template>
 	<div>
-		<UTabs v-model="activeTab" color="neutral" :items="items" size="lg" variant="pill" class="max-h-full overflow-y-hidden w-full" />
+		<UTabs
+			:key="activeTab"
+			v-model="activeTab"
+			color="neutral"
+			:items="items"
+			size="lg"
+			variant="pill"
+			class="max-h-full overflow-y-hidden w-full"
+		/>
 
 		<div class="flex gap-3">
 			<div>
@@ -79,16 +87,24 @@ import { Editor } from '~/constants/keys'
 import A4Page from '~/components/ui/A4-page.vue'
 import { useDeals } from '~/composables/useDeals'
 import { useRouter } from 'vue-router'
+import {
+	TAB_TO_HASH,
+	tabFromRoute,
+	type EditorTabId,
+} from '~/utils/editorNavigation'
 
 definePageMeta({
   layout: 'profile'
 })
 
-const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
-const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
-const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const route = useRoute()
 const router = useRouter()
+
+const activeTab = useTypedState(Editor.ACTIVE_TAB, () =>
+	ref(tabFromRoute(route.hash, route.query.tab) ?? '0'),
+)
+const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
+const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const { getDeals, deals, findDeal } = useDeals()
 
 getDeals()
@@ -134,95 +150,95 @@ watch(() => [
 const items = computed(() => [
 	{
 		label: 'Заказ',
+		value: '0',
 		slot: 'order' as const,
 		disabled: false,
 	},
 	{
 		label: 'Счет',
+		value: '1',
 		slot: 'bill' as const,
 		disabled: isItemDisabled.value.bill,
 	},
 	{
 		label: 'Договор поставки',
+		value: '2',
 		slot: 'supplyContract' as const,
 		disabled: false,
 	},
 	{
 		label: 'Сопроводительные документы',
+		value: '3',
 		slot: 'accompanyingDocuments' as const,
 		disabled: false,
 	},
 	{
 		label: 'Счет-фактура',
+		value: '4',
 		slot: 'invoice' as const,
 		disabled: false,
 	},
 	{
 		label: 'Договор',
+		value: '5',
 		slot: 'contract' as const,
 		disabled: true,
 	},
 	{
 		label: 'Акт',
+		value: '6',
 		slot: 'act' as const,
 		disabled: true,
 	},
 	{
 		label: 'Другие документы',
+		value: '7',
 		slot: 'othersDocument' as const,
 		disabled: true,
 	},
 ])
 
+/** Пока обновляем URL из вкладки — не откатывать activeTab по старому ?tab= */
+const syncingTabToRoute = ref(false)
+
+const routeTabQuery = (): string | undefined => {
+	const tab = route.query.tab
+	return Array.isArray(tab) ? tab[0] : tab
+}
+
 watch(
-	() => route.fullPath,
+	() => [route.hash, route.query.tab] as const,
 	() => {
-		if (route.hash === '#order') {
-			activeTab.value = '0'
-		} else if (route.hash === '#bill') {
-			activeTab.value = '1'
-		} else if (route.hash === '#supplyContract') {
-			activeTab.value = '2'
-		} else if (route.hash === '#accompanyingDocuments') {
-			activeTab.value = '3'
-		} else if (route.hash === '#invoice') {
-			activeTab.value = '4'
-		} else if (route.hash === '#contract') {
-			activeTab.value = '5'
-		} else if (route.hash === '#act') {
-			activeTab.value = '6'
-		} else if (route.hash === '#othersDocument') {
-			activeTab.value = '7'
+		if (syncingTabToRoute.value) return
+		const tab = tabFromRoute(route.hash, route.query.tab)
+		if (tab && activeTab.value !== tab) {
+			activeTab.value = tab
 		}
 	},
-	{ immediate: true }
+	{ immediate: true },
 )
 
 watch(
-  () => activeTab.value,
-  () => {
-    if (activeTab.value === '0') {
-      router.replace({
-        query: route.query,
-        hash: '#order'
-      })
-    } else if (activeTab.value === '1') {
-      router.replace({
-        query: route.query,
-        hash: '#bill'
-      })
-    } else if (activeTab.value === '2') {
-      router.replace({
-        query: route.query,
-        hash: '#supplyContract'
-      })
-    } else if (activeTab.value === '3') {
-      router.replace({ query: route.query, hash: '#accompanyingDocuments' })
-    } else if (activeTab.value === '4') {
-      router.replace({ query: route.query, hash: '#invoice' })
-    } else if (activeTab.value === '7') {
-      router.replace({ query: route.query, hash: '#othersDocument' })
-    }
-  }
+	() => activeTab.value,
+	async (tab: EditorTabId) => {
+		const hash = TAB_TO_HASH[tab]
+		const tabQuery = tab === '0' ? 'order' : tab === '1' ? 'bill' : undefined
+		const nextQuery = { ...route.query } as Record<string, string>
+		if (tabQuery) {
+			nextQuery.tab = tabQuery
+		} else {
+			delete nextQuery.tab
+		}
+		const currentTabQuery = routeTabQuery()
+		if (!hash || (route.hash === hash && currentTabQuery === nextQuery.tab)) {
+			return
+		}
+		syncingTabToRoute.value = true
+		try {
+			await router.replace({ query: nextQuery, hash })
+		} finally {
+			syncingTabToRoute.value = false
+		}
+	},
 )
 </script>

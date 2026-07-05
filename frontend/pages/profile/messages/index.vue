@@ -3,6 +3,8 @@ import type { Chat } from '~/types/chat'
 import { formatMoscowDate } from '~/utils/datetime'
 import { useChatsApi } from '~/api/chats'
 import { useUserStore } from '~/stores/user'
+import { onChatPresenceMessage } from '~/composables/useChatPresence'
+import { useChatUnreadStore } from '~/stores/chatUnread'
 
 definePageMeta({
   layout: 'profile'
@@ -11,11 +13,71 @@ definePageMeta({
 const router = useRouter()
 const { getChats } = useChatsApi()
 const userStore = useUserStore()
+const chatUnreadStore = useChatUnreadStore()
 
 // Получаем ID текущей компании из store
 const currentCompanyId = userStore.companyId
 
-const { data: chats, pending, error } = await getChats()
+const { data: chats, pending, error, refresh: refreshChats } = await getChats()
+
+onMounted(() => {
+  const unsubscribe = onChatPresenceMessage((message) => {
+    if (message.type === 'new_message') {
+      const payload = message.message as {
+        sender_company_id?: number
+        content?: string
+        created_at?: string
+        id?: number
+      } | undefined
+      const senderId = Number(payload?.sender_company_id)
+      const targetChatId = Number(message.chat_id)
+      const viewerId = Number(currentCompanyId)
+
+      if (
+        targetChatId &&
+        senderId &&
+        viewerId &&
+        senderId !== viewerId &&
+        chats.value
+      ) {
+        const item = chats.value.find((c) => c.id === targetChatId)
+        if (item) {
+          item.unread_count = (item.unread_count ?? 0) + 1
+          if (payload?.content) {
+            item.last_message = {
+              id: payload.id ?? 0,
+              content: payload.content,
+              created_at: payload.created_at ?? new Date().toISOString(),
+            }
+          }
+        }
+      }
+
+      chatUnreadStore.noteIncomingMessage({
+        chatId: targetChatId,
+        senderCompanyId: senderId || null,
+        viewerCompanyId: viewerId || null,
+        activeChatId: null,
+        pageVisible: document.visibilityState === 'visible',
+      })
+    }
+
+    if (message.type === 'new_message' || message.type === 'messages_read') {
+      const savedUnread = new Map(
+        (chats.value ?? []).map((c) => [c.id, c.unread_count ?? 0]),
+      )
+      void refreshChats().then(() => {
+        if (message.type !== 'new_message' || !chats.value) return
+        for (const item of chats.value) {
+          const localCount = savedUnread.get(item.id) ?? 0
+          item.unread_count = Math.max(item.unread_count ?? 0, localCount)
+        }
+      })
+      void chatUnreadStore.refresh()
+    }
+  })
+  onUnmounted(unsubscribe)
+})
 
 const handleChatSelect = (chatId: number) => {
   router.push(`/profile/messages/${chatId}`)

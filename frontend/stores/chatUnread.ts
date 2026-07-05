@@ -19,6 +19,27 @@ export const useChatUnreadStore = defineStore('chatUnread', {
 			this.chatsWithUnread = chats.filter((chat) => (chat.unread_count ?? 0) > 0).length
 		},
 
+		/** Оптимистично зажечь badge до refresh API (входящее сообщение не в открытом чате). */
+		noteIncomingMessage(options: {
+			chatId: number
+			senderCompanyId?: number | null
+			viewerCompanyId?: number | null
+			activeChatId?: number | null
+			pageVisible?: boolean
+		}) {
+			const senderId = options.senderCompanyId ?? null
+			const viewerId = options.viewerCompanyId ?? null
+			if (!senderId || !viewerId || senderId === viewerId) return
+
+			const viewingThisChat =
+				(options.pageVisible ?? true) &&
+				options.activeChatId != null &&
+				options.activeChatId === options.chatId
+			if (viewingThisChat) return
+
+			this.chatsWithUnread = Math.max(this.chatsWithUnread, 1)
+		},
+
 		async refresh() {
 			const token = useCookie('access_token')
 			if (!token.value) {
@@ -26,10 +47,15 @@ export const useChatUnreadStore = defineStore('chatUnread', {
 				return
 			}
 
+			const optimistic = this.chatsWithUnread
+
 			try {
 				const { $api } = useNuxtApp()
 				const chats = await $api.get<Chat[]>('/v1/chats')
 				this.setFromChats(chats)
+				if (this.chatsWithUnread === 0 && optimistic > 0) {
+					this.chatsWithUnread = optimistic
+				}
 			} catch {
 				// оставляем предыдущее значение
 			}

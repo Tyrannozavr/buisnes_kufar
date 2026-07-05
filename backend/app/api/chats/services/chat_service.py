@@ -222,8 +222,15 @@ class ChatService:
                 "created_at": message.created_at,
                 "updated_at": message.updated_at,
             }
+            chat = await self.repository.get_chat_by_id(chat_id)
+            participant_user_ids = (
+                {p.user_id for p in chat.participants} if chat else None
+            )
             await chat_manager.send_message_to_chat(
-                chat_id, message_data, sender_user_id
+                chat_id,
+                message_data,
+                sender_user_id,
+                participant_user_ids=participant_user_ids,
             )
         except Exception as exc:
             from app_logging.logger import logger

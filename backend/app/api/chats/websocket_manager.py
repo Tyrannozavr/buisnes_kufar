@@ -35,6 +35,7 @@ class ChatWebSocketManager:
         chat_id: int,
         message: dict,
         exclude_user_id: Optional[int] = None,
+        participant_user_ids: Optional[Set[int]] = None,
     ):
         """Событие чата — подписчикам WS чата и presence-подключениям участников."""
         await self.broadcast_to_chat(chat_id, message, exclude_user_id=exclude_user_id)
@@ -42,9 +43,16 @@ class ChatWebSocketManager:
         for user_id, websocket in list(self.presence_connections.items()):
             if exclude_user_id and user_id == exclude_user_id:
                 continue
-            if chat_id not in self.user_presence_chat_ids.get(user_id, set()):
+            if participant_user_ids is not None:
+                if user_id not in participant_user_ids:
+                    continue
+            elif chat_id not in self.user_presence_chat_ids.get(user_id, set()):
                 continue
             await self.send_personal_message(message, websocket)
+
+    def update_presence_chat_ids(self, user_id: int, chat_ids: Set[int]) -> None:
+        if user_id in self.presence_connections:
+            self.user_presence_chat_ids[user_id] = chat_ids
 
     async def _notify_user_online(self, user_id: int, chat_ids: Set[int]):
         for chat_id in chat_ids:
@@ -192,7 +200,13 @@ class ChatWebSocketManager:
         for user_id in disconnected_users:
             self.disconnect(chat_id, user_id)
 
-    async def send_message_to_chat(self, chat_id: int, message_data: dict, sender_user_id: int):
+    async def send_message_to_chat(
+        self,
+        chat_id: int,
+        message_data: dict,
+        sender_user_id: int,
+        participant_user_ids: Optional[Set[int]] = None,
+    ):
         message = {
             "type": "new_message",
             "chat_id": chat_id,
@@ -200,7 +214,12 @@ class ChatWebSocketManager:
             "sender_user_id": sender_user_id,
         }
 
-        await self._broadcast_chat_event(chat_id, message, exclude_user_id=sender_user_id)
+        await self._broadcast_chat_event(
+            chat_id,
+            message,
+            exclude_user_id=sender_user_id,
+            participant_user_ids=participant_user_ids,
+        )
 
     async def send_messages_read(
         self,

@@ -8,14 +8,14 @@ export const getDocumentsByDealIdQuery = defineQueryOptions(({ dealId }: { dealI
 }))
 
 export const uploadDocumentByIdQuery = defineMutation(() => {
-	const { mutate, ...mutation } = useMutation({
+	const { mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.UPLOAD_DOCUMENT_BY_DEAL_ID],
 		mutation: ({ dealId, formData }: { dealId: number, formData: FormData }) => useDocumentsApi().uploadDocumentById(dealId, formData),
 	})
 
 	return {
 		...mutation,
-		uploadDocumentById: (dealId: number, formData: FormData) => mutate({ dealId, formData }),
+		uploadDocumentById: (dealId: number, formData: FormData) => mutateAsync({ dealId, formData }),
 	}
 })
 
@@ -25,7 +25,7 @@ export const downloadDocumentQuery = defineQueryOptions(({ dealId, documentId }:
 }))
 
 export const deleteDocumentQuery = defineMutation(() => {
-	const { mutate, ...mutation } = useMutation({
+	const { mutate, mutateAsync, ...mutation } = useMutation({
 		key: [QueryKeys.DELETE_DOCUMENT_BY_DEAL_ID],
 		mutation: ({ dealId, documentId }: { dealId: number, documentId: number }) => useDocumentsApi().deleteDocument(dealId, documentId),
 	})
@@ -33,5 +33,6 @@ export const deleteDocumentQuery = defineMutation(() => {
 	return {
 		...mutation,
 		deleteDocument: (dealId: number, documentId: number) => mutate({ dealId, documentId }),
+		deleteDocumentAsync: (dealId: number, documentId: number) => mutateAsync({ dealId, documentId }),
 	}
 })

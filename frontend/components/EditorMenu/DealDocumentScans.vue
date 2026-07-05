@@ -63,19 +63,26 @@
 				aria-label="Выберите файл скана"
 				@change="onFilePicked"
 			/>
-			<UButton
-				label="Выберите файл"
-				icon="i-lucide-folder-search"
-				color="neutral"
-				variant="subtle"
-				size="xl"
-				class="justify-center w-full"
-				:disabled="!editEnabled || uploading"
-				@click="fileInputRef?.click()"
-			/>
-			<p v-if="!editEnabled" class="text-xs text-neutral-500">
-				Сначала нажмите «Редактировать»
-			</p>
+			<UTooltip
+				text="Перейдите в режим редактирования"
+				:disabled="editEnabled || uploading"
+			>
+				<span
+					class="block w-full"
+					:class="{ 'cursor-not-allowed': !editEnabled || uploading }"
+				>
+					<UButton
+						label="Выберите файл"
+						icon="i-lucide-folder-search"
+						color="neutral"
+						variant="subtle"
+						size="xl"
+						class="justify-center w-full pointer-events-auto"
+						:disabled="!editEnabled || uploading"
+						@click="fileInputRef?.click()"
+					/>
+				</span>
+			</UTooltip>
 
 			<div
 				v-if="pendingPreviewUrl"
@@ -126,11 +133,13 @@
 		</p>
 
 		<FileViewer
-			v-model:isModalOpen="viewerOpen"
+			v-if="viewerOpen"
+			:is-modal-open="viewerOpen"
 			:deal-id="viewerDealId"
 			:document-id="viewerDocumentId"
 			:name="viewerName"
 			:type="viewerType"
+			@update:is-modal-open="viewerOpen = $event"
 			@close="viewerOpen = false"
 		/>
 	</div>
@@ -161,7 +170,7 @@ const toast = useToast()
 const queryCache = useQueryCache()
 const documentsApi = useDocumentsApi()
 const { uploadDocumentById } = uploadDocumentByIdQuery()
-const { deleteDocument: deleteDocumentMutation } = deleteDocumentQuery()
+const { deleteDocumentAsync } = deleteDocumentQuery()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pendingFile = ref<File | null>(null)
@@ -178,7 +187,7 @@ const viewerType = ref("")
 
 const canModify = computed(() => !props.readOnly)
 
-const { data: documents, asyncStatus } = useQuery({
+const { data: documents, asyncStatus, refetch } = useQuery({
 	key: () => [QueryKeys.GET_DOCUMENTS_BY_DEAL_ID, props.dealId],
 	query: () => useDocumentsApi().getDocumentsByDealId(props.dealId),
 	enabled: () => props.dealId > 0,
@@ -211,10 +220,11 @@ const fileExtension = (path: string | null): string => {
 	return ext === "jpg" ? "jpeg" : ext
 }
 
-const invalidateDocuments = (): void => {
+const refreshDocuments = async (): Promise<void> => {
 	queryCache.invalidateQueries({
 		key: [QueryKeys.GET_DOCUMENTS_BY_DEAL_ID, props.dealId],
 	})
+	await refetch()
 }
 
 const clearPending = (): void => {
@@ -249,9 +259,11 @@ const uploadPending = async (): Promise<number | null> => {
 	uploading.value = true
 	try {
 		const response = await uploadDocumentById(props.dealId, formData)
-		invalidateDocuments()
+		const id = response?.document_id ?? null
+		if (!id) return null
+		await refreshDocuments()
 		clearPending()
-		return response?.document_id ?? null
+		return id
 	} catch (error) {
 		toast.add({
 			title: "Не удалось сохранить скан",
@@ -336,8 +348,8 @@ const downloadScan = async (scan: DocumentApiItem): Promise<void> => {
 const removeScan = async (scan: DocumentApiItem): Promise<void> => {
 	deletingId.value = scan.document_id
 	try {
-		await deleteDocumentMutation(scan.deal_id, scan.document_id)
-		invalidateDocuments()
+		await deleteDocumentAsync(scan.deal_id, scan.document_id)
+		await refreshDocuments()
 		toast.add({ title: "Скан удалён", color: "success" })
 	} catch (error) {
 		toast.add({ title: "Не удалось удалить скан", color: "error" })

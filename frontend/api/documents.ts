@@ -65,15 +65,10 @@ export const useDocumentsApi = () => {
     }
   };
 
-  const deleteDocument = async (deal_id: number, document_id: number) => {
-    try {
-      const response = await $api.delete(
-        normalizeApiPath(API_URLS.DELETE_DOCUMENT(deal_id, document_id)),
-      );
-      return response;
-    } catch (error) {
-      console.log("ERROR: ", error);
-    }
+  const deleteDocument = async (deal_id: number, document_id: number): Promise<void> => {
+    await $api.delete(
+      normalizeApiPath(API_URLS.DELETE_DOCUMENT(deal_id, document_id)),
+    );
   };
 
   return {

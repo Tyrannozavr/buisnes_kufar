@@ -911,14 +911,22 @@ class DealRepository:
     async def get_document_by_id(
         self, deal_id: int, document_id: int, company_id: int
     ) -> Optional[OrderDocument]:
-        """Получение документа по ID с проверкой доступа к заказу."""
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
+        """Получение документа по ID с проверкой доступа к сделке (любая версия заказа)."""
+        if not await self.get_order_by_id(deal_id, company_id):
             return None
-        query = select(OrderDocument).options(selectinload(OrderDocument.order)).where(
-            and_(
-                OrderDocument.id == document_id,
-                OrderDocument.order_row_id == order.row_id,
+        query = (
+            select(OrderDocument)
+            .join(Order, OrderDocument.order_row_id == Order.row_id)
+            .options(selectinload(OrderDocument.order))
+            .where(
+                and_(
+                    OrderDocument.id == document_id,
+                    Order.id == deal_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
             )
         )
         result = await self.session.execute(query)
@@ -927,15 +935,23 @@ class DealRepository:
     async def get_documents_by_deal_id(
         self, deal_id: int, company_id: int
     ) -> List[OrderDocument]:
-        """Получение списка документов заказа с проверкой доступа."""
-        order = await self.get_order_by_id(deal_id, company_id)
-        if not order:
+        """Получение списка документов сделки (все версии заказа)."""
+        if not await self.get_order_by_id(deal_id, company_id):
             return []
 
         query = (
             select(OrderDocument)
+            .join(Order, OrderDocument.order_row_id == Order.row_id)
             .options(selectinload(OrderDocument.order))
-            .where(OrderDocument.order_row_id == order.row_id)
+            .where(
+                and_(
+                    Order.id == deal_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
+            )
             .order_by(desc(OrderDocument.created_at))
         )
         result = await self.session.execute(query)

@@ -150,7 +150,7 @@ const { findDeal, getDeals } = useDeals();
 const { fetchDealGeneratedDocxBlob, downloadBlob } = useDocxGenerator();
 
 const { uploadDocumentById } = uploadDocumentByIdQuery();
-const { deleteDocument: deleteDocumentMutation } = deleteDocumentQuery();
+const { deleteDocumentAsync } = deleteDocumentQuery();
 
 const { data: buyerDealsRaw, state: buyerDealState } = useQuery(() => buyerDealsQuery({}));
 const { data: sellerDealsRaw, state: sellerDealState } = useQuery(() => sellerDealsQuery({}));
@@ -507,7 +507,7 @@ const handleDeleteDocument = async (row: DocumentTableRow): Promise<void> => {
 
 	const dealId = selectedDealId.value;
 	try {
-		await deleteDocumentMutation(dealId, row.id);
+		await deleteDocumentAsync(dealId, row.id);
 		toast.add({
 			title: "Успешно",
 			description: "Документ удален",

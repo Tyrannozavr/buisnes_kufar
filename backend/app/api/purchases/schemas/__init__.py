@@ -925,6 +925,22 @@ class SupplyContractExistsResponse(BaseModel):
 	supply_contract: Optional[SupplyContractResponse] = None
 
 
+class CompanyContractResponse(BaseModel):
+	"""Договор из ЛК «Договоры» для выбора основания счёта."""
+
+	id: int
+	seller_company_id: int
+	buyer_company_id: int
+	number: str
+	date: datetime
+
+	model_config = {"from_attributes": True}
+
+
+class CompanyContractListResponse(BaseModel):
+	contracts: list[CompanyContractResponse] = Field(default_factory=list)
+
+
 class BindSupplyContractToDealRequest(BaseModel):
 	contract_id: int = Field(..., gt=0, description="ID договора поставки")
 

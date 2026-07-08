@@ -22,8 +22,9 @@ from app.api.authentication.permissions import PermissionManager
 from app.api.company.models.company import BusinessType, Company, TradeActivity
 from app.api.company.models.official import CompanyOfficial
 from app.api.products.models.product import Product, ProductType
-from app.api.purchases.models import Order, UnitOfMeasurement
+from app.api.purchases.models import Order, UnitOfMeasurement, CompanyContract
 from app.api.purchases.repositories import DealRepository
+from app.api.purchases.repositories.company_contract import CompanyContractRepository
 from app.api.purchases.schemas import DealCreate, OrderItemCreate
 from app.core.security import get_password_hash
 from app.db.base import AsyncSessionLocal
@@ -105,6 +106,30 @@ BUYER_COMPANY = {
     "vat_rate": 0,
 }
 
+BUYER_NO_CONTRACT_COMPANY = {
+    "name": "ООО Покупатель Без Договора",
+    "slug": "test-buyer-no-contract",
+    "full_name": "Общество с ограниченной ответственностью «Покупатель Без Договора»",
+    "inn": "7707083895",
+    "ogrn": "1027700132197",
+    "kpp": "770701003",
+    "type": "ООО",
+    "trade_activity": TradeActivity.BUYER,
+    "business_type": BusinessType.GOODS,
+    "activity_type": "Торговля",
+    "description": "Покупатель без договоров с поставщиком — этап 3.1",
+    "country": "Россия",
+    "federal_district": "Центральный федеральный округ",
+    "region": "Москва",
+    "city": "Москва",
+    "index": "109013",
+    "legal_address": "109013, г. Москва, ул. Новая, д. 3",
+    "production_address": "109013, г. Москва, ул. Новая, д. 3",
+    "phone": "+79001234003",
+    "email": "buyer-no-contract@gmail.com",
+    "vat_rate": 0,
+}
+
 SELLER_OFFICIAL = {
     "position": "Генеральный директор",
     "full_name": "Поставщик Сергей Петрович",
@@ -143,6 +168,8 @@ UNITS_DATA = [
 
 DEAL_MAIN_COMMENTS = "Этап 2 — тест ОКЕИ (заказ + счёт)"
 DEAL_NO_BILL_COMMENTS = "Этап 2 — сделка без счёта (createBill)"
+DEAL_STAGE31_CONTRACTS_COMMENTS = "Этап 3.1 — без счёта, диалог выбора договора"
+DEAL_NO_CONTRACT_COMMENTS = "Этап 3.1 — сделка без счёта, контрагент без договоров"
 
 # Каталог поставщика для §2.2 checkout (товар + услуга → два заказа)
 CHECKOUT_CATALOG = [
@@ -364,6 +391,27 @@ async def ensure_deal(
     return order
 
 
+async def ensure_company_contracts(
+    session,
+    seller_company_id: int,
+    buyer_company_id: int,
+) -> None:
+    repo = CompanyContractRepository(session)
+    contracts = [
+        ("00015", datetime(2025, 3, 1)),
+        ("00027", datetime(2025, 6, 15)),
+    ]
+    for number, date in contracts:
+        await repo.upsert_contract(
+            seller_company_id=seller_company_id,
+            buyer_company_id=buyer_company_id,
+            number=number,
+            date=date,
+        )
+    await session.commit()
+    print(f"  company contracts: {len(contracts)} шт. seller={seller_company_id} buyer={buyer_company_id}")
+
+
 async def main() -> None:
     print("=== Тестовые данные: этап 2 (ОКЕИ, seller/buyer) ===\n")
 
@@ -384,7 +432,13 @@ async def main() -> None:
         buyer_company = await upsert_company(session, BUYER_COMPANY)
         await upsert_user(session, BUYER_USER, buyer_company.id)
 
+        print("\nПокупатель без договоров (§3.1):")
+        buyer_no_contract = await upsert_company(session, BUYER_NO_CONTRACT_COMPANY)
+
         await session.commit()
+
+        print("\nДоговоры ЛК (seller ↔ основной покупатель):")
+        await ensure_company_contracts(session, seller_company.id, buyer_company.id)
 
         print("\nСделка 1 (ОКЕИ: шт→796, кг→166):")
         order_main = await ensure_deal(
@@ -410,19 +464,36 @@ async def main() -> None:
             ],
         )
 
-        print("\nСделка 2 (без счёта):")
-        order_no_bill = await ensure_deal(
+        print("\nСделка 2 (без счёта, с договорами — §3.1):")
+        order_stage31_contracts = await ensure_deal(
             session,
             buyer_company.id,
             seller_company.id,
-            comments=DEAL_NO_BILL_COMMENTS,
+            comments=DEAL_STAGE31_CONTRACTS_COMMENTS,
             items=[
                 OrderItemCreate(
-                    product_name="Шайба M8",
-                    product_article="WASH-M8",
-                    quantity=200,
+                    product_name="Шайба M8 (§3.1)",
+                    product_article="WASH-M8-31",
+                    quantity=100,
                     unit_of_measurement="шт",
                     price=2.00,
+                ),
+            ],
+        )
+
+        print("\nСделка 3 (без счёта, без договоров — §3.1):")
+        order_no_contract = await ensure_deal(
+            session,
+            buyer_no_contract.id,
+            seller_company.id,
+            comments=DEAL_NO_CONTRACT_COMMENTS,
+            items=[
+                OrderItemCreate(
+                    product_name="Гайка M8",
+                    product_article="NUT-M8",
+                    quantity=150,
+                    unit_of_measurement="шт",
+                    price=3.00,
                 ),
             ],
         )
@@ -435,7 +506,11 @@ async def main() -> None:
     print(f"Поставщик:  {SELLER_USER['email']}  ({SELLER_COMPANY['name']})")
     print(f"Покупатель: {BUYER_USER['email']}  ({BUYER_COMPANY['name']})")
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
-    print(f"Сделка 2: id={order_no_bill.id}, заказ {order_no_bill.seller_order_number}")
+    print(f"Сделка 2 (§3.1 договоры): id={order_stage31_contracts.id}, заказ {order_stage31_contracts.seller_order_number}")
+    print(f"Сделка 3 (§3.1 без договоров): id={order_no_contract.id}, заказ {order_no_contract.seller_order_number}")
+    print("\n§3.1 «Создать счет» — seller@gmail.com → Продажи → Товары")
+    print("  A) Сделка 2 → «Создать счет» → список договоров + «Без договора»")
+    print("  B) Сделка 3 → «Создать счет» → «Создать без основания?» Да/Нет")
     print("\n§2.1 ОКЕИ — seller@gmail.com → Продажи → сделка 1 → Заказ (ОКЕИ 796, 166)")
     print("\n§2.2 Checkout — buyer@gmail.com:")
     print("  1) http://localhost:8080/auth/login")

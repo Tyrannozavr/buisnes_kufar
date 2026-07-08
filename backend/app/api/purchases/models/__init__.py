@@ -295,6 +295,26 @@ class SpecificationItem(Base):
 	position: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class CompanyContract(Base):
+	"""Договор между компаниями (ЛК «Договоры») — основание для счёта на оплату."""
+	__tablename__ = "company_contract"
+	__table_args__ = (
+		UniqueConstraint(
+			"seller_company_id",
+			"buyer_company_id",
+			"number",
+			name="uq_company_contract_seller_buyer_number",
+		),
+	)
+
+	seller_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+	buyer_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+	number: Mapped[str] = mapped_column(String(20), nullable=False)
+	date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SupplyContractTemplateType(str, enum.Enum):
 	SUPPLY_CONTRACT = "supply_contract"
 	SPECIFICATION = "specification"

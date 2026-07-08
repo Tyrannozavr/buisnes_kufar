@@ -80,6 +80,69 @@
 			</div>
 		</template>
 	</UModal>
+
+	<UModal v-model:open="isNoContractModalOpen" title="Создать счёт">
+		<template #body>
+			<div class="flex flex-col gap-3">
+				<p class="text-sm text-gray-600">
+					С данным контрагентом нет договоров. Создать счёт без основания?
+				</p>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<UButton
+						label="Да"
+						color="primary"
+						class="w-full justify-center"
+						:loading="isCreateBillBusy"
+						:disabled="isCreateBillBusy"
+						@click="confirmCreateWithoutContract"
+					/>
+					<UButton
+						label="Нет"
+						color="neutral"
+						variant="subtle"
+						class="w-full justify-center"
+						:disabled="isCreateBillBusy"
+						@click="cancelCreateBillDialogs"
+					/>
+				</div>
+			</div>
+		</template>
+	</UModal>
+
+	<UModal v-model:open="isContractSelectModalOpen" title="Создать счёт">
+		<template #body>
+			<div class="flex flex-col gap-3">
+				<p class="text-sm text-gray-600">
+					Выберите договор с данным покупателем или создайте счёт без основания.
+				</p>
+				<USelect
+					:disabled="isCreateBillBusy"
+					:items="contractSelectItems"
+					:model-value="selectedContractValue"
+					placeholder="Выберите договор"
+					@update:model-value="(value: string) => { selectedContractValue = value }"
+				/>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<UButton
+						label="Создать счёт"
+						color="primary"
+						class="w-full justify-center"
+						:loading="isCreateBillBusy"
+						:disabled="isCreateBillBusy || !selectedContractValue"
+						@click="confirmCreateWithSelectedContract"
+					/>
+					<UButton
+						label="Отмена"
+						color="neutral"
+						variant="subtle"
+						class="w-full justify-center"
+						:disabled="isCreateBillBusy"
+						@click="cancelCreateBillDialogs"
+					/>
+				</div>
+			</div>
+		</template>
+	</UModal>
 </template>
 
 <script setup lang="ts">
@@ -94,6 +157,7 @@ import type { BuyerTableItems, SellerTableItems } from "~/types/purchases";
 import { usePurchasesApi } from "~/api/purchases";
 import { Editor } from "~/constants/keys";
 import { useBillFillState } from "~/composables/useBillFillState";
+import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
 const { type } = defineProps<{
@@ -118,8 +182,19 @@ const {
 	refreshStatus: refreshSupplyContractStatus,
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
-const { deals, findDealByDealNumber, findDeal, createBill } = useDeals()
+const { deals, findDealByDealNumber, findDeal } = useDeals()
 const { clearBillAwaitingFill } = useBillFillState()
+const {
+	isNoContractModalOpen,
+	isContractSelectModalOpen,
+	contractSelectItems,
+	selectedContractValue,
+	isBusy: isCreateBillBusy,
+	startCreateBill,
+	confirmCreateWithoutContract,
+	confirmCreateWithSelectedContract,
+	cancelDialogs: cancelCreateBillDialogs,
+} = useCreateBillFromSales()
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const PAGE_SIZE = 10
@@ -187,6 +262,14 @@ const formatBillCellLabel = (deal: Deal): string => {
 		return type === 'sales' ? 'Создать счет' : 'Просмотр'
 	}
 	return formatDocumentLinkLabel(deal.bill.number, deal.billDate)
+}
+
+const formatContractCellLabel = (deal: Deal): string => {
+	const items = (deal.contract ?? []) as { number?: string; date?: string }[]
+	const first = items[0]
+	const number = first?.number ?? ''
+	const date = first?.date ?? deal.contractDate ?? ''
+	return formatDocumentLinkLabel(number, date)
 }
 
 const formatAccompanyingCellLabel = (deal: Deal): string => {
@@ -592,30 +675,7 @@ const editSalesDocument = async (
 	const hash = editorHashForDocument(documentType)
 
 	if (documentType === 'bill') {
-		try {
-			clearBillAwaitingFill(dealId)
-			await createBill(dealId, { fillFromDeal: true })
-			activeTab.value = '1'
-			await router.push({
-				path: '/profile/editor',
-				query: {
-					dealId: dealId.toString(),
-					role: 'seller',
-				},
-				hash,
-			})
-			loadDealTrigger.value++
-			toast.add({
-				title: 'Счёт создан',
-				description: 'Данные заказа подставлены в счёт',
-				color: 'success',
-			})
-		} catch {
-			toast.add({
-				title: 'Не удалось создать счёт',
-				color: 'error',
-			})
-		}
+		await startCreateBill(dealNumber)
 		return
 	}
 
@@ -955,12 +1015,37 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           class: TABLE_LINK_CLASS,
           onClick: () => {
             if (row.getValue('bill') === 'Создать счет') {
-              editSalesDocument('bill', dealNumber)
+              void startCreateBill(dealNumber)
 							return
             }
 						const dealId = getDealIdByDealNumber(dealNumber, 'seller')
 						clearBillAwaitingFill(dealId)
 						openEditor(dealId, 'seller', '#bill')
+          }
+        })
+    }
+  },
+  {
+    accessorKey: 'contract',
+    header: 'Договор',
+    cell: ({ row }) => {
+			const dealNumber = String(row.getValue('dealNumber'))
+			const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+			const deal = dealId ? findDeal(dealId) : undefined
+			const label = String(row.getValue('contract') ?? '')
+			if (!label) {
+				return h('span', { class: 'text-neutral-400' }, '—')
+			}
+      return h(UButton,
+        {
+          color: 'neutral',
+          variant: 'ghost',
+          label,
+          class: TABLE_LINK_CLASS,
+          onClick: () => {
+						if (deal?.contractDate) {
+							openEditor(dealId, 'seller', '#contract')
+						}
           }
         })
     }
@@ -1038,6 +1123,7 @@ watch(goodsDealsList, () => {
     buyerCompany: deal.buyer.companyName || '',
     status: deal.status,
     bill: formatBillCellLabel(deal),
+    contract: formatContractCellLabel(deal),
     supplyContract: formatSupplyContractLabel(deal),
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),

@@ -1,6 +1,6 @@
 # Расширенное ТЗ: полный scope 70 000 ₽
 
-**Активная разработка:** этап 3 — [docs/schet/etap-03-sozdanie-scheta-dogovor-postavki.md](schet/etap-03-sozdanie-scheta-dogovor-postavki.md)  
+**Активная разработка:** этап 3 — [docs/schet/etap-03-sozdanie-scheta-dogovor-postavki.md](schet/etap-03-sozdanie-scheta-dogovor-postavki.md) (§3.1 ✅)  
 **Ветка:** `preprod` (этап 2 влит 23.06.2026)
 
 ---
@@ -34,7 +34,7 @@
 |------|-------|------------|----------|--------|
 | **1** | **10 000 ₽** | Доработки Сергея: ЛК, баги счёта, «Заполнить данными», дефолты | [etap-01](schet/etap-01-dorabotki-sergeya.md) | ✅ |
 | **2** | **20 000 ₽** | ОКЕИ, checkout, «Товары», «Заказ», счёт на оплату, фото/сканы | [etap-02](schet/etap-02-schet-na-oplatu.md) | ✅ |
-| **3** | **20 000 ₽** | «Создать счет», договор поставки, синхронизация заказа, фото/сканы | [etap-03](schet/etap-03-sozdanie-scheta-dogovor-postavki.md) | ⏳ |
+| **3** | **20 000 ₽** | «Создать счет», договор поставки, синхронизация заказа, фото/сканы | [etap-03](schet/etap-03-sozdanie-scheta-dogovor-postavki.md) | 🔄 §3.1 ✅ |
 | **4** | **20 000 ₽** | Счёт-договор, оферта, шаблоны, «Услуги», фото/сканы | [etap-04](schet/etap-04-schet-dogovor-oferta.md) | ⏳ |
 
 Стоимость, сроки и таблица «что где»: [payment-and-schedule.md](schet/payment-and-schedule.md)

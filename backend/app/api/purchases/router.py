@@ -12,6 +12,7 @@ from app.api.purchases.dependencies import (
 	deal_service_dep_annotated,
 	supply_contract_service_dep_annotated,
 	supply_contract_template_service_dep_annotated,
+	company_contract_service_dep_annotated,
 )
 from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
@@ -23,6 +24,7 @@ from app.api.purchases.schemas import (
     CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
+    CompanyContractListResponse,
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
     SpecificationCreate, SpecificationUpdate, SpecificationResponse,
     SupplyContractTemplateCreate, SupplyContractTemplateUpdate, SupplyContractTemplateResponse,
@@ -1445,6 +1447,25 @@ async def get_units_of_measurement(
         }
         for unit in units
     ]
+
+
+@router.get(
+	"/company-contracts",
+	response_model=CompanyContractListResponse,
+	tags=["company-contract"],
+	summary="Список договоров с контрагентом (ЛК «Договоры»)",
+)
+async def list_company_contracts(
+	counterparty_company_id: int = Query(..., gt=0, description="ID компании-контрагента"),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	company_contract_service: company_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	"""Договоры текущей компании с указанным контрагентом — для диалога «Создать счет»."""
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	return await company_contract_service.list_by_counterparty(company.id, counterparty_company_id)
 
 
 @router.get(

@@ -16,6 +16,7 @@ export interface SellerTableItems {
   buyerCompany: string;
   status?: string;
   bill?: string;
+  contract?: string;
   supplyContract?: string;
   accompanyingDocuments?: string;
   invoice?: string;

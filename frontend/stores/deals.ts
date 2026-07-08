@@ -293,6 +293,16 @@ export const useDealsStore = defineStore("deals", () => {
 	}
 
 	/**
+	 * Привязка договора к заявке (колонка «Договор» в Продажах)
+	 */
+	const editContractBinding = async (dealId: number, number: string, date: string) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.contract = [{ number, date }]
+		deal.contractDate = date
+	}
+
+	/**
 	 * обновление даты договора поставки после createSupplyContract
 	 * @param dealId - id сделки
 	 * @param date - дата договора поставки (supply_contract_date)
@@ -595,6 +605,7 @@ export const useDealsStore = defineStore("deals", () => {
 		editProductComments,
 		removeDeal,
 		editContractDate,
+		editContractBinding,
 		editSupplyContractDate,
 		//bill
 		editBillFields,

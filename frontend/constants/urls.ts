@@ -11,6 +11,9 @@ export const API_URLS = {
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
 
+	/** GET — договоры с контрагентом (ЛК «Договоры») */
+	GET_COMPANY_CONTRACTS: "/api/v1/purchases/company-contracts",
+
 	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
 
 	/** Legacy: POST — присвоить номер и дату договора поставки на сделке */

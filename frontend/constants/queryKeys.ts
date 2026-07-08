@@ -6,6 +6,7 @@ export const enum QueryKeys {
 	UPDATE_DEAL_BY_ID = 'update-deal-by-id',
 	UNITS_OF_MEASUREMENT = 'units-of-measurement',
 	CREATE_BILL = 'create-bill',
+	COMPANY_CONTRACTS = 'company-contracts',
 	CREATE_CONTRACT = 'create-contract',
 	CREATE_SUPPLY_CONTRACT = 'create-supply-contract',
 	SUPPLY_CONTRACT_EXISTS = 'supply-contract-exists',

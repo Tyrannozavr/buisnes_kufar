@@ -14,6 +14,7 @@ import type {
 	SupplyContractTemplateCreate,
 	SupplyContractTemplateUpdate,
 } from "~/types/supplyContractTemplate"
+import type { CompanyContractListResponse } from "~/types/companyContract"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
@@ -175,6 +176,21 @@ export const usePurchasesApi = () => {
 			return response
 		} catch (error) {
 			console.log("ERROR: ", error)
+		}
+	}
+
+	const getCompanyContracts = async (
+		counterpartyCompanyId: number,
+	): Promise<CompanyContractListResponse | undefined> => {
+		try {
+			const response = await $api.get(
+				normalizeApiPath(API_URLS.GET_COMPANY_CONTRACTS),
+				{ query: { counterparty_company_id: counterpartyCompanyId } },
+			)
+			return response as CompanyContractListResponse
+		} catch (error) {
+			console.error("ERROR getCompanyContracts:", error)
+			throw error
 		}
 	}
 
@@ -437,6 +453,7 @@ export const usePurchasesApi = () => {
 		getDealsByIds,
 		updateDealById,
 		createBill,
+		getCompanyContracts,
 		createContract,
 		createSupplyContract,
 		checkSupplyContractExists,

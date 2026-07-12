@@ -38,7 +38,8 @@
 							v-if="!isCounterpartiesLoading && !counterpartyOptions.length"
 							class="mt-1 text-xs text-amber-600"
 						>
-							Нет контрагентов. Оформите сделку или добавьте компанию в «Покупатели» / «Поставщики».
+							Контрагенты подтягиваются из сделок в «Продажи» / «Закупки» и из разделов «Покупатели» / «Поставщики».
+							Если список пуст — обновите страницу или проверьте, что вы вошли как продавец с активными сделками.
 						</p>
 					</UFormField>
 
@@ -78,7 +79,7 @@ import type { TableColumn } from "@nuxt/ui"
 import { useQuery, useQueryCache } from "@pinia/colada"
 import { getBuyers, getSuppliers, getPartners } from "~/api/company"
 import { usePurchasesApi } from "~/api/purchases"
-import { useDeals } from "~/composables/useDeals"
+import { buyerDealsQuery, sellerDealsQuery } from "~/queries/purchases"
 import { QueryKeys } from "~/constants/queryKeys"
 import type {
 	CompanyContractCreatePayload,
@@ -86,19 +87,28 @@ import type {
 	CompanyContractUpdatePayload,
 } from "~/types/companyContract"
 import type { PartnerCompany } from "~/types/company"
-import type { Deal } from "~/types/dealState"
+import type { BuyerDealResponse, SellerDealResponse } from "~/types/dealResponse"
 
 definePageMeta({ layout: "profile" })
 
 const toast = useToast()
 const queryCache = useQueryCache()
 const purchasesApi = usePurchasesApi()
-const { deals, getDeals } = useDeals({ role: "both" })
 const UButton = resolveComponent("UButton")
 
 const { data: contractsData, state: contractsState, refetch } = useQuery({
 	key: () => [QueryKeys.COMPANY_CONTRACTS, "all"],
 	query: () => purchasesApi.getCompanyContracts(),
+})
+
+const { data: sellerDeals, state: sellerDealsState } = useQuery({
+	key: () => [QueryKeys.SELLER_DEALS, 0, 100, "contracts"],
+	query: () => sellerDealsQuery({ limit: 100 }).query(),
+})
+
+const { data: buyerDeals, state: buyerDealsState } = useQuery({
+	key: () => [QueryKeys.BUYER_DEALS, 0, 100, "contracts"],
+	query: () => buyerDealsQuery({ limit: 100 }).query(),
 })
 
 const contracts = computed(() => contractsData.value?.contracts ?? [])
@@ -124,7 +134,9 @@ const isCounterpartiesLoading = computed(
 	() =>
 		buyersPending.value ||
 		suppliersPending.value ||
-		partnersPending.value,
+		partnersPending.value ||
+		sellerDealsState.value.status === "pending" ||
+		buyerDealsState.value.status === "pending",
 )
 
 const addCounterparty = (
@@ -133,8 +145,7 @@ const addCounterparty = (
 	name?: string,
 ) => {
 	if (!companyId) return
-	const label = (name ?? "").trim()
-	if (!label) return
+	const label = (name ?? "").trim() || `Контрагент #${companyId}`
 	map.set(companyId, label)
 }
 
@@ -149,20 +160,12 @@ const counterpartyOptions = computed(() => {
 		addCounterparty(map, company.id, company.fullName)
 	}
 
-	for (const deal of deals.value as Deal[]) {
-		if (deal.role === "seller") {
-			addCounterparty(
-				map,
-				deal.buyer.companyId,
-				deal.buyer.fullName || deal.buyer.companyName,
-			)
-		} else {
-			addCounterparty(
-				map,
-				deal.seller.companyId,
-				deal.seller.fullName || deal.seller.companyName,
-			)
-		}
+	for (const deal of (sellerDeals.value ?? []) as SellerDealResponse[]) {
+		addCounterparty(map, deal.buyer_company_id, deal.buyer_name)
+	}
+
+	for (const deal of (buyerDeals.value ?? []) as BuyerDealResponse[]) {
+		addCounterparty(map, deal.seller_company_id, deal.supplier_name)
 	}
 
 	return [...map.entries()]
@@ -171,7 +174,6 @@ const counterpartyOptions = computed(() => {
 })
 
 onMounted(() => {
-	getDeals()
 	void refreshBuyers()
 	void refreshSuppliers()
 	void refreshPartners()

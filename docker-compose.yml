@@ -197,7 +197,10 @@ services:
 
   # DOCX → PDF: POST {GOTENBERG_URL}/forms/libreoffice/convert (см. docs/DOCX_TEMPLATES_BACKEND.md)
   gotenberg:
-    image: gotenberg/gotenberg:8
+    build:
+      context: ./docker/gotenberg
+      dockerfile: Dockerfile
+    image: buisnes_kufar-gotenberg:8-times
     restart: unless-stopped
     expose:
       - "3000"

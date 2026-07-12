@@ -19,8 +19,10 @@ from sqlalchemy import select
 from app.api.authentication.models.roles_positions import UserRole
 from app.api.authentication.models.user import User
 from app.api.authentication.permissions import PermissionManager
-from app.api.company.models.company import BusinessType, Company, TradeActivity
+from app.api.company.models.company import BusinessType, Company, TradeActivity, CompanyRelationType
 from app.api.company.models.official import CompanyOfficial
+from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
+from app.api.company.schemas.company import CompanyRelationCreate
 from app.api.products.models.product import Product, ProductType
 from app.api.purchases.models import Order, UnitOfMeasurement, CompanyContract
 from app.api.purchases.repositories import DealRepository
@@ -391,6 +393,35 @@ async def ensure_deal(
     return order
 
 
+async def ensure_company_relations(
+    session,
+    seller_company_id: int,
+    buyer_company_id: int,
+    buyer_no_contract_id: int,
+) -> None:
+    repo = CompanyRelationsRepository(session)
+    pairs = [
+        (buyer_company_id, CompanyRelationType.BUYER),
+        (buyer_no_contract_id, CompanyRelationType.BUYER),
+    ]
+    for related_id, relation_type in pairs:
+        existing = await repo.get_relations(seller_company_id, relation_type)
+        if any(r.related_company_id == related_id for r in existing):
+            continue
+        await repo.add_relation(
+            seller_company_id,
+            CompanyRelationCreate(
+                related_company_id=related_id,
+                relation_type=relation_type,
+            ),
+        )
+    await session.commit()
+    print(
+        f"  company relations: seller={seller_company_id} "
+        f"buyers=[{buyer_company_id}, {buyer_no_contract_id}]"
+    )
+
+
 async def ensure_company_contracts(
     session,
     seller_company_id: int,
@@ -436,6 +467,14 @@ async def main() -> None:
         buyer_no_contract = await upsert_company(session, BUYER_NO_CONTRACT_COMPANY)
 
         await session.commit()
+
+        print("\nСвязи ЛК (Покупатели):")
+        await ensure_company_relations(
+            session,
+            seller_company.id,
+            buyer_company.id,
+            buyer_no_contract.id,
+        )
 
         print("\nДоговоры ЛК (seller ↔ основной покупатель):")
         await ensure_company_contracts(session, seller_company.id, buyer_company.id)

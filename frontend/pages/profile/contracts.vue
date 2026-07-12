@@ -31,10 +31,15 @@
 						<USelect
 							v-model="form.counterpartyId"
 							:items="counterpartyOptions"
-							value-key="value"
-							label-key="label"
+							:loading="isCounterpartiesLoading"
 							placeholder="Выберите контрагента"
 						/>
+						<p
+							v-if="!isCounterpartiesLoading && !counterpartyOptions.length"
+							class="mt-1 text-xs text-amber-600"
+						>
+							Нет контрагентов. Оформите сделку или добавьте компанию в «Покупатели» / «Поставщики».
+						</p>
 					</UFormField>
 
 					<UFormField v-if="!editingContract" label="Ваша роль в договоре">
@@ -71,8 +76,9 @@
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui"
 import { useQuery, useQueryCache } from "@pinia/colada"
-import { getBuyers, getSuppliers } from "~/api/company"
+import { getBuyers, getSuppliers, getPartners } from "~/api/company"
 import { usePurchasesApi } from "~/api/purchases"
+import { useDeals } from "~/composables/useDeals"
 import { QueryKeys } from "~/constants/queryKeys"
 import type {
 	CompanyContractCreatePayload,
@@ -80,12 +86,14 @@ import type {
 	CompanyContractUpdatePayload,
 } from "~/types/companyContract"
 import type { PartnerCompany } from "~/types/company"
+import type { Deal } from "~/types/dealState"
 
 definePageMeta({ layout: "profile" })
 
 const toast = useToast()
 const queryCache = useQueryCache()
 const purchasesApi = usePurchasesApi()
+const { deals, getDeals } = useDeals({ role: "both" })
 const UButton = resolveComponent("UButton")
 
 const { data: contractsData, state: contractsState, refetch } = useQuery({
@@ -96,17 +104,77 @@ const { data: contractsData, state: contractsState, refetch } = useQuery({
 const contracts = computed(() => contractsData.value?.contracts ?? [])
 const isLoading = computed(() => contractsState.value.status === "pending")
 
-const { data: buyers } = await getBuyers(1, 100)
-const { data: suppliers } = await getSuppliers(1, 100)
+const {
+	data: buyers,
+	refresh: refreshBuyers,
+	pending: buyersPending,
+} = await getBuyers(1, 100)
+const {
+	data: suppliers,
+	refresh: refreshSuppliers,
+	pending: suppliersPending,
+} = await getSuppliers(1, 100)
+const {
+	data: partners,
+	refresh: refreshPartners,
+	pending: partnersPending,
+} = await getPartners(1, 100)
+
+const isCounterpartiesLoading = computed(
+	() =>
+		buyersPending.value ||
+		suppliersPending.value ||
+		partnersPending.value,
+)
+
+const addCounterparty = (
+	map: Map<number, string>,
+	companyId?: number,
+	name?: string,
+) => {
+	if (!companyId) return
+	const label = (name ?? "").trim()
+	if (!label) return
+	map.set(companyId, label)
+}
 
 const counterpartyOptions = computed(() => {
-	const buyersList = (buyers.value ?? []) as PartnerCompany[]
-	const suppliersList = (suppliers.value ?? []) as PartnerCompany[]
 	const map = new Map<number, string>()
-	for (const company of [...buyersList, ...suppliersList]) {
-		map.set(company.id, company.fullName)
+
+	for (const company of [
+		...(buyers.value ?? []),
+		...(suppliers.value ?? []),
+		...(partners.value ?? []),
+	] as PartnerCompany[]) {
+		addCounterparty(map, company.id, company.fullName)
 	}
-	return [...map.entries()].map(([value, label]) => ({ value, label }))
+
+	for (const deal of deals.value as Deal[]) {
+		if (deal.role === "seller") {
+			addCounterparty(
+				map,
+				deal.buyer.companyId,
+				deal.buyer.fullName || deal.buyer.companyName,
+			)
+		} else {
+			addCounterparty(
+				map,
+				deal.seller.companyId,
+				deal.seller.fullName || deal.seller.companyName,
+			)
+		}
+	}
+
+	return [...map.entries()]
+		.map(([value, label]) => ({ label, value }))
+		.sort((a, b) => a.label.localeCompare(b.label, "ru"))
+})
+
+onMounted(() => {
+	getDeals()
+	void refreshBuyers()
+	void refreshSuppliers()
+	void refreshPartners()
 })
 
 const relationOptions = [

@@ -20,8 +20,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Исправляем внешний ключ для order_documents.order_id
-    op.drop_constraint('order_documents_order_id_fkey', 'order_documents', type_='foreignkey')
+    conn = op.get_bind()
+    has_order_id = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'order_documents' AND column_name = 'order_id')"
+        )
+    ).scalar()
+    if not has_order_id:
+        return
+
+    op.execute('ALTER TABLE order_documents DROP CONSTRAINT IF EXISTS order_documents_order_id_fkey')
     op.create_foreign_key(
         'order_documents_order_id_fkey',
         'order_documents', 'orders',

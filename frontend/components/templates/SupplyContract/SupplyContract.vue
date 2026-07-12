@@ -8,6 +8,8 @@ import type { Official, ProductItem } from '~/types/dealState'
 import { useRoute, useRouter } from 'vue-router'
 import { useDeals } from '~/composables/useDeals'
 import { useUserStore } from '~/stores/user'
+import { formatCompanyRecipientLine } from '~/utils/companyPartyLine'
+import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites'
 import { useSaveDeals } from '~/composables/useSaveDeals'
 
 const route = useRoute()
@@ -30,6 +32,7 @@ const {
 	editSupplyContractCoverLetterCheck,
 } = useDeals()
 const { completeSave, saveState } = useSaveDeals()
+const { loadBillRequisites, mergeDealPartyRequisites } = useCompanyBillRequisites()
 
 const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
 const supplyContractHTML = useTypedState(TemplateElement.SUPPLY_CONTRACT)
@@ -90,7 +93,7 @@ const fillQuery = () => {
 }
 
 //заполнение данных из сделки
-const fillSupplyContractData = () => {
+const fillSupplyContractData = async () => {
 	const deal = findDeal(Number(route.query.dealId))
 	if (!deal) return
 
@@ -164,19 +167,42 @@ const fillSupplyContractData = () => {
 			baseDocumentName: official.baseDocumentName,
 		}),
 	)
+
+	if (route.query.role === 'seller' && seller.companyId) {
+		const fresh = await loadBillRequisites(seller.companyId)
+		if (fresh) {
+			seller = mergeDealPartyRequisites(seller, fresh.party)
+			if (!officialsSeller.length && fresh.officials.length) {
+				officialsSeller = fresh.officials.map((official) => ({
+					id: official.id,
+					companyId: seller.companyId,
+					name: official.name,
+					position: official.position,
+					isBase: official.isBase,
+					baseDocument: official.baseDocument,
+					baseDocumentName: official.baseDocumentName,
+				}))
+			}
+		}
+	}
+
 	supplyContractOfficialsSeller.value = [...officialsSeller]
 	supplyContractHTML.value = deal.supplyContract.supplyContractText ?? ''
 	specificationHTML.value = deal.supplyContract.specificationText ?? ''
-	supplierDetailsCheck.value = deal.supplyContract.supplierDetailsCheck ?? false
-	buyerDetailsCheck.value = deal.supplyContract.buyerDetailsCheck ?? false
+	supplierDetailsCheck.value = true
+	buyerDetailsCheck.value = true
 	coverLetterCheck.value = deal.supplyContract.coverLetterCheck ?? false
+
+	const contractDate = deal.supplyContractDate || deal.supplyContract.entityDate || ''
+	const specNumber = (deal.supplyContract.specificationNumber ?? '').trim() || '1'
+	const specDate = (deal.supplyContract.specificationDate ?? '').trim() || contractDate
 
 	supplyContractData.value = {
 		dealId: deal.dealId,
 		number: deal.supplyContract.number ?? '',
-		date: deal.supplyContractDate || deal.supplyContract.entityDate || '',
-		specificationNumber: deal.supplyContract.specificationNumber ?? '',
-		specificationDate: deal.supplyContract.specificationDate ?? '',
+		date: contractDate,
+		specificationNumber: specNumber,
+		specificationDate: specDate,
 		seller,
 		buyer,
 		officialsSeller: [...officialsSeller],
@@ -201,10 +227,10 @@ const fillSupplyContractData = () => {
 }
 
 //заполнение данных из query
-const fillFromQuery = () => {
+const fillFromQuery = async () => {
 	const query = route.query
 	if (!query?.dealId || !query?.role) return
-	fillSupplyContractData()
+	await fillSupplyContractData()
 }
 
 //заполнение данных из query
@@ -348,28 +374,29 @@ watch(
 		<div>
 			<!-- Поставщик -->
 			<p v-if="supplyContractData.seller.companyType !== 'ИП'">
-				{{supplyContractData.seller.companyName}} далее -
+				{{ formatCompanyRecipientLine(supplyContractData.seller) }} далее -
 				<span class="font-bold">«Поставщик»</span>, от имени которого действует
-				{{ supplyContractOfficialsSeller[0]?.position }} {{ supplyContractOfficialsSeller[0]?.name ?? ' _____________' }}, действующего (ей) на основании {{ supplyContractOfficialsSeller[0]?.baseDocument }}
+				{{ supplyContractOfficialsSeller[0]?.position || (supplyContractOfficialsSeller[0]?.name || supplyContractData.seller.ownerName ? 'Генеральный директор' : '') }}
+				{{ supplyContractOfficialsSeller[0]?.name || supplyContractData.seller.ownerName || ' _____________' }}, действующего (ей) на основании {{ supplyContractOfficialsSeller[0]?.baseDocument }}
 				{{ supplyContractOfficialsSeller[0]?.baseDocumentName ?? ' _____________' }}, с одной стороны
 			</p>
 			<p v-else>
-				{{ supplyContractData.seller.companyName }}, далее -
+				{{ formatCompanyRecipientLine(supplyContractData.seller) }}, далее -
 				<span class="font-bold">«Поставщик»</span>, зарегистрированный в реестре
 				индивидуальных предпринимателей под № {{ supplyContractData.seller.ogrn }} с одной стороны
 			</p>
 
 			<!-- Покупатель -->
 			<p v-if="supplyContractData.buyer.companyType !== 'ИП'">
-				{{ supplyContractData.buyer.companyName }}, далее -
+				{{ formatCompanyRecipientLine(supplyContractData.buyer) }}, далее -
 				<span class="font-bold">«Покупатель»</span>, от имени которого действует
-				{{' _____________' }}, действующего (ей) на основании
+				{{ supplyContractData.buyer.ownerName || ' _____________' }}, действующего (ей) на основании
 				{{ ' _____________' }}, с другой стороны, далее совместно именуемые «Стороны»,
 				заключили настоящий Договор поставки (далее именуемый «Договор») о
 				нижеследующем:
 			</p>
 			<p v-else>
-				{{ supplyContractData.buyer.companyName }}, далее -
+				{{ formatCompanyRecipientLine(supplyContractData.buyer) }}, далее -
 				<span class="font-bold">«Покупатель»</span>, зарегистрированный в реестре
 				индивидуальных предпринимателей под № {{ supplyContractData.buyer.ogrn }} с другой стороны, далее
 				совместно именуемые «Стороны», заключили настоящий Договор поставки (далее
@@ -387,7 +414,7 @@ watch(
 		</div>
 		<div>
 			<h1 class="text-center ">
-				Спецификация № {{ supplyContractData.specificationNumber || '—' }}
+				Спецификация № {{ supplyContractData.specificationNumber || '1' }}
 			</h1>
 		</div>
 	</div>
@@ -494,8 +521,8 @@ watch(
 				<td v-if="buyerDetailsCheck" class="w-1/2">ПОКУПАТЕЛЬ:</td>
 			</tr>
 			<tr class="font-bold">
-				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
-				<td v-if="buyerDetailsCheck">{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
+				<td v-if="supplierDetailsCheck">{{ formatCompanyRecipientLine(supplyContractData.seller) }}</td>
+				<td v-if="buyerDetailsCheck">{{ formatCompanyRecipientLine(supplyContractData.buyer) }}</td>
 			</tr>
 			<tr>
 				<td v-if="supplierDetailsCheck">{{ supplyContractData.seller.index }}, {{ supplyContractData.seller.legalAddress }}</td>
@@ -541,11 +568,11 @@ watch(
 				<td class="w-1/2">Покупатель:</td>
 			</tr>
 			<tr class="font-bold">
-				<td>{{ supplyContractData.seller.companyType }} {{ supplyContractData.seller.companyName }}</td>
-				<td>{{ supplyContractData.buyer.companyType }} {{ supplyContractData.buyer.companyName }}</td>
+				<td>{{ formatCompanyRecipientLine(supplyContractData.seller) }}</td>
+				<td>{{ formatCompanyRecipientLine(supplyContractData.buyer) }}</td>
 			</tr>
 			<tr class="font-bold">
-				<td>{{ supplyContractOfficialsSeller[0]?.position ?? '_________________(ДОЛЖНОСТЬ)' }}</td>
+				<td>{{ supplyContractOfficialsSeller[0]?.position || (supplyContractOfficialsSeller[0]?.name || supplyContractData.seller.ownerName ? 'Генеральный директор' : '_________________(ДОЛЖНОСТЬ)') }}</td>
 				<td>_________________(ДОЛЖНОСТЬ)</td>
 			</tr>
 			<tr class="h-5">
@@ -553,8 +580,8 @@ watch(
 				<td></td>
 			</tr>
 			<tr>
-				<td>______________________/{{ normalizeName(supplyContractOfficialsSeller[0]?.name ?? '_____________(ФИО)') }}/</td>
-				<td>_______________/_____________(ФИО)/</td>
+				<td>______________________/{{ normalizeName(supplyContractOfficialsSeller[0]?.name || supplyContractData.seller.ownerName || '_____________(ФИО)') }}/</td>
+				<td>_______________/{{ normalizeName(supplyContractData.buyer.ownerName || '_____________(ФИО)') }}/</td>
 			</tr>
 			<tr class="font-bold">
 				<td>«____» _______________ 20__г.</td>

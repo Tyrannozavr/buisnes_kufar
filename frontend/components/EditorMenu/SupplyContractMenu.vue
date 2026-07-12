@@ -357,19 +357,27 @@ onBeforeUnmount(() => {
 
 <template>
 	<div class="flex flex-col gap-3">
-		<div class="mb-2 flex gap-4">
+		<div class="mb-2 flex gap-2">
 			<button
 				type="button"
-				class="cursor-pointer"
-				:class="{ 'font-bold text-blue-500': supplyContractType === 'supplyContract' }"
+				class="cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors"
+				:class="
+					supplyContractType === 'supplyContract'
+						? 'bg-primary-500 font-semibold text-white'
+						: 'text-neutral-600 hover:bg-neutral-100'
+				"
 				@click="handleSelectContractTab"
 			>
 				Договор
 			</button>
 			<button
 				type="button"
-				class="cursor-pointer"
-				:class="{ 'font-bold text-blue-500': supplyContractType === 'specification' }"
+				class="cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors"
+				:class="
+					supplyContractType === 'specification'
+						? 'bg-primary-500 font-semibold text-white'
+						: 'text-neutral-600 hover:bg-neutral-100'
+				"
 				@click="handleSelectSpecificationTab"
 			>
 				Спецификация

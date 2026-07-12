@@ -2,7 +2,19 @@
   <div class="max-w-full">
     <div class="bg-white shadow rounded-lg pt-4">
       <h2 class="text-lg font-medium text-gray-900 mb-2 ml-4">Закупки</h2>
-      <UTabs v-model="activeTab" :items="tabItems" class="px-4 mb-2" />
+      <UTabs
+        v-model="activeTab"
+        :items="tabItems"
+        color="primary"
+        variant="pill"
+        :content="false"
+        class="px-4 mb-2"
+        :ui="{
+          indicator: 'hidden',
+          trigger:
+            'data-[state=active]:bg-primary-500 data-[state=active]:text-white rounded-md data-[state=inactive]:text-gray-600 hover:data-[state=inactive]:text-gray-900',
+        }"
+      />
       <GoodsColumns v-if="activeTab === '0'" :type="'purchases'" />
       <p v-else class="px-4 pb-6 text-sm text-gray-500">
         Закладка «Услуги» — в рамках этапа 4 (70k).

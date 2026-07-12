@@ -5,8 +5,17 @@ import math
 from datetime import datetime
 from typing import Any
 
-from app.api.purchases.company_party_line import format_company_party_line
+from app.api.purchases.company_party_line import format_company_party_line, strip_leading_org_type
+from app.api.purchases.docx_plain_text import sanitize_supply_contract_docx_fields
 from app.api.purchases.schemas import DealResponse
+
+
+def _docx_non_breaking_name(value: str | None) -> str:
+	"""ФИО в docx/pdf: неразрывные пробелы, чтобы LibreOffice не рвал строку посередине."""
+	text = (value or "").strip()
+	if not text:
+		return ""
+	return "\u00a0".join(text.split())
 
 
 def _fmt_date(value: datetime | None) -> str:
@@ -114,6 +123,71 @@ def _ensure_order_docx_signatures(data: dict[str, Any]) -> None:
 		first["full_name"] = seller_name
 
 
+def _enrich_supply_contract_docx(data: dict[str, Any]) -> None:
+	"""Договор поставки: должностное лицо, номер спецификации, реквизиты для docx."""
+	supply_contract = data.get("supply_contract")
+	if not isinstance(supply_contract, dict):
+		supply_contract = {}
+		data["supply_contract"] = supply_contract
+
+	officials = supply_contract.get("officials")
+	if not isinstance(officials, list):
+		officials = []
+
+	seller_company = data.get("seller_company") if isinstance(data.get("seller_company"), dict) else {}
+	owner_name = (seller_company.get("owner_name") or "").strip()
+
+	if not officials:
+		if owner_name:
+			officials = [
+				{
+					"id": 0,
+					"full_name": owner_name,
+					"position": "Генеральный директор",
+					"is_base": False,
+					"base_document": "",
+					"base_document_name": "",
+				}
+			]
+			supply_contract["officials"] = officials
+	elif isinstance(officials[0], dict) and not (officials[0].get("full_name") or "").strip():
+		if owner_name:
+			officials[0]["full_name"] = owner_name
+			officials[0].setdefault("position", "Генеральный директор")
+
+	if not (supply_contract.get("specification_number") or "").strip():
+		supply_contract["specification_number"] = "1"
+
+	if not data.get("specification_date_fmt"):
+		data["specification_date_fmt"] = data.get("supply_contract_date_fmt") or ""
+
+	if not supply_contract.get("supplier_details_check"):
+		supply_contract["supplier_details_check"] = bool(seller_company.get("inn"))
+	buyer_company = data.get("buyer_company") if isinstance(data.get("buyer_company"), dict) else {}
+	if not supply_contract.get("buyer_details_check"):
+		supply_contract["buyer_details_check"] = bool(buyer_company.get("inn"))
+
+	for party_key in ("seller", "buyer"):
+		party = data.get(party_key)
+		if not isinstance(party, dict):
+			continue
+		company_name = party.get("company_name") or ""
+		company_type = party.get("company_type") or ""
+		if company_name:
+			short_name = strip_leading_org_type(company_name, company_type or None)
+			party["company_name"] = (
+				f"{company_type} {short_name}".strip() if company_type else short_name
+			)
+
+	if officials and isinstance(officials[0], dict) and officials[0].get("full_name"):
+		officials[0]["full_name"] = _docx_non_breaking_name(str(officials[0]["full_name"]))
+
+	for party_key in ("seller", "buyer"):
+		party = data.get(party_key)
+		if isinstance(party, dict) and party.get("full_name"):
+			party["full_name"] = _docx_non_breaking_name(str(party["full_name"]))
+
+
 def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	"""
 	Словарь для docxtpl: вложенная структура как в API (by_alias), плюс даты в формате ДД.ММ.ГГГГ.
@@ -147,6 +221,7 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	}
 
 	_ensure_supply_contract_defaults(data)
+	_enrich_supply_contract_docx(data)
 	_ensure_order_docx_signatures(data)
 	_enrich_bill_payment_docx(data)
 	sanitize_supply_contract_docx_fields(data)

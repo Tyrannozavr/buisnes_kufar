@@ -136,7 +136,8 @@
 								@click="handleDownloadCurrentDocx(activeTab)"
 								icon="i-lucide-dock"
 								class="p-1 w-[81px] h-10 text-sm"
-								:disabled="!isDisabled"
+								:loading="isDocxDownloading"
+								:disabled="!isDisabled || isDocxDownloading"
 							/>
 						</span>
 					</UTooltip>
@@ -147,7 +148,8 @@
 								@click="handleDownloadCurrentPdf(activeTab)"
 								icon="i-lucide-dock"
 								class="p-1 w-[77px] h-10 text-sm"
-								:disabled="!isDisabled"
+								:loading="isPdfDownloading"
+								:disabled="!isDisabled || isPdfDownloading"
 							/>
 						</span>
 					</UTooltip>
@@ -252,9 +254,9 @@
 
 			<!-- Сканы видны всегда (в т.ч. при согласовании изменений заказа у контрагента) -->
 			<DealDocumentScans
-				v-if="activeTab === '0' || activeTab === '1'"
+				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2'"
 				:deal-id="dealIdForReview"
-				:document-type="activeTab === '0' ? 'order' : 'bill'"
+				:document-type="activeTab === '0' ? 'order' : activeTab === '1' ? 'bill' : 'supply_contract'"
 				:read-only="isHiddenForBuyer"
 				:edit-enabled="!isDisabled && !canRespondToChanges"
 			/>
@@ -354,6 +356,8 @@ const tooltipSave = computed(() => {
 
 //DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
 const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
+const isDocxDownloading = ref(false)
+const isPdfDownloading = ref(false)
 
 const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 	const dealId = Number(route.query.dealId)
@@ -361,6 +365,8 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 		useToast().add({ title: "Не выбрана сделка", color: "error" })
 		return
 	}
+	if (isDocxDownloading.value) return
+	isDocxDownloading.value = true
 	try {
 		if (tab === "0") {
 			await downloadDealGeneratedDocx(dealId, "order")
@@ -379,6 +385,7 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 			return
 		}
 		if (tab === "2") {
+			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedDocx(dealId, "supply-contract")
 		}
 	} catch (e) {
@@ -387,6 +394,8 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 			title: "Не удалось скачать документ",
 			color: "error",
 		})
+	} finally {
+		isDocxDownloading.value = false
 	}
 }
 
@@ -396,6 +405,8 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 		useToast().add({ title: "Не выбрана сделка", color: "error" })
 		return
 	}
+	if (isPdfDownloading.value) return
+	isPdfDownloading.value = true
 	try {
 		if (tab === "0") {
 			await downloadDealGeneratedPdf(dealId, "order")
@@ -414,6 +425,7 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 			return
 		}
 		if (tab === "2") {
+			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedPdf(dealId, "supply-contract")
 		}
 	} catch (e) {
@@ -422,6 +434,8 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 			title: "Не удалось скачать PDF (нужен Gotenberg и GOTENBERG_URL на бэкенде)",
 			color: "error",
 		})
+	} finally {
+		isPdfDownloading.value = false
 	}
 }
 
@@ -510,6 +524,29 @@ const removeCurrentDeal = () => {
 // save button
 const { startSave } = useSaveDeals()
 const modalIsOpenSaveChanges = ref(false)
+
+/** Сохранить сделку на сервер перед DOC/PDF — экспорт читает данные из API, не с экрана. */
+const persistDealBeforeExport = async (): Promise<boolean> => {
+	const dealId = Number(route.query.dealId)
+	if (!dealId || Number.isNaN(dealId) || route.query.role !== "seller") {
+		return true
+	}
+	try {
+		await startSave()
+		await createNewDealVersion(dealId)
+		await refreshDealFromServer(dealId)
+		loadDealTrigger.value++
+		return true
+	} catch (err) {
+		console.error("persistDealBeforeExport:", err)
+		useToast().add({
+			title: "Не удалось сохранить перед экспортом",
+			description: "Сначала нажмите «Отправить контрагенту и сохранить»",
+			color: "error",
+		})
+		return false
+	}
+}
 
 
 const counterpartData: CounterpartData | null = getCounterpartData(

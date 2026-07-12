@@ -24,6 +24,34 @@ import type { ProductInCheckout } from "~/types/product"
 import type { SupplyContractEntityCreate } from "~/types/supplyContractEntity"
 
 type DealsLoadRole = 'buyer' | 'seller' | 'both'
+type DealsFetchStatus = 'idle' | 'pending' | 'success' | 'error'
+
+const buyerDealsListStatus = ref<DealsFetchStatus>('idle')
+const sellerDealsListStatus = ref<DealsFetchStatus>('idle')
+const dealsByIdsStatus = ref<DealsFetchStatus>('idle')
+const buyerDealIds = ref<number[]>([])
+const sellerDealIds = ref<number[]>([])
+let needsBuyerDealsList = false
+let needsSellerDealsList = false
+let buyerDealsFetchInitialized = false
+let sellerDealsFetchInitialized = false
+let dealsByIdsWatchInitialized = false
+
+const isBuyerDealsLoading = computed(
+	() =>
+		buyerDealsListStatus.value === 'pending' ||
+		(buyerDealsListStatus.value === 'success' &&
+			buyerDealIds.value.length > 0 &&
+			dealsByIdsStatus.value === 'pending'),
+)
+
+const isSellerDealsLoading = computed(
+	() =>
+		sellerDealsListStatus.value === 'pending' ||
+		(sellerDealsListStatus.value === 'success' &&
+			sellerDealIds.value.length > 0 &&
+			dealsByIdsStatus.value === 'pending'),
+)
 
 /**
  * Композабл для работы со сделками в store, cache, server(pinia colada).
@@ -98,68 +126,94 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 	 * Получение сделок с сервера и сохранение в store
 	 */
 	const getDeals = (): void => {
-		const buyerDealsStatus = ref(loadBuyer ? 'pending' : 'success')
-		const sellerDealsStatus = ref(loadSeller ? 'pending' : 'success')
-		const buyerDeals = ref<{ id: number }[] | undefined>(loadBuyer ? undefined : [])
-		const sellerDeals = ref<{ id: number }[] | undefined>(loadSeller ? undefined : [])
-
 		if (loadBuyer) {
+			needsBuyerDealsList = true
+		}
+		if (loadSeller) {
+			needsSellerDealsList = true
+		}
+
+		if (loadBuyer && !buyerDealsFetchInitialized) {
+			buyerDealsFetchInitialized = true
+			buyerDealsListStatus.value = 'pending'
 			const buyerQuery = useQuery(() => buyerDealsQuery({}))
 			watch(
 				() => [buyerQuery.status.value, buyerQuery.data.value] as const,
 				([status, data]) => {
-					buyerDealsStatus.value = status
-					buyerDeals.value = data
+					buyerDealsListStatus.value = status as DealsFetchStatus
+					buyerDealIds.value = (data ?? []).map((deal) => deal.id)
 				},
 				{ immediate: true },
 			)
 		}
 
-		if (loadSeller) {
+		if (loadSeller && !sellerDealsFetchInitialized) {
+			sellerDealsFetchInitialized = true
+			sellerDealsListStatus.value = 'pending'
 			const sellerQuery = useQuery(() => sellerDealsQuery({}))
 			watch(
 				() => [sellerQuery.status.value, sellerQuery.data.value] as const,
 				([status, data]) => {
-					sellerDealsStatus.value = status
-					sellerDeals.value = data
+					sellerDealsListStatus.value = status as DealsFetchStatus
+					sellerDealIds.value = (data ?? []).map((deal) => deal.id)
 				},
 				{ immediate: true },
 			)
 		}
 
-		const ids = computed<number[]>(() => {
+		if (dealsByIdsWatchInitialized) {
+			return
+		}
+		dealsByIdsWatchInitialized = true
+
+		const dealIdsToFetch = computed<number[]>(() => {
 			const set = new Set<number>()
-			if (buyerDealsStatus.value === "success" && buyerDeals.value) {
-				buyerDeals.value.forEach((d) => set.add(d.id))
+			if (needsBuyerDealsList && buyerDealsListStatus.value === 'success') {
+				buyerDealIds.value.forEach((id) => set.add(id))
 			}
-			if (sellerDealsStatus.value === "success" && sellerDeals.value) {
-				sellerDeals.value.forEach((d) => set.add(d.id))
+			if (needsSellerDealsList && sellerDealsListStatus.value === 'success') {
+				sellerDealIds.value.forEach((id) => set.add(id))
 			}
 			return Array.from(set)
 		})
 
 		const isReadyToGetDealsByIds = computed(() => {
-			const buyerOk = !loadBuyer || buyerDealsStatus.value === "success"
-			const sellerOk = !loadSeller || sellerDealsStatus.value === "success"
-			return buyerOk && sellerOk && ids.value.length > 0
+			const buyerOk = !needsBuyerDealsList || buyerDealsListStatus.value === 'success'
+			const sellerOk = !needsSellerDealsList || sellerDealsListStatus.value === 'success'
+			return buyerOk && sellerOk && dealIdsToFetch.value.length > 0
 		})
 
 		watch(
-			[isReadyToGetDealsByIds, ids],
+			[isReadyToGetDealsByIds, dealIdsToFetch],
 			async ([ready, idList]) => {
-				if (!ready || !idList?.length) return
-
-				const opts = dealsByIdsQuery({ ids: idList })
-				const entry = queryCache.ensure(opts)
-				const { data } = await queryCache.fetch(entry)
-				
-				data?.forEach((deal) => {
-					if (!storedIds.value.includes(deal.id)) {
-						dealsStore.addNewDeal(responseToDeal(deal))
+				if (!ready || !idList?.length) {
+					if (
+						(!needsBuyerDealsList || buyerDealsListStatus.value === 'success') &&
+						(!needsSellerDealsList || sellerDealsListStatus.value === 'success')
+					) {
+						dealsByIdsStatus.value = 'success'
 					}
-				})
+					return
+				}
+
+				dealsByIdsStatus.value = 'pending'
+				try {
+					const opts = dealsByIdsQuery({ ids: idList })
+					const entry = queryCache.ensure(opts)
+					const { data } = await queryCache.fetch(entry)
+
+					data?.forEach((deal) => {
+						if (!storedIds.value.includes(deal.id)) {
+							dealsStore.addNewDeal(responseToDeal(deal))
+						}
+					})
+					dealsByIdsStatus.value = 'success'
+				} catch (error) {
+					console.error('getDeals dealsByIds:', error)
+					dealsByIdsStatus.value = 'error'
+				}
 			},
-			{ immediate: true, deep: true }
+			{ immediate: true, deep: true },
 		)
 	}
 
@@ -324,6 +378,8 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 		editSupplyContractCoverLetterCheck,
 		//server functions
 		getDeals,
+		isBuyerDealsLoading,
+		isSellerDealsLoading,
 		deleteDeal,
 		createNewDealVersion,
 		deleteLastDealVersion,

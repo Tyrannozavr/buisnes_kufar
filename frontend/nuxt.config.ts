@@ -62,7 +62,8 @@ export default defineNuxtConfig({
   colorMode: {
     preference: 'light', // принудительно использует только светлую тему
     fallback: 'light',   // если preference не указан, всё равно будет светлая
-    classSuffix: ''      // убирает суффиксы классов (например 'light:')
+    classSuffix: '',     // убирает суффиксы классов (например 'light:')
+    storage: 'none',     // не читать/не писать dark из localStorage и системы
   },
   app: {
     baseURL: '/',
@@ -75,7 +76,15 @@ export default defineNuxtConfig({
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
-      ]
+      ],
+      script: [
+        {
+          key: 'force-light-mode',
+          innerHTML:
+            "document.documentElement.classList.remove('dark');document.documentElement.classList.add('light');",
+          type: 'text/javascript',
+        },
+      ],
     }
   },
   // Настройки для работы в dev режиме через nginx

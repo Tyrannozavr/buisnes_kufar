@@ -49,7 +49,7 @@ export const sendScanToCounterpart = async (
 	dealId: number,
 	role: "buyer" | "seller",
 	counterpartData: CounterpartData,
-	documentType: "order" | "bill",
+	documentType: "order" | "bill" | "supply_contract",
 	filename: string,
 ): Promise<void> => {
 	if (!counterpartData?.companyId) return
@@ -67,7 +67,11 @@ export const sendScanToCounterpart = async (
 	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, documentType)
 
 	const docLabel =
-		documentType === "order" ? "заказа" : "счёта на оплату"
+		documentType === "order"
+			? "заказа"
+			: documentType === "bill"
+				? "счёта на оплату"
+				: "договора поставки"
 	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). Это не изменение условий заказа — только файл. [Открыть сканы](${reviewUrl})`
 
 	await sendMessage(chatData.id, { content })

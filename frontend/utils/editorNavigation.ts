@@ -1,5 +1,5 @@
 export type EditorTabId = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7'
-export type EditorDocumentTab = 'order' | 'bill'
+export type EditorDocumentTab = 'order' | 'bill' | 'supply_contract'
 
 export const EDITOR_PATH = '/profile/editor'
 
@@ -28,6 +28,7 @@ export const TAB_TO_HASH: Record<EditorTabId, string> = {
 export const DOCUMENT_TAB_TO_EDITOR_TAB: Record<EditorDocumentTab, EditorTabId> = {
 	order: '0',
 	bill: '1',
+	supply_contract: '2',
 }
 
 export const tabFromRoute = (
@@ -53,7 +54,12 @@ export const buildEditorDealUrl = (
 		role,
 		tab: documentTab,
 	})
-	const hash = documentTab === 'order' ? '#order' : '#bill'
+	const hash =
+		documentTab === 'order'
+			? '#order'
+			: documentTab === 'bill'
+				? '#bill'
+				: '#supplyContract'
 	return `${EDITOR_PATH}?${params.toString()}${hash}`
 }
 

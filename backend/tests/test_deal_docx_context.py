@@ -1,7 +1,11 @@
 """Тесты очистки HTML перед рендером docx (без БД)."""
 from __future__ import annotations
 
-from app.api.purchases.deal_docx_context import _ensure_order_docx_signatures, _enrich_bill_payment_docx
+from app.api.purchases.deal_docx_context import (
+	_enrich_supply_contract_docx,
+	_ensure_order_docx_signatures,
+	_enrich_bill_payment_docx,
+)
 from app.api.purchases.docx_plain_text import html_to_plain_text, sanitize_supply_contract_docx_fields
 
 
@@ -65,3 +69,20 @@ def test_enrich_bill_payment_docx_payment_validity_and_vat() -> None:
 	assert data["bill"]["show_vat_row"] is True
 	assert data["seller_party_line"].startswith("ООО Поставщик")
 	assert data["items_count"] == 1
+
+
+def test_enrich_supply_contract_docx_fills_officials_and_spec_defaults() -> None:
+	data = {
+		"seller_company": {"owner_name": "Сергей Поставщик", "inn": "7707083893"},
+		"buyer_company": {"inn": "7707083895"},
+		"seller": {"company_name": "ООО Поставщик Тест", "company_type": "ООО"},
+		"buyer": {"company_name": "ООО Покупатель", "company_type": "ООО"},
+		"supply_contract": {"officials": [], "specification_number": ""},
+		"supply_contract_date_fmt": "12.07.2026",
+	}
+	_enrich_supply_contract_docx(data)
+	assert data["supply_contract"]["officials"][0]["full_name"] == "Сергей\u00a0Поставщик"
+	assert data["supply_contract"]["specification_number"] == "1"
+	assert data["specification_date_fmt"] == "12.07.2026"
+	assert data["supply_contract"]["supplier_details_check"] is True
+	assert data["seller"]["company_name"] == "ООО Поставщик Тест"

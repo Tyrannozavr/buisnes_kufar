@@ -1,4 +1,7 @@
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin({
+  name: 'force-light-mode',
+  enforce: 'pre',
+  setup() {
   // В dev (и вообще локально) часто остаётся сохранённый "dark" в localStorage от @nuxtjs/color-mode.
   // Прод у вас уже принудительно светлый, делаем то же самое и в разработке.
   try {
@@ -12,5 +15,6 @@ export default defineNuxtPlugin(() => {
   // На всякий случай убираем классы dark и принудительно ставим light
   document.documentElement.classList.remove('dark')
   document.documentElement.classList.add('light')
+  },
 })
 

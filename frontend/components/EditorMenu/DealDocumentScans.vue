@@ -160,7 +160,7 @@ import {
 
 const props = defineProps<{
 	dealId: number
-	documentType: Extract<DocumentTypeResponse, "order" | "bill">
+	documentType: Extract<DocumentTypeResponse, "order" | "bill" | "supply_contract">
 	readOnly: boolean
 	editEnabled: boolean
 }>()

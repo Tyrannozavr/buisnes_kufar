@@ -15,7 +15,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY package.json package-lock.json ./
 
 # Устанавливаем зависимости (включая dev для разработки)
-RUN npm install
+RUN npm config set fetch-timeout 600000 fetch-retry-mintimeout 20000 fetch-retry-maxtimeout 120000 && npm install
 
 # Создаем необходимые директории для Nuxt
 RUN mkdir -p /app/node_modules/.cache && \

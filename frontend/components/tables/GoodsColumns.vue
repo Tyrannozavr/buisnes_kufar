@@ -1,5 +1,9 @@
 <template>
 	<div class="px-4 pb-4">
+		<div v-if="isTableLoading" class="flex justify-center py-12">
+			<UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
+		</div>
+		<template v-else>
 		<UTable
 			v-model:sorting="tableSorting"
 			v-model:pagination="tablePagination"
@@ -15,6 +19,7 @@
 				:per-page="PAGE_SIZE"
 			/>
 		</div>
+		</template>
 	</div>
 
 	<UModal v-model:open="isSupplyContractChoiceModalOpen" title="Договор поставки уже существует">
@@ -180,9 +185,10 @@ const selectedSupplyContractEntityId = ref<number | undefined>(undefined)
 const {
 	contractEntity: checkedSupplyContractEntity,
 	refreshStatus: refreshSupplyContractStatus,
+	ensureContractEntity,
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
-const { deals, findDealByDealNumber, findDeal } = useDeals()
+const { deals, findDealByDealNumber, findDeal, isBuyerDealsLoading, isSellerDealsLoading } = useDeals()
 const { clearBillAwaitingFill } = useBillFillState()
 const {
 	isNoContractModalOpen,
@@ -235,6 +241,10 @@ const salesTable: Ref<SellerTableItems[]> = ref([])
 
 const tableRowCount = computed(() =>
 	type === 'purchases' ? purchasesTable.value.length : salesTable.value.length,
+)
+
+const isTableLoading = computed(() =>
+	type === 'purchases' ? isBuyerDealsLoading.value : isSellerDealsLoading.value,
 )
 
 
@@ -689,20 +699,10 @@ const editSalesDocument = async (
 	}
 
 	if (documentType === 'supplyContract') {
-		const createdSupplyContract = await purchasesApi.createSupplyContract(dealId)
-		if (!createdSupplyContract) {
-			toast.add({
-				title: 'Ошибка',
-				description: 'Не удалось создать договор поставки',
-				color: 'error',
-			})
+		selectedSupplyContractDealId.value = dealId
+		const created = await ensureContractEntity()
+		if (!created) {
 			return
-		}
-
-		const deal = findDeal(dealId)
-		if (deal) {
-			deal.supplyContract.number = createdSupplyContract.supply_contract_number
-			deal.supplyContractDate = createdSupplyContract.supply_contract_date
 		}
 
 		activeTab.value = '2'

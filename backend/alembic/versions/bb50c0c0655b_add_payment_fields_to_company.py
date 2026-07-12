@@ -20,12 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add payment and bank fields to companies table."""
-    # Add bank details / payment information columns
-    op.add_column('companies', sa.Column('current_account_number', sa.String(length=20), nullable=True))
-    op.add_column('companies', sa.Column('bic', sa.String(length=9), nullable=True))
-    op.add_column('companies', sa.Column('vat_rate', sa.Integer(), nullable=True))
-    op.add_column('companies', sa.Column('correspondent_bank_account', sa.String(length=20), nullable=True))
-    op.add_column('companies', sa.Column('bank_name', sa.String(length=255), nullable=True))
+    op.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS current_account_number VARCHAR(20)")
+    op.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS bic VARCHAR(9)")
+    op.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS vat_rate INTEGER")
+    op.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS correspondent_bank_account VARCHAR(20)")
+    op.execute("ALTER TABLE companies ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255)")
 
 
 def downgrade() -> None:

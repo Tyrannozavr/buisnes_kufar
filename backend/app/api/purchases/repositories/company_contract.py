@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.company.models.company import Company
@@ -65,6 +65,26 @@ class CompanyContractRepository:
 		)
 		return {row[0]: row[1] for row in result.all()}
 
+	async def generate_next_number(self, seller_company_id: int, *, year: int | None = None) -> str:
+		"""Следующий номер договора поставщика: маска 00001, сброс ежегодно."""
+		current_year = year or datetime.now(timezone.utc).replace(tzinfo=None).year
+		query = (
+			select(func.max(CompanyContract.number))
+			.where(CompanyContract.seller_company_id == seller_company_id)
+			.where(extract("year", CompanyContract.date) == current_year)
+		)
+		result = await self.session.execute(query)
+		max_number = result.scalar()
+		if max_number:
+			try:
+				number_part = int("".join(filter(str.isdigit, max_number)))
+				next_number = number_part + 1
+			except (ValueError, TypeError):
+				next_number = 1
+		else:
+			next_number = 1
+		return f"{next_number:05d}"
+
 	async def create_contract(
 		self,
 		*,
@@ -73,6 +93,8 @@ class CompanyContractRepository:
 		number: str,
 		date: datetime,
 	) -> CompanyContract:
+		if date.tzinfo is not None:
+			date = date.astimezone(timezone.utc).replace(tzinfo=None)
 		contract = CompanyContract(
 			seller_company_id=seller_company_id,
 			buyer_company_id=buyer_company_id,
@@ -93,6 +115,8 @@ class CompanyContractRepository:
 		if number is not None:
 			contract.number = number.strip()
 		if date is not None:
+			if date.tzinfo is not None:
+				date = date.astimezone(timezone.utc).replace(tzinfo=None)
 			contract.date = date
 		return contract
 

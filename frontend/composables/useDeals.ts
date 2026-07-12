@@ -17,7 +17,12 @@ import {
 import { useDealsStore } from "~/stores/deals"
 import { QueryKeys } from "~/constants/queryKeys"
 import { useQueryCache } from "@pinia/colada"
-import { createBodyForUpdate, responseToDeal } from "~/utils/dealsMapper"
+import {
+	createBodyForOrderUpdate,
+	createBodyForUpdate,
+	responseToDeal,
+} from "~/utils/dealsMapper"
+import { Editor } from "~/constants/keys"
 import { usePurchasesApi } from "~/api/purchases"
 import { storeToRefs } from "pinia"
 import type { ProductInCheckout } from "~/types/product"
@@ -31,27 +36,9 @@ const sellerDealsListStatus = ref<DealsFetchStatus>('idle')
 const dealsByIdsStatus = ref<DealsFetchStatus>('idle')
 const buyerDealIds = ref<number[]>([])
 const sellerDealIds = ref<number[]>([])
-let needsBuyerDealsList = false
-let needsSellerDealsList = false
-let buyerDealsFetchInitialized = false
-let sellerDealsFetchInitialized = false
-let dealsByIdsWatchInitialized = false
-
-const isBuyerDealsLoading = computed(
-	() =>
-		buyerDealsListStatus.value === 'pending' ||
-		(buyerDealsListStatus.value === 'success' &&
-			buyerDealIds.value.length > 0 &&
-			dealsByIdsStatus.value === 'pending'),
-)
-
-const isSellerDealsLoading = computed(
-	() =>
-		sellerDealsListStatus.value === 'pending' ||
-		(sellerDealsListStatus.value === 'success' &&
-			sellerDealIds.value.length > 0 &&
-			dealsByIdsStatus.value === 'pending'),
-)
+const needsBuyerDealsList = ref(false)
+const needsSellerDealsList = ref(false)
+const dealsLoadPromises = new Map<string, Promise<void>>()
 
 /**
  * Композабл для работы со сделками в store, cache, server(pinia colada).
@@ -64,6 +51,24 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 	const queryCache = useQueryCache()
 	const dealsStore = useDealsStore()
 	const { storedIds, deals, lastDeal } = storeToRefs(dealsStore)
+
+	const isBuyerDealsLoading = computed(() => {
+		if (!import.meta.client || !needsBuyerDealsList.value) return false
+		if (buyerDealsListStatus.value === 'error') return false
+		if (buyerDealsListStatus.value !== 'success') return true
+		const ids = buyerDealIds.value
+		if (!ids.length) return false
+		return !ids.every((id) => storedIds.value.includes(id))
+	})
+
+	const isSellerDealsLoading = computed(() => {
+		if (!import.meta.client || !needsSellerDealsList.value) return false
+		if (sellerDealsListStatus.value === 'error') return false
+		if (sellerDealsListStatus.value !== 'success') return true
+		const ids = sellerDealIds.value
+		if (!ids.length) return false
+		return !ids.every((id) => storedIds.value.includes(id))
+	})
 	const {
 		findDealByDealNumber,
 		findDeal,
@@ -126,95 +131,100 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 	 * Получение сделок с сервера и сохранение в store
 	 */
 	const getDeals = (): void => {
-		if (loadBuyer) {
-			needsBuyerDealsList = true
-		}
-		if (loadSeller) {
-			needsSellerDealsList = true
-		}
+		if (!import.meta.client) return
 
-		if (loadBuyer && !buyerDealsFetchInitialized) {
-			buyerDealsFetchInitialized = true
-			buyerDealsListStatus.value = 'pending'
-			const buyerQuery = useQuery(() => buyerDealsQuery({}))
-			watch(
-				() => [buyerQuery.status.value, buyerQuery.data.value] as const,
-				([status, data]) => {
-					buyerDealsListStatus.value = status as DealsFetchStatus
-					buyerDealIds.value = (data ?? []).map((deal) => deal.id)
-				},
-				{ immediate: true },
-			)
-		}
+		needsBuyerDealsList.value = loadBuyer
+		needsSellerDealsList.value = loadSeller
 
-		if (loadSeller && !sellerDealsFetchInitialized) {
-			sellerDealsFetchInitialized = true
-			sellerDealsListStatus.value = 'pending'
-			const sellerQuery = useQuery(() => sellerDealsQuery({}))
-			watch(
-				() => [sellerQuery.status.value, sellerQuery.data.value] as const,
-				([status, data]) => {
-					sellerDealsListStatus.value = status as DealsFetchStatus
-					sellerDealIds.value = (data ?? []).map((deal) => deal.id)
-				},
-				{ immediate: true },
-			)
-		}
-
-		if (dealsByIdsWatchInitialized) {
+		const roleKey = `${loadBuyer}:${loadSeller}`
+		const existing = dealsLoadPromises.get(roleKey)
+		if (existing) {
+			void existing
 			return
 		}
-		dealsByIdsWatchInitialized = true
 
-		const dealIdsToFetch = computed<number[]>(() => {
-			const set = new Set<number>()
-			if (needsBuyerDealsList && buyerDealsListStatus.value === 'success') {
-				buyerDealIds.value.forEach((id) => set.add(id))
-			}
-			if (needsSellerDealsList && sellerDealsListStatus.value === 'success') {
-				sellerDealIds.value.forEach((id) => set.add(id))
-			}
-			return Array.from(set)
+		const promise = loadDealsIntoStore().finally(() => {
+			dealsLoadPromises.delete(roleKey)
 		})
+		dealsLoadPromises.set(roleKey, promise)
+		void promise
+	}
 
-		const isReadyToGetDealsByIds = computed(() => {
-			const buyerOk = !needsBuyerDealsList || buyerDealsListStatus.value === 'success'
-			const sellerOk = !needsSellerDealsList || sellerDealsListStatus.value === 'success'
-			return buyerOk && sellerOk && dealIdsToFetch.value.length > 0
-		})
+	const loadDealsIntoStore = async (): Promise<void> => {
+		const fetchDealIds = async (
+			role: 'buyer' | 'seller',
+		): Promise<number[]> => {
+			const statusRef =
+				role === 'buyer' ? buyerDealsListStatus : sellerDealsListStatus
+			const idsRef = role === 'buyer' ? buyerDealIds : sellerDealIds
+			const queryOpts =
+				role === 'buyer' ? buyerDealsQuery({}) : sellerDealsQuery({})
+			const entry = queryCache.ensure(queryOpts)
 
-		watch(
-			[isReadyToGetDealsByIds, dealIdsToFetch],
-			async ([ready, idList]) => {
-				if (!ready || !idList?.length) {
-					if (
-						(!needsBuyerDealsList || buyerDealsListStatus.value === 'success') &&
-						(!needsSellerDealsList || sellerDealsListStatus.value === 'success')
-					) {
-						dealsByIdsStatus.value = 'success'
-					}
-					return
+			if (entry.state.value.status === 'success') {
+				const ids = (entry.state.value.data ?? []).map((deal) => deal.id)
+				idsRef.value = ids
+				statusRef.value = 'success'
+				return ids
+			}
+
+			statusRef.value = 'pending'
+			try {
+				const { data } = await queryCache.fetch(entry)
+				const ids = (data ?? []).map((deal) => deal.id)
+				idsRef.value = ids
+				statusRef.value = 'success'
+				return ids
+			} catch (error) {
+				console.error(`getDeals ${role} list:`, error)
+				statusRef.value = 'error'
+				idsRef.value = []
+				return []
+			}
+		}
+
+		const idList: number[] = []
+
+		if (needsBuyerDealsList.value) {
+			idList.push(...(await fetchDealIds('buyer')))
+		}
+		if (needsSellerDealsList.value) {
+			for (const id of await fetchDealIds('seller')) {
+				if (!idList.includes(id)) idList.push(id)
+			}
+		}
+
+		if (!idList.length) {
+			dealsByIdsStatus.value = 'success'
+			return
+		}
+
+		const missingIds = idList.filter((id) => !storedIds.value.includes(id))
+		if (!missingIds.length) {
+			dealsByIdsStatus.value = 'success'
+			return
+		}
+
+		dealsByIdsStatus.value = 'pending'
+		try {
+			const entry = queryCache.ensure(dealsByIdsQuery({ ids: idList }))
+			if (entry.state.value.status !== 'success') {
+				await queryCache.fetch(entry)
+			}
+			const data = entry.state.value.data
+
+			for (const deal of data ?? []) {
+				if (!storedIds.value.includes(deal.id)) {
+					dealsStore.addNewDeal(responseToDeal(deal))
 				}
+			}
 
-				dealsByIdsStatus.value = 'pending'
-				try {
-					const opts = dealsByIdsQuery({ ids: idList })
-					const entry = queryCache.ensure(opts)
-					const { data } = await queryCache.fetch(entry)
-
-					data?.forEach((deal) => {
-						if (!storedIds.value.includes(deal.id)) {
-							dealsStore.addNewDeal(responseToDeal(deal))
-						}
-					})
-					dealsByIdsStatus.value = 'success'
-				} catch (error) {
-					console.error('getDeals dealsByIds:', error)
-					dealsByIdsStatus.value = 'error'
-				}
-			},
-			{ immediate: true, deep: true },
-		)
+			const stillMissing = idList.filter((id) => !storedIds.value.includes(id))
+			dealsByIdsStatus.value = stillMissing.length ? 'error' : 'success'
+		} catch (error) {
+			console.error('getDeals dealsByIds:', error)
+			dealsByIdsStatus.value = 'error'
+		}
 	}
 
 	/**
@@ -236,8 +246,15 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 	 * @returns Promise, резолвится после завершения запроса
 	 */
 	const createNewDealVersion = async (dealId: number): Promise<void> => {
+		const route = useRoute()
+		const activeTab = useTypedState(Editor.ACTIVE_TAB)
+		const orderOnly =
+			route.query.role === "buyer" || activeTab.value === "0"
+		const body = orderOnly
+			? createBodyForOrderUpdate(dealId)
+			: createBodyForUpdate(dealId)
 		const { createNewDealVersionAsync } = useCreateNewDealVersionQuery()
-		await createNewDealVersionAsync(dealId, createBodyForUpdate(dealId))
+		await createNewDealVersionAsync(dealId, body)
 		queryCache.invalidateQueries({ key: [QueryKeys.DEALS_BY_IDS] })
 	}
 
@@ -331,6 +348,27 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 		return orderFromCheckout(products)
 	}
 
+	/**
+	 * Загрузить одну сделку в store (SSR + клиент). Редактор не рендерит форму до resolve.
+	 */
+	const ensureDealLoaded = async (dealId: number): Promise<boolean> => {
+		if (!dealId || Number.isNaN(dealId)) return false
+		if (findDeal(dealId)) return true
+
+		try {
+			const response = await usePurchasesApi().getDealById(dealId)
+			if (!response) return false
+			dealsStore.upsertDeal(responseToDeal(response))
+			if (import.meta.client) {
+				queryCache.setQueryData([QueryKeys.DEAL_BY_ID, dealId], response)
+			}
+			return true
+		} catch (error) {
+			console.error("ensureDealLoaded:", error)
+			return false
+		}
+	}
+
 	return {
 		//store functions
 		deals,
@@ -392,5 +430,6 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 		createSupplySpecification,
 		orderFromCheckout,
 		refreshDealFromServer,
+		ensureDealLoaded,
 	}
 }

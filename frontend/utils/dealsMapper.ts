@@ -31,6 +31,35 @@ const optionalDateField = (value: string | undefined | null): string | undefined
 	value?.trim() ? value : undefined
 
 
+const buildOrderItemsBody = (deal: Deal): OrderItemUpdate[] =>
+	(deal.product.productList ?? []).map((p: ProductItem) => ({
+		product_name: p.name.trim() || "—",
+		quantity: p.quantity,
+		unit_of_measurement: p.units.trim() || "шт",
+		price: p.price,
+		...(p.article?.trim() ? { product_article: p.article.trim() } : {}),
+	}))
+
+/** Поля заказа для API — без документов и реквизитов (§3.3, обе стороны). */
+export const createBodyForOrderUpdate = (dealId: number): DealUpdate => {
+	const { findDeal } = useDeals()
+	const deal = findDeal(dealId)
+	if (!deal) return { updated_at: new Date().toISOString() }
+
+	const body: DealUpdate = {
+		items: buildOrderItemsBody(deal),
+		comments: deal.product.comments ?? undefined,
+		updated_at: new Date().toISOString(),
+		amount_with_vat_rate: deal.amountWithVatRate ?? undefined,
+		amount_vat_rate: deal.product.amountVatRate ?? undefined,
+		seller_company: {
+			vat_rate: deal.seller.vatRate ?? 0,
+		} as CompanyInDealResponse,
+	}
+	if (deal.status) body.status = deal.status
+	return body
+}
+
 export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	const { findDeal } = useDeals()
 	const deal: Deal | undefined = findDeal(dealId)
@@ -38,18 +67,7 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	if (!deal) return { updated_at: new Date().toISOString() }
 
 	const seller = deal.seller
-
-	const products = deal.product.productList
-	
-	const itemsList: OrderItemUpdate[] = (products ?? []).map(
-		(p: ProductItem) => ({
-			product_name: p.name.trim() || "—",
-			quantity: p.quantity,
-			unit_of_measurement: p.units.trim() || "шт",
-			price: p.price,
-			...(p.article?.trim() ? { product_article: p.article.trim() } : {}),
-		})
-	)
+	const itemsList = buildOrderItemsBody(deal)
 
 	const body: DealUpdate = {
 		items: itemsList,

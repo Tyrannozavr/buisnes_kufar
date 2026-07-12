@@ -15,9 +15,14 @@ export interface CompanyContractListResponse {
 
 export interface CompanyContractCreatePayload {
 	counterparty_company_id: number
+	number?: string
+	date?: string
+	relation: "as_seller" | "as_buyer"
+}
+
+export interface CompanyContractNextNumberResponse {
 	number: string
 	date: string
-	relation: "as_seller" | "as_buyer"
 }
 
 export interface CompanyContractUpdatePayload {

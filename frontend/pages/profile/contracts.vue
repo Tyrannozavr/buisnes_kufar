@@ -53,7 +53,15 @@
 					</UFormField>
 
 					<UFormField label="Номер договора">
-						<UInput v-model="form.number" placeholder="00015" />
+						<UInput
+							v-model="form.number"
+							:readonly="!editingContract"
+							:loading="isNextNumberLoading"
+							placeholder="00001"
+						/>
+						<p v-if="!editingContract" class="mt-1 text-xs text-neutral-500">
+							Номер присваивается автоматически (маска 00000, сброс ежегодно).
+						</p>
 					</UFormField>
 
 					<UFormField label="Дата договора">
@@ -186,6 +194,7 @@ const relationOptions = [
 
 const isFormOpen = ref(false)
 const isSaving = ref(false)
+const isNextNumberLoading = ref(false)
 const editingContract = ref<CompanyContractItem | null>(null)
 
 const form = reactive({
@@ -199,6 +208,38 @@ const formTitle = computed(() =>
 	editingContract.value ? "Редактировать договор" : "Добавить договор",
 )
 
+const loadNextNumber = async () => {
+	if (editingContract.value) return
+	if (form.relation === "as_buyer" && !form.counterpartyId) {
+		form.number = ""
+		return
+	}
+
+	isNextNumberLoading.value = true
+	try {
+		const preview = await purchasesApi.getCompanyContractNextNumber({
+			relation: form.relation,
+			counterparty_company_id:
+				form.relation === "as_buyer" ? form.counterpartyId : undefined,
+		})
+		form.number = preview.number
+		form.date = preview.date.slice(0, 10)
+	} catch {
+		form.number = ""
+		form.date = new Date().toISOString().slice(0, 10)
+	} finally {
+		isNextNumberLoading.value = false
+	}
+}
+
+watch(
+	() => [form.relation, form.counterpartyId] as const,
+	() => {
+		if (!isFormOpen.value || editingContract.value) return
+		void loadNextNumber()
+	},
+)
+
 const formatDate = (iso: string) => {
 	const date = new Date(iso)
 	if (Number.isNaN(date.getTime())) return iso
@@ -210,8 +251,9 @@ const openCreateModal = () => {
 	form.counterpartyId = undefined
 	form.relation = "as_seller"
 	form.number = ""
-	form.date = new Date().toISOString().slice(0, 10)
+	form.date = ""
 	isFormOpen.value = true
+	void loadNextNumber()
 }
 
 const openEditModal = (contract: CompanyContractItem) => {
@@ -227,14 +269,18 @@ const invalidateContracts = async () => {
 }
 
 const saveContract = async () => {
-	if (!form.number.trim() || !form.date) {
-		toast.add({ title: "Укажите номер и дату", color: "warning" })
+	if (!form.date) {
+		toast.add({ title: "Укажите дату", color: "warning" })
 		return
 	}
 
 	isSaving.value = true
 	try {
 		if (editingContract.value) {
+			if (!form.number.trim()) {
+				toast.add({ title: "Укажите номер", color: "warning" })
+				return
+			}
 			const body: CompanyContractUpdatePayload = {
 				number: form.number.trim(),
 				date: new Date(form.date).toISOString(),
@@ -248,9 +294,11 @@ const saveContract = async () => {
 			}
 			const body: CompanyContractCreatePayload = {
 				counterparty_company_id: form.counterpartyId,
-				number: form.number.trim(),
 				date: new Date(form.date).toISOString(),
 				relation: form.relation,
+			}
+			if (form.number.trim()) {
+				body.number = form.number.trim()
 			}
 			await purchasesApi.createCompanyContract(body)
 			toast.add({ title: "Договор добавлен", color: "success" })

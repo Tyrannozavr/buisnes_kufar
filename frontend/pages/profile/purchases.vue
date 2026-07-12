@@ -24,11 +24,11 @@
 </template>
 
 <script setup lang="ts">
-import { useDeals } from '~/composables/useDeals'
 import GoodsColumns from '~/components/tables/GoodsColumns.vue'
 
 definePageMeta({
-  layout: 'profile'
+  layout: 'profile',
+  ssr: false,
 })
 
 const activeTab = ref('0')
@@ -36,7 +36,4 @@ const tabItems = [
   { label: 'Товары' },
   { label: 'Услуги' },
 ]
-
-const { getDeals } = useDeals({ role: 'buyer' })
-getDeals()
 </script>

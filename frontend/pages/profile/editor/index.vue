@@ -1,5 +1,21 @@
 <template>
 	<div>
+		<div
+			v-if="!isDealReady"
+			class="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-neutral-500"
+		>
+			<UIcon
+				v-if="dealLoadPending"
+				name="i-lucide-loader-circle"
+				class="size-10 animate-spin text-emerald-600"
+			/>
+			<p v-if="dealLoadPending">Загрузка сделки…</p>
+			<p v-else-if="dealLoadFailed" class="text-center text-amber-700">
+				Не удалось загрузить сделку. Проверьте ссылку или обновите страницу.
+			</p>
+		</div>
+
+		<template v-else>
 		<UTabs
 			:key="activeTab"
 			v-model="activeTab"
@@ -71,6 +87,7 @@
 				<EditorMenu/>
 			</div>
 		</div>
+		</template>
 	</div>
 </template>
 
@@ -94,22 +111,53 @@ import {
 } from '~/utils/editorNavigation'
 
 definePageMeta({
-  layout: 'profile'
+	layout: 'profile',
 })
 
 const route = useRoute()
 const router = useRouter()
+
+const parseDealId = (): number => {
+	const raw = route.query.dealId
+	const id = Number(Array.isArray(raw) ? raw[0] : raw)
+	return Number.isFinite(id) && id > 0 ? id : 0
+}
+
+const dealId = computed(() => parseDealId())
+const dealLoadPending = ref(true)
+const dealLoadFailed = ref(false)
+const isDealReady = computed(() => !dealLoadPending.value && !dealLoadFailed.value)
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () =>
 	ref(tabFromRoute(route.hash, route.query.tab) ?? '0'),
 )
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
-const { getDeals, deals, findDeal } = useDeals()
+const { ensureDealLoaded, findDeal } = useDeals()
 
-getDeals()
+const loadEditorDeal = async (id: number): Promise<void> => {
+	dealLoadPending.value = true
+	dealLoadFailed.value = false
+	if (!id) {
+		dealLoadFailed.value = true
+		dealLoadPending.value = false
+		return
+	}
+	const ok = await ensureDealLoaded(id)
+	dealLoadFailed.value = !ok
+	dealLoadPending.value = false
+	if (ok) {
+		loadDealTrigger.value++
+	}
+}
 
-/** Режим просмотра: покупатель read-only; поставщик редактирует. billEdit=1 — явное редактирование счёта. */
+await loadEditorDeal(parseDealId())
+
+watch(dealId, (id) => {
+	void loadEditorDeal(id)
+})
+
+/** Режим просмотра при смене сделки/вкладки. billEdit=1 — явное редактирование счёта (продавец). */
 watch(
 	() => [route.query.dealId, route.query.role, route.hash, route.query.billEdit],
 	() => {
@@ -126,9 +174,10 @@ watch(
 	{ immediate: true },
 )
 
-/** Покупатель не может перейти в режим редактирования даже программно */
-watch(isDisabled, (val) => {
-	if (route.query.role === 'buyer' && !val) {
+/** §3.3: покупатель редактирует только вкладку «Заказ»; счёт/договор — просмотр */
+watch([isDisabled, activeTab], ([disabled, tab]) => {
+	if (route.query.role !== 'buyer' || disabled) return
+	if (tab !== '0') {
 		isDisabled.value = true
 	}
 })
@@ -139,13 +188,13 @@ const isItemDisabled = ref({
 	})
 
 watch(() => [
-	deals.value,
-	route.query.dealId,
+	findDeal(dealId.value),
+	dealId.value,
 ], () => {
-	const deal = findDeal(Number(route.query.dealId))
+	const deal = findDeal(dealId.value)
 	isItemDisabled.value.bill = !deal?.billDate
 	isItemDisabled.value.contract = !deal?.contractDate
-}, { immediate: true, deep: true })
+}, { immediate: true })
 
 const items = computed(() => [
 	{

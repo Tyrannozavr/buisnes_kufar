@@ -22,7 +22,7 @@ const userStore = useUserStore()
 const { deals } = useDeals()
 
 
-const { findDeal, lastDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editProductComments } = useDeals()
+const { findDeal, lastDeal, deleteDeal, editProductList, editProductComments } = useDeals()
 const { completeSave, saveState } = useSaveDeals()
 const { unitOptions, getOkeiCode } = useUnitsOfMeasurement()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
@@ -30,6 +30,9 @@ const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
+
+/** Реквизиты на заказе только для просмотра; правки — в ЛК «Данные компании». */
+const isRequisitesDisabled = computed(() => true)
 
 const displayProducts = computed(() =>
 	buildOrderDisplayRows(orderData.value.products, orderChangeDiff.value),
@@ -175,11 +178,8 @@ watch(() => saveState.value,
 		
 		try {
 			const dealId = orderData.value.dealId
-			
-			await editSellerCompany(dealId, orderData.value.seller)
-			await editBuyerCompany(dealId, orderData.value.buyer)
 			await editProductList(dealId, orderData.value.products)
-			await editProductComments(dealId, orderData.value.comments ?? '')
+			await editProductComments(dealId, orderData.value.comments ?? "")
 
 			if (route.query.role === 'buyer') {
 				orderData.value.amount = lastDeal?.value?.purchases?.product.amountPrice
@@ -290,11 +290,11 @@ onMounted(() => {
 				<tr>
 					<td><span>Поставщик:</span> </td>
 					<td style="padding-inline: 10px;">
-						<input :disabled="isDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.seller.inn" /><br />
-						<input :disabled="isDisabled" placeholder="Название компании"
+						<input :disabled="isRequisitesDisabled" class="" placeholder="ИНН" v-model.trim.lazy="orderData.seller.inn" /><br />
+						<input :disabled="isRequisitesDisabled" placeholder="Название компании"
 							v-model.lazy="orderData.seller.companyName" /><br />
-						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.seller.legalAddress" /><br />
-						<input :disabled="isDisabled" placeholder="Контактный телефон"
+						<input :disabled="isRequisitesDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.seller.legalAddress" /><br />
+						<input :disabled="isRequisitesDisabled" placeholder="Контактный телефон"
 							v-model.trim.lazy="orderData.seller.phone" />
 					</td>
 				</tr>
@@ -303,10 +303,10 @@ onMounted(() => {
 						<span>Покупатель:</span>
 					</td>
 					<td style="padding-inline: 10px;">
-						<input :disabled="isDisabled" placeholder="Название компании"
+						<input :disabled="isRequisitesDisabled" placeholder="Название компании"
 							v-model.lazy="orderData.buyer.companyName" /><br />
-						<input :disabled="isDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
-						<input :disabled="isDisabled" placeholder="Контактный телефон"
+						<input :disabled="isRequisitesDisabled" placeholder="Юр.Адресс" v-model.lazy="orderData.buyer.legalAddress" /><br />
+						<input :disabled="isRequisitesDisabled" placeholder="Контактный телефон"
 							v-model.lazy="orderData.buyer.phone" /><br />
 					</td>
 				</tr>
@@ -465,11 +465,11 @@ onMounted(() => {
         <tr>
           <td>Менеджер</td>
           <td class="w-2/6">
-            <input :disabled="isDisabled" placeholder="Имя продавца" v-model.lazy="orderData.seller.ownerName"  />
+            <input :disabled="isRequisitesDisabled" placeholder="Имя продавца" v-model.lazy="orderData.seller.ownerName"  />
           </td>
           <td>Покупатель</td>
           <td class="w-2/6">
-            <input :disabled="isDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.ownerName" />
+            <input :disabled="isRequisitesDisabled" placeholder="Имя покупателя" v-model.lazy="orderData.buyer.ownerName" />
           </td>
         </tr>
       </tbody>

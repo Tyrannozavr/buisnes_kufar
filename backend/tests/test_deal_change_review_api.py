@@ -264,3 +264,49 @@ async def test_buyer_can_create_order_version(client: AsyncClient, seller_user_c
         },
     )
     assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seller_order_version_rejects_document_fields_without_bill_context(
+    client: AsyncClient, seller_user_context: dict,
+):
+    """§3.3: продавец на вкладке «Заказ» не может слать bill/contract в versions."""
+    context = seller_user_context
+    _set_current_user(context, context["seller_user"])
+
+    created = await _create_deal(client, context["seller_company_id"])
+    deal_id = created["id"]
+
+    ok = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={"comments": "seller order tweak"},
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["comments"] == "seller order tweak"
+
+    forbidden = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={"bill": {"number": "HACK-002"}},
+    )
+    assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seller_order_version_rejects_company_requisites_patch(
+    client: AsyncClient, seller_user_context: dict,
+):
+    """Реквизиты компании на заказе read-only: seller_company — только vat_rate."""
+    context = seller_user_context
+    _set_current_user(context, context["seller_user"])
+
+    created = await _create_deal(client, context["seller_company_id"])
+    deal_id = created["id"]
+
+    forbidden = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={
+            "comments": "ok",
+            "seller_company": {"company_name": "Взлом"},
+        },
+    )
+    assert forbidden.status_code == 422

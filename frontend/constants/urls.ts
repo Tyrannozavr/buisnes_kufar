@@ -13,6 +13,7 @@ export const API_URLS = {
 
 	/** GET — договоры (ЛК «Договоры»); query counterparty_company_id опционален */
 	GET_COMPANY_CONTRACTS: "/api/v1/purchases/company-contracts",
+	GET_COMPANY_CONTRACT_NEXT_NUMBER: "/api/v1/purchases/company-contracts/next-number",
 	CREATE_COMPANY_CONTRACT: "/api/v1/purchases/company-contracts",
 	UPDATE_COMPANY_CONTRACT: (contract_id: number) =>
 		`/api/v1/purchases/company-contracts/${contract_id}`,

@@ -99,7 +99,8 @@ export const usePurchasesApi = () => {
 			)
 			return response
 		} catch (error) {
-			console.log("ERROR GET DEALS BY IDS: ", error)
+			console.error("ERROR GET DEALS BY IDS: ", error)
+			throw error
 		}
 	}
 
@@ -195,6 +196,16 @@ export const usePurchasesApi = () => {
 			console.error("ERROR getCompanyContracts:", error)
 			throw error
 		}
+	}
+
+	const getCompanyContractNextNumber = async (params?: {
+		relation?: "as_seller" | "as_buyer"
+		counterparty_company_id?: number
+	}): Promise<import("~/types/companyContract").CompanyContractNextNumberResponse> => {
+		return await $api.get(
+			normalizeApiPath(API_URLS.GET_COMPANY_CONTRACT_NEXT_NUMBER),
+			{ query: params },
+		)
 	}
 
 	const createCompanyContract = async (
@@ -479,6 +490,7 @@ export const usePurchasesApi = () => {
 		updateDealById,
 		createBill,
 		getCompanyContracts,
+		getCompanyContractNextNumber,
 		createCompanyContract,
 		updateCompanyContract,
 		deleteCompanyContract,

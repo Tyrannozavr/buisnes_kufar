@@ -306,8 +306,8 @@ class SupplyContractInUpdate(BaseModel):
 
 
 class CompanyInDealUpdate(BaseModel):
-    """Частичное обновление company-данных в контексте сделки."""
-    model_config = {"extra": "ignore", "from_attributes": True, "populate_by_name": True}
+    """Частичное обновление company-данных в контексте сделки (только ставка НДС)."""
+    model_config = {"extra": "forbid", "from_attributes": True, "populate_by_name": True}
     vat_rate: Optional[int] = Field(None, ge=0, le=25, validation_alias=AliasChoices("vat_rate", "vatRate"))
 
 
@@ -945,10 +945,25 @@ class CompanyContractResponse(BaseModel):
 
 class CompanyContractCreate(BaseModel):
 	counterparty_company_id: int = Field(..., gt=0)
-	number: str = Field(..., min_length=1, max_length=20)
+	number: Optional[str] = Field(
+		None,
+		min_length=1,
+		max_length=20,
+		description="Если не указан — присваивается автоматически (маска 00000)",
+	)
+	date: Optional[datetime] = Field(
+		None,
+		description="Если не указана — текущая дата",
+	)
+	relation: Literal["as_seller", "as_buyer"] = Field(
+		default="as_seller",
+		description="as_seller: текущая компания — поставщик; as_buyer: текущая компания — покупатель",
+	)
+
+
+class CompanyContractNextNumberResponse(BaseModel):
+	number: str
 	date: datetime
-	"""as_seller: текущая компания — поставщик; as_buyer: текущая компания — покупатель."""
-	relation: Literal["as_seller", "as_buyer"] = "as_seller"
 
 
 class CompanyContractUpdate(BaseModel):

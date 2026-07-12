@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -26,6 +26,7 @@ from app.api.purchases.schemas import (
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     CompanyContractCreate,
     CompanyContractListResponse,
+    CompanyContractNextNumberResponse,
     CompanyContractResponse,
     CompanyContractUpdate,
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
@@ -1481,6 +1482,32 @@ async def list_company_contracts(
 			company.id, counterparty_company_id
 		)
 	return await company_contract_service.list_for_company(company.id)
+
+
+@router.get(
+	"/company-contracts/next-number",
+	response_model=CompanyContractNextNumberResponse,
+	tags=["company-contract"],
+	summary="Следующий номер договора (маска 00000)",
+)
+async def get_company_contract_next_number(
+	relation: Literal["as_seller", "as_buyer"] = Query(default="as_seller"),
+	counterparty_company_id: int | None = Query(default=None, gt=0),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	company_contract_service: company_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await company_contract_service.get_next_number(
+			company.id,
+			relation=relation,
+			counterparty_company_id=counterparty_company_id,
+		)
+	except ValueError as exc:
+		raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.post(

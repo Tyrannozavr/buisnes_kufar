@@ -188,7 +188,10 @@ const {
 	ensureContractEntity,
 } = useSupplyContractEntity(selectedSupplyContractDealId)
 
-const { deals, findDealByDealNumber, findDeal, isBuyerDealsLoading, isSellerDealsLoading } = useDeals()
+const { deals, findDealByDealNumber, findDeal, getDeals, isBuyerDealsLoading, isSellerDealsLoading } = useDeals({
+	role: type === 'purchases' ? 'buyer' : 'seller',
+})
+getDeals()
 const { clearBillAwaitingFill } = useBillFillState()
 const {
 	isNoContractModalOpen,
@@ -243,9 +246,10 @@ const tableRowCount = computed(() =>
 	type === 'purchases' ? purchasesTable.value.length : salesTable.value.length,
 )
 
-const isTableLoading = computed(() =>
-	type === 'purchases' ? isBuyerDealsLoading.value : isSellerDealsLoading.value,
-)
+const isTableLoading = computed(() => {
+	if (!import.meta.client) return true
+	return type === 'purchases' ? isBuyerDealsLoading.value : isSellerDealsLoading.value
+})
 
 
 const getDealIdByDealNumber = (dealNumber: string, role: 'buyer' | 'seller'): number | undefined => {

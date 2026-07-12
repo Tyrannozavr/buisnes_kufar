@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
@@ -7,9 +8,20 @@ from app.api.purchases.repositories.company_contract import CompanyContractRepos
 from app.api.purchases.schemas import (
 	CompanyContractCreate,
 	CompanyContractListResponse,
+	CompanyContractNextNumberResponse,
 	CompanyContractResponse,
 	CompanyContractUpdate,
 )
+
+
+def _utc_now_naive() -> datetime:
+	return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_datetime(value: datetime) -> datetime:
+	if value.tzinfo is None:
+		return value
+	return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class CompanyContractDuplicateError(Exception):
@@ -68,6 +80,34 @@ class CompanyContractService:
 			ids.add(contract.buyer_company_id)
 		return await self.repository.get_company_names(list(ids))
 
+	@staticmethod
+	def _resolve_pair(
+		company_id: int,
+		counterparty_company_id: int,
+		relation: str,
+	) -> tuple[int, int]:
+		if relation == "as_seller":
+			return company_id, counterparty_company_id
+		return counterparty_company_id, company_id
+
+	async def get_next_number(
+		self,
+		company_id: int,
+		*,
+		relation: str = "as_seller",
+		counterparty_company_id: int | None = None,
+	) -> CompanyContractNextNumberResponse:
+		if relation == "as_buyer" and not counterparty_company_id:
+			raise ValueError("counterparty_company_id is required when relation is as_buyer")
+		seller_id = (
+			company_id
+			if relation == "as_seller"
+			else counterparty_company_id  # type: ignore[assignment]
+		)
+		now = _utc_now_naive()
+		number = await self.repository.generate_next_number(seller_id, year=now.year)
+		return CompanyContractNextNumberResponse(number=number, date=now)
+
 	async def list_by_counterparty(
 		self,
 		company_id: int,
@@ -113,17 +153,25 @@ class CompanyContractService:
 		if payload.counterparty_company_id == company_id:
 			raise ValueError("Counterparty must differ from current company")
 
-		if payload.relation == "as_seller":
-			seller_id, buyer_id = company_id, payload.counterparty_company_id
-		else:
-			seller_id, buyer_id = payload.counterparty_company_id, company_id
+		seller_id, buyer_id = self._resolve_pair(
+			company_id,
+			payload.counterparty_company_id,
+			payload.relation,
+		)
+		contract_date = _normalize_datetime(payload.date) if payload.date else _utc_now_naive()
+		contract_number = (payload.number or "").strip()
+		if not contract_number:
+			contract_number = await self.repository.generate_next_number(
+				seller_id,
+				year=contract_date.year,
+			)
 
 		try:
 			contract = await self.repository.create_contract(
 				seller_company_id=seller_id,
 				buyer_company_id=buyer_id,
-				number=payload.number,
-				date=payload.date,
+				number=contract_number,
+				date=contract_date,
 			)
 			await self.session.commit()
 			await self.session.refresh(contract)
@@ -153,7 +201,7 @@ class CompanyContractService:
 			await self.repository.update_contract(
 				contract,
 				number=payload.number,
-				date=payload.date,
+				date=_normalize_datetime(payload.date) if payload.date is not None else None,
 			)
 			await self.session.commit()
 			await self.session.refresh(contract)

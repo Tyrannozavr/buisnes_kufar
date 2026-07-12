@@ -33,11 +33,11 @@ class OnlySellerCanModifyDealError(Exception):
 
 
 class BuyerOrderUpdateForbiddenError(Exception):
-	"""Покупатель пытается изменить поля, не относящиеся к заказу."""
+	"""Попытка изменить поля, недоступные при редактировании заказа (реквизиты, документы)."""
 
 
-# Поля DealUpdate, доступные покупателю при редактировании заказа (§3.3)
-_BUYER_ORDER_UPDATE_FIELDS = frozenset({
+# Поля заказа: состав, комментарий, суммы — доступны обеим сторонам (§3.3)
+_ORDER_SYNC_FIELDS = frozenset({
 	"status",
 	"items",
 	"comments",
@@ -46,6 +46,18 @@ _BUYER_ORDER_UPDATE_FIELDS = frozenset({
 	"amount_with_vat_rate",
 	"seller_company",
 	"updated_at",
+})
+
+# Документы сделки — только продавец и только при явном сохранении вкладки счёта/договора
+_SELLER_DOCUMENT_FIELDS = frozenset({
+	"contract",
+	"bill",
+	"supply_contract",
+	"closing_documents",
+	"others_documents",
+	"contract_date",
+	"bill_date",
+	"supply_contract_date",
 })
 
 
@@ -74,13 +86,38 @@ class DealService:
 		return await self.repository.get_order_by_id(deal_id, company_id)
 
 	@staticmethod
-	def _filter_update_for_buyer(deal_data: DealUpdate) -> DealUpdate:
+	def _filter_deal_update(deal_data: DealUpdate, company_id: int, order: Order) -> DealUpdate:
+		"""Реквизиты компаний не меняются через заказ; документы — только у продавца."""
 		raw = deal_data.model_dump(exclude_none=True)
-		forbidden = set(raw) - _BUYER_ORDER_UPDATE_FIELDS
-		if forbidden:
-			raise BuyerOrderUpdateForbiddenError(
-				f"Buyer cannot update deal fields: {', '.join(sorted(forbidden))}"
+		if not raw:
+			return deal_data
+
+		is_buyer = company_id == order.buyer_company_id
+		if is_buyer:
+			allowed = _ORDER_SYNC_FIELDS
+		else:
+			has_document_patch = bool(set(raw) & _SELLER_DOCUMENT_FIELDS)
+			allowed = (
+				_ORDER_SYNC_FIELDS | _SELLER_DOCUMENT_FIELDS
+				if has_document_patch
+				else _ORDER_SYNC_FIELDS
 			)
+
+		forbidden = set(raw) - allowed
+		if forbidden:
+			role = "Buyer" if is_buyer else "Seller"
+			raise BuyerOrderUpdateForbiddenError(
+				f"{role} cannot update deal fields: {', '.join(sorted(forbidden))}"
+			)
+
+		seller_company = raw.get("seller_company")
+		if isinstance(seller_company, dict):
+			extra_keys = set(seller_company.keys()) - {"vat_rate", "vatRate"}
+			if extra_keys:
+				raise BuyerOrderUpdateForbiddenError(
+					"seller_company allows only vat_rate; company requisites are read-only on order"
+				)
+
 		return DealUpdate(**raw)
 
 	async def ensure_seller_can_modify_deal(self, deal_id: int, company_id: int) -> Optional[Order]:
@@ -169,8 +206,8 @@ class DealService:
 			order = await self._ensure_order_participant(deal_id, company_id)
 			if not order:
 				return None
-			if company_id == order.buyer_company_id:
-				deal_data = self._filter_update_for_buyer(deal_data)
+			if deal_data is not None:
+				deal_data = self._filter_deal_update(deal_data, company_id, order)
 			order = await self.repository.update_order(deal_id, deal_data, company_id)
 			if not order:
 				return None
@@ -190,8 +227,8 @@ class DealService:
 			order = await self._ensure_order_participant(deal_id, company_id)
 			if not order:
 				return None
-			if company_id == order.buyer_company_id and deal_data is not None:
-				deal_data = self._filter_update_for_buyer(deal_data)
+			if deal_data is not None:
+				deal_data = self._filter_deal_update(deal_data, company_id, order)
 			order = await self.repository.create_new_order_version(deal_id, company_id)
 			if not order:
 				return None

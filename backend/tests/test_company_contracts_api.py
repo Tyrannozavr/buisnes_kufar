@@ -203,3 +203,63 @@ async def test_list_company_contracts_empty_for_unknown_counterparty(contract_pa
 
 	assert response.status_code == 200
 	assert response.json()["contracts"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_next_company_contract_number_as_seller(contract_pair):
+	pair = contract_pair
+	app.dependency_overrides[get_current_user] = lambda: pair["seller_user"]
+
+	try:
+		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+			response = await client.get(
+				"/api/v1/purchases/company-contracts/next-number",
+				params={"relation": "as_seller"},
+			)
+	finally:
+		app.dependency_overrides.pop(get_current_user, None)
+
+	assert response.status_code == 200
+	body = response.json()
+	assert body["number"] == "00001"
+	assert "date" in body
+
+
+@pytest.mark.asyncio
+async def test_get_next_company_contract_number_as_buyer_requires_counterparty(contract_pair):
+	pair = contract_pair
+	app.dependency_overrides[get_current_user] = lambda: pair["seller_user"]
+
+	try:
+		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+			response = await client.get(
+				"/api/v1/purchases/company-contracts/next-number",
+				params={"relation": "as_buyer"},
+			)
+	finally:
+		app.dependency_overrides.pop(get_current_user, None)
+
+	assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_company_contract_without_number_auto_generates(contract_pair):
+	pair = contract_pair
+	app.dependency_overrides[get_current_user] = lambda: pair["seller_user"]
+
+	try:
+		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+			create_resp = await client.post(
+				"/api/v1/purchases/company-contracts",
+				json={
+					"counterparty_company_id": pair["buyer_company_id"],
+					"relation": "as_seller",
+				},
+			)
+	finally:
+		app.dependency_overrides.pop(get_current_user, None)
+
+	assert create_resp.status_code == 201
+	created = create_resp.json()
+	assert created["number"] == "00001"
+	assert created["buyer_company_id"] == pair["buyer_company_id"]

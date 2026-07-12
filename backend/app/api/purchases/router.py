@@ -14,7 +14,7 @@ from app.api.purchases.dependencies import (
 	supply_contract_template_service_dep_annotated,
 	company_contract_service_dep_annotated,
 )
-from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError
+from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError, BuyerOrderUpdateForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
 from app.api.purchases.models import SupplyContractTemplateType
 from app.api.purchases.schemas import (
@@ -24,7 +24,10 @@ from app.api.purchases.schemas import (
     CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
+    CompanyContractCreate,
     CompanyContractListResponse,
+    CompanyContractResponse,
+    CompanyContractUpdate,
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
     SpecificationCreate, SpecificationUpdate, SpecificationResponse,
     SupplyContractTemplateCreate, SupplyContractTemplateUpdate, SupplyContractTemplateResponse,
@@ -442,6 +445,8 @@ async def update_deal(
         deal = await deal_service.update_deal(deal_id, deal_data, company.id)
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+    except BuyerOrderUpdateForbiddenError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -595,6 +600,8 @@ async def create_new_deal_version(
         new_version_deal = await deal_service.create_new_deal_version(deal_id, company.id, deal_data)
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+    except BuyerOrderUpdateForbiddenError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     if not new_version_deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return new_version_deal
@@ -1453,19 +1460,116 @@ async def get_units_of_measurement(
 	"/company-contracts",
 	response_model=CompanyContractListResponse,
 	tags=["company-contract"],
-	summary="Список договоров с контрагентом (ЛК «Договоры»)",
+	summary="Список договоров (ЛК «Договоры»)",
 )
 async def list_company_contracts(
-	counterparty_company_id: int = Query(..., gt=0, description="ID компании-контрагента"),
+	counterparty_company_id: int | None = Query(
+		default=None,
+		gt=0,
+		description="ID контрагента; без параметра — все договоры компании",
+	),
 	current_user: Annotated[User, Depends(get_current_user)] = ...,
 	company_contract_service: company_contract_service_dep_annotated = ...,
 	deal_service: deal_service_dep_annotated = ...,
 ):
-	"""Договоры текущей компании с указанным контрагентом — для диалога «Создать счет»."""
+	"""Договоры текущей компании — для ЛК «Договоры» и диалога «Создать счет»."""
 	company = await deal_service.get_company_by_user_id(current_user.id)
 	if not company:
 		raise HTTPException(status_code=404, detail="Company not found for this user")
-	return await company_contract_service.list_by_counterparty(company.id, counterparty_company_id)
+	if counterparty_company_id is not None:
+		return await company_contract_service.list_by_counterparty(
+			company.id, counterparty_company_id
+		)
+	return await company_contract_service.list_for_company(company.id)
+
+
+@router.post(
+	"/company-contracts",
+	response_model=CompanyContractResponse,
+	status_code=status.HTTP_201_CREATED,
+	tags=["company-contract"],
+	summary="Создать договор с контрагентом",
+)
+async def create_company_contract(
+	body: CompanyContractCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	company_contract_service: company_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.company_contract import (
+		CompanyContractDuplicateError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await company_contract_service.create(company.id, body)
+	except CompanyContractDuplicateError:
+		raise HTTPException(
+			status_code=409,
+			detail="Contract with this number already exists for this counterparty pair",
+		)
+	except ValueError as exc:
+		raise HTTPException(status_code=422, detail=str(exc))
+
+
+@router.patch(
+	"/company-contracts/{contract_id}",
+	response_model=CompanyContractResponse,
+	tags=["company-contract"],
+	summary="Обновить договор",
+)
+async def update_company_contract(
+	contract_id: int = Path(..., gt=0),
+	body: CompanyContractUpdate = ...,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	company_contract_service: company_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.company_contract import (
+		CompanyContractAccessError,
+		CompanyContractDuplicateError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await company_contract_service.update(contract_id, company.id, body)
+	except CompanyContractAccessError:
+		raise HTTPException(status_code=404, detail="Contract not found or access denied")
+	except CompanyContractDuplicateError:
+		raise HTTPException(
+			status_code=409,
+			detail="Contract with this number already exists for this counterparty pair",
+		)
+	except ValueError as exc:
+		raise HTTPException(status_code=422, detail=str(exc))
+
+
+@router.delete(
+	"/company-contracts/{contract_id}",
+	status_code=status.HTTP_204_NO_CONTENT,
+	tags=["company-contract"],
+	summary="Удалить договор",
+)
+async def delete_company_contract(
+	contract_id: int = Path(..., gt=0),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	company_contract_service: company_contract_service_dep_annotated = ...,
+	deal_service: deal_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.company_contract import CompanyContractAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		await company_contract_service.delete(contract_id, company.id)
+	except CompanyContractAccessError:
+		raise HTTPException(status_code=404, detail="Contract not found or access denied")
+	return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(

@@ -115,7 +115,7 @@ export const sendMessageToCounterpart = async (
 		} else if (isConfirm === false) {
 			content = `Изменения заказа ${orderNumber} ОТКЛОНЕНЫ. [Просмотр заказа](${normalizedReviewUrl})`
 		} else {
-			content = `Изменены условия заказа ${orderNumber}. Пожалуйста, ознакомьтесь с обновлённой версией. [Просмотр заказа](${normalizedReviewUrl})`
+			content = `Контрагент изменил данные заказа ${orderNumber}. [Просмотр заказа](${normalizedReviewUrl})`
 		}
 
 		await sendMessage(chatData.id, {

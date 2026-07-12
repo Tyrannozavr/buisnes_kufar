@@ -11,8 +11,13 @@ export const API_URLS = {
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
 
-	/** GET — договоры с контрагентом (ЛК «Договоры») */
+	/** GET — договоры (ЛК «Договоры»); query counterparty_company_id опционален */
 	GET_COMPANY_CONTRACTS: "/api/v1/purchases/company-contracts",
+	CREATE_COMPANY_CONTRACT: "/api/v1/purchases/company-contracts",
+	UPDATE_COMPANY_CONTRACT: (contract_id: number) =>
+		`/api/v1/purchases/company-contracts/${contract_id}`,
+	DELETE_COMPANY_CONTRACT: (contract_id: number) =>
+		`/api/v1/purchases/company-contracts/${contract_id}`,
 
 	CREATE_CONTRACT: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/contract`,
 

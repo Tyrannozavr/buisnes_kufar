@@ -29,7 +29,24 @@ from app_logging.logger import logger
 
 
 class OnlySellerCanModifyDealError(Exception):
-	"""Покупатель не может изменять документы сделки (§2.3 read-only)."""
+	"""Покупатель не может изменять документы сделки (счёт, договор и т.д.)."""
+
+
+class BuyerOrderUpdateForbiddenError(Exception):
+	"""Покупатель пытается изменить поля, не относящиеся к заказу."""
+
+
+# Поля DealUpdate, доступные покупателю при редактировании заказа (§3.3)
+_BUYER_ORDER_UPDATE_FIELDS = frozenset({
+	"status",
+	"items",
+	"comments",
+	"total_amount",
+	"amount_vat_rate",
+	"amount_with_vat_rate",
+	"seller_company",
+	"updated_at",
+})
 
 
 class DealChangeReviewForbiddenError(Exception):
@@ -44,13 +61,27 @@ class DealService:
 		self.repository = DealRepository(session)
 
 	async def _ensure_seller_on_deal(self, deal_id: int, company_id: int) -> Optional[Order]:
-		"""Доступ к сделке + запрет мутаций для компании-покупателя."""
+		"""Доступ к сделке + запрет мутаций документов для компании-покупателя."""
 		order = await self.repository.get_order_by_id(deal_id, company_id)
 		if not order:
 			return None
 		if company_id == order.buyer_company_id:
 			raise OnlySellerCanModifyDealError()
 		return order
+
+	async def _ensure_order_participant(self, deal_id: int, company_id: int) -> Optional[Order]:
+		"""Доступ к сделке для покупателя или продавца (редактирование заказа)."""
+		return await self.repository.get_order_by_id(deal_id, company_id)
+
+	@staticmethod
+	def _filter_update_for_buyer(deal_data: DealUpdate) -> DealUpdate:
+		raw = deal_data.model_dump(exclude_none=True)
+		forbidden = set(raw) - _BUYER_ORDER_UPDATE_FIELDS
+		if forbidden:
+			raise BuyerOrderUpdateForbiddenError(
+				f"Buyer cannot update deal fields: {', '.join(sorted(forbidden))}"
+			)
+		return DealUpdate(**raw)
 
 	async def ensure_seller_can_modify_deal(self, deal_id: int, company_id: int) -> Optional[Order]:
 		"""Публичная обёртка: доступ к сделке; покупатель → OnlySellerCanModifyDealError."""
@@ -135,13 +166,16 @@ class DealService:
 	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
 		"""Обновление сделки"""
 		try:
-			if not await self._ensure_seller_on_deal(deal_id, company_id):
+			order = await self._ensure_order_participant(deal_id, company_id)
+			if not order:
 				return None
+			if company_id == order.buyer_company_id:
+				deal_data = self._filter_update_for_buyer(deal_data)
 			order = await self.repository.update_order(deal_id, deal_data, company_id)
 			if not order:
 				return None
 			return await self._order_to_deal_response(order, company_id)
-		except OnlySellerCanModifyDealError:
+		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError):
 			raise
 		except Exception as e:
 			await self.session.rollback()
@@ -153,8 +187,11 @@ class DealService:
 	) -> Optional[DealResponse]:
 		"""Создание новой версии сделки по текущей последней версии с опциональным обновлением полей."""
 		try:
-			if not await self._ensure_seller_on_deal(deal_id, company_id):
+			order = await self._ensure_order_participant(deal_id, company_id)
+			if not order:
 				return None
+			if company_id == order.buyer_company_id and deal_data is not None:
+				deal_data = self._filter_update_for_buyer(deal_data)
 			order = await self.repository.create_new_order_version(deal_id, company_id)
 			if not order:
 				return None
@@ -169,7 +206,7 @@ class DealService:
 					order = updated_order
 
 			return await self._order_to_deal_response(order, company_id)
-		except OnlySellerCanModifyDealError:
+		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError):
 			raise
 		except Exception as e:
 			await self.session.rollback()

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, AliasChoices, ConfigDict
 from enum import Enum
 
@@ -933,8 +933,27 @@ class CompanyContractResponse(BaseModel):
 	buyer_company_id: int
 	number: str
 	date: datetime
+	counterparty_company_id: int = Field(..., description="ID контрагента относительно текущей компании")
+	counterparty_name: str = Field("", description="Название контрагента")
+	counterparty_role: str = Field(
+		"",
+		description="Роль контрагента: buyer | seller",
+	)
 
 	model_config = {"from_attributes": True}
+
+
+class CompanyContractCreate(BaseModel):
+	counterparty_company_id: int = Field(..., gt=0)
+	number: str = Field(..., min_length=1, max_length=20)
+	date: datetime
+	"""as_seller: текущая компания — поставщик; as_buyer: текущая компания — покупатель."""
+	relation: Literal["as_seller", "as_buyer"] = "as_seller"
+
+
+class CompanyContractUpdate(BaseModel):
+	number: Optional[str] = Field(None, min_length=1, max_length=20)
+	date: Optional[datetime] = None
 
 
 class CompanyContractListResponse(BaseModel):

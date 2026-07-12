@@ -122,6 +122,69 @@ async def test_list_company_contracts_returns_counterparty_contracts(contract_pa
 	assert len(body["contracts"]) == 1
 	assert body["contracts"][0]["number"] == "00042"
 	assert body["contracts"][0]["buyer_company_id"] == pair["buyer_company_id"]
+	assert body["contracts"][0]["counterparty_company_id"] == pair["buyer_company_id"]
+
+
+@pytest.mark.asyncio
+async def test_list_all_company_contracts(contract_pair):
+	pair = contract_pair
+	app.dependency_overrides[get_current_user] = lambda: pair["seller_user"]
+
+	try:
+		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+			response = await client.get("/api/v1/purchases/company-contracts")
+	finally:
+		app.dependency_overrides.pop(get_current_user, None)
+
+	assert response.status_code == 200
+	assert len(response.json()["contracts"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_create_update_delete_company_contract(contract_pair):
+	pair = contract_pair
+	app.dependency_overrides[get_current_user] = lambda: pair["seller_user"]
+
+	try:
+		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+			create_resp = await client.post(
+				"/api/v1/purchases/company-contracts",
+				json={
+					"counterparty_company_id": pair["buyer_company_id"],
+					"number": "00099",
+					"date": "2026-01-15T00:00:00",
+					"relation": "as_seller",
+				},
+			)
+			assert create_resp.status_code == 201
+			created = create_resp.json()
+			assert created["number"] == "00099"
+			contract_id = created["id"]
+
+			dup_resp = await client.post(
+				"/api/v1/purchases/company-contracts",
+				json={
+					"counterparty_company_id": pair["buyer_company_id"],
+					"number": "00099",
+					"date": "2026-01-16T00:00:00",
+					"relation": "as_seller",
+				},
+			)
+			assert dup_resp.status_code == 409
+
+			patch_resp = await client.patch(
+				f"/api/v1/purchases/company-contracts/{contract_id}",
+				json={"number": "00100"},
+			)
+			assert patch_resp.status_code == 200
+			assert patch_resp.json()["number"] == "00100"
+
+			delete_resp = await client.delete(
+				f"/api/v1/purchases/company-contracts/{contract_id}",
+			)
+			assert delete_resp.status_code == 204
+	finally:
+		app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.asyncio

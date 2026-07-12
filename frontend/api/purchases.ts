@@ -180,18 +180,43 @@ export const usePurchasesApi = () => {
 	}
 
 	const getCompanyContracts = async (
-		counterpartyCompanyId: number,
+		counterpartyCompanyId?: number,
 	): Promise<CompanyContractListResponse | undefined> => {
 		try {
+			const query = counterpartyCompanyId
+				? { counterparty_company_id: counterpartyCompanyId }
+				: undefined
 			const response = await $api.get(
 				normalizeApiPath(API_URLS.GET_COMPANY_CONTRACTS),
-				{ query: { counterparty_company_id: counterpartyCompanyId } },
+				{ query },
 			)
 			return response as CompanyContractListResponse
 		} catch (error) {
 			console.error("ERROR getCompanyContracts:", error)
 			throw error
 		}
+	}
+
+	const createCompanyContract = async (
+		body: import("~/types/companyContract").CompanyContractCreatePayload,
+	) => {
+		return await $api.post(normalizeApiPath(API_URLS.CREATE_COMPANY_CONTRACT), body)
+	}
+
+	const updateCompanyContract = async (
+		contractId: number,
+		body: import("~/types/companyContract").CompanyContractUpdatePayload,
+	) => {
+		return await $api.patch(
+			normalizeApiPath(API_URLS.UPDATE_COMPANY_CONTRACT(contractId)),
+			body,
+		)
+	}
+
+	const deleteCompanyContract = async (contractId: number) => {
+		return await $api.delete(
+			normalizeApiPath(API_URLS.DELETE_COMPANY_CONTRACT(contractId)),
+		)
 	}
 
 	const createContract = async (dealId: number, date?: string):Promise<{contract_number: string, contract_date: string} | undefined> => {
@@ -454,6 +479,9 @@ export const usePurchasesApi = () => {
 		updateDealById,
 		createBill,
 		getCompanyContracts,
+		createCompanyContract,
+		updateCompanyContract,
+		deleteCompanyContract,
 		createContract,
 		createSupplyContract,
 		checkSupplyContractExists,

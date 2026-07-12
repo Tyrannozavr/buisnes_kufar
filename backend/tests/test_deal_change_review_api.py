@@ -237,3 +237,30 @@ async def test_change_review_buyer_can_reject_seller_proposal(
     assert get_deal.status_code == 200
     assert get_deal.json()["version"] == 1
     assert get_deal.json()["comments"] == "initial"
+
+
+@pytest.mark.asyncio
+async def test_buyer_can_create_order_version(client: AsyncClient, seller_user_context: dict):
+    """§3.3: покупатель может создать новую версию заказа (не документов)."""
+    context = seller_user_context
+    _set_current_user(context, context["buyer_user"])
+
+    created = await _create_deal(client, context["seller_company_id"])
+    deal_id = created["id"]
+
+    create_v2 = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={"comments": "buyer proposal"},
+    )
+    assert create_v2.status_code == 200, create_v2.text
+    assert create_v2.json()["comments"] == "buyer proposal"
+    assert create_v2.json()["version"] == 2
+
+    forbidden = await client.post(
+        f"/api/v1/purchases/deals/{deal_id}/versions",
+        json={
+            "comments": "buyer bill hack",
+            "bill": {"number": "HACK-001"},
+        },
+    )
+    assert forbidden.status_code == 403

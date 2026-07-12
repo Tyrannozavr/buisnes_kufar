@@ -46,7 +46,7 @@
 				</p>
 				<InsertButtons v-if="!isHiddenForBuyer" />
 
-				<div :hidden="isHiddenForBuyer" v-if="activeTab === '0'">
+				<div v-if="activeTab === '0' && !isBuyerRole">
 					<OrderMenu :inDevelopment />
 				</div>
 
@@ -188,6 +188,7 @@
 						/>
 
 						<UModal
+							v-if="!isBuyerRole"
 							v-model:open="modalIsOpen"
 							title="Вы уверены, что хотите удалить сделку?"
 							description="Удаление сделки приведет к удалению всех данных у вас и у контрагента"
@@ -278,6 +279,25 @@
 			</div>
 		</template>
 	</UModal>
+	<UModal
+		v-model:open="updateDataModalOpen"
+		title="Контрагент изменил данные заказа"
+		description="Ознакомьтесь с предложенной версией заказа. Изменённые поля выделены цветом. Примите или отклоните изменения."
+	>
+		<template #footer>
+			<UButton
+				label="Позже"
+				color="neutral"
+				variant="outline"
+				@click="dismissUpdateDataModal"
+			/>
+			<UButton
+				label="Обновить данные"
+				color="primary"
+				@click="dismissUpdateDataModal"
+			/>
+		</template>
+	</UModal>
 </template>
 
 <script setup lang="ts">
@@ -331,27 +351,27 @@ const inDevelopment = () => {
 	})
 }
 
-/** §2.3: покупатель — только просмотр на всех вкладках редактора */
-const isHiddenForBuyer = computed(() => route.query.role === 'buyer')
+/** §3.3: покупатель редактирует только заказ; счёт/договор — просмотр */
+const isBuyerRole = computed(() => route.query.role === "buyer")
 
 const tooltipEdit = computed(() => {
-	if (isHiddenForBuyer.value) return ''
-	if (!isDisabled.value) return 'Режим редактирования уже включён — поля формы активны'
-	return ''
+	if (isBuyerRole.value && activeTab.value !== "0") return ""
+	if (!isDisabled.value) return "Режим редактирования уже включён — поля формы активны"
+	return ""
 })
 
 const tooltipPreviewExport = computed(() => {
-	if (isHiddenForBuyer.value) return ''
+	if (isHiddenForBuyer.value) return ""
 	if (!isDisabled.value) {
-		return 'Печать и экспорт доступны в режиме просмотра. Сохраните изменения или нажмите «Отменить изменения».'
+		return "Печать и экспорт доступны в режиме просмотра. Сохраните изменения или нажмите «Отменить изменения»."
 	}
-	return ''
+	return ""
 })
 
 const tooltipSave = computed(() => {
-	if (isHiddenForBuyer.value) return ''
-	if (isDisabled.value) return 'Сначала нажмите «Редактировать», чтобы изменить документ'
-	return ''
+	if (isHiddenForBuyer.value) return ""
+	if (isDisabled.value) return "Сначала нажмите «Редактировать», чтобы изменить документ"
+	return ""
 })
 
 //DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
@@ -617,6 +637,33 @@ const { data: changeReview, refetch: refetchChangeReview } = useQuery({
 })
 
 const canRespondToChanges = computed(() => changeReview.value?.can_respond === true)
+
+const isHiddenForBuyer = computed(() => {
+	if (!isBuyerRole.value) return false
+	if (canRespondToChanges.value) return true
+	return activeTab.value !== "0"
+})
+
+const updateDataModalOpen = ref(false)
+const updateDataModalDismissedForVersion = ref<number | null>(null)
+
+watch(
+	() => [canRespondToChanges.value, changeReview.value?.version] as const,
+	([canRespond, version]) => {
+		if (!canRespond || version == null) return
+		if (updateDataModalDismissedForVersion.value === version) return
+		updateDataModalOpen.value = true
+	},
+	{ immediate: true },
+)
+
+const dismissUpdateDataModal = () => {
+	updateDataModalOpen.value = false
+	if (changeReview.value?.version != null) {
+		updateDataModalDismissedForVersion.value = changeReview.value.version
+	}
+}
+
 const pendingReviewHint = computed(
 	() =>
 		Boolean(changeReview.value?.has_pending_changes && changeReview.value?.is_proposer)

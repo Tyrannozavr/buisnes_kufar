@@ -24,7 +24,10 @@ const isFillDisabled = computed(() => {
 	return !(isDisabled.value || route.query.role === 'seller')
 })
 
-const isHiddenForBuyer = computed(() => route.query.role === 'buyer')
+const isHiddenForBuyer = computed(() => {
+	if (route.query.role !== "buyer") return false
+	return activeTab.value !== "0"
+})
 
 const openConfirm = () => {
 	if (isHiddenForBuyer.value) return

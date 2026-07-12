@@ -14,6 +14,7 @@ import {
 	orderCellHighlightClass,
 	orderRowHighlightClass,
 } from '~/utils/orderChangeDiff';
+import OrderProductPicker from '~/components/EditorMenu/OrderProductPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -195,18 +196,32 @@ watch(() => saveState.value,
 	{ deep: true }
 )
 
-//добавление товара в заказ в компоненте
-const addProduct = () => {
-  const product: ProductsInOrder = {
-		name: '',
-    article: '',
-    quantity: 0,
-		units: '',
-    price: 0,
-    amount: 0,
-	}
+//добавление товара в заказ — выбор из прайса поставщика (§3.3)
+const isProductPickerOpen = ref(false)
 
-	orderData.value.products.push(product)
+const sellerCompanyId = computed(() => deal.value?.seller?.companyId ?? 0)
+
+const openProductPicker = () => {
+	if (!sellerCompanyId.value) return
+	isProductPickerOpen.value = true
+}
+
+const addProductFromCatalog = (product: import('~/types/product').ProductResponse) => {
+	const quantity = 1
+	const price = product.price ?? 0
+	const row: ProductsInOrder = {
+		name: product.name ?? '',
+		article: product.article ?? '',
+		quantity,
+		units: product.unit_of_measurement?.trim() || 'шт',
+		price,
+		amount: quantity * price,
+	}
+	orderData.value.products.push(row)
+}
+
+const addProduct = () => {
+	openProductPicker()
 }
 
 //очистка формы
@@ -428,7 +443,7 @@ onMounted(() => {
               class="w-full text-left text-gray-400 hover:text-gray-700 cursor-pointer"
               @click="addProduct()"
             >
-              Добавить товар
+              Добавить продукт
             </button>
           </td>
         </tr>
@@ -472,6 +487,12 @@ onMounted(() => {
 				:class="{ 'order-change-modified': orderChangeDiff?.comments_changed }"
 			/>
 		</UTooltip>
+
+		<OrderProductPicker
+			v-model:open="isProductPickerOpen"
+			:seller-company-id="sellerCompanyId"
+			@select="addProductFromCatalog"
+		/>
 	</div>
 </template>
 

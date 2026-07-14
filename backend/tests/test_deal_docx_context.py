@@ -5,6 +5,7 @@ from app.api.purchases.deal_docx_context import (
 	_enrich_supply_contract_docx,
 	_ensure_order_docx_signatures,
 	_enrich_bill_payment_docx,
+	_enrich_bill_contract_offer_docx,
 )
 from app.api.purchases.docx_plain_text import html_to_plain_text, sanitize_supply_contract_docx_fields
 
@@ -86,3 +87,25 @@ def test_enrich_supply_contract_docx_fills_officials_and_spec_defaults() -> None
 	assert data["specification_date_fmt"] == "12.07.2026"
 	assert data["supply_contract"]["supplier_details_check"] is True
 	assert data["seller"]["company_name"] == "ООО Поставщик Тест"
+
+
+def test_enrich_bill_contract_offer_docx_terms_and_details_flags() -> None:
+	data = {
+		"bill": {
+			"document_type": "bill-contract",
+			"contract_terms_text_contract": "Условия {{ СРОК_ОПЛАТЫ }}",
+			"contract_terms_text_offer": "Оферта",
+			"supplier_details_check": False,
+			"buyer_details_check": True,
+		}
+	}
+	_enrich_bill_contract_offer_docx(data)
+	assert data["bill"]["contract_terms_text"] == "Условия {{ СРОК_ОПЛАТЫ }}"
+	assert data["contract_terms_text"] == "Условия {{ СРОК_ОПЛАТЫ }}"
+	assert data["show_supplier_details"] is False
+	assert data["show_buyer_details"] is True
+	assert data["bill"]["show_supplier_details"] is False
+
+	data["bill"]["document_type"] = "bill-offer"
+	_enrich_bill_contract_offer_docx(data)
+	assert data["bill"]["contract_terms_text"] == "Оферта"

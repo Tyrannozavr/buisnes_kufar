@@ -308,7 +308,11 @@
 		<br>
 
 		<div v-if="billType === 'bill-contract'">
-			<BillContract :billData="billData" />
+			<BillContract
+				:billData="billData"
+				:supplier-details-check="billSupplierDetailsCheck ?? true"
+				:buyer-details-check="billBuyerDetailsCheck ?? true"
+			/>
 		</div>
 
 		<div v-if="billType === 'bill-offer'">
@@ -338,7 +342,7 @@ import BillOffer from './Bill-Offer.vue';
 import { CONTRACT_TERMS_BILL_OFFER, CONTRACT_TERMS_BILL_CONTRACT, ADDITIONAL_INFO_BILL } from '~/constants/contractTerms';
 import { formatCompanyPartyLine, formatCompanyRecipientLine } from '~/utils/companyPartyLine';
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer, editAmountExclVat } = useDeals()
+const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer, editAmountExclVat, editBillDocumentType, editBillSupplierDetailsCheck, editBillBuyerDetailsCheck } = useDeals()
 
 const route = useRoute()
 const router = useRouter()
@@ -375,6 +379,8 @@ const contractTermsTextContract = useTypedState(Editor.CONTRACT_TERMS_TEXT_CONTR
 const paymentTermsCheckContract = useTypedState(Editor.PAYMENT_TERMS_CHECK_CONTRACT)
 const deliveryTermsCheckContract = useTypedState(Editor.DELIVERY_TERMS_CHECK_CONTRACT)
 const contractTermsCheckContract = useTypedState(Editor.CONTRACT_TERMS_CHECK_CONTRACT)
+const billSupplierDetailsCheck = useTypedState(Editor.BILL_SUPPLIER_DETAILS_CHECK, () => ref(true))
+const billBuyerDetailsCheck = useTypedState(Editor.BILL_BUYER_DETAILS_CHECK, () => ref(true))
 
 //bill-offer
 const paymentTermsOffer = useTypedState(Editor.PAYMENT_TERMS_OFFER)
@@ -414,6 +420,8 @@ const billData = ref<BillData>({
 	deliveryTermsContract: '',
 	contractTermsContract: 'standard-delivery-supplier',
 	contractTermsTextContract: '',
+	supplierDetailsCheck: true,
+	buyerDetailsCheck: true,
 	//bill-offer
 	paymentTermsOffer: '',
 	contractTermsOffer: 'standard-delivery-supplier',
@@ -428,15 +436,17 @@ watch(() => [
 	contractTermsContract.value,
 	contractTermsOffer.value,
 ], () => {
-	if ((contractTermsTextContract.value?.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ДОГОВОРА }}') && contractTermsContract.value.value === 'custom')) {
+	const contractText = contractTermsTextContract.value ?? ''
+	const offerText = contractTermsTextOffer.value ?? ''
+	if ((contractText.includes('{{ СРОК_ОПЛАТЫ }}') || contractText.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ДОГОВОРА }}')) && contractTermsContract.value.value === 'custom') {
 		paymentTermsCheckContract.value = true
 		paymentTermsContract.value = '3'
 	}
-	if ((contractTermsTextContract.value?.includes('{{ СРОК_ПОСТАВКИ_СЧЕТА_ДОГОВОРА }}') && contractTermsContract.value.value === 'custom')) {
+	if ((contractText.includes('{{ СРОК_ПОСТАВКИ }}') || contractText.includes('{{ СРОК_ПОСТАВКИ_СЧЕТА_ДОГОВОРА }}')) && contractTermsContract.value.value === 'custom') {
 		deliveryTermsCheckContract.value = true
 		deliveryTermsContract.value = '10'
 	}
-	if ((contractTermsTextOffer.value?.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ОФЕРТЫ }}') && contractTermsOffer.value.value === 'custom')) {
+	if ((offerText.includes('{{ СРОК_ОПЛАТЫ }}') || offerText.includes('{{ СРОК_ОПЛАТЫ_СЧЕТА_ОФЕРТЫ }}')) && contractTermsOffer.value.value === 'custom') {
 		paymentTermsCheckOffer.value = true
 		paymentTermsOffer.value = '3'
 	}
@@ -768,6 +778,8 @@ const fillBillMinimalData = () => {
 		deliveryTermsContract: '',
 		contractTermsContract: 'standard-delivery-supplier',
 		contractTermsTextContract: '',
+		supplierDetailsCheck: true,
+		buyerDetailsCheck: true,
 		paymentTermsOffer: '',
 		contractTermsOffer: 'standard-delivery-supplier',
 		contractTermsTextOffer: '',
@@ -781,6 +793,19 @@ const fillBillMinimalData = () => {
 const fillBillData = async () => {
 	const deal = findDeal(Number(route.query.dealId))
 	if (deal) {
+
+		const documentType = deal.bill.documentType ?? 'bill'
+		const billTypeLabels: Record<'bill' | 'bill-contract' | 'bill-offer', string> = {
+			bill: 'Счет на оплату',
+			'bill-contract': 'Счет-договор',
+			'bill-offer': 'Счет-оферта',
+		}
+		billTypeSelected.value = {
+			value: documentType,
+			label: billTypeLabels[documentType] ?? 'Счет на оплату',
+		}
+		billSupplierDetailsCheck.value = deal.bill.supplierDetailsCheck ?? true
+		billBuyerDetailsCheck.value = deal.bill.buyerDetailsCheck ?? true
 
 		const productList = deal.product.productList ?? []
     products = productList.map((product: ProductItem): ProductsInOrder => ({
@@ -869,6 +894,8 @@ const fillBillData = async () => {
 			deliveryTermsContract: deal.bill.deliveryTermsContract,
 			contractTermsContract: deal.bill.contractTermsContract,
 			contractTermsTextContract: deal.bill.contractTermsTextContract,
+			supplierDetailsCheck: deal.bill.supplierDetailsCheck ?? true,
+			buyerDetailsCheck: deal.bill.buyerDetailsCheck ?? true,
 
 			//bill-offer
 			paymentTermsOffer: deal.bill.paymentTermsOffer,
@@ -930,6 +957,13 @@ watch(() => saveState,
 				await editAmountExclVat(dealId, billData.value.amountExclVat)
 				await editVatRateSeller(dealId, (normalizeVatRate(billData.value.seller.vatRate) ?? 0))
 				await editOfficialsBill(dealId, billData.value.officials)
+
+				await editBillDocumentType(
+					dealId,
+					(billTypeSelected.value?.value ?? 'bill') as 'bill' | 'bill-contract' | 'bill-offer',
+				)
+				await editBillSupplierDetailsCheck(dealId, billSupplierDetailsCheck.value ?? true)
+				await editBillBuyerDetailsCheck(dealId, billBuyerDetailsCheck.value ?? true)
 
 				await editBillReason(dealId, billData.value.reason)
 				await editPaymentTerms(dealId, billData.value.paymentTerms)
@@ -994,6 +1028,8 @@ const clearForm = () => {
 		deliveryTermsContract: '',
 		contractTermsContract: 'standard-delivery-supplier',
 		contractTermsTextContract: '',
+		supplierDetailsCheck: true,
+		buyerDetailsCheck: true,
 		paymentTermsOffer: '',
 		contractTermsOffer: 'standard-delivery-supplier',
 		contractTermsTextOffer: '',

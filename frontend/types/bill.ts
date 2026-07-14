@@ -33,6 +33,8 @@ export interface BillData {
 	contractTermsContract: "standard-delivery-supplier" | "standard-delivery-buyer" | "custom"
 	deliveryTermsContract: string
 	contractTermsTextContract: string
+	supplierDetailsCheck: boolean
+	buyerDetailsCheck: boolean
 	
 	//bill-offer
 	paymentTermsOffer: string

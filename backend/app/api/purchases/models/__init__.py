@@ -66,6 +66,11 @@ class Order(Base):
 	bill_date: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Дата счета
 	bill_officials: Mapped[Optional[list]] = mapped_column(JSON)  # Должностные лица в счёте (только при обновлении с клиента)
 	bill_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")  # Основание в счёте (обновляется только с клиента)
+	bill_document_type: Mapped[str] = mapped_column(
+		String(32), nullable=False, default="bill"
+	)  # bill | bill-contract | bill-offer
+	bill_supplier_details_check: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+	bill_buyer_details_check: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 	payment_terms: Mapped[Optional[str]] = mapped_column(Text)  # Срок оплаты «Счет на оплату» (дней, только с клиента)
 	payment_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия оплаты (обновляется только с клиента)
 	delivery_terms_contract: Mapped[Optional[str]] = mapped_column(Text)  # Условия / срок поставки (обновляется только с клиента)
@@ -345,6 +350,33 @@ class SupplyContractTemplate(Base):
 	)
 	name: Mapped[str] = mapped_column(String(128), nullable=False)
 	content_html: Mapped[str] = mapped_column(Text, nullable=False, default="")
+	is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ContractConditionTemplateType(str, enum.Enum):
+	BILL_CONTRACT = "bill_contract"
+	BILL_OFFER = "bill_offer"
+
+
+class ContractConditionTemplate(Base):
+	"""Шаблоны условий для счёт-договора / счёт-оферты (ЛК, company-scoped)."""
+	__tablename__ = "contract_condition_template"
+	__table_args__ = (
+		UniqueConstraint(
+			"company_id",
+			"type",
+			"name",
+			name="uq_contract_condition_template_company_type_name",
+		),
+	)
+
+	id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+	company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+	type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+	name: Mapped[str] = mapped_column(String(128), nullable=False)
+	content_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
 	is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

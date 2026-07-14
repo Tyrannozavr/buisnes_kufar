@@ -1,6 +1,14 @@
 <template>
 	<div>
-		<USelectMenu placeholder="Тип документа" :items="billTypeOptions" v-model="billType" default-value="Счет на оплату" class="w-full" />
+		<USelectMenu
+			placeholder="Тип документа"
+			:items="billTypeOptions"
+			:model-value="billType"
+			:disabled="isDisabled"
+			default-value="Счет на оплату"
+			class="w-full"
+			@update:model-value="onBillTypeSelect"
+		/>
 
 		<div :hidden="hiddenForBuyer" class="mb-2">
 			<UCheckbox :disabled="isDisabled" label="Основание" v-model="reasonCheck" size="xl" class="mt-2" />
@@ -55,6 +63,9 @@
 				<label class="w-full self-center">Рабочих дней - </label>
 				<input type="number" :disabled="isDisabled" placeholder="Введите сроки поставки" class="w-50 p-1 border rounded-lg" v-model="deliveryTermsContract" default-value="10">
 			</div>
+
+			<UCheckbox :disabled="isDisabled" label="Реквизиты поставщика" v-model="billSupplierDetailsCheck" size="xl" />
+			<UCheckbox :disabled="isDisabled" label="Реквизиты покупателя" v-model="billBuyerDetailsCheck" size="xl" />
 		</div>
 
 		<div v-if="billType.value === 'bill-offer'" :hidden="hiddenForBuyer" class="flex flex-col gap-2">
@@ -80,8 +91,46 @@
 				<label class="w-full self-center">Рабочих дней - </label>
 				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTermsOffer" default-value="3">
 			</div>
+
+			<UCheckbox
+				disabled
+				label="Срок поставки"
+				:model-value="false"
+				size="xl"
+			/>
 		</div>
 
+		<UModal
+			v-model:open="billTypeConfirmOpen"
+			title="Сменить тип документа?"
+			:ui="{
+				header: 'pe-10',
+			}"
+		>
+			<template #body>
+				<p class="mb-4 text-sm text-gray-600">
+					При смене типа документа форма другого бланка не будет видна. Продолжить?
+				</p>
+				<div class="flex flex-row justify-between gap-2">
+					<UButton
+						label="Отмена"
+						icon="i-lucide-x"
+						color="neutral"
+						variant="subtle"
+						class="w-1/2"
+						@click="cancelBillTypeChange"
+					/>
+					<UButton
+						label="Продолжить"
+						icon="i-lucide-check"
+						color="success"
+						variant="subtle"
+						class="w-1/2"
+						@click="confirmBillTypeChange"
+					/>
+				</div>
+			</template>
+		</UModal>
 	</div>
 </template>
 
@@ -92,6 +141,8 @@ import { VAT_RATE_OPTIONS } from '~/constants/vatRate';
 import { useDeals } from '~/composables/useDeals';
 import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites';
 import { useBillFillState } from '~/composables/useBillFillState';
+import { useContractConditionTemplates } from '~/composables/useContractConditionTemplates';
+import type { ContractConditionTemplateType } from '~/types/contractConditionTemplate';
 import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue';
 
 defineProps<{
@@ -100,28 +151,30 @@ defineProps<{
 
 const DEFAULT_PAYMENT_TERMS_DAYS = '3'
 
-const { findDeal } = useDeals()
+const BILL_TYPE_OPTIONS: { label: string; value: 'bill' | 'bill-contract' | 'bill-offer' }[] = [
+	{ label: 'Счет на оплату', value: 'bill' },
+	{ label: 'Счет-договор', value: 'bill-contract' },
+	{ label: 'Счет-оферта', value: 'bill-offer' },
+]
+
+const BILL_TYPE_BY_VALUE = Object.fromEntries(
+	BILL_TYPE_OPTIONS.map((item) => [item.value, item]),
+) as Record<'bill' | 'bill-contract' | 'bill-offer', { label: string; value: 'bill' | 'bill-contract' | 'bill-offer' }>
+
+const STATIC_CONTRACT_TERMS_OPTIONS: SelectMenuItem[] = [
+	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier' },
+	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },
+	{ label: 'Свой шаблон', value: 'custom' },
+]
+
+const { findDeal, editBillDocumentType } = useDeals()
 const { loadBillRequisites } = useCompanyBillRequisites()
 const route = useRoute()
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const billAwaitingFill = useBillFillState().billAwaitingFill
 
-const billTypeOptions = ref<SelectMenuItem[]>([
-	{label: 'Счет на оплату', value: 'bill'},
-	{label: 'Счет-договор', value: 'bill-contract'}, 
-	{label: 'Счет-оферта', value: 'bill-offer'}
-])
+const billTypeOptions = ref<SelectMenuItem[]>([...BILL_TYPE_OPTIONS])
 const vatRateOptions = VAT_RATE_OPTIONS
-const contractTermsOptionsContract = ref<SelectMenuItem[]>([
-	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier'},
-	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },
-	{ label: 'Свой шаблон', value: 'custom' },
-])
-const contractTermsOptionsOffer = ref<SelectMenuItem[]>([
-	{ label: 'Стандартный, доставка Поставщика', value: 'standard-delivery-supplier'},
-	{ label: 'Стандартный, доставка Покупателя', value: 'standard-delivery-buyer' },
-	{ label: 'Свой шаблон', value: 'custom' },
-])
 
 //initial values
 const initialReasonCheck = ref(false)
@@ -140,6 +193,8 @@ const initialContractTermsContract = ref<{ value: 'standard-delivery-supplier' |
 const initialPaymentTermsCheckContract = ref(false)
 const initialDeliveryTermsCheckContract = ref(false)
 const initialContractTermsCheckContract = ref(false)
+const initialBillSupplierDetailsCheck = ref(true)
+const initialBillBuyerDetailsCheck = ref(true)
 
 //bill-offer
 const initialPaymentTermsOffer = ref('')
@@ -147,13 +202,14 @@ const initialContractTermsOffer = ref<{ value: 'standard-delivery-supplier' | 's
 const initialContractTermsCheckOffer = ref(false)
 const initialPaymentTermsCheckOffer = ref(false)
 const initialAdditionalInfoCheckOffer = ref(false)
+const initialDeliveryTermsCheckOffer = ref(false)
 
 const dealForEditor = computed(() =>
 	findDeal(Number(route.query.dealId))
 )
 
-//bill-general
-const billType = useTypedState(Editor.BILL_TYPE)
+//bill-general — до useContractConditionTemplates (иначе TDZ: billType before initialization)
+const billType = useTypedState(Editor.BILL_TYPE, () => ref({ ...BILL_TYPE_BY_VALUE.bill }))
 const reasonCheck = useTypedState(Editor.REASON_CHECK, () => initialReasonCheck)
 const vatRateCheck = useTypedState(Editor.VAT_RATE_CHECK, () => initialVatRateCheck)
 const sellerVatRate = useTypedState(Editor.VAT_RATE, () => initialSellerVatRate)
@@ -170,6 +226,8 @@ const contractTermsContract = useTypedState(Editor.CONTRACT_TERMS_CONTRACT, () =
 const paymentTermsCheckContract = useTypedState(Editor.PAYMENT_TERMS_CHECK_CONTRACT, () => initialPaymentTermsCheckContract)
 const deliveryTermsCheckContract = useTypedState(Editor.DELIVERY_TERMS_CHECK_CONTRACT, () => initialDeliveryTermsCheckContract)
 const contractTermsCheckContract = useTypedState(Editor.CONTRACT_TERMS_CHECK_CONTRACT, () => initialContractTermsCheckContract)
+const billSupplierDetailsCheck = useTypedState(Editor.BILL_SUPPLIER_DETAILS_CHECK, () => initialBillSupplierDetailsCheck)
+const billBuyerDetailsCheck = useTypedState(Editor.BILL_BUYER_DETAILS_CHECK, () => initialBillBuyerDetailsCheck)
 
 //bill-offer
 const paymentTermsOffer = useTypedState(Editor.PAYMENT_TERMS_OFFER, () => initialPaymentTermsOffer)
@@ -177,8 +235,79 @@ const contractTermsOffer = useTypedState(Editor.CONTRACT_TERMS_OFFER, () => init
 const contractTermsCheckOffer = useTypedState(Editor.CONTRACT_TERMS_CHECK_OFFER, () => initialContractTermsCheckOffer)
 const paymentTermsCheckOffer = useTypedState(Editor.PAYMENT_TERMS_CHECK_OFFER, () => initialPaymentTermsCheckOffer)
 const additionalInfoCheckOffer = useTypedState(Editor.ADDITIONAL_INFO_CHECK_OFFER, () => initialAdditionalInfoCheckOffer)
+const deliveryTermsCheckOffer = useTypedState(Editor.DELIVERY_TERMS_CHECK_OFFER, () => initialDeliveryTermsCheckOffer)
+
+const dealIdRef = computed(() => Number(route.query.dealId) || null)
+const conditionTemplateType = computed<ContractConditionTemplateType>(() =>
+	billType.value?.value === 'bill-offer' ? 'bill_offer' : 'bill_contract',
+)
+const {
+	selectItemsForDealField: contractTermsOptionsFromApi,
+} = useContractConditionTemplates(conditionTemplateType, dealIdRef)
+
+const contractTermsOptionsContract = computed(() =>
+	contractTermsOptionsFromApi.value.length
+		? contractTermsOptionsFromApi.value
+		: STATIC_CONTRACT_TERMS_OPTIONS,
+)
+const contractTermsOptionsOffer = computed(() =>
+	contractTermsOptionsFromApi.value.length
+		? contractTermsOptionsFromApi.value
+		: STATIC_CONTRACT_TERMS_OPTIONS,
+)
 
 const clearState = useTypedState(Editor.CLEAR_STATE)
+
+const confirmedBillType = ref({ ...BILL_TYPE_BY_VALUE.bill })
+const pendingBillType = ref<{ label: string; value: 'bill' | 'bill-contract' | 'bill-offer' } | null>(null)
+const billTypeConfirmOpen = ref(false)
+
+const setBillTypeQuietly = (next: { label: string; value: 'bill' | 'bill-contract' | 'bill-offer' }) => {
+	billType.value = { ...next }
+	confirmedBillType.value = { ...next }
+}
+
+/** Только ручной выбор в селекте — не при загрузке сделки / fillBillData */
+const onBillTypeSelect = (next: unknown) => {
+	const selected = next as { label?: string; value?: 'bill' | 'bill-contract' | 'bill-offer' } | null
+	if (!selected?.value) return
+	if (selected.value === confirmedBillType.value.value) {
+		billType.value = { label: selected.label ?? BILL_TYPE_BY_VALUE[selected.value].label, value: selected.value }
+		return
+	}
+	pendingBillType.value = {
+		label: selected.label ?? BILL_TYPE_BY_VALUE[selected.value].label,
+		value: selected.value,
+	}
+	billTypeConfirmOpen.value = true
+}
+
+const confirmBillTypeChange = async () => {
+	if (!pendingBillType.value) {
+		billTypeConfirmOpen.value = false
+		return
+	}
+	setBillTypeQuietly(pendingBillType.value)
+	const dealId = Number(route.query.dealId)
+	if (dealId) {
+		await editBillDocumentType(dealId, pendingBillType.value.value)
+	}
+	pendingBillType.value = null
+	billTypeConfirmOpen.value = false
+}
+
+const cancelBillTypeChange = () => {
+	pendingBillType.value = null
+	billTypeConfirmOpen.value = false
+	setBillTypeQuietly(confirmedBillType.value)
+}
+
+/** Внешняя синхронизация (Bill.fillBillData / deal watch) — без модалки */
+watch(billType, (next) => {
+	if (billTypeConfirmOpen.value || !next?.value) return
+	if (next.value === confirmedBillType.value.value) return
+	confirmedBillType.value = { label: next.label, value: next.value }
+}, { deep: true })
 
 watch(paymentTermsCheck, (checked) => {
 	if (checked && !paymentTerms.value) {
@@ -203,6 +332,18 @@ const resolveSellerVatFromLk = async (deal: NonNullable<ReturnType<typeof findDe
 	return lk?.party.vatRate ?? deal.seller.vatRate ?? 0
 }
 
+const resolveContractTermsItem = (
+	value: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' | undefined,
+) => {
+	if (value === 'standard-delivery-buyer') {
+		return { value: 'standard-delivery-buyer' as const, label: 'Стандартный, доставка Покупателя' }
+	}
+	if (value === 'custom') {
+		return { value: 'custom' as const, label: 'Свой шаблон' }
+	}
+	return { value: 'standard-delivery-supplier' as const, label: 'Стандартный, доставка Поставщика' }
+}
+
 //задаем initial значения по данным сделки
 watch(
 	[() => route.query.dealId, dealForEditor, billAwaitingFill],
@@ -212,6 +353,10 @@ watch(
 
 		const sellerVatFromLk = await resolveSellerVatFromLk(deal)
 		const useLkDefaults = billAwaitingFill.value || !deal.bill.number
+
+		const documentType = deal.bill.documentType ?? 'bill'
+		const mappedType = BILL_TYPE_BY_VALUE[documentType] ?? BILL_TYPE_BY_VALUE.bill
+		setBillTypeQuietly(mappedType)
 
 		//bill-general
 		initialReasonCheck.value = deal.bill.reason !== '' ? true : false
@@ -233,29 +378,23 @@ watch(
 		//bill-contract
 		initialPaymentTermsContract.value = deal.bill.paymentTermsContract ?? ''
 		initialDeliveryTermsContract.value = deal.bill.deliveryTermsContract ?? ''
-		if (deal.bill.contractTermsContract === 'standard-delivery-supplier') {
-			initialContractTermsContract.value = { value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика' }
-		} else if (deal.bill.contractTermsContract === 'standard-delivery-buyer') {
-			initialContractTermsContract.value = { value: 'standard-delivery-buyer', label: 'Стандартный, доставка Покупателя' }
-		} else {
-			initialContractTermsContract.value = { value: 'custom', label: 'Свой шаблон' }
-		}
+		initialContractTermsContract.value = resolveContractTermsItem(deal.bill.contractTermsContract)
 		initialPaymentTermsCheckContract.value = deal.bill.paymentTermsContract !== '' ? true : false
 		initialDeliveryTermsCheckContract.value = deal.bill.deliveryTermsContract !== '' ? true : false
 		initialContractTermsCheckContract.value = deal.bill.contractTermsTextContract !== '' ? true : false
+		initialBillSupplierDetailsCheck.value = deal.bill.supplierDetailsCheck ?? true
+		initialBillBuyerDetailsCheck.value = deal.bill.buyerDetailsCheck ?? true
+		billSupplierDetailsCheck.value = initialBillSupplierDetailsCheck.value
+		billBuyerDetailsCheck.value = initialBillBuyerDetailsCheck.value
 
 		//bill-offer
 		initialPaymentTermsOffer.value = deal.bill.paymentTermsOffer ?? ''
-		if (deal.bill.contractTermsOffer === 'standard-delivery-supplier') {
-			initialContractTermsOffer.value = { value: 'standard-delivery-supplier', label: 'Стандартный, доставка Поставщика' }
-		} else if (deal.bill.contractTermsOffer === 'standard-delivery-buyer') {
-			initialContractTermsOffer.value = { value: 'standard-delivery-buyer', label: 'Стандартный, доставка Покупателя' }
-		} else {
-			initialContractTermsOffer.value = { value: 'custom', label: 'Свой шаблон' }
-		}
+		initialContractTermsOffer.value = resolveContractTermsItem(deal.bill.contractTermsOffer)
 		initialContractTermsCheckOffer.value = deal.bill.contractTermsTextOffer !== '' ? true : false
 		initialPaymentTermsCheckOffer.value = deal.bill.paymentTermsOffer !== '' ? true : false
 		initialAdditionalInfoCheckOffer.value = deal.bill.additionalInfoOffer !== '' ? true : false
+		initialDeliveryTermsCheckOffer.value = false
+		deliveryTermsCheckOffer.value = false
 	},
 	{ immediate: true }
 )

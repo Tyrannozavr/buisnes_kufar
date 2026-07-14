@@ -243,6 +243,9 @@ class BillUpdateInDeal(BaseModel):
     )
     number: str = Field("", description="Номер счёта")
     reason: Optional[str] = Field("", description="Основание")
+    document_type: Optional[str] = Field(
+        None, description="Тип бланка: bill | bill-contract | bill-offer"
+    )
     payment_terms: Optional[str] = Field(None, description="Срок оплаты (Счет на оплату), рабочих дней")
     payment_terms_contract: Optional[str] = Field(None, description="Условия оплаты")
     delivery_terms_contract: Optional[str] = Field(None, description="Условия / срок поставки")
@@ -253,6 +256,8 @@ class BillUpdateInDeal(BaseModel):
     contract_terms_offer: Optional[ContractTerms] = Field(None, description="Вариант условий оферты")
     contract_terms_text_offer: Optional[str] = Field(None, description="Текст условий оферты")
     additional_info_offer: Optional[str] = Field(None, description="Дополнительная информация (оферта)")
+    supplier_details_check: Optional[bool] = Field(None, description="Показывать реквизиты поставщика")
+    buyer_details_check: Optional[bool] = Field(None, description="Показывать реквизиты покупателя")
     officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица (id, full_name, position, is_base, base_document, base_document_name)")
 
 
@@ -391,6 +396,7 @@ class BillInDealResponse(BaseModel):
     )
     number: str = Field("", description="Номер счёта")
     reason: str = Field("", description="Основание")
+    document_type: str = Field("bill", description="Тип бланка: bill | bill-contract | bill-offer")
     payment_terms: str = Field("", description="Срок оплаты (Счет на оплату), рабочих дней")
     payment_terms_contract: str = Field("", description="Условия оплаты")
     delivery_terms_contract: str = Field("", description="Условия / срок поставки")
@@ -416,6 +422,8 @@ class BillInDealResponse(BaseModel):
         description="Текст условий оферты",
     )
     additional_info_offer: str = Field("", description="Дополнительная информация (оферта)")
+    supplier_details_check: bool = Field(True, description="Показывать реквизиты поставщика")
+    buyer_details_check: bool = Field(True, description="Показывать реквизиты покупателя")
     officials: List["CompanyOfficialInDealResponse"] = Field(default_factory=list, description="Должностные лица")
 
 
@@ -1011,6 +1019,36 @@ class SupplyContractTemplateResponse(BaseModel):
 	is_default: bool
 
 
+class ContractConditionTemplateCreate(BaseModel):
+	model_config = ConfigDict(extra="ignore")
+
+	type: str = Field(..., description="bill_contract | bill_offer")
+	name: str = Field(..., min_length=1, max_length=128)
+	content_text: str = Field("", description="Текст шаблона условий")
+	is_default: bool = Field(False, description="Шаблон по умолчанию для типа")
+
+
+class ContractConditionTemplateUpdate(BaseModel):
+	model_config = ConfigDict(extra="ignore")
+
+	name: Optional[str] = Field(None, min_length=1, max_length=128)
+	content_text: Optional[str] = None
+	is_default: Optional[bool] = None
+
+
+class ContractConditionTemplateResponse(BaseModel):
+	model_config = ConfigDict(from_attributes=True)
+
+	id: int
+	company_id: int
+	type: str
+	name: str
+	content_text: str
+	is_default: bool
+	created_at: Optional[datetime] = None
+	updated_at: Optional[datetime] = None
+
+
 class DealChangeReviewResponse(BaseModel):
 	"""Статус ожидания согласования изменений по последней версии сделки."""
 
@@ -1041,4 +1079,7 @@ class DealOrderChangeDiffResponse(BaseModel):
 	proposed_version: int
 	comments_changed: bool = False
 	total_amount_changed: bool = False
+	bill_document_type_changed: bool = False
+	bill_document_type_before: Optional[str] = None
+	bill_document_type_after: Optional[str] = None
 	items: List[OrderLineChangeResponse] = Field(default_factory=list)

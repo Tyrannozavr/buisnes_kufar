@@ -84,6 +84,65 @@ def _enrich_bill_payment_docx(data: dict[str, Any]) -> None:
 	data["items_count"] = len(data.get("items") or [])
 
 
+def _enrich_bill_contract_offer_docx(data: dict[str, Any]) -> None:
+	"""
+	Поля для bill_contract.docx / bill_offer.docx:
+	тип бланка, тексты условий, галки реквизитов (show_* для шаблонов).
+	"""
+	bill = data.get("bill")
+	if not isinstance(bill, dict):
+		bill = {}
+		data["bill"] = bill
+
+	# Уже приходят из model_dump: document_type, contract_terms_text_*, *_details_check
+	bill.setdefault("document_type", "bill")
+	bill.setdefault("contract_terms_text_contract", "")
+	bill.setdefault("contract_terms_text_offer", "")
+
+	show_supplier = bool(bill.get("supplier_details_check", True))
+	show_buyer = bool(bill.get("buyer_details_check", True))
+	bill["supplier_details_check"] = show_supplier
+	bill["buyer_details_check"] = show_buyer
+	# Алиасы для шаблонов (как в supply_contract / UI-галках)
+	bill["show_supplier_details"] = show_supplier
+	bill["show_buyer_details"] = show_buyer
+	data["show_supplier_details"] = show_supplier
+	data["show_buyer_details"] = show_buyer
+
+	doc_type = (bill.get("document_type") or "bill").strip()
+	if doc_type in ("bill-contract", "bill_contract"):
+		terms = bill.get("contract_terms_text_contract") or ""
+		bill["bill_title"] = "Счет-договор"
+	elif doc_type in ("bill-offer", "bill_offer"):
+		terms = bill.get("contract_terms_text_offer") or ""
+		bill["bill_title"] = "Счет-оферта"
+	else:
+		terms = ""
+		bill["bill_title"] = "Счет на оплату"
+	bill["contract_terms_text"] = terms
+	data["contract_terms_text"] = terms
+	data["bill_title"] = bill["bill_title"]
+
+	# Оферта: доп. информация — только offer-поле (не текст счёта на оплату)
+	bill.setdefault("additional_info_offer", "")
+	if not data.get("bill_number"):
+		data["bill_number"] = bill.get("number") or data.get("seller_order_number") or ""
+	if "items_count" not in data:
+		data["items_count"] = len(data.get("items") or [])
+	if "seller_party_line" not in data or "buyer_party_line" not in data:
+		seller = data.get("seller_company") if isinstance(data.get("seller_company"), dict) else {}
+		buyer = data.get("buyer_company") if isinstance(data.get("buyer_company"), dict) else {}
+		data.setdefault("seller_party_line", format_company_party_line(seller))
+		data.setdefault("buyer_party_line", format_company_party_line(buyer))
+	# НДС-флаги нужны и contract/offer (общая таблица итогов)
+	if "show_vat_row" not in bill:
+		show_vat = bool(data.get("amount_with_vat_rate"))
+		bill["show_vat_row"] = show_vat
+		bill["vat_amount_display"] = data.get("amount_vat_rate", "") if show_vat else ""
+	bill.setdefault("officials", [])
+	bill.setdefault("reason", "")
+
+
 def _apply_docx_money_formatting(data: dict[str, Any]) -> None:
 	"""Подменяет числовые суммы на отформатированные строки только для рендера docx."""
 	for key in ("total_amount", "total_amount_excl_vat", "amount_vat_rate"):
@@ -224,6 +283,7 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	_enrich_supply_contract_docx(data)
 	_ensure_order_docx_signatures(data)
 	_enrich_bill_payment_docx(data)
+	_enrich_bill_contract_offer_docx(data)
 	sanitize_supply_contract_docx_fields(data)
 	if "specification_date_fmt" not in data:
 		data["specification_date_fmt"] = ""

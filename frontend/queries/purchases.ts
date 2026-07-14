@@ -9,6 +9,11 @@ import type {
 	SupplyContractTemplateType,
 	SupplyContractTemplateUpdate,
 } from "~/types/supplyContractTemplate";
+import type {
+	ContractConditionTemplateCreate,
+	ContractConditionTemplateType,
+	ContractConditionTemplateUpdate,
+} from "~/types/contractConditionTemplate";
 import { useQueryCache } from "@pinia/colada";
 import { useDeals } from "~/composables/useDeals";
 import { useBillFillState } from "~/composables/useBillFillState";
@@ -345,6 +350,90 @@ export const useUpdateSupplyContractTemplateQuery = defineMutation(() => {
 			body: SupplyContractTemplateUpdate,
 			type: SupplyContractTemplateType,
 		) => mutateAsync({ templateId, body, type }),
+	}
+})
+
+export const contractConditionTemplatesQuery = defineQueryOptions(
+	({ type }: { type: ContractConditionTemplateType }) => ({
+		key: [QueryKeys.CONTRACT_CONDITION_TEMPLATES, type],
+		query: () => usePurchasesApi().getContractConditionTemplates(type),
+	}),
+)
+
+export const contractConditionTemplateDefaultQuery = defineQueryOptions(
+	({ type }: { type: ContractConditionTemplateType }) => ({
+		key: [QueryKeys.CONTRACT_CONDITION_TEMPLATE_DEFAULT, type],
+		query: () => usePurchasesApi().getDefaultContractConditionTemplate(type),
+	}),
+)
+
+export const useCreateContractConditionTemplateQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.CREATE_CONTRACT_CONDITION_TEMPLATE],
+		mutation: (body: ContractConditionTemplateCreate) =>
+			usePurchasesApi().createContractConditionTemplate(body),
+		onSuccess: (_data, body) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATES, body.type] })
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATE_DEFAULT, body.type] })
+		},
+	})
+	return {
+		...mutation,
+		createContractConditionTemplate: (body: ContractConditionTemplateCreate) => mutateAsync(body),
+	}
+})
+
+export const useUpdateContractConditionTemplateQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.UPDATE_CONTRACT_CONDITION_TEMPLATE],
+		mutation: ({
+			templateId,
+			body,
+			type,
+		}: {
+			templateId: number
+			body: ContractConditionTemplateUpdate
+			type: ContractConditionTemplateType
+		}) => usePurchasesApi().updateContractConditionTemplate(templateId, body),
+		onSuccess: (_data, variables) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATES, variables.type] })
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATE_DEFAULT, variables.type] })
+		},
+	})
+	return {
+		...mutation,
+		updateContractConditionTemplate: (
+			templateId: number,
+			body: ContractConditionTemplateUpdate,
+			type: ContractConditionTemplateType,
+		) => mutateAsync({ templateId, body, type }),
+	}
+})
+
+export const useDeleteContractConditionTemplateQuery = defineMutation(() => {
+	const queryCache = useQueryCache()
+	const { mutateAsync, ...mutation } = useMutation({
+		key: [QueryKeys.DELETE_CONTRACT_CONDITION_TEMPLATE],
+		mutation: ({
+			templateId,
+			type,
+		}: {
+			templateId: number
+			type: ContractConditionTemplateType
+		}) => usePurchasesApi().deleteContractConditionTemplate(templateId),
+		onSuccess: (_data, variables) => {
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATES, variables.type] })
+			queryCache.invalidateQueries({ key: [QueryKeys.CONTRACT_CONDITION_TEMPLATE_DEFAULT, variables.type] })
+		},
+	})
+	return {
+		...mutation,
+		deleteContractConditionTemplate: (
+			templateId: number,
+			type: ContractConditionTemplateType,
+		) => mutateAsync({ templateId, type }),
 	}
 })
 

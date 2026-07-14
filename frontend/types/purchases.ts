@@ -4,6 +4,8 @@ export interface BuyerTableItems {
 	sellerCompany: string
 	status?: string
 	bill?: string
+	contract?: string
+	act?: string
 	supplyContract?: string
 	accompanyingDocuments?: string
 	invoice?: string
@@ -17,6 +19,7 @@ export interface SellerTableItems {
   status?: string;
   bill?: string;
   contract?: string;
+  act?: string;
   supplyContract?: string;
   accompanyingDocuments?: string;
   invoice?: string;

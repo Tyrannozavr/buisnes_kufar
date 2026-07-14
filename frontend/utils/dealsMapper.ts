@@ -94,6 +94,7 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 		body.bill = {
 			number: deal.bill.number ?? "",
 			reason: deal.bill.reason ?? "",
+			document_type: deal.bill.documentType ?? "bill",
 			//bill-payment
 			additional_info: deal.bill.additionalInfo ?? "",
 			payment_terms: String(deal.bill.paymentTerms ?? ""),
@@ -102,6 +103,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 			payment_terms_contract: String(deal.bill.paymentTermsContract ?? ""),
 			contract_terms_contract: deal.bill.contractTermsContract ?? "standard-delivery-supplier",
 			contract_terms_text_contract: deal.bill.contractTermsTextContract ?? "",
+			supplier_details_check: deal.bill.supplierDetailsCheck ?? true,
+			buyer_details_check: deal.bill.buyerDetailsCheck ?? true,
 			//bill-offer
 			payment_terms_offer: String(deal.bill.paymentTermsOffer ?? ""),
 			contract_terms_offer: deal.bill.contractTermsOffer ?? "standard-delivery-supplier",
@@ -219,6 +222,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 		bill: {
 			number: dealResponse.bill.number,
 			reason: dealResponse.bill.reason,
+			documentType: dealResponse.bill.document_type ?? "bill",
 			paymentTerms:
 				dealResponse.bill.payment_terms ??
 				dealResponse.bill.payment_terms_contract ??
@@ -230,6 +234,8 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 				dealResponse.bill.contract_terms_contract ?? "standard-delivery-supplier",
 			contractTermsTextContract:
 				dealResponse.bill.contract_terms_text_contract ?? "",
+			supplierDetailsCheck: dealResponse.bill.supplier_details_check ?? true,
+			buyerDetailsCheck: dealResponse.bill.buyer_details_check ?? true,
 			paymentTermsOffer: dealResponse.bill.payment_terms_offer ?? "",
 			contractTermsOffer:
 				dealResponse.bill.contract_terms_offer ?? "standard-delivery-supplier",

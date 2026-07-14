@@ -14,6 +14,12 @@ import type {
 	SupplyContractTemplateCreate,
 	SupplyContractTemplateUpdate,
 } from "~/types/supplyContractTemplate"
+import type {
+	ContractConditionTemplate,
+	ContractConditionTemplateCreate,
+	ContractConditionTemplateType,
+	ContractConditionTemplateUpdate,
+} from "~/types/contractConditionTemplate"
 import type { CompanyContractListResponse } from "~/types/companyContract"
 import { normalizeApiPath } from "~/utils/normalize";
 
@@ -430,6 +436,67 @@ export const usePurchasesApi = () => {
 		}
 	}
 
+	const getContractConditionTemplates = async (
+		type: ContractConditionTemplateType,
+	): Promise<ContractConditionTemplate[] | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_CONTRACT_CONDITION_TEMPLATES), {
+				query: { type },
+			})
+		} catch (error) {
+			console.log("ERROR getContractConditionTemplates: ", error)
+			throw error
+		}
+	}
+
+	const getDefaultContractConditionTemplate = async (
+		type: ContractConditionTemplateType,
+	): Promise<ContractConditionTemplate | undefined> => {
+		try {
+			return await $api.get(normalizeApiPath(API_URLS.GET_CONTRACT_CONDITION_TEMPLATE_DEFAULT), {
+				query: { type },
+			})
+		} catch (error) {
+			console.log("ERROR getDefaultContractConditionTemplate: ", error)
+			return undefined
+		}
+	}
+
+	const createContractConditionTemplate = async (
+		body: ContractConditionTemplateCreate,
+	): Promise<ContractConditionTemplate | undefined> => {
+		try {
+			return await $api.post(normalizeApiPath(API_URLS.GET_CONTRACT_CONDITION_TEMPLATES), body)
+		} catch (error) {
+			console.log("ERROR createContractConditionTemplate: ", error)
+			throw error
+		}
+	}
+
+	const updateContractConditionTemplate = async (
+		templateId: number,
+		body: ContractConditionTemplateUpdate,
+	): Promise<ContractConditionTemplate | undefined> => {
+		try {
+			return await $api.patch(
+				normalizeApiPath(API_URLS.CONTRACT_CONDITION_TEMPLATE(templateId)),
+				body,
+			)
+		} catch (error) {
+			console.log("ERROR updateContractConditionTemplate: ", error)
+			throw error
+		}
+	}
+
+	const deleteContractConditionTemplate = async (templateId: number) => {
+		try {
+			return await $api.delete(normalizeApiPath(API_URLS.CONTRACT_CONDITION_TEMPLATE(templateId)))
+		} catch (error) {
+			console.log("ERROR deleteContractConditionTemplate: ", error)
+			throw error
+		}
+	}
+
 	const deleteDealById = async (deal_id: number) => {
 		try {
 			const response = await $api.delete(
@@ -509,6 +576,11 @@ export const usePurchasesApi = () => {
 		createSupplyContractTemplate,
 		updateSupplyContractTemplate,
 		deleteSupplyContractTemplate,
+		getContractConditionTemplates,
+		getDefaultContractConditionTemplate,
+		createContractConditionTemplate,
+		updateContractConditionTemplate,
+		deleteContractConditionTemplate,
 		createOrderFromCheckout,
 		getUnitsOfMeasurement,
 		deleteDealById,

@@ -527,6 +527,12 @@ class DealRepository:
             "proposed_version": proposed.version,
             "comments_changed": (baseline.comments or "") != (proposed.comments or ""),
             "total_amount_changed": baseline.total_amount != proposed.total_amount,
+            "bill_document_type_before": getattr(baseline, "bill_document_type", None) or "bill",
+            "bill_document_type_after": getattr(proposed, "bill_document_type", None) or "bill",
+            "bill_document_type_changed": (
+                (getattr(baseline, "bill_document_type", None) or "bill")
+                != (getattr(proposed, "bill_document_type", None) or "bill")
+            ),
             "items": items,
         }
 
@@ -683,6 +689,10 @@ class DealRepository:
                 item.setdefault("company_id", order.seller_company_id)
         if order_data.bill is not None and order_data.bill.reason is not None:
             order.bill_reason = order_data.bill.reason
+        if order_data.bill is not None and order_data.bill.document_type is not None:
+            allowed = {"bill", "bill-contract", "bill-offer"}
+            if order_data.bill.document_type in allowed:
+                order.bill_document_type = order_data.bill.document_type
         if order_data.bill is not None and order_data.bill.payment_terms is not None:
             order.payment_terms = order_data.bill.payment_terms
         if order_data.bill is not None and order_data.bill.payment_terms_contract is not None:
@@ -703,6 +713,10 @@ class DealRepository:
             order.contract_terms_text_offer = order_data.bill.contract_terms_text_offer
         if order_data.bill is not None and order_data.bill.additional_info_offer is not None:
             order.additional_info_offer = order_data.bill.additional_info_offer
+        if order_data.bill is not None and order_data.bill.supplier_details_check is not None:
+            order.bill_supplier_details_check = order_data.bill.supplier_details_check
+        if order_data.bill is not None and order_data.bill.buyer_details_check is not None:
+            order.bill_buyer_details_check = order_data.bill.buyer_details_check
 
         if order_data.supply_contract is not None:
             if order_data.supply_contract.number is not None:

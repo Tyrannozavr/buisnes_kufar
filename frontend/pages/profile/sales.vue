@@ -15,10 +15,8 @@
             'data-[state=active]:bg-primary-500 data-[state=active]:text-white rounded-md data-[state=inactive]:text-gray-600 hover:data-[state=inactive]:text-gray-900',
         }"
       />
-      <GoodsColumns v-if="activeTab === '0'" :type="'sales'" />
-      <p v-else class="px-4 pb-6 text-sm text-gray-500">
-        Закладка «Услуги» — в рамках этапа 4 (70k).
-      </p>
+      <GoodsColumns v-if="activeTab === '0'" :type="'sales'" deal-filter="Товары" />
+      <GoodsColumns v-else :type="'sales'" deal-filter="Услуги" />
     </div>
   </div>
 </template>

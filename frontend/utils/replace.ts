@@ -12,9 +12,13 @@ import type { BillData } from "~/types/bill"
  * @example "{{ СРОК_ПОСТАВКИ_СЧЕТА_ДОГОВОРА }}" -> "10"
  */
 export const replaceFields = (line: string, billData: BillData): string => {
+	const paymentTerms =
+		billData.paymentTermsContract || billData.paymentTermsOffer || billData.paymentTerms || ""
 	return line
 		.replaceAll("{{ НОМЕР_СЧЕТА }}", billData.number)
 		.replaceAll("{{ ДАТА }}", normalizeDate(billData.date))
+		.replaceAll("{{ СРОК_ОПЛАТЫ }}", paymentTerms)
+		.replaceAll("{{ СРОК_ПОСТАВКИ }}", billData.deliveryTermsContract)
 		.replaceAll("{{ СРОК_ОПЛАТЫ_СЧЕТА_ДОГОВОРА }}", billData.paymentTermsContract)
 		.replaceAll("{{ СРОК_ОПЛАТЫ_СЧЕТА_ОФЕРТЫ }}", billData.paymentTermsOffer)
 		.replaceAll(

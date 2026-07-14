@@ -94,6 +94,7 @@ export interface DealUpdate {
 export interface BillResponse {
 	number: string
 	reason: string
+	document_type?: "bill" | "bill-contract" | "bill-offer"
 	officials: OfficialsResponse[]
 	
 	// bill-payment
@@ -108,6 +109,8 @@ export interface BillResponse {
 		| "standard-delivery-buyer"
 		| "custom"
 	contract_terms_text_contract: string
+	supplier_details_check?: boolean
+	buyer_details_check?: boolean
 
 	// bill-offer
 	payment_terms_offer: string
@@ -172,6 +175,9 @@ export interface DealOrderChangeDiff {
 	proposed_version: number
 	comments_changed: boolean
 	total_amount_changed: boolean
+	bill_document_type_changed?: boolean
+	bill_document_type_before?: string | null
+	bill_document_type_after?: string | null
 	items: OrderLineChange[]
 }
 

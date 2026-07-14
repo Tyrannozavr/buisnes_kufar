@@ -32,6 +32,8 @@ interface StateMap {
 	paymentTermsCheckContract: boolean
 	deliveryTermsCheckContract: boolean
 	contractTermsCheckContract: boolean
+	billSupplierDetailsCheck: boolean
+	billBuyerDetailsCheck: boolean
 	
 	//bill-offer
 	paymentTermsOffer: string
@@ -40,6 +42,7 @@ interface StateMap {
 	contractTermsCheckOffer: boolean
 	paymentTermsCheckOffer: boolean
 	additionalInfoCheckOffer: boolean
+	deliveryTermsCheckOffer: boolean
 
 	//supply contract
 	coverLetterCheck: boolean

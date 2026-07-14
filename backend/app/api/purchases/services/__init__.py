@@ -489,6 +489,7 @@ class DealService:
 			bill_obj = BillInDealResponse(
 				number=order.bill_number or "",
 				reason=order.bill_reason or "",
+				document_type=getattr(order, "bill_document_type", None) or "bill",
 				payment_terms=getattr(order, "payment_terms", None) or "",
 				payment_terms_contract=order.payment_terms_contract or "",
 				delivery_terms_contract=getattr(order, "delivery_terms_contract", None) or "",
@@ -499,6 +500,8 @@ class DealService:
 				contract_terms_offer=contract_terms_offer,
 				contract_terms_text_offer=getattr(order, "contract_terms_text_offer", None) or "",
 				additional_info_offer=getattr(order, "additional_info_offer", None) or "",
+				supplier_details_check=getattr(order, "bill_supplier_details_check", True),
+				buyer_details_check=getattr(order, "bill_buyer_details_check", True),
 				officials=officials_list,
 			)
 			from app.api.purchases.supply_contract_sync import build_supply_contract_in_deal_response

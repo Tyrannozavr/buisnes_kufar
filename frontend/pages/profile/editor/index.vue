@@ -16,15 +16,27 @@
 		</div>
 
 		<template v-else>
-		<UTabs
-			:key="activeTab"
-			v-model="activeTab"
-			color="neutral"
-			:items="items"
-			size="lg"
-			variant="pill"
-			class="max-h-full overflow-y-hidden w-full"
-		/>
+		<nav
+			class="mb-3 flex w-full flex-wrap gap-1 rounded-lg bg-elevated p-1"
+			aria-label="Документы сделки"
+		>
+			<button
+				v-for="item in items"
+				:key="item.value"
+				type="button"
+				:disabled="item.disabled"
+				:aria-current="activeTab === item.value ? 'page' : undefined"
+				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+				:class="
+					activeTab === item.value
+						? 'bg-inverted text-inverted shadow-sm'
+						: 'text-muted hover:text-default'
+				"
+				@click="onTabClick(item)"
+			>
+				{{ item.label }}
+			</button>
+		</nav>
 
 		<div class="flex gap-3">
 			<div>
@@ -192,60 +204,58 @@ watch(() => [
 	dealId.value,
 ], () => {
 	const deal = findDeal(dealId.value)
-	isItemDisabled.value.bill = !deal?.billDate
+	// Счёт доступен, если есть дата или номер (дата на бланке иногда ещё «—»)
+	isItemDisabled.value.bill = !(deal?.billDate || deal?.bill?.number)
 	isItemDisabled.value.contract = !deal?.contractDate
 }, { immediate: true })
 
 const items = computed(() => [
 	{
 		label: 'Заказ',
-		value: '0',
-		slot: 'order' as const,
+		value: '0' as EditorTabId,
 		disabled: false,
 	},
 	{
 		label: 'Счет',
-		value: '1',
-		slot: 'bill' as const,
+		value: '1' as EditorTabId,
 		disabled: isItemDisabled.value.bill,
 	},
 	{
 		label: 'Договор поставки',
-		value: '2',
-		slot: 'supplyContract' as const,
+		value: '2' as EditorTabId,
 		disabled: false,
 	},
 	{
 		label: 'Сопроводительные документы',
-		value: '3',
-		slot: 'accompanyingDocuments' as const,
+		value: '3' as EditorTabId,
 		disabled: false,
 	},
 	{
 		label: 'Счет-фактура',
-		value: '4',
-		slot: 'invoice' as const,
+		value: '4' as EditorTabId,
 		disabled: false,
 	},
 	{
 		label: 'Договор',
-		value: '5',
-		slot: 'contract' as const,
+		value: '5' as EditorTabId,
 		disabled: true,
 	},
 	{
 		label: 'Акт',
-		value: '6',
-		slot: 'act' as const,
+		value: '6' as EditorTabId,
 		disabled: true,
 	},
 	{
 		label: 'Другие документы',
-		value: '7',
-		slot: 'othersDocument' as const,
+		value: '7' as EditorTabId,
 		disabled: true,
 	},
 ])
+
+const onTabClick = (item: { value: EditorTabId; disabled: boolean }) => {
+	if (item.disabled) return
+	activeTab.value = item.value
+}
 
 /** Пока обновляем URL из вкладки — не откатывать activeTab по старому ?tab= */
 const syncingTabToRoute = ref(false)
@@ -260,6 +270,7 @@ watch(
 	() => {
 		if (syncingTabToRoute.value) return
 		const tab = tabFromRoute(route.hash, route.query.tab)
+		// null = hash и ?tab временно не совпадают — не трогаем activeTab
 		if (tab && activeTab.value !== tab) {
 			activeTab.value = tab
 		}
@@ -285,6 +296,7 @@ watch(
 		syncingTabToRoute.value = true
 		try {
 			await router.replace({ query: nextQuery, hash })
+			await nextTick()
 		} finally {
 			syncingTabToRoute.value = false
 		}

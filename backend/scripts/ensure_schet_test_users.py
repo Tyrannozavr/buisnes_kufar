@@ -24,10 +24,17 @@ from app.api.company.models.official import CompanyOfficial
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.company import CompanyRelationCreate
 from app.api.products.models.product import Product, ProductType
-from app.api.purchases.models import Order, UnitOfMeasurement, CompanyContract
+from app.api.purchases.models import (
+    Order,
+    UnitOfMeasurement,
+    ContractConditionTemplateType,
+)
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.repositories.company_contract import CompanyContractRepository
-from app.api.purchases.schemas import DealCreate, OrderItemCreate
+from app.api.purchases.repositories.contract_condition_template import (
+    ContractConditionTemplateRepository,
+)
+from app.api.purchases.schemas import DealCreate, OrderItemCreate, OrderTypeSchema
 from app.core.security import get_password_hash
 from app.db.base import AsyncSessionLocal
 
@@ -172,6 +179,52 @@ DEAL_MAIN_COMMENTS = "Этап 2 — тест ОКЕИ (заказ + счёт)"
 DEAL_NO_BILL_COMMENTS = "Этап 2 — сделка без счёта (createBill)"
 DEAL_STAGE31_CONTRACTS_COMMENTS = "Этап 3.1 — без счёта, диалог выбора договора"
 DEAL_NO_CONTRACT_COMMENTS = "Этап 3.1 — сделка без счёта, контрагент без договоров"
+DEAL_SERVICES_COMMENTS = "Этап 4.6 — услуговая сделка без счёта"
+
+TEMPLATE_NAME_SUPPLIER = "Стандартный, доставка Поставщика"
+TEMPLATE_NAME_BUYER = "Стандартный, доставка Покупателя"
+
+# Seed-тексты с плейсхолдерами для редактора шаблонов (§4.4)
+_CONTRACT_TERMS_SUPPLIER = """\
+Основные условия настоящего договора-счета № {{ НОМЕР_СЧЕТА }} от {{ ДАТА }} г.
+1. \tПредметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
+2. \tОплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.\t
+3. \tНастоящий Счет-договор действителен в течение {{ СРОК_ОПЛАТЫ }} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
+4. \tПоставщик обязан доставить оплаченный товар и передать его Покупателю в течение {{ СРОК_ПОСТАВКИ }} рабочих дней с момента зачисления оплаты на расчетный счет
+5. \tОплаченный товар доставляется Покупателю силами ПОСТАВЩИКА
+6. \tОплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
+7. \tПоставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
+8. \tПокупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
+9. \tПодписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара."""
+
+_CONTRACT_TERMS_BUYER = """\
+Основные условия настоящего договора-счета № {{ НОМЕР_СЧЕТА }} от {{ ДАТА }} г.
+1. \tПредметом настоящего Счета-договора является поставка товарно-материальных ценностей (далее - "товар").
+2. \tОплата настоящего Счета-договора означает согласие Покупателя с условиями оплаты и поставки товара.\t
+3. \tНастоящий Счет-договор действителен в течение {{ СРОК_ОПЛАТЫ }} рабочих дней от даты его составления включительно. При отсутствии оплаты в указанный срок настоящий Счет-договор признается недействительным.
+4. \tПоставщик обязан доставить оплаченный товар и передать его Покупателю в течение {{ СРОК_ПОСТАВКИ }} рабочих дней с момента зачисления оплаты на расчетный счет
+5. \tОплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ
+6. \tОплата Счета-договора третьими лицами (сторонами), а также неполная (частичная) оплата Счета-договора не допускается. Покупатель не имеет права производить выборочную оплату позиций счета и требовать поставку товара по выбранным позициям.
+7. \tПоставщик вправе не выполнять поставку товара до зачисления оплаты на расчетный счет.
+8. \tПокупатель обязан принять оплаченный товар лично или через уполномоченного представителя. Передача товара осуществляется при предъявлении документа, удостоверяющего личность, и/или доверенности оформленной в установленном порядке.
+9. \tПодписание Покупателем или его уполномоченным представителем товарной накладной означает согласие Покупателя с комплектностью и надлежащим качеством товара."""
+
+# Оферта: срок поставки не используется (только {{ СРОК_ОПЛАТЫ }})
+_OFFER_TERMS_SUPPLIER = """\
+1.\tПредметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
+2.\tПодписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
+3.\tОсмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
+4.\tПокупатель обязуется оплатить товар на условиях 100% предоплаты в сумме, указанной в счете, в течение {{ СРОК_ОПЛАТЫ }} рабочих дней по указанным реквизитам.
+5.\tОплаченный товар доставляется Покупателю силами ПОСТАВЩИКА со склада Поставщика, расположенного по адресу: {{ АДРЕС_ПРОИЗВОДСТВА_ПОСТАВЩИКА}}.
+6.\tПосле получения товара Покупатель обязан подписать Товарную накладную."""
+
+_OFFER_TERMS_BUYER = """\
+1.\tПредметом настоящего счета-оферты является поставка товара по перечню изделий поставщиком покупателю.
+2.\tПодписывая настоящий счет-оферту, Покупатель дает согласие на то, что товар надлежащего качества обмену и возврату не подлежит.
+3.\tОсмотр товара Покупателем происходит при получении. Покупатель проводит обследование единиц продукции на предмет отсутствия брака и дефектов, проверяет комплектность партии. При обнаружении недочетов Покупателем составляется акт. При отсутствии акта Поставщик претензии не принимает.
+4.\tПокупатель обязуется оплатить товар на условиях 100% предоплаты в сумме, указанной в счете, в течение {{ СРОК_ОПЛАТЫ }} рабочих дней по указанным реквизитам.
+5.\tОплаченный товар доставляется Покупателю силами ПОКУПАТЕЛЯ со склада Поставщика, расположенного по адресу: {{ АДРЕС_ПРОИЗВОДСТВА_ПОСТАВЩИКА}}.
+6.\tПосле получения товара Покупатель обязан подписать Товарную накладную."""
 
 # Каталог поставщика для §2.2 checkout (товар + услуга → два заказа)
 CHECKOUT_CATALOG = [
@@ -345,6 +398,50 @@ async def ensure_seller_official(session, company_id: int) -> None:
     print("  official CREATED")
 
 
+async def ensure_contract_condition_templates(session, seller_company_id: int) -> None:
+    """Seed шаблонов условий счёт-договора / оферты (§4.4)."""
+    repo = ContractConditionTemplateRepository(session)
+    specs = [
+        (
+            ContractConditionTemplateType.BILL_CONTRACT.value,
+            TEMPLATE_NAME_SUPPLIER,
+            _CONTRACT_TERMS_SUPPLIER,
+            True,
+        ),
+        (
+            ContractConditionTemplateType.BILL_CONTRACT.value,
+            TEMPLATE_NAME_BUYER,
+            _CONTRACT_TERMS_BUYER,
+            False,
+        ),
+        (
+            ContractConditionTemplateType.BILL_OFFER.value,
+            TEMPLATE_NAME_SUPPLIER,
+            _OFFER_TERMS_SUPPLIER,
+            True,
+        ),
+        (
+            ContractConditionTemplateType.BILL_OFFER.value,
+            TEMPLATE_NAME_BUYER,
+            _OFFER_TERMS_BUYER,
+            False,
+        ),
+    ]
+    for template_type, name, content_text, is_default in specs:
+        await repo.upsert_seed(
+            company_id=seller_company_id,
+            template_type=template_type,
+            name=name,
+            content_text=content_text,
+            is_default=is_default,
+        )
+    await session.commit()
+    print(
+        f"  contract_condition_templates: 4 шт. "
+        f"(2×bill_contract + 2×bill_offer) company_id={seller_company_id}"
+    )
+
+
 async def ensure_deal(
     session,
     buyer_company_id: int,
@@ -352,6 +449,7 @@ async def ensure_deal(
     *,
     comments: str,
     items: list[OrderItemCreate],
+    deal_type: OrderTypeSchema = OrderTypeSchema.GOODS,
 ) -> Order:
     existing = (
         await session.execute(
@@ -371,6 +469,7 @@ async def ensure_deal(
         print(
             f"  deal EXISTS: id={existing.id}, "
             f"seller_order={existing.seller_order_number}, "
+            f"type={existing.deal_type}, "
             f"bill={'да' if existing.bill_date else 'нет'}"
         )
         return existing
@@ -378,6 +477,7 @@ async def ensure_deal(
     repo = DealRepository(session)
     deal_data = DealCreate(
         seller_company_id=seller_company_id,
+        deal_type=deal_type,
         comments=comments,
         items=items,
     )
@@ -388,6 +488,7 @@ async def ensure_deal(
         f"  deal CREATED: id={order.id}, "
         f"seller_order={order.seller_order_number}, "
         f"buyer_order={order.buyer_order_number}, "
+        f"type={order.deal_type}, "
         f"sum={order.total_amount}"
     )
     return order
@@ -479,6 +580,9 @@ async def main() -> None:
         print("\nДоговоры ЛК (seller ↔ основной покупатель):")
         await ensure_company_contracts(session, seller_company.id, buyer_company.id)
 
+        print("\nШаблоны условий (§4.4):")
+        await ensure_contract_condition_templates(session, seller_company.id)
+
         print("\nСделка 1 (ОКЕИ: шт→796, кг→166):")
         order_main = await ensure_deal(
             session,
@@ -537,6 +641,26 @@ async def main() -> None:
             ],
         )
 
+        service = next(p for p in catalog if p.type == ProductType.SERVICE)
+        print("\nСделка 4 (услуги без счёта — §4.6):")
+        order_services = await ensure_deal(
+            session,
+            buyer_company.id,
+            seller_company.id,
+            comments=DEAL_SERVICES_COMMENTS,
+            deal_type=OrderTypeSchema.SERVICES,
+            items=[
+                OrderItemCreate(
+                    product_name=service.name,
+                    product_article=service.article,
+                    product_slug=service.slug,
+                    quantity=1,
+                    unit_of_measurement=service.unit_of_measurement or "усл",
+                    price=float(service.price or 5000),
+                ),
+            ],
+        )
+
     good = next(p for p in catalog if p.type == ProductType.GOOD)
     service = next(p for p in catalog if p.type == ProductType.SERVICE)
 
@@ -547,6 +671,7 @@ async def main() -> None:
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
     print(f"Сделка 2 (§3.1 договоры): id={order_stage31_contracts.id}, заказ {order_stage31_contracts.seller_order_number}")
     print(f"Сделка 3 (§3.1 без договоров): id={order_no_contract.id}, заказ {order_no_contract.seller_order_number}")
+    print(f"Сделка 4 (§4.6 услуги): id={order_services.id}, заказ {order_services.seller_order_number}")
     print("\n§3.1 «Создать счет» — seller@gmail.com → Продажи → Товары")
     print("  A) Сделка 2 → «Создать счет» → список договоров + «Без договора»")
     print("  B) Сделка 3 → «Создать счет» → «Создать без основания?» Да/Нет")
@@ -557,6 +682,11 @@ async def main() -> None:
     print("  3) Корзина → Оформить заказ → /checkout")
     print("  4) Два блока: товары и услуги → «Подтвердить» в каждом")
     print("  5) Закупки — два новых заказа; seller@gmail.com → Продажи + чат с уведомлением")
+    print("\n§4 — seller@gmail.com:")
+    print("  1) Продажи → Товары → сделка → счёт → переключение bill / bill-contract / bill-offer")
+    print("  2) Шаблоны условий: API GET/POST /contract-condition-templates (seed: 4 шт.)")
+    print("  3) Продажи → Услуги → сделка 4 (без счёта) → «Создать счет»")
+    print("  4) DOC/PDF bill-contract / bill-offer — условия и галки реквизитов")
 
 
 if __name__ == "__main__":

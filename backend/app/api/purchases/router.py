@@ -1,4 +1,4 @@
-from typing import Annotated, List, Literal
+from typing import Annotated, List, Literal, Optional
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -13,6 +13,7 @@ from app.api.purchases.dependencies import (
 	supply_contract_service_dep_annotated,
 	supply_contract_template_service_dep_annotated,
 	company_contract_service_dep_annotated,
+	contract_condition_template_service_dep_annotated,
 )
 from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError, BuyerOrderUpdateForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
@@ -32,6 +33,7 @@ from app.api.purchases.schemas import (
     BindSupplyContractToDealRequest, BindSupplySpecificationToDealRequest,
     SpecificationCreate, SpecificationUpdate, SpecificationResponse,
     SupplyContractTemplateCreate, SupplyContractTemplateUpdate, SupplyContractTemplateResponse,
+    ContractConditionTemplateCreate, ContractConditionTemplateUpdate, ContractConditionTemplateResponse,
     DealChangeReviewResponse,
 )
 from app.api.purchases.schemas import DealStatus
@@ -2029,6 +2031,136 @@ async def delete_supply_contract_template(
 		raise HTTPException(status_code=404, detail="Company not found for this user")
 
 	deleted = await supply_contract_template_service.delete_template(template_id, company.id)
+	if not deleted:
+		raise HTTPException(status_code=404, detail="Template not found")
+	return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+	"/contract-condition-templates",
+	response_model=List[ContractConditionTemplateResponse],
+	tags=["bill", "templates"],
+	summary="Список шаблонов условий счёта-договора / оферты",
+)
+async def list_contract_condition_templates(
+	type: Optional[str] = Query(None, description="bill_contract | bill_offer"),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	contract_condition_template_service: contract_condition_template_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.contract_condition_template import (
+		ContractConditionTemplateAlreadyExistsError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await contract_condition_template_service.list_templates(company.id, type)
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get(
+	"/contract-condition-templates/default",
+	response_model=ContractConditionTemplateResponse,
+	tags=["bill", "templates"],
+	summary="Шаблон условий по умолчанию",
+)
+async def get_default_contract_condition_template(
+	type: str = Query(..., description="bill_contract | bill_offer"),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	contract_condition_template_service: contract_condition_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		template = await contract_condition_template_service.get_default_template(company.id, type)
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+	if template is None:
+		raise HTTPException(status_code=404, detail="Default template not found")
+	return template
+
+
+@router.post(
+	"/contract-condition-templates",
+	response_model=ContractConditionTemplateResponse,
+	tags=["bill", "templates"],
+	summary="Создать шаблон условий",
+)
+async def create_contract_condition_template(
+	body: ContractConditionTemplateCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	contract_condition_template_service: contract_condition_template_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.contract_condition_template import (
+		ContractConditionTemplateAlreadyExistsError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await contract_condition_template_service.create_template(company.id, body)
+	except ContractConditionTemplateAlreadyExistsError:
+		raise HTTPException(status_code=409, detail="Template with this name already exists")
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch(
+	"/contract-condition-templates/{template_id}",
+	response_model=ContractConditionTemplateResponse,
+	tags=["bill", "templates"],
+	summary="Обновить шаблон условий",
+)
+async def update_contract_condition_template(
+	template_id: int,
+	body: ContractConditionTemplateUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	contract_condition_template_service: contract_condition_template_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.contract_condition_template import (
+		ContractConditionTemplateAlreadyExistsError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		template = await contract_condition_template_service.update_template(
+			template_id, company.id, body
+		)
+	except ContractConditionTemplateAlreadyExistsError:
+		raise HTTPException(status_code=409, detail="Template with this name already exists")
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc)) from exc
+	if template is None:
+		raise HTTPException(status_code=404, detail="Template not found")
+	return template
+
+
+@router.delete(
+	"/contract-condition-templates/{template_id}",
+	status_code=status.HTTP_204_NO_CONTENT,
+	tags=["bill", "templates"],
+	summary="Удалить шаблон условий",
+)
+async def delete_contract_condition_template(
+	template_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	contract_condition_template_service: contract_condition_template_service_dep_annotated = ...,
+):
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	deleted = await contract_condition_template_service.delete_template(template_id, company.id)
 	if not deleted:
 		raise HTTPException(status_code=404, detail="Template not found")
 	return Response(status_code=status.HTTP_204_NO_CONTENT)

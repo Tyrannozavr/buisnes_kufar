@@ -4,7 +4,23 @@
 			<div class="flex flex-col gap-5">
 			<div v-if="canRespondToChanges" class="flex flex-col justify-between gap-5">
 				<p class="text-sm text-neutral-500 text-center px-1">
-					Слева показана предложенная версия заказа. Изменения выделены цветом.
+					Слева — предложенная версия. Изменения в <strong>заказе</strong> (позиции, сумма, комментарий)
+					выделяются цветом на бланке «Заказ».
+				</p>
+				<p
+					v-if="billTypeChangeSummary"
+					class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center"
+				>
+					{{ billTypeChangeSummary }}
+					<br />
+					<span class="text-xs text-amber-700">Смотрите также вкладку «Счет».</span>
+				</p>
+				<p
+					v-else-if="!hasOrderVisualDiff"
+					class="text-sm text-neutral-600 bg-neutral-100 rounded-md px-3 py-2 text-center"
+				>
+					В позициях заказа отличий нет. Контрагент сохранил новую версию сделки
+					(часто — правки счёта или других полей). Примите или отклоните версию.
 				</p>
 				<p v-if="changeReview?.diff?.items?.length" class="text-xs text-neutral-400 text-center px-1">
 					<span class="inline-block w-3 h-3 bg-amber-200 border border-amber-300 align-middle mr-1" />
@@ -257,7 +273,7 @@
 			<DealDocumentScans
 				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2'"
 				:deal-id="dealIdForReview"
-				:document-type="activeTab === '0' ? 'order' : activeTab === '1' ? 'bill' : 'supply_contract'"
+				:document-type="scansDocumentType"
 				:read-only="isHiddenForBuyer"
 				:edit-enabled="!isDisabled && !canRespondToChanges"
 			/>
@@ -342,6 +358,16 @@ const billType = useTypedState(Editor.BILL_TYPE)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
 const { createNewDealVersion, refreshDealFromServer } = useDeals()
+
+const scansDocumentType = computed(() => {
+	if (activeTab.value === "0") return "order" as const
+	if (activeTab.value === "2") return "supply_contract" as const
+	const selected = billType.value as { value?: string } | null | undefined
+	const sub = selected?.value ?? "bill"
+	if (sub === "bill-contract") return "bill_contract" as const
+	if (sub === "bill-offer") return "bill_offer" as const
+	return "bill" as const
+})
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -637,6 +663,32 @@ const { data: changeReview, refetch: refetchChangeReview } = useQuery({
 })
 
 const canRespondToChanges = computed(() => changeReview.value?.can_respond === true)
+
+const BILL_TYPE_LABELS: Record<string, string> = {
+	bill: 'Счет на оплату',
+	'bill-contract': 'Счет-договор',
+	'bill-offer': 'Счет-оферта',
+}
+
+const billTypeChangeSummary = computed(() => {
+	const diff = changeReview.value?.diff
+	if (!diff?.bill_document_type_changed) return ''
+	const before = BILL_TYPE_LABELS[diff.bill_document_type_before ?? 'bill']
+		?? diff.bill_document_type_before
+	const after = BILL_TYPE_LABELS[diff.bill_document_type_after ?? 'bill']
+		?? diff.bill_document_type_after
+	return `Изменён тип счёта: «${before}» → «${after}».`
+})
+
+const hasOrderVisualDiff = computed(() => {
+	const diff = changeReview.value?.diff
+	if (!diff) return false
+	return Boolean(
+		diff.items?.length
+		|| diff.comments_changed
+		|| diff.total_amount_changed,
+	)
+})
 
 const isHiddenForBuyer = computed(() => {
 	if (!isBuyerRole.value) return false

@@ -10,6 +10,10 @@ from app.api.purchases.services.supply_contract_template import (
 	SupplyContractTemplateService,
 	SupplyContractTemplateAlreadyExistsError,
 )
+from app.api.purchases.services.contract_condition_template import (
+	ContractConditionTemplateService,
+	ContractConditionTemplateAlreadyExistsError,
+)
 
 
 def deal_repository_dep(session: async_db_dep) -> DealRepository:
@@ -32,6 +36,10 @@ def supply_contract_template_service_dep(session: async_db_dep) -> SupplyContrac
 	return SupplyContractTemplateService(session)
 
 
+def contract_condition_template_service_dep(session: async_db_dep) -> ContractConditionTemplateService:
+	return ContractConditionTemplateService(session)
+
+
 # Аннотированные зависимости для использования в эндпоинтах
 deal_repository_dep_annotated = Annotated[DealRepository, Depends(deal_repository_dep)]
 deal_service_dep_annotated = Annotated[DealService, Depends(deal_service_dep)]
@@ -40,4 +48,8 @@ company_contract_service_dep_annotated = Annotated[CompanyContractService, Depen
 supply_contract_template_service_dep_annotated = Annotated[
 	SupplyContractTemplateService,
 	Depends(supply_contract_template_service_dep),
+]
+contract_condition_template_service_dep_annotated = Annotated[
+	ContractConditionTemplateService,
+	Depends(contract_condition_template_service_dep),
 ]

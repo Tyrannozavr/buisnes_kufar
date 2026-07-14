@@ -119,72 +119,181 @@ def _add_two_column_lines(
 	doc.add_paragraph()
 
 
-def write_bill_payment(path: Path) -> None:
-	doc = Document()
-	doc.add_heading("Счет на оплату № {{ bill_number }} от {{ bill_date_fmt }} г.", level=0)
-	_para(doc, "Банк: {{ seller_company.bank_name }}, БИК {{ seller_company.bic }}")
-	_para(
-		doc,
-		"ИНН {{ seller_company.inn }}, КПП {{ seller_company.kpp }}, "
-		"р/с {{ seller_company.account_number }}, к/с {{ seller_company.correspondent_bank_account }}",
+def _set_cell_text(cell, text: str, *, bold: bool = False) -> None:
+	cell.text = ""
+	p = cell.paragraphs[0]
+	p.paragraph_format.first_line_indent = Cm(0)
+	run = p.add_run(text)
+	_set_run_font(run, bold=bold)
+
+
+def _add_bank_header_table(doc: Document) -> None:
+	"""Шапка с реквизитами банка/получателя — как на бланке счёта."""
+	table = doc.add_table(rows=4, cols=4)
+	table.style = "Table Grid"
+	_set_cell_text(table.rows[0].cells[0], "{{ seller_company.bank_name }}")
+	table.rows[0].cells[0].merge(table.rows[0].cells[1])
+	_set_cell_text(table.rows[0].cells[2], "БИК", bold=True)
+	_set_cell_text(table.rows[0].cells[3], "{{ seller_company.bic }}")
+
+	_set_cell_text(table.rows[1].cells[0], "Банк получателя")
+	table.rows[1].cells[0].merge(table.rows[1].cells[1])
+	_set_cell_text(table.rows[1].cells[2], "Сч. №", bold=True)
+	_set_cell_text(table.rows[1].cells[3], "{{ seller_company.correspondent_bank_account }}")
+
+	_set_cell_text(table.rows[2].cells[0], "ИНН {{ seller_company.inn }}")
+	_set_cell_text(table.rows[2].cells[1], "КПП {{ seller_company.kpp }}")
+	_set_cell_text(table.rows[2].cells[2], "Сч. №", bold=True)
+	_set_cell_text(table.rows[2].cells[3], "{{ seller_company.account_number }}")
+
+	_set_cell_text(
+		table.rows[3].cells[0],
+		"{{ seller_company.company_type }} {{ seller_company.company_name }}\nПолучатель",
 	)
-	_para(doc, "Получатель: {{ seller_company.company_type }} {{ seller_company.company_name }}")
+	table.rows[3].cells[0].merge(table.rows[3].cells[3])
+	doc.add_paragraph()
+
+
+def _add_items_table(doc: Document) -> None:
+	"""
+	Таблица позиций с циклом docxtpl {%tr for %}.
+
+	for/endfor обязаны быть в ОТДЕЛЬНЫХ строках таблицы: в docxtpl 0.18 regex
+	жадный и при обоих тегах в одной <w:tr> оставляет только {% endfor %}.
+	"""
+	table = doc.add_table(rows=4, cols=7)
+	table.style = "Table Grid"
+	headers = ("№", "Название продукта", "Артикул", "Кол-во", "Ед. изм.", "Цена", "Сумма")
+	for i, header in enumerate(headers):
+		_set_cell_text(table.rows[0].cells[i], header, bold=True)
+
+	# Строка только с открытием цикла (целиком заменяется на {% for ... %})
+	_set_cell_text(table.rows[1].cells[0], "{%tr for item in items %}")
+
+	row = table.rows[2].cells
+	_set_cell_text(row[0], "{{ loop.index }}")
+	_set_cell_text(row[1], "{{ item.product_name }}")
+	_set_cell_text(row[2], "{{ item.product_article }}")
+	_set_cell_text(row[3], "{{ item.quantity }}")
+	_set_cell_text(row[4], "{{ item.unit_of_measurement }}")
+	_set_cell_text(row[5], "{{ item.price }}")
+	_set_cell_text(row[6], "{{ item.amount }}")
+
+	# Строка только с закрытием цикла
+	_set_cell_text(table.rows[3].cells[0], "{%tr endfor %}")
+	doc.add_paragraph()
+
+
+def _add_bill_common_body(doc: Document, *, title_jinja: str) -> None:
+	_add_bank_header_table(doc)
+	_contract_title(doc, title_jinja)
 	_para(doc, "Поставщик (исполнитель): {{ seller_party_line }}")
 	_para(doc, "Покупатель (заказчик): {{ buyer_party_line }}")
 	_para(doc, "{% if bill.reason %}Основание: {{ bill.reason }}{% endif %}")
+	_add_items_table(doc)
+	_para(doc, "Итого: {{ total_amount_excl_vat }}")
 	_para(
 		doc,
-		"{% for item in items %}"
-		"{{ loop.index }}. {{ item.product_name }} — {{ item.quantity }} {{ item.unit_of_measurement }} × "
-		"{{ item.price }} = {{ item.amount }}; "
-		"{% endfor %}",
+		"В том числе НДС: {% if bill.show_vat_row %}{{ bill.vat_amount_display }}{% endif %}",
 	)
-	_para(doc, "Итого: {{ total_amount_excl_vat }}")
-	_para(doc, "В том числе НДС: {% if bill.show_vat_row %}{{ bill.vat_amount_display }}{% endif %}")
 	_para(doc, "Всего к оплате: {{ total_amount }}")
 	_para(doc, "Всего наименований: {{ items_count }}, на сумму: {{ total_amount }} руб.")
 	_para(doc, "{{ total_word }}")
+
+
+def _add_officials_signature(doc: Document) -> None:
+	# for/endfor в разных абзацах — иначе {%p ...%} в одном <w:p> сжирает endfor
+	_para(doc, "{%p for o in bill.officials %}")
+	_para(doc, "{{ o.position }} _______________ /{{ o.full_name }}/")
+	_para(doc, "{%p endfor %}")
+	_para(doc, "_______________ /(должность, подпись, ФИО)/")
+
+def write_bill_payment(path: Path) -> None:
+	doc = Document()
+	_add_bill_common_body(
+		doc,
+		title_jinja="Счет на оплату № {{ bill_number }} от {{ bill_date_fmt }} г.",
+	)
 	_para(doc, "{% if bill.payment_validity_text %}{{ bill.payment_validity_text }}{% endif %}")
 	_para(doc, "{% if bill.additional_info %}{{ bill.additional_info }}{% endif %}")
+	_add_officials_signature(doc)
+	path.parent.mkdir(parents=True, exist_ok=True)
+	doc.save(str(path))
+	print("Wrote", path)
+
+
+def write_bill_contract(path: Path) -> None:
+	doc = Document()
+	_add_bill_common_body(
+		doc,
+		title_jinja="Счет-договор № {{ bill_number }} от {{ bill_date_fmt }} г.",
+	)
+	_para(doc, "{% if bill.contract_terms_text %}{{ bill.contract_terms_text }}{% endif %}")
+	_add_two_column_lines(
+		doc,
+		[
+			(
+				"{% if show_supplier_details %}ПОСТАВЩИК:{% endif %}",
+				"{% if show_buyer_details %}ПОКУПАТЕЛЬ:{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}{{ seller_company.company_name }}{% endif %}",
+				"{% if show_buyer_details %}{{ buyer_company.company_name }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}{{ seller_company.index }} {{ seller_company.legal_address }}{% endif %}",
+				"{% if show_buyer_details %}{{ buyer_company.index }} {{ buyer_company.legal_address }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}ИНН: {{ seller_company.inn }} КПП: {{ seller_company.kpp }}{% endif %}",
+				"{% if show_buyer_details %}ИНН: {{ buyer_company.inn }} КПП: {{ buyer_company.kpp }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}Рас/счет №: {{ seller_company.account_number }}{% endif %}",
+				"{% if show_buyer_details %}Рас/счет №: {{ buyer_company.account_number }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}Корр/счет: {{ seller_company.correspondent_bank_account }} Банк: {{ seller_company.bank_name }}{% endif %}",
+				"{% if show_buyer_details %}Корр/счет: {{ buyer_company.correspondent_bank_account }} Банк: {{ buyer_company.bank_name }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}БИК: {{ seller_company.bic }}{% endif %}",
+				"{% if show_buyer_details %}БИК: {{ buyer_company.bic }}{% endif %}",
+			),
+		],
+		bold_header=True,
+		keep_rows_together=True,
+	)
+	_add_officials_signature(doc)
+	path.parent.mkdir(parents=True, exist_ok=True)
+	doc.save(str(path))
+	print("Wrote", path)
+
+
+def write_bill_offer(path: Path) -> None:
+	doc = Document()
+	_add_bill_common_body(
+		doc,
+		title_jinja="Счет-оферта № {{ bill_number }} от {{ bill_date_fmt }} г.",
+	)
 	_para(
 		doc,
-		"{% for o in bill.officials %}{{ o.position }} {{ o.full_name }}{% if not loop.last %}; {% endif %}{% endfor %}",
+		"{% if bill.additional_info_offer %}{{ bill.additional_info_offer }}{% endif %}",
 	)
+	_para(doc, "{% if bill.contract_terms_text %}Условия счета-оферты:{% endif %}")
+	_para(doc, "{% if bill.contract_terms_text %}{{ bill.contract_terms_text }}{% endif %}")
+	_add_officials_signature(doc)
 	path.parent.mkdir(parents=True, exist_ok=True)
 	doc.save(str(path))
 	print("Wrote", path)
 
 
 def write_bill_variant(path: Path, title: str) -> None:
-	doc = Document()
-	doc.add_heading(title, level=0)
-	_para(
-		doc,
-		"Покупатель: {{ buyer_company.company_name }}, ИНН {{ buyer_company.inn }}, "
-		"{{ buyer_company.legal_address }}",
-	)
-	_para(
-		doc,
-		"Продавец: {{ seller_company.company_name }}, ИНН {{ seller_company.inn }}, "
-		"{{ seller_company.legal_address }}",
-	)
-	_para(
-		doc,
-		"{% if bill %}Счёт № {{ bill.number }}{% else %}Счёт (не заполнен){% endif %} от {{ bill_date_fmt }}",
-	)
-	_para(doc, "Позиции:")
-	_para(
-		doc,
-		"{% for item in items %}"
-		"{{ loop.index }}. {{ item.product_name }} — {{ item.quantity }} {{ item.unit_of_measurement }} × "
-		"{{ item.price }} = {{ item.amount }}; "
-		"{% endfor %}",
-	)
-	_para(doc, "НДС: {{ amount_vat_rate }}, итого: {{ total_amount }}")
-	_para(doc, "{% if bill %}{{ bill.additional_info }}{% endif %}")
-	path.parent.mkdir(parents=True, exist_ok=True)
-	doc.save(str(path))
-	print("Wrote", path)
+	"""Обратная совместимость вызова из старых скриптов."""
+	if "оферт" in title.lower() or "offer" in path.name:
+		write_bill_offer(path)
+	else:
+		write_bill_contract(path)
 
 
 def write_supply_contract(path: Path) -> None:
@@ -310,8 +419,8 @@ def main() -> None:
 	root = Path(__file__).resolve().parents[1]
 	docx_dir = root / "app" / "templates" / "docx"
 	write_bill_payment(docx_dir / "bill.docx")
-	write_bill_variant(docx_dir / "bill_contract.docx", "Счёт (договор)")
-	write_bill_variant(docx_dir / "bill_offer.docx", "Счёт (оферта)")
+	write_bill_contract(docx_dir / "bill_contract.docx")
+	write_bill_offer(docx_dir / "bill_offer.docx")
 	write_supply_contract(docx_dir / "supply_contract.docx")
 
 

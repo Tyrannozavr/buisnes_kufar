@@ -42,6 +42,8 @@ export const enum Editor {
 	PAYMENT_TERMS_CHECK_CONTRACT = 'paymentTermsCheckContract',
 	DELIVERY_TERMS_CHECK_CONTRACT = 'deliveryTermsCheckContract',
 	CONTRACT_TERMS_CHECK_CONTRACT = 'contractTermsCheckContract',
+	BILL_SUPPLIER_DETAILS_CHECK = 'billSupplierDetailsCheck',
+	BILL_BUYER_DETAILS_CHECK = 'billBuyerDetailsCheck',
 	
 	//bill-offer
 	PAYMENT_TERMS_OFFER = 'paymentTermsOffer',
@@ -50,6 +52,7 @@ export const enum Editor {
 	CONTRACT_TERMS_CHECK_OFFER = 'contractTermsCheckOffer',
 	PAYMENT_TERMS_CHECK_OFFER = 'paymentTermsCheckOffer',
 	ADDITIONAL_INFO_CHECK_OFFER = 'additionalInfoCheckOffer',
+	DELIVERY_TERMS_CHECK_OFFER = 'deliveryTermsCheckOffer',
 
 	//supply contract
 	COVER_LETTER_CHECK = 'coverLetterCheck',

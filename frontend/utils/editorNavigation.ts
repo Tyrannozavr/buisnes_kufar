@@ -31,17 +31,29 @@ export const DOCUMENT_TAB_TO_EDITOR_TAB: Record<EditorDocumentTab, EditorTabId> 
 	supply_contract: '2',
 }
 
-export const tabFromRoute = (
-	hash: string,
+export const tabFromQuery = (
 	tabQuery?: string | string[] | null,
 ): EditorTabId | null => {
-	if (HASH_TO_TAB[hash]) {
-		return HASH_TO_TAB[hash]
-	}
 	const queryTab = Array.isArray(tabQuery) ? tabQuery[0] : tabQuery
 	if (queryTab === 'order') return '0'
 	if (queryTab === 'bill') return '1'
 	return null
+}
+
+/**
+ * Вкладка из URL. Если hash и ?tab= временно расходятся (router.replace
+ * обновляет их не атомарно) — возвращаем null, чтобы не откатить activeTab.
+ */
+export const tabFromRoute = (
+	hash: string,
+	tabQuery?: string | string[] | null,
+): EditorTabId | null => {
+	const fromHash = HASH_TO_TAB[hash] ?? null
+	const fromQuery = tabFromQuery(tabQuery)
+	if (fromHash && fromQuery && fromHash !== fromQuery) {
+		return null
+	}
+	return fromHash ?? fromQuery
 }
 
 export const buildEditorDealUrl = (

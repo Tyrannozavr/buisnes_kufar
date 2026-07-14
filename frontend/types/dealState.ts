@@ -51,6 +51,7 @@ export interface Product {
 export interface Bill {
 	number: string
 	reason: string
+	documentType: 'bill' | 'bill-contract' | 'bill-offer'
 	officials: Official[]
 
 	//bill-payment
@@ -62,6 +63,8 @@ export interface Bill {
 	deliveryTermsContract: string
 	contractTermsContract: 'standard-delivery-supplier' | 'standard-delivery-buyer' | 'custom' 
 	contractTermsTextContract: string
+	supplierDetailsCheck: boolean
+	buyerDetailsCheck: boolean
 
 	//bill-offer
 	paymentTermsOffer: string

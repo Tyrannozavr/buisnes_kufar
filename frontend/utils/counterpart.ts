@@ -1,6 +1,6 @@
 import { useDeals } from "~/composables/useDeals"
 import { useChatsApi } from "~/api/chats"
-import { buildEditorDealAbsoluteUrl } from "~/utils/editorNavigation"
+import { buildEditorDealAbsoluteUrl, type EditorDocumentTab } from "~/utils/editorNavigation"
 
 export interface CounterpartData {
 	companyId: number
@@ -49,7 +49,7 @@ export const sendScanToCounterpart = async (
 	dealId: number,
 	role: "buyer" | "seller",
 	counterpartData: CounterpartData,
-	documentType: "order" | "bill" | "supply_contract",
+	documentType: "order" | "bill" | "bill_contract" | "bill_offer" | "supply_contract",
 	filename: string,
 ): Promise<void> => {
 	if (!counterpartData?.companyId) return
@@ -64,14 +64,24 @@ export const sendScanToCounterpart = async (
 	if (!chatData?.id) return
 
 	const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
-	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, documentType)
+	const chatDocumentTab: EditorDocumentTab =
+		documentType === "order"
+			? "order"
+			: documentType === "supply_contract"
+				? "supply_contract"
+				: "bill"
+	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, chatDocumentTab)
 
 	const docLabel =
 		documentType === "order"
 			? "заказа"
 			: documentType === "bill"
 				? "счёта на оплату"
-				: "договора поставки"
+				: documentType === "bill_contract"
+					? "счёта-договора"
+					: documentType === "bill_offer"
+						? "счёта-оферты"
+						: "договора поставки"
 	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). Это не изменение условий заказа — только файл. [Открыть сканы](${reviewUrl})`
 
 	await sendMessage(chatData.id, { content })

@@ -558,6 +558,36 @@ export const useDealsStore = defineStore("deals", () => {
 	}
 
 	/**
+	 * редактирование типа бланка счёта
+	 */
+	const editBillDocumentType = async (
+		dealId: number,
+		documentType: 'bill' | 'bill-contract' | 'bill-offer',
+	) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.documentType = documentType
+	}
+
+	/**
+	 * редактирование флага «Реквизиты поставщика» в счёте-договоре
+	 */
+	const editBillSupplierDetailsCheck = async (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.supplierDetailsCheck = value
+	}
+
+	/**
+	 * редактирование флага «Реквизиты покупателя» в счёте-договоре
+	 */
+	const editBillBuyerDetailsCheck = async (dealId: number, value: boolean) => {
+		const deal = findDeal(dealId)
+		if (!deal) return
+		deal.bill.buyerDetailsCheck = value
+	}
+
+	/**
 	 * редактирование флага «Реквизиты поставщика»
 	 */
 	const editSupplyContractSupplierDetailsCheck = async (dealId: number, value: boolean) => {
@@ -609,6 +639,9 @@ export const useDealsStore = defineStore("deals", () => {
 		editSupplyContractDate,
 		//bill
 		editBillFields,
+		editBillDocumentType,
+		editBillSupplierDetailsCheck,
+		editBillBuyerDetailsCheck,
 		editAmountVatRate,
 		editAmountWithVatRate,
 		editOfficialsBill,

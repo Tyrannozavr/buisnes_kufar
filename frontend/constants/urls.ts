@@ -70,6 +70,16 @@ export const API_URLS = {
 	SUPPLY_CONTRACT_TEMPLATE: (template_id: number) =>
 		`/api/v1/purchases/supply-contract-templates/${template_id}`,
 
+	/** GET — список шаблонов условий договора (счёт-договор / оферта) */
+	GET_CONTRACT_CONDITION_TEMPLATES: "/api/v1/purchases/contract-condition-templates",
+
+	/** GET — шаблон условий по умолчанию */
+	GET_CONTRACT_CONDITION_TEMPLATE_DEFAULT: "/api/v1/purchases/contract-condition-templates/default",
+
+	/** GET/PATCH/DELETE — шаблон условий по id */
+	CONTRACT_CONDITION_TEMPLATE: (template_id: number) =>
+		`/api/v1/purchases/contract-condition-templates/${template_id}`,
+
 	CREATE_ORDER_FROM_CHECKOUT: "/api/v1/purchases/checkout",
 	GET_UNITS_MEASUREMENT: "/api/v1/purchases/units",
 	DELETE_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //удаляет все версии сделки

@@ -38,7 +38,7 @@ export interface DocumentFormResponse {
 export interface DocumentApiItem {
 	document_id: number
 	deal_id: number
-	document_type: DocumentType
+	document_type: DocumentTypeResponse
 	document_number: string | null
 	document_date: string | null
 	document_file_path: string | null

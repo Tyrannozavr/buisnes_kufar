@@ -9,7 +9,7 @@
 			v-model:pagination="tablePagination"
 			:pagination-options="paginationOptions"
 			:data="type === 'purchases' ? purchasesTable : salesTable"
-			:columns="type === 'purchases' ? columnsPurchasesGoodsDeals : columnsSalesGoodsDeals"
+			:columns="activeTableColumns"
 		/>
 
 		<div v-if="tableRowCount > PAGE_SIZE" class="mt-4 flex justify-center">
@@ -165,8 +165,9 @@ import { useBillFillState } from "~/composables/useBillFillState";
 import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
-const { type } = defineProps<{
+const { type, dealFilter = 'Товары' } = defineProps<{
   type: 'purchases' | 'sales'
+  dealFilter?: 'Товары' | 'Услуги'
 }>()
 
 const router = useRouter()
@@ -235,9 +236,9 @@ const dealsList = computed(() => {
 		: list.filter(deal => deal.role === 'seller')
 })
 
-/** Закладка «Товары» — только сделки типа «Товары» (§2.3). */
+/** Закладка «Товары» / «Услуги» — фильтр по типу сделки (§2.3, §4.6). */
 const goodsDealsList = computed(() =>
-	dealsList.value.filter(deal => deal.dealType === 'Товары'),
+	dealsList.value.filter(deal => deal.dealType === dealFilter),
 )
 const purchasesTable: Ref<BuyerTableItems[]> = ref([])
 const salesTable: Ref<SellerTableItems[]> = ref([])
@@ -297,6 +298,9 @@ const formatAccompanyingCellLabel = (deal: Deal): string => {
 const formatInvoiceCellLabel = (_deal: Deal): string =>
 	type === 'sales' ? 'Создать счет-фактуру' : 'Просмотр'
 
+const formatActCellLabel = (_deal: Deal): string =>
+	type === 'sales' ? 'Создать акт' : 'Просмотр'
+
 const formatOthersCellLabel = (deal: Deal): string => {
 	const names = (deal.othersDocuments ?? [])
 		.map((document: { name?: string }) => document?.name)
@@ -306,7 +310,7 @@ const formatOthersCellLabel = (deal: Deal): string => {
 }
 
 const editorHashForDocument = (
-	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument',
+	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument' | 'contract' | 'act',
 ): string => {
 	const map = {
 		order: '#order',
@@ -315,6 +319,8 @@ const editorHashForDocument = (
 		accompanyingDocuments: '#accompanyingDocuments',
 		invoice: '#invoice',
 		othersDocument: '#othersDocument',
+		contract: '#contract',
+		act: '#act',
 	} as const
 	return map[documentType]
 }
@@ -433,6 +439,8 @@ watch(goodsDealsList, () => {
     sellerCompany: deal.seller.companyName || '',
     status: deal.status,
     bill: formatBillCellLabel(deal),
+    contract: formatContractCellLabel(deal),
+    act: formatActCellLabel(deal),
     supplyContract: formatSupplyContractLabel(deal),
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),
@@ -677,9 +685,79 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
 ]
 ////////////////////////////////////////////////////////////
 
+const pickColumnsByAccessor = (
+	columns: TableColumn<any>[],
+	keys: string[],
+): TableColumn<any>[] => {
+	const byKey = new Map(
+		columns
+			.map((column) => {
+				const key = (column as { accessorKey?: string }).accessorKey
+				return key ? ([key, column] as const) : null
+			})
+			.filter((entry): entry is readonly [string, TableColumn<any>] => Boolean(entry)),
+	)
+	return keys.flatMap((key) => {
+		const column = byKey.get(key)
+		return column ? [column] : []
+	})
+}
+
+const purchasesContractColumn: TableColumn<any> = {
+	accessorKey: 'contract',
+	header: 'Договор',
+	cell: ({ row }) => {
+		const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+		const deal = dealId ? findDeal(dealId) : undefined
+		const label = String(row.getValue('contract') ?? '')
+		if (!label) {
+			return h('span', { class: 'text-neutral-400' }, '—')
+		}
+		return h(UButton, {
+			color: 'neutral',
+			variant: 'ghost',
+			label,
+			class: TABLE_LINK_CLASS,
+			onClick: () => {
+				if (deal?.contractDate || label !== '—') {
+					openEditor(dealId, 'buyer', '#contract')
+				}
+			},
+		})
+	},
+}
+
+const purchasesActColumn: TableColumn<any> = {
+	accessorKey: 'act',
+	header: 'Акт',
+	cell: ({ row }) => {
+		const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+		return h(UButton, {
+			color: 'neutral',
+			variant: 'ghost',
+			label: row.getValue('act'),
+			class: TABLE_LINK_CLASS,
+			onClick: () => openEditor(dealId, 'buyer', '#act'),
+		})
+	},
+}
+
+const columnsPurchasesServicesDeals: TableColumn<any>[] = [
+	...pickColumnsByAccessor(columnsPurchasesGoodsDeals, [
+		'dealNumber',
+		'date',
+		'sellerCompany',
+		'status',
+		'bill',
+	]),
+	purchasesContractColumn,
+	purchasesActColumn,
+	...pickColumnsByAccessor(columnsPurchasesGoodsDeals, ['invoice', 'othersDocument']),
+]
+
 //sales
 const editSalesDocument = async (
-	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument',
+	documentType: 'order' | 'bill' | 'supplyContract' | 'accompanyingDocuments' | 'invoice' | 'othersDocument' | 'contract' | 'act',
 	dealNumber: string,
 ) => {
 	const dealId = getDealIdByDealNumber(dealNumber, 'seller')
@@ -1119,6 +1197,43 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
   },
 ]
 
+const salesActColumn: TableColumn<any> = {
+	accessorKey: 'act',
+	header: 'Акт',
+	cell: ({ row }) => {
+		const dealNumber = String(row.getValue('dealNumber'))
+		return h(UButton, {
+			color: 'neutral',
+			variant: 'ghost',
+			label: row.getValue('act'),
+			class: TABLE_LINK_CLASS,
+			onClick: () => {
+				void editSalesDocument('act', dealNumber)
+			},
+		})
+	},
+}
+
+const columnsSalesServicesDeals: TableColumn<any>[] = [
+	...pickColumnsByAccessor(columnsSalesGoodsDeals, [
+		'dealNumber',
+		'date',
+		'buyerCompany',
+		'status',
+		'bill',
+		'contract',
+	]),
+	salesActColumn,
+	...pickColumnsByAccessor(columnsSalesGoodsDeals, ['invoice', 'othersDocument']),
+]
+
+const activeTableColumns = computed(() => {
+	if (type === 'purchases') {
+		return dealFilter === 'Услуги' ? columnsPurchasesServicesDeals : columnsPurchasesGoodsDeals
+	}
+	return dealFilter === 'Услуги' ? columnsSalesServicesDeals : columnsSalesGoodsDeals
+})
+
 watch(goodsDealsList, () => {
 	tablePagination.value = { pageIndex: 0, pageSize: PAGE_SIZE }
   salesTable.value = sortDealsNewestFirst(goodsDealsList.value).map(deal => ({
@@ -1128,6 +1243,7 @@ watch(goodsDealsList, () => {
     status: deal.status,
     bill: formatBillCellLabel(deal),
     contract: formatContractCellLabel(deal),
+    act: formatActCellLabel(deal),
     supplyContract: formatSupplyContractLabel(deal),
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),

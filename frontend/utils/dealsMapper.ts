@@ -81,6 +81,8 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 	}
 
 	if (deal.status) body.status = deal.status
+	const billDate = optionalDateField(deal.billDate)
+	if (billDate) body.bill_date = billDate
 	if (deal.contract.length > 0) {
 		body.contract = deal.contract.map((item) => {
 			const contract = item as { number?: string; date?: string }

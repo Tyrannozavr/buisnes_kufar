@@ -92,12 +92,18 @@
 				<input type="number" :disabled="isDisabled" placeholder="Введите сроки оплаты" class="w-50 p-1 border rounded-lg" v-model="paymentTermsOffer" default-value="3">
 			</div>
 
-			<UCheckbox
-				disabled
-				label="Срок поставки"
-				:model-value="false"
-				size="xl"
-			/>
+			<UTooltip
+				text="В счёте-оферте срок поставки не задаётся — только срок оплаты. Смените тип на «Счет-договор», если нужен срок поставки."
+			>
+				<span class="inline-flex w-fit cursor-not-allowed">
+					<UCheckbox
+						disabled
+						label="Срок поставки"
+						:model-value="false"
+						size="xl"
+					/>
+				</span>
+			</UTooltip>
 		</div>
 
 		<UModal
@@ -141,9 +147,12 @@ import { VAT_RATE_OPTIONS } from '~/constants/vatRate';
 import { useDeals } from '~/composables/useDeals';
 import { useCompanyBillRequisites } from '~/composables/useCompanyBillRequisites';
 import { useBillFillState } from '~/composables/useBillFillState';
-import { useContractConditionTemplates } from '~/composables/useContractConditionTemplates';
-import type { ContractConditionTemplateType } from '~/types/contractConditionTemplate';
-import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue';
+import {
+	contractTermsSelectValueForTemplate,
+	useContractConditionTemplates,
+} from '~/composables/useContractConditionTemplates'
+import type { ContractConditionTemplateType } from '~/types/contractConditionTemplate'
+import ContractTermsEditor from '~/components/EditorMenu/templatesEditors/BillContractTermsEditor.vue'
 
 defineProps<{
 	hiddenForBuyer?: boolean
@@ -243,7 +252,12 @@ const conditionTemplateType = computed<ContractConditionTemplateType>(() =>
 )
 const {
 	selectItemsForDealField: contractTermsOptionsFromApi,
+	templates: conditionTemplates,
+	applyTemplate,
 } = useContractConditionTemplates(conditionTemplateType, dealIdRef)
+
+const contractTermsTextContract = useTypedState(Editor.CONTRACT_TERMS_TEXT_CONTRACT, () => ref(''))
+const contractTermsTextOffer = useTypedState(Editor.CONTRACT_TERMS_TEXT_OFFER, () => ref(''))
 
 const contractTermsOptionsContract = computed(() =>
 	contractTermsOptionsFromApi.value.length
@@ -254,6 +268,37 @@ const contractTermsOptionsOffer = computed(() =>
 	contractTermsOptionsFromApi.value.length
 		? contractTermsOptionsFromApi.value
 		: STATIC_CONTRACT_TERMS_OPTIONS,
+)
+
+/** Если выбран стандартный шаблон, а текст state пустой — подтянуть content_text из API */
+watch(
+	() => [
+		billType.value?.value,
+		contractTermsContract.value?.value,
+		contractTermsOffer.value?.value,
+		conditionTemplates.value,
+		contractTermsTextContract.value,
+		contractTermsTextOffer.value,
+	],
+	() => {
+		const docType = billType.value?.value
+		if (docType !== 'bill-contract' && docType !== 'bill-offer') return
+		const selectValue =
+			docType === 'bill-offer'
+				? contractTermsOffer.value?.value
+				: contractTermsContract.value?.value
+		if (!selectValue || selectValue === 'custom') return
+		const currentText =
+			docType === 'bill-offer'
+				? contractTermsTextOffer.value
+				: contractTermsTextContract.value
+		if ((currentText ?? '').trim()) return
+		const template = (conditionTemplates.value ?? []).find(
+			(item) => contractTermsSelectValueForTemplate(item) === selectValue,
+		)
+		if (template) applyTemplate(template)
+	},
+	{ deep: true },
 )
 
 const clearState = useTypedState(Editor.CLEAR_STATE)

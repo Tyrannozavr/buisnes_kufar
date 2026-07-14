@@ -6,6 +6,7 @@ from app.api.purchases.deal_docx_context import (
 	_ensure_order_docx_signatures,
 	_enrich_bill_payment_docx,
 	_enrich_bill_contract_offer_docx,
+	_nulls_to_empty,
 )
 from app.api.purchases.docx_plain_text import html_to_plain_text, sanitize_supply_contract_docx_fields
 
@@ -23,6 +24,26 @@ def test_html_to_plain_text_strips_tags_and_keeps_content() -> None:
 
 def test_html_to_plain_text_plain_string_unchanged() -> None:
 	assert html_to_plain_text("простой текст") == "простой текст"
+
+
+def test_nulls_to_empty_for_docx() -> None:
+	"""Пустые реквизиты не должны попадать в DOC как строка «None»."""
+	data = {
+		"buyer_company": {
+			"company_name": "ООО Покупатель",
+			"account_number": None,
+			"correspondent_bank_account": None,
+			"bank_name": None,
+			"bic": None,
+		},
+		"bill": {"officials": [{"position": None, "full_name": "Иванов"}]},
+	}
+	clean = _nulls_to_empty(data)
+	assert clean["buyer_company"]["account_number"] == ""
+	assert clean["buyer_company"]["bank_name"] == ""
+	assert clean["bill"]["officials"][0]["position"] == ""
+	assert clean["bill"]["officials"][0]["full_name"] == "Иванов"
+	assert "None" not in str(clean)
 
 
 def test_sanitize_supply_contract_docx_fields() -> None:
@@ -91,21 +112,68 @@ def test_enrich_supply_contract_docx_fills_officials_and_spec_defaults() -> None
 
 def test_enrich_bill_contract_offer_docx_terms_and_details_flags() -> None:
 	data = {
+		"bill_number": "00001",
+		"bill_date_fmt": "14.07.2026",
+		"seller_company": {"production_address": "ул. Складская, 2", "company_name": "ООО Поставщик"},
 		"bill": {
 			"document_type": "bill-contract",
-			"contract_terms_text_contract": "Условия {{ СРОК_ОПЛАТЫ }}",
-			"contract_terms_text_offer": "Оферта",
+			"contract_terms_text_contract": (
+				"Договор № {{ НОМЕР_СЧЕТА }} от {{ ДАТА }} г.\n"
+				"3.\tСрок {{ СРОК_ОПЛАТЫ }} дней\n"
+				"4.\tПоставка {{ СРОК_ПОСТАВКИ }} дней"
+			),
+			"contract_terms_text_offer": "Оферта {{ НОМЕР_СЧЕТА }}",
+			"payment_terms_contract": "9",
+			"delivery_terms_contract": "10",
 			"supplier_details_check": False,
 			"buyer_details_check": True,
-		}
+		},
 	}
 	_enrich_bill_contract_offer_docx(data)
-	assert data["bill"]["contract_terms_text"] == "Условия {{ СРОК_ОПЛАТЫ }}"
-	assert data["contract_terms_text"] == "Условия {{ СРОК_ОПЛАТЫ }}"
+	terms = data["bill"]["contract_terms_text"]
+	assert "00001" in terms
+	assert "14.07.2026" in terms
+	assert "9" in terms
+	assert "10" in terms
+	assert "{{" not in terms
 	assert data["show_supplier_details"] is False
 	assert data["show_buyer_details"] is True
-	assert data["bill"]["show_supplier_details"] is False
 
 	data["bill"]["document_type"] = "bill-offer"
+	data["bill"]["payment_terms_offer"] = "3"
 	_enrich_bill_contract_offer_docx(data)
-	assert data["bill"]["contract_terms_text"] == "Оферта"
+	assert data["bill"]["contract_terms_text"] == "Оферта 00001"
+	assert "{{" not in data["bill"]["contract_terms_text"]
+
+
+def test_enrich_bill_no_raw_placeholders_when_values_empty() -> None:
+	"""Нет данных → пусто, но без служебных {{ ПОЛЕ }} в тексте."""
+	data = {
+		"bill_number": "",
+		"bill_date_fmt": "",
+		"seller_company": {"production_address": "", "company_name": ""},
+		"bill": {
+			"document_type": "bill-contract",
+			"contract_terms_text_contract": (
+				"Договор №{{НОМЕР_СЧЕТА}} от {{  ДАТА  }} г.\n"
+				"Адрес: {{ АДРЕС_ПРОИЗВОДСТВА_ПОСТАВЩИКА }}\n"
+				"Неизвестное: {{ ЧУЖОЕ_ПОЛЕ }}\n"
+				"3.\tСрок {{ СРОК_ОПЛАТЫ }} дней"
+			),
+			"additional_info_offer": "Оферта {{ ДАТА }} / {{ XYZ }}",
+			"payment_terms_contract": "",
+			"delivery_terms_contract": "",
+			"supplier_details_check": True,
+			"buyer_details_check": True,
+		},
+	}
+	_enrich_bill_contract_offer_docx(data)
+	terms = data["bill"]["contract_terms_text"]
+	assert "{{" not in terms
+	assert "}}" not in terms
+	assert "НОМЕР_СЧЕТА" not in terms
+	assert "ЧУЖОЕ_ПОЛЕ" not in terms
+	# строка со сроком оплаты скрыта (галка/значение пустое)
+	assert "Срок" not in terms
+	assert "Договор №" in terms
+	assert "от" in terms and "г." in terms

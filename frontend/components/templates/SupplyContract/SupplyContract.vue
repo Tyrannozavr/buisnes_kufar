@@ -275,7 +275,8 @@ watch(
 )
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
-watch(() => saveState,
+watch(
+	() => saveState.value,
 	async () => {
 		if (!saveState.value) return
 		try {
@@ -301,7 +302,6 @@ watch(() => saveState,
 			completeSave()
 		}
 	},
-	{ deep: true },
 )
 
 //очистка формы

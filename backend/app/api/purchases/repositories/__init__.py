@@ -2,7 +2,7 @@ from typing import Optional, List, Tuple, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, extract
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import enum
 import json
 
@@ -522,6 +522,14 @@ class DealRepository:
             if key not in proposed_map:
                 items.append(_line_payload(base_item, "removed", []))
 
+        def _as_date(value: Optional[datetime]) -> Optional[date]:
+            if value is None:
+                return None
+            return value.date() if isinstance(value, datetime) else value
+
+        base_bill_date = _as_date(baseline.bill_date)
+        prop_bill_date = _as_date(proposed.bill_date)
+
         return {
             "baseline_version": baseline.version,
             "proposed_version": proposed.version,
@@ -533,6 +541,9 @@ class DealRepository:
                 (getattr(baseline, "bill_document_type", None) or "bill")
                 != (getattr(proposed, "bill_document_type", None) or "bill")
             ),
+            "bill_date_before": baseline.bill_date.isoformat() if baseline.bill_date else None,
+            "bill_date_after": proposed.bill_date.isoformat() if proposed.bill_date else None,
+            "bill_date_changed": base_bill_date != prop_bill_date,
             "items": items,
         }
 

@@ -8,12 +8,16 @@
 					выделяются цветом на бланке «Заказ».
 				</p>
 				<p
-					v-if="billTypeChangeSummary"
+					v-if="billTypeChangeSummary || billDateChangeSummary"
 					class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center"
 				>
-					{{ billTypeChangeSummary }}
+					<span v-if="billTypeChangeSummary">{{ billTypeChangeSummary }}</span>
+					<span v-if="billDateChangeSummary">
+						<br v-if="billTypeChangeSummary" />
+						{{ billDateChangeSummary }}
+					</span>
 					<br />
-					<span class="text-xs text-amber-700">Смотрите также вкладку «Счет».</span>
+					<span class="text-xs text-amber-700">Смотрите также вкладку «Счет» — изменения выделены жёлтым.</span>
 				</p>
 				<p
 					v-else-if="!hasOrderVisualDiff"
@@ -345,6 +349,7 @@ import {
 import { useQuery } from "@pinia/colada"
 import { QueryKeys } from "~/constants/queryKeys"
 import { usePurchasesApi } from "~/api/purchases"
+import { normalizeDate } from "~/utils/normalize"
 
 const modalIsOpen = ref(false)
 const route = useRoute()
@@ -680,13 +685,23 @@ const billTypeChangeSummary = computed(() => {
 	return `Изменён тип счёта: «${before}» → «${after}».`
 })
 
+const billDateChangeSummary = computed(() => {
+	const diff = changeReview.value?.diff
+	if (!diff?.bill_date_changed) return ''
+	const before = normalizeDate(diff.bill_date_before || '') || '—'
+	const after = normalizeDate(diff.bill_date_after || '') || '—'
+	return `Изменена дата счёта: «${before}» → «${after}».`
+})
+
 const hasOrderVisualDiff = computed(() => {
 	const diff = changeReview.value?.diff
 	if (!diff) return false
 	return Boolean(
 		diff.items?.length
 		|| diff.comments_changed
-		|| diff.total_amount_changed,
+		|| diff.total_amount_changed
+		|| diff.bill_date_changed
+		|| diff.bill_document_type_changed,
 	)
 })
 

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { SelectMenuItem } from "@nuxt/ui"
 import { Editor } from "~/constants/keys"
-import { useContractConditionTemplates } from "~/composables/useContractConditionTemplates"
+import {
+	contractTermsSelectValueForTemplate,
+	useContractConditionTemplates,
+} from "~/composables/useContractConditionTemplates"
 import type { ContractConditionTemplateType } from "~/types/contractConditionTemplate"
 
 const isDisabled = useTypedState(Editor.IS_DISABLED)
@@ -31,11 +34,13 @@ const paymentTermsCheckContract = useTypedState(Editor.PAYMENT_TERMS_CHECK_CONTR
 const deliveryTermsCheckContract = useTypedState(Editor.DELIVERY_TERMS_CHECK_CONTRACT)
 const paymentTermsContract = useTypedState(Editor.PAYMENT_TERMS_CONTRACT)
 const deliveryTermsContract = useTypedState(Editor.DELIVERY_TERMS_CONTRACT)
+const contractTermsContract = useTypedState(Editor.CONTRACT_TERMS_CONTRACT)
 
 const contractTermsTextOffer = useTypedState(Editor.CONTRACT_TERMS_TEXT_OFFER)
 const contractTermsCheckOffer = useTypedState(Editor.CONTRACT_TERMS_CHECK_OFFER)
 const paymentTermsCheckOffer = useTypedState(Editor.PAYMENT_TERMS_CHECK_OFFER)
 const paymentTermsOffer = useTypedState(Editor.PAYMENT_TERMS_OFFER)
+const contractTermsOffer = useTypedState(Editor.CONTRACT_TERMS_OFFER)
 
 const editorText = ref("")
 const selectedTemplate = ref<{ label: string; value: number | "custom" }>({
@@ -44,34 +49,86 @@ const selectedTemplate = ref<{ label: string; value: number | "custom" }>({
 })
 const templateName = ref("")
 const isDefault = ref(false)
+/** Не реагировать на смену селекта, пока открываем модалку */
+const hydratingEditor = ref(false)
 
 const selectItems = computed<SelectMenuItem[]>(() => templateItems.value as SelectMenuItem[])
 
 const isContract = computed(() => billType.value?.value === "bill-contract")
 const isOffer = computed(() => billType.value?.value === "bill-offer")
 
-const openTemplateEditor = async () => {
-	await refreshTemplates()
-	const currentText = isContract.value
-		? contractTermsTextContract.value ?? ""
-		: contractTermsTextOffer.value ?? ""
-	editorText.value = currentText
+const templateLabel = (name: string, asDefault: boolean) =>
+	asDefault ? `${name} (по умолчанию)` : name
 
-	const matched = (templates.value ?? []).find((t) => t.content_text === currentText)
-	if (matched) {
-		selectedTemplate.value = {
-			label: matched.is_default ? `${matched.name} (по умолчанию)` : matched.name,
-			value: matched.id,
+const openTemplateEditor = async () => {
+	hydratingEditor.value = true
+	try {
+		await refreshTemplates()
+		const list = templates.value ?? []
+		const selectValue = isContract.value
+			? contractTermsContract.value?.value
+			: contractTermsOffer.value?.value
+		const currentText = (
+			isContract.value
+				? contractTermsTextContract.value
+				: contractTermsTextOffer.value
+		) ?? ""
+
+		// 1) Селект справа «Стандартный, доставка …» → текст из API-шаблона компании
+		const matchedBySelect =
+			selectValue && selectValue !== "custom"
+				? list.find((t) => contractTermsSelectValueForTemplate(t) === selectValue)
+				: undefined
+
+		// 2) Иначе точное совпадение с уже сохранённым текстом сделки
+		const matchedByContent = currentText.trim()
+			? list.find((t) => t.content_text === currentText)
+			: undefined
+
+		const matched = matchedBySelect ?? matchedByContent
+
+		if (matched) {
+			editorText.value = matched.content_text
+			selectedTemplate.value = {
+				label: templateLabel(matched.name, matched.is_default),
+				value: matched.id,
+			}
+			templateName.value = matched.name
+			isDefault.value = matched.is_default
+			// Синхронизируем state: бланк раньше брал hardcoded-константы, editor — пустой state
+			if (!currentText.trim() || currentText !== matched.content_text) {
+				applyTextToTypedState(matched.content_text)
+			}
+		} else if (currentText.trim()) {
+			editorText.value = currentText
+			selectedTemplate.value = { label: "Свой шаблон", value: "custom" }
+			templateName.value = ""
+			isDefault.value = false
+		} else {
+			const fallback = list.find((t) => t.is_default) ?? list[0]
+			if (fallback) {
+				editorText.value = fallback.content_text
+				selectedTemplate.value = {
+					label: templateLabel(fallback.name, fallback.is_default),
+					value: fallback.id,
+				}
+				templateName.value = fallback.name
+				isDefault.value = fallback.is_default
+				applyTextToTypedState(fallback.content_text)
+			} else {
+				editorText.value = ""
+				selectedTemplate.value = { label: "Свой шаблон", value: "custom" }
+				templateName.value = ""
+				isDefault.value = false
+			}
 		}
-		templateName.value = matched.name
-		isDefault.value = matched.is_default
-	} else {
-		selectedTemplate.value = { label: "Свой шаблон", value: "custom" }
-		templateName.value = ""
-		isDefault.value = false
+
+		conditionNumber.value = countConditions(editorText.value)
+		templateEditorOpen.value = true
+	} finally {
+		await nextTick()
+		hydratingEditor.value = false
 	}
-	conditionNumber.value = countConditions(editorText.value)
-	templateEditorOpen.value = true
 }
 
 const closeTemplateEditor = () => {
@@ -138,7 +195,7 @@ watch(editorText, (text) => {
 watch(
 	selectedTemplate,
 	(selected) => {
-		if (!selected) return
+		if (hydratingEditor.value || !selected) return
 		if (selected.value === "custom") {
 			editorText.value = isContract.value
 				? contractTermsTextContract.value ?? ""

@@ -131,24 +131,24 @@ def _add_bank_header_table(doc: Document) -> None:
 	"""Шапка с реквизитами банка/получателя — как на бланке счёта."""
 	table = doc.add_table(rows=4, cols=4)
 	table.style = "Table Grid"
-	_set_cell_text(table.rows[0].cells[0], "{{ seller_company.bank_name }}")
+	_set_cell_text(table.rows[0].cells[0], "{{ seller_company.bank_name or '' }}")
 	table.rows[0].cells[0].merge(table.rows[0].cells[1])
 	_set_cell_text(table.rows[0].cells[2], "БИК", bold=True)
-	_set_cell_text(table.rows[0].cells[3], "{{ seller_company.bic }}")
+	_set_cell_text(table.rows[0].cells[3], "{{ seller_company.bic or '' }}")
 
 	_set_cell_text(table.rows[1].cells[0], "Банк получателя")
 	table.rows[1].cells[0].merge(table.rows[1].cells[1])
 	_set_cell_text(table.rows[1].cells[2], "Сч. №", bold=True)
-	_set_cell_text(table.rows[1].cells[3], "{{ seller_company.correspondent_bank_account }}")
+	_set_cell_text(table.rows[1].cells[3], "{{ seller_company.correspondent_bank_account or '' }}")
 
-	_set_cell_text(table.rows[2].cells[0], "ИНН {{ seller_company.inn }}")
-	_set_cell_text(table.rows[2].cells[1], "КПП {{ seller_company.kpp }}")
+	_set_cell_text(table.rows[2].cells[0], "ИНН {{ seller_company.inn or '' }}")
+	_set_cell_text(table.rows[2].cells[1], "КПП {{ seller_company.kpp or '' }}")
 	_set_cell_text(table.rows[2].cells[2], "Сч. №", bold=True)
-	_set_cell_text(table.rows[2].cells[3], "{{ seller_company.account_number }}")
+	_set_cell_text(table.rows[2].cells[3], "{{ seller_company.account_number or '' }}")
 
 	_set_cell_text(
 		table.rows[3].cells[0],
-		"{{ seller_company.company_type }} {{ seller_company.company_name }}\nПолучатель",
+		"{{ seller_company.company_type or '' }} {{ seller_company.company_name or '' }}\nПолучатель",
 	)
 	table.rows[3].cells[0].merge(table.rows[3].cells[3])
 	doc.add_paragraph()
@@ -204,7 +204,7 @@ def _add_bill_common_body(doc: Document, *, title_jinja: str) -> None:
 def _add_officials_signature(doc: Document) -> None:
 	# for/endfor в разных абзацах — иначе {%p ...%} в одном <w:p> сжирает endfor
 	_para(doc, "{%p for o in bill.officials %}")
-	_para(doc, "{{ o.position }} _______________ /{{ o.full_name }}/")
+	_para(doc, "{{ o.position or '' }} _______________ /{{ o.full_name or '' }}/")
 	_para(doc, "{%p endfor %}")
 	_para(doc, "_______________ /(должность, подпись, ФИО)/")
 
@@ -237,28 +237,32 @@ def write_bill_contract(path: Path) -> None:
 				"{% if show_buyer_details %}ПОКУПАТЕЛЬ:{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}{{ seller_company.company_name }}{% endif %}",
-				"{% if show_buyer_details %}{{ buyer_company.company_name }}{% endif %}",
+				"{% if show_supplier_details %}{{ seller_company.company_name or '' }}{% endif %}",
+				"{% if show_buyer_details %}{{ buyer_company.company_name or '' }}{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}{{ seller_company.index }} {{ seller_company.legal_address }}{% endif %}",
-				"{% if show_buyer_details %}{{ buyer_company.index }} {{ buyer_company.legal_address }}{% endif %}",
+				"{% if show_supplier_details %}{{ seller_company.index or '' }} {{ seller_company.legal_address or '' }}{% endif %}",
+				"{% if show_buyer_details %}{{ buyer_company.index or '' }} {{ buyer_company.legal_address or '' }}{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}ИНН: {{ seller_company.inn }} КПП: {{ seller_company.kpp }}{% endif %}",
-				"{% if show_buyer_details %}ИНН: {{ buyer_company.inn }} КПП: {{ buyer_company.kpp }}{% endif %}",
+				"{% if show_supplier_details %}ИНН: {{ seller_company.inn or '' }} КПП: {{ seller_company.kpp or '' }}{% endif %}",
+				"{% if show_buyer_details %}ИНН: {{ buyer_company.inn or '' }} КПП: {{ buyer_company.kpp or '' }}{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}Рас/счет №: {{ seller_company.account_number }}{% endif %}",
-				"{% if show_buyer_details %}Рас/счет №: {{ buyer_company.account_number }}{% endif %}",
+				"{% if show_supplier_details %}Рас/счет №: {{ seller_company.account_number or '' }}{% endif %}",
+				"{% if show_buyer_details %}Рас/счет №: {{ buyer_company.account_number or '' }}{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}Корр/счет: {{ seller_company.correspondent_bank_account }} Банк: {{ seller_company.bank_name }}{% endif %}",
-				"{% if show_buyer_details %}Корр/счет: {{ buyer_company.correspondent_bank_account }} Банк: {{ buyer_company.bank_name }}{% endif %}",
+				"{% if show_supplier_details %}Корр/счет: {{ seller_company.correspondent_bank_account or '' }}{% endif %}",
+				"{% if show_buyer_details %}Корр/счет: {{ buyer_company.correspondent_bank_account or '' }}{% endif %}",
 			),
 			(
-				"{% if show_supplier_details %}БИК: {{ seller_company.bic }}{% endif %}",
-				"{% if show_buyer_details %}БИК: {{ buyer_company.bic }}{% endif %}",
+				"{% if show_supplier_details %}Банк: {{ seller_company.bank_name or '' }}{% endif %}",
+				"{% if show_buyer_details %}Банк: {{ buyer_company.bank_name or '' }}{% endif %}",
+			),
+			(
+				"{% if show_supplier_details %}БИК: {{ seller_company.bic or '' }}{% endif %}",
+				"{% if show_buyer_details %}БИК: {{ buyer_company.bic or '' }}{% endif %}",
 			),
 		],
 		bold_header=True,

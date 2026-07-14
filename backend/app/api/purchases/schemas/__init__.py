@@ -1082,4 +1082,7 @@ class DealOrderChangeDiffResponse(BaseModel):
 	bill_document_type_changed: bool = False
 	bill_document_type_before: Optional[str] = None
 	bill_document_type_after: Optional[str] = None
+	bill_date_changed: bool = False
+	bill_date_before: Optional[str] = None
+	bill_date_after: Optional[str] = None
 	items: List[OrderLineChangeResponse] = Field(default_factory=list)

@@ -442,6 +442,21 @@ async def ensure_contract_condition_templates(session, seller_company_id: int) -
     )
 
 
+async def ensure_bill_date_if_missing(session, order: Order) -> Order:
+    """Если номер счёта есть, а даты нет — проставить дату (иначе «от — г.» и пустая {{ ДАТА }} в DOC)."""
+    if order is None:
+        return order
+    if order.bill_number and not order.bill_date:
+        order.bill_date = order.created_at or datetime.now(timezone.utc)
+        await session.commit()
+        await session.refresh(order)
+        print(
+            f"  bill_date FIXED: order id={order.id} "
+            f"№{order.bill_number} → {order.bill_date.strftime('%d.%m.%Y')}"
+        )
+    return order
+
+
 async def ensure_deal(
     session,
     buyer_company_id: int,
@@ -663,6 +678,18 @@ async def main() -> None:
 
     good = next(p for p in catalog if p.type == ProductType.GOOD)
     service = next(p for p in catalog if p.type == ProductType.SERVICE)
+
+    async with AsyncSessionLocal() as session:
+        for order_ref in (order_main, order_stage31_contracts, order_no_contract, order_services):
+            latest = (
+                await session.execute(
+                    select(Order)
+                    .where(Order.id == order_ref.id)
+                    .order_by(Order.version.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            await ensure_bill_date_if_missing(session, latest)
 
     print("\n--- Готово ---")
     print(f"Пароль для всех тестовых: {TEST_PASSWORD}")

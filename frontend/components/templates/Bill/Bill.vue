@@ -58,7 +58,22 @@
 			</tbody>
 		</table>
 
-		<h2 class="font-bold text-2xl">{{ billTypeSelected.label }} № {{ billData.number || '—' }} от {{ normalizeDate(billData.date) || '—' }} г.</h2>
+		<h2 class="font-bold text-2xl flex flex-wrap items-baseline gap-x-1.5">
+			<span>{{ billTypeSelected.label }} № {{ billData.number || '—' }} от</span>
+			<span
+				v-if="isDisabled"
+				:class="{ 'order-change-modified-inline': orderChangeDiff?.bill_date_changed }"
+			>{{ normalizeDate(billData.date) || '—' }}</span>
+			<input
+				v-else
+				type="date"
+				class="font-bold text-2xl border-b border-gray-400 bg-transparent px-1 py-0 max-w-[12rem] focus:outline-none focus:border-blue-500"
+				:class="{ 'order-change-modified-inline': orderChangeDiff?.bill_date_changed }"
+				:value="billDateInput"
+				@change="onBillDateChange"
+			/>
+			<span>г.</span>
+		</h2>
 		<hr class="border-2">
 		<br>
 		<table>
@@ -312,11 +327,17 @@
 				:billData="billData"
 				:supplier-details-check="billSupplierDetailsCheck ?? true"
 				:buyer-details-check="billBuyerDetailsCheck ?? true"
+				:payment-terms-check-contract="paymentTermsCheckContract ?? true"
+				:delivery-terms-check-contract="deliveryTermsCheckContract ?? true"
 			/>
 		</div>
 
 		<div v-if="billType === 'bill-offer'">
-			<BillOffer :billData :additionalInfoCheckOffer />
+			<BillOffer
+				:billData
+				:additionalInfoCheckOffer
+				:payment-terms-check-offer="paymentTermsCheckOffer ?? true"
+			/>
 		</div>
 	</div>
 </template>
@@ -340,9 +361,36 @@ import { useSaveDeals } from '~/composables/useSaveDeals';
 import BillContract from './Bill-Contract.vue';
 import BillOffer from './Bill-Offer.vue';
 import { CONTRACT_TERMS_BILL_OFFER, CONTRACT_TERMS_BILL_CONTRACT, ADDITIONAL_INFO_BILL } from '~/constants/contractTerms';
-import { formatCompanyPartyLine, formatCompanyRecipientLine } from '~/utils/companyPartyLine';
+import { formatCompanyPartyLine, formatCompanyRecipientLine } from '~/utils/companyPartyLine'
 
-const { deals, findDeal, deleteDeal, editSellerCompany, editBuyerCompany, editProductList, editBillReason, editPaymentTerms, editAdditionalInfo, editOfficialsBill, editAmountWithVatRate, editVatRateSeller, editAmountVatRate, editContractTermsContract, editContractTermsTextContract, editDeliveryTermsContract, editPaymentTermsContract, editContractTermsOffer, editContractTermsTextOffer, editAdditionalInfoOffer, editPaymentTermsOffer, editAmountExclVat, editBillDocumentType, editBillSupplierDetailsCheck, editBillBuyerDetailsCheck } = useDeals()
+const {
+	deals,
+	findDeal,
+	deleteDeal,
+	editSellerCompany,
+	editBuyerCompany,
+	editProductList,
+	editBillFields,
+	editBillReason,
+	editPaymentTerms,
+	editAdditionalInfo,
+	editOfficialsBill,
+	editAmountWithVatRate,
+	editVatRateSeller,
+	editAmountVatRate,
+	editContractTermsContract,
+	editContractTermsTextContract,
+	editDeliveryTermsContract,
+	editPaymentTermsContract,
+	editContractTermsOffer,
+	editContractTermsTextOffer,
+	editAdditionalInfoOffer,
+	editPaymentTermsOffer,
+	editAmountExclVat,
+	editBillDocumentType,
+	editBillSupplierDetailsCheck,
+	editBillBuyerDetailsCheck,
+} = useDeals()
 
 const route = useRoute()
 const router = useRouter()
@@ -355,7 +403,16 @@ const isDisabled = useTypedState(Editor.IS_DISABLED)
 const clearState = useTypedState(Editor.CLEAR_STATE)
 const removeDealState = useTypedState(Editor.REMOVE_DEAL)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
 const billType = computed(() => billTypeSelected.value.value)
+
+/** YYYY-MM-DD для `<input type="date">` */
+const billDateInput = computed(() => (billData.value.date || '').slice(0, 10))
+
+const onBillDateChange = (e: Event) => {
+	const value = (e.target as HTMLInputElement).value
+	billData.value.date = value ? `${value}T00:00:00` : ''
+}
 
 const html = useTemplateRef('html')
 const htmlBill = useTypedState(TemplateElement.BILL, () => ref(null))
@@ -464,7 +521,10 @@ watch(() => [
 		if (contractTermsCheckOffer.value) {
 			billData.value.contractTermsOffer = contractTermsOffer.value.value
 
-			if (contractTermsOffer.value.value === 'standard-delivery-supplier' && paymentTermsCheckOffer.value) {
+			const fromEditor = (contractTermsTextOffer.value ?? '').trim()
+			if (fromEditor) {
+				billData.value.contractTermsTextOffer = contractTermsTextOffer.value
+			} else if (contractTermsOffer.value.value === 'standard-delivery-supplier' && paymentTermsCheckOffer.value) {
 
 				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_SUPPLIER_PAYMENT(
 					billData.value.paymentTermsOffer,
@@ -486,9 +546,8 @@ watch(() => [
 				billData.value.contractTermsTextOffer = CONTRACT_TERMS_BILL_OFFER.DELIVERY_BUYER_WITHOUT_PAYMENT(
 					billData.value.seller.productionAddress ?? '______________'
 				)
-			} else if (contractTermsOffer.value.value === 'custom' && contractTermsTextOffer.value) {
-
-				billData.value.contractTermsTextOffer = contractTermsTextOffer.value
+			} else if (contractTermsOffer.value.value === 'custom') {
+				billData.value.contractTermsTextOffer = contractTermsTextOffer.value ?? ''
 			}
 		} else {
 			billData.value.contractTermsTextOffer = ''
@@ -510,7 +569,11 @@ watch(() => [
 		if (contractTermsCheckContract.value) {
 			billData.value.contractTermsContract = contractTermsContract.value.value
 
-			if (contractTermsContract.value.value === 'standard-delivery-supplier' && paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
+			// Текст из редактора/API-шаблона — приоритетнее legacy-констант
+			const fromEditor = (contractTermsTextContract.value ?? '').trim()
+			if (fromEditor) {
+				billData.value.contractTermsTextContract = contractTermsTextContract.value
+			} else if (contractTermsContract.value.value === 'standard-delivery-supplier' && paymentTermsCheckContract.value && deliveryTermsCheckContract.value) {
 
 				billData.value.contractTermsTextContract = CONTRACT_TERMS_BILL_CONTRACT.DELIVERY_SUPPLIER_WITH_PAYMENT_AND_DELIVERY(
 					billData.value.number,
@@ -560,11 +623,9 @@ watch(() => [
 					billData.value.number,
 					normalizeDate(billData.value.date)
 				)
-			
 
-			} else if (contractTermsContract.value.value === 'custom' && contractTermsTextContract.value) {
-
-				billData.value.contractTermsTextContract = contractTermsTextContract.value
+			} else if (contractTermsContract.value.value === 'custom') {
+				billData.value.contractTermsTextContract = contractTermsTextContract.value ?? ''
 			}
 		} else {
 			billData.value.contractTermsTextContract = ''
@@ -577,11 +638,11 @@ watch(() => [
 watch(() => [deliveryTermsCheckContract, deliveryTermsContract],
 	() => {
 	if (deliveryTermsCheckContract.value) {
-		billData.value.deliveryTermsContract = deliveryTermsContract.value
+		billData.value.deliveryTermsContract = String(deliveryTermsContract.value ?? '')
 	} else {
 		billData.value.deliveryTermsContract = ''
 	}
-}, { deep: true }
+}, { deep: true, immediate: true }
 )
 
 //заполнение срока оплаты счета-оплаты
@@ -598,21 +659,21 @@ watch(() => [paymentTermsCheck, paymentTerms],
 //заполнение срока оплаты счета-договора
 watch(() => [paymentTermsCheckContract, paymentTermsContract], () => {
 	if (paymentTermsCheckContract.value) {
-		billData.value.paymentTermsContract = paymentTermsContract.value
+		billData.value.paymentTermsContract = String(paymentTermsContract.value ?? '')
 	} else {
 		billData.value.paymentTermsContract = ''
 	}
-}, { deep: true }
+}, { deep: true, immediate: true }
 )
 
 //заполнение срока оплаты счета-оферты
 watch(() => [paymentTermsCheckOffer, paymentTermsOffer], () => {
 	if (paymentTermsCheckOffer.value) {
-		billData.value.paymentTermsOffer = paymentTermsOffer.value
+		billData.value.paymentTermsOffer = String(paymentTermsOffer.value ?? '')
 	} else {
 		billData.value.paymentTermsOffer = ''
 	}
-}, { deep: true }
+}, { deep: true, immediate: true }
 )
 
 //заполнение основания
@@ -762,7 +823,7 @@ const fillBillMinimalData = () => {
 	billData.value = {
 		dealId: deal.dealId,
 		number: deal.bill.number,
-		date: deal.billDate ?? '',
+		date: deal.billDate || deal.date || '',
 		amount: 0,
 		amountExclVat: 0,
 		amountVatRate: 0,
@@ -879,7 +940,7 @@ const fillBillData = async () => {
 			amountExclVat: deal.totalAmountExclVat,
 			amountVatRate: deal.product.amountVatRate,
 			amountWord: deal.product.amountWord,
-      date: deal.billDate,
+      date: deal.billDate || deal.date || '',
       reason: deal.bill.reason,
       products: [...products],
       seller,
@@ -941,7 +1002,10 @@ watch(
 )
 
 //сохранение заказа в store при нажатии на кнопку сохранения в меню
-watch(() => saveState,
+// Важно: watch(saveState.value), не весь Ref — иначе при v-if вкладки правка даты счёта
+// может не попасть в store до createNewDealVersion.
+watch(
+	() => saveState.value,
 	async () => {
 		if (!saveState.value) return
 		try {
@@ -950,7 +1014,9 @@ watch(() => saveState,
 			if (route.query.role === 'seller') {
 				await editProductList(dealId, billData.value.products)
 				await editBuyerCompany(dealId, billData.value.buyer)
-				await editSellerCompany(dealId, billData.value.seller) 
+				await editSellerCompany(dealId, billData.value.seller)
+
+				await editBillFields(dealId, billData.value.date, billData.value.number)
 
 				await editAmountVatRate(dealId, billData.value.amountVatRate)
 				await editAmountWithVatRate(dealId, vatRateCheck.value)
@@ -979,11 +1045,10 @@ watch(() => saveState,
 				await editContractTermsTextOffer(dealId, billData.value.contractTermsTextOffer)
 				await editAdditionalInfoOffer(dealId, billData.value.additionalInfoOffer)
 			}
-		} finally { 
+		} finally {
 			completeSave()
 		}
 	},
-	{ deep: true }
 )
 
 //добавление товара в счет в компоненте
@@ -1129,5 +1194,11 @@ textarea {
 	background: #fff;
 	padding: 2px 4px;
 	line-height: 1.35;
+}
+
+.order-change-modified-inline {
+	background-color: #fef3c7;
+	padding: 0 0.25rem;
+	border-radius: 0.125rem;
 }
 </style>

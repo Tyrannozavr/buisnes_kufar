@@ -178,6 +178,9 @@ export interface DealOrderChangeDiff {
 	bill_document_type_changed?: boolean
 	bill_document_type_before?: string | null
 	bill_document_type_after?: string | null
+	bill_date_changed?: boolean
+	bill_date_before?: string | null
+	bill_date_after?: string | null
 	items: OrderLineChange[]
 }
 

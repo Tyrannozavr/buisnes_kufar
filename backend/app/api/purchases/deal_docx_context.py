@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime
 from typing import Any
 
@@ -35,6 +36,22 @@ def _fmt_money_us(value: Any) -> str:
 	if math.isnan(n):
 		return ""
 	return f"{n:,.2f}"
+
+
+def _nulls_to_empty(value: Any) -> Any:
+	"""
+	В docxtpl/Jinja `{{ None }}` печатается как «None».
+	Перед рендером все None → '' (пробел/пусто), без строк «None».
+	"""
+	if value is None:
+		return ""
+	if isinstance(value, dict):
+		return {k: _nulls_to_empty(v) for k, v in value.items()}
+	if isinstance(value, list):
+		return [_nulls_to_empty(v) for v in value]
+	if isinstance(value, tuple):
+		return tuple(_nulls_to_empty(v) for v in value)
+	return value
 
 
 _EMPTY_SUPPLY_CONTRACT_OFFICIAL: dict[str, Any] = {
@@ -84,6 +101,94 @@ def _enrich_bill_payment_docx(data: dict[str, Any]) -> None:
 	data["items_count"] = len(data.get("items") or [])
 
 
+_PAYMENT_PLACEHOLDER_RE = re.compile(r"\{\{\s*СРОК_ОПЛАТЫ")
+_DELIVERY_PLACEHOLDER_RE = re.compile(r"\{\{\s*СРОК_ПОСТАВКИ")
+_ANY_PLACEHOLDER_RE = re.compile(r"\{\{\s*[^}]+\s*\}\}")
+_CONDITION_NUM_RE = re.compile(r"^(\s*)\d+([.)])")
+_CONDITION_START_RE = re.compile(r"^\s*\d+[.)]")
+
+
+def _ph(name: str) -> re.Pattern[str]:
+	"""{{ ИМЯ }} с произвольными пробелами внутри скобок."""
+	return re.compile(r"\{\{\s*" + re.escape(name) + r"\s*\}\}")
+
+
+def _filter_terms_lines_for_docx(
+	text: str,
+	*,
+	include_payment: bool,
+	include_delivery: bool,
+) -> str:
+	"""Как на фронте: скрыть строки с плейсхолдерами сроков и перенумеровать пункты."""
+	lines = text.split("\n")
+	filtered: list[str] = []
+	for line in lines:
+		if not line.strip():
+			filtered.append(line)
+			continue
+		if _PAYMENT_PLACEHOLDER_RE.search(line) and not include_payment:
+			continue
+		if _DELIVERY_PLACEHOLDER_RE.search(line) and not include_delivery:
+			continue
+		filtered.append(line)
+
+	condition_no = 0
+	renumbered: list[str] = []
+	for line in filtered:
+		if not _CONDITION_START_RE.match(line):
+			renumbered.append(line)
+			continue
+		condition_no += 1
+		renumbered.append(_CONDITION_NUM_RE.sub(rf"\g<1>{condition_no}\2", line, count=1))
+	return "\n".join(renumbered)
+
+
+def _substitute_bill_term_placeholders(text: str, data: dict[str, Any]) -> str:
+	"""
+	Подставить поля условий. Нет значения → пустая строка.
+	Служебные {{ … }} в готовый DOC/PDF не попадают никогда.
+	"""
+	if not text:
+		return ""
+	bill = data.get("bill") if isinstance(data.get("bill"), dict) else {}
+	seller = data.get("seller_company") if isinstance(data.get("seller_company"), dict) else {}
+	doc_type = (bill.get("document_type") or "").strip()
+
+	number = str(data.get("bill_number") or bill.get("number") or data.get("seller_order_number") or "")
+	date_fmt = str(data.get("bill_date_fmt") or "")
+	if doc_type in ("bill-offer", "bill_offer"):
+		payment = str(bill.get("payment_terms_offer") or "")
+	elif doc_type in ("bill-contract", "bill_contract"):
+		payment = str(bill.get("payment_terms_contract") or "")
+	else:
+		payment = str(
+			bill.get("payment_terms")
+			or bill.get("payment_terms_contract")
+			or bill.get("payment_terms_offer")
+			or ""
+		)
+	delivery = str(bill.get("delivery_terms_contract") or "")
+	production = (seller.get("production_address") or "").strip()
+	company_name = str(seller.get("company_name") or "")
+
+	replacements: list[tuple[re.Pattern[str], str]] = [
+		(_ph("НОМЕР_СЧЕТА"), number),
+		(_ph("ДАТА"), date_fmt),
+		(_ph("СРОК_ОПЛАТЫ"), payment),
+		(_ph("СРОК_ПОСТАВКИ"), delivery),
+		(_ph("СРОК_ОПЛАТЫ_СЧЕТА_ДОГОВОРА"), str(bill.get("payment_terms_contract") or "")),
+		(_ph("СРОК_ОПЛАТЫ_СЧЕТА_ОФЕРТЫ"), str(bill.get("payment_terms_offer") or "")),
+		(_ph("СРОК_ПОСТАВКИ_СЧЕТА_ДОГОВОРА"), delivery),
+		(_ph("НАЗВАНИЕ_КОМПАНИИ_ПОСТАВЩИКА"), company_name),
+		(_ph("АДРЕС_ПРОИЗВОДСТВА_ПОСТАВЩИКА"), production),
+	]
+	out = text
+	for pattern, value in replacements:
+		out = pattern.sub(value, out)
+	# Любой оставшийся {{ ЧТО_УГОДНО }} — стереть (пустая подстановка)
+	return _ANY_PLACEHOLDER_RE.sub("", out)
+
+
 def _enrich_bill_contract_offer_docx(data: dict[str, Any]) -> None:
 	"""
 	Поля для bill_contract.docx / bill_offer.docx:
@@ -113,18 +218,33 @@ def _enrich_bill_contract_offer_docx(data: dict[str, Any]) -> None:
 	if doc_type in ("bill-contract", "bill_contract"):
 		terms = bill.get("contract_terms_text_contract") or ""
 		bill["bill_title"] = "Счет-договор"
+		include_payment = bool(str(bill.get("payment_terms_contract") or "").strip())
+		include_delivery = bool(str(bill.get("delivery_terms_contract") or "").strip())
 	elif doc_type in ("bill-offer", "bill_offer"):
 		terms = bill.get("contract_terms_text_offer") or ""
 		bill["bill_title"] = "Счет-оферта"
+		include_payment = bool(str(bill.get("payment_terms_offer") or "").strip())
+		include_delivery = True
 	else:
 		terms = ""
 		bill["bill_title"] = "Счет на оплату"
+		include_payment = True
+		include_delivery = True
+
+	terms = _filter_terms_lines_for_docx(
+		terms,
+		include_payment=include_payment,
+		include_delivery=include_delivery,
+	)
+	terms = _substitute_bill_term_placeholders(terms, data)
 	bill["contract_terms_text"] = terms
 	data["contract_terms_text"] = terms
 	data["bill_title"] = bill["bill_title"]
 
 	# Оферта: доп. информация — только offer-поле (не текст счёта на оплату)
-	bill.setdefault("additional_info_offer", "")
+	extra = str(bill.get("additional_info_offer") or "")
+	bill["additional_info_offer"] = _substitute_bill_term_placeholders(extra, data) if extra else ""
+
 	if not data.get("bill_number"):
 		data["bill_number"] = bill.get("number") or data.get("seller_order_number") or ""
 	if "items_count" not in data:
@@ -256,7 +376,11 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	data: dict[str, Any] = deal.model_dump(mode="json", by_alias=True)
 	_apply_docx_money_formatting(data)
 	data["contract_date_fmt"] = _fmt_date(deal.contract_date)
-	data["bill_date_fmt"] = _fmt_date(deal.bill_date)
+	# Если bill_date не проставлен, но номер счёта есть — дата заказа/создания лучше пустого «от  г.»
+	data["bill_date_fmt"] = (
+		_fmt_date(deal.bill_date)
+		or _fmt_date(deal.created_at)
+	)
 	data["supply_contracts_date_fmt"] = _fmt_date(deal.supply_contract_date)
 	data["supply_contract_date_fmt"] = _fmt_date(deal.supply_contract_date)
 	if deal.supply_contract and deal.supply_contract.specification_date:
@@ -288,4 +412,5 @@ def build_deal_docx_context(deal: DealResponse) -> dict[str, Any]:
 	if "specification_date_fmt" not in data:
 		data["specification_date_fmt"] = ""
 
-	return data
+	# Последний шаг: ни одно «None» не должно попасть в DOC/PDF
+	return _nulls_to_empty(data)

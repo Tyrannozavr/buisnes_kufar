@@ -112,24 +112,26 @@ export const sendMessageToCounterpart = async (
 		participantId: counterpartData.companyId
 	})
 
-	if (chatData?.id) {
-		const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
-		const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, "order")
-		const normalizedReviewUrl = isConfirm === undefined
-			? `${reviewUrl}&confirmation=true`
-			: reviewUrl
-
-		let content = ""
-		if (isConfirm === true) {
-			content = `Изменения заказа ${orderNumber} ПРИНЯТЫ. [Просмотр заказа](${normalizedReviewUrl})`
-		} else if (isConfirm === false) {
-			content = `Изменения заказа ${orderNumber} ОТКЛОНЕНЫ. [Просмотр заказа](${normalizedReviewUrl})`
-		} else {
-			content = `Контрагент изменил данные заказа ${orderNumber}. [Просмотр заказа](${normalizedReviewUrl})`
-		}
-
-		await sendMessage(chatData.id, {
-			content: content
-		})
+	if (!chatData?.id) {
+		throw new Error("Не удалось создать или найти чат с контрагентом")
 	}
+
+	const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
+	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, "order")
+	const normalizedReviewUrl = isConfirm === undefined
+		? `${reviewUrl}&confirmation=true`
+		: reviewUrl
+
+	let content = ""
+	if (isConfirm === true) {
+		content = `Изменения заказа ${orderNumber} ПРИНЯТЫ. [Просмотр заказа](${normalizedReviewUrl})`
+	} else if (isConfirm === false) {
+		content = `Изменения заказа ${orderNumber} ОТКЛОНЕНЫ. [Просмотр заказа](${normalizedReviewUrl})`
+	} else {
+		content = `Контрагент изменил данные заказа ${orderNumber}. [Просмотр заказа](${normalizedReviewUrl})`
+	}
+
+	await sendMessage(chatData.id, {
+		content: content
+	})
 }

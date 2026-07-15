@@ -600,9 +600,12 @@ const persistDealBeforeExport = async (): Promise<boolean> => {
 }
 
 
-const counterpartData: CounterpartData | null = getCounterpartData(
-	Number(route.query.dealId),
-	route.query.role as "buyer" | "seller"
+/** Актуально после refresh сделки — не снимок на момент mount (иначе POST /chats → 404). */
+const counterpartData = computed(() =>
+	getCounterpartData(
+		Number(route.query.dealId),
+		String(route.query.role ?? ""),
+	),
 )
 
 const saveDealVersion = async (): Promise<void> => {
@@ -632,16 +635,19 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 		return
 	}
 
-	if (!counterpartData?.companyId) {
+	// После refreshDealFromServer — свежий buyer/seller.companyId
+	const counterpart = getCounterpartData(dealId, role)
+	if (!counterpart?.companyId) {
 		useToast().add({
 			title: "Изменения сохранены",
-			color: "success",
+			description: "Контрагент для чата не найден — уведомление не отправлено",
+			color: "warning",
 		})
 		return
 	}
 
 	try {
-		await sendMessageToCounterpart(dealId, role, counterpartData)
+		await sendMessageToCounterpart(dealId, role, counterpart)
 		useToast().add({
 			title: "Изменения сохранены и отправлены контрагенту",
 			color: "success",
@@ -649,8 +655,13 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 		void refetchChangeReview()
 	} catch (err) {
 		console.error("Ошибка при отправке сообщения контрагенту:", err)
+		const detail =
+			(err as { data?: { detail?: string } })?.data?.detail
+			|| (err as Error)?.message
+			|| ""
 		useToast().add({
 			title: "Изменения сохранены, но уведомление в чат не отправлено",
+			description: detail || "Проверьте чат / перезагрузите сделку (F5) и повторите",
 			color: "warning",
 		})
 	}
@@ -801,8 +812,9 @@ const confirm = async () => {
 		await acceptDealChangesAsync(dealId)
 		loadDealTrigger.value++
 		await refetchChangeReview()
-		if (counterpartData?.companyId) {
-			await sendMessageToCounterpart(dealId, role, counterpartData, true)
+		const counterpart = counterpartData.value
+		if (counterpart?.companyId) {
+			await sendMessageToCounterpart(dealId, role, counterpart, true)
 		}
 		useToast().add({
 			title: "Изменения приняты",
@@ -834,8 +846,9 @@ const reject = async () => {
 		await refreshDealFromServer(dealId)
 		loadDealTrigger.value++
 		await refetchChangeReview()
-		if (counterpartData?.companyId) {
-			await sendMessageToCounterpart(dealId, role, counterpartData, false)
+		const counterpart = counterpartData.value
+		if (counterpart?.companyId) {
+			await sendMessageToCounterpart(dealId, role, counterpart, false)
 		}
 		useToast().add({
 			title: "Изменения отклонены",

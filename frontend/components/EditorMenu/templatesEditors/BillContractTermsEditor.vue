@@ -43,10 +43,8 @@ const paymentTermsOffer = useTypedState(Editor.PAYMENT_TERMS_OFFER)
 const contractTermsOffer = useTypedState(Editor.CONTRACT_TERMS_OFFER)
 
 const editorText = ref("")
-const selectedTemplate = ref<{ label: string; value: number | "custom" }>({
-	label: "Свой шаблон",
-	value: "custom",
-})
+/** Id шаблона или «custom» — при value-key у USelectMenu v-model = примитив, не объект */
+const selectedTemplateId = ref<number | "custom">("custom")
 const templateName = ref("")
 const isDefault = ref(false)
 /** Не реагировать на смену селекта, пока открываем модалку */
@@ -56,14 +54,17 @@ const selectItems = computed<SelectMenuItem[]>(() => templateItems.value as Sele
 
 const isContract = computed(() => billType.value?.value === "bill-contract")
 const isOffer = computed(() => billType.value?.value === "bill-offer")
-
-const templateLabel = (name: string, asDefault: boolean) =>
-	asDefault ? `${name} (по умолчанию)` : name
+const isCustomSelected = computed(() => selectedTemplateId.value === "custom")
+const selectedLabel = computed(() => {
+	const item = selectItems.value.find((i) => i.value === selectedTemplateId.value)
+	return (item?.label as string) || "Свой шаблон"
+})
 
 const openTemplateEditor = async () => {
 	hydratingEditor.value = true
 	try {
 		await refreshTemplates()
+		await nextTick()
 		const list = templates.value ?? []
 		const selectValue = isContract.value
 			? contractTermsContract.value?.value
@@ -89,10 +90,7 @@ const openTemplateEditor = async () => {
 
 		if (matched) {
 			editorText.value = matched.content_text
-			selectedTemplate.value = {
-				label: templateLabel(matched.name, matched.is_default),
-				value: matched.id,
-			}
+			selectedTemplateId.value = matched.id
 			templateName.value = matched.name
 			isDefault.value = matched.is_default
 			// Синхронизируем state: бланк раньше брал hardcoded-константы, editor — пустой state
@@ -101,24 +99,21 @@ const openTemplateEditor = async () => {
 			}
 		} else if (currentText.trim()) {
 			editorText.value = currentText
-			selectedTemplate.value = { label: "Свой шаблон", value: "custom" }
-			templateName.value = ""
+			selectedTemplateId.value = "custom"
+			templateName.value = "Свой шаблон"
 			isDefault.value = false
 		} else {
 			const fallback = list.find((t) => t.is_default) ?? list[0]
 			if (fallback) {
 				editorText.value = fallback.content_text
-				selectedTemplate.value = {
-					label: templateLabel(fallback.name, fallback.is_default),
-					value: fallback.id,
-				}
+				selectedTemplateId.value = fallback.id
 				templateName.value = fallback.name
 				isDefault.value = fallback.is_default
 				applyTextToTypedState(fallback.content_text)
 			} else {
 				editorText.value = ""
-				selectedTemplate.value = { label: "Свой шаблон", value: "custom" }
-				templateName.value = ""
+				selectedTemplateId.value = "custom"
+				templateName.value = "Свой шаблон"
 				isDefault.value = false
 			}
 		}
@@ -192,38 +187,49 @@ watch(editorText, (text) => {
 	syncTermChecksFromText(text)
 })
 
-watch(
-	selectedTemplate,
-	(selected) => {
-		if (hydratingEditor.value || !selected) return
-		if (selected.value === "custom") {
-			editorText.value = isContract.value
-				? contractTermsTextContract.value ?? ""
-				: contractTermsTextOffer.value ?? ""
-			templateName.value = templateName.value || ""
-			isDefault.value = false
-			return
-		}
-		const template = (templates.value ?? []).find((item) => item.id === selected.value)
-		if (!template) return
-		editorText.value = template.content_text
-		templateName.value = template.name
-		isDefault.value = template.is_default
-		applyTemplateById(template.id)
-	},
-	{ deep: true },
-)
+watch(selectedTemplateId, (selected) => {
+	if (hydratingEditor.value || selected == null) return
+	if (selected === "custom") {
+		editorText.value = isContract.value
+			? contractTermsTextContract.value ?? ""
+			: contractTermsTextOffer.value ?? ""
+		templateName.value = "Свой шаблон"
+		isDefault.value = false
+		return
+	}
+	const template = (templates.value ?? []).find((item) => item.id === selected)
+	if (!template) return
+	editorText.value = template.content_text
+	templateName.value = template.name
+	isDefault.value = template.is_default
+	applyTemplateById(template.id)
+})
 
 const saveContractTerms = async () => {
-	const selectedId = selectedTemplate.value?.value === "custom" ? null : Number(selectedTemplate.value?.value)
-	const nameForSave =
-		templateName.value.trim() ||
-		(selectedId
-			? (templates.value ?? []).find((t) => t.id === selectedId)?.name ?? ""
-			: "Свой шаблон")
+	const selected = selectedTemplateId.value
+	let templateId: number | null =
+		selected === "custom" || selected == null ? null : Number(selected)
+
+	const existingById =
+		templateId && !Number.isNaN(templateId)
+			? (templates.value ?? []).find((t) => t.id === templateId)
+			: undefined
+
+	let nameForSave =
+		(isCustomSelected.value
+			? templateName.value.trim()
+			: existingById?.name || templateName.value.trim()) || "Свой шаблон"
+
+	// «Свой шаблон» с именем уже существующего → PATCH, не POST (иначе 409)
+	if (templateId == null) {
+		const byName = (templates.value ?? []).find(
+			(t) => t.name.trim().toLowerCase() === nameForSave.trim().toLowerCase(),
+		)
+		if (byName) templateId = byName.id
+	}
 
 	const saved = await saveTemplate({
-		templateId: selectedId && !Number.isNaN(selectedId) ? selectedId : null,
+		templateId,
 		name: nameForSave,
 		contentText: editorText.value,
 		isDefault: isDefault.value,
@@ -240,10 +246,9 @@ const saveContractTerms = async () => {
 
 	if (saved) {
 		toast.add({ title: "Шаблон сохранён", color: "success" })
-		selectedTemplate.value = {
-			label: saved.is_default ? `${saved.name} (по умолчанию)` : saved.name,
-			value: saved.id,
-		}
+		await refreshTemplates()
+		await nextTick()
+		selectedTemplateId.value = saved.id
 		templateName.value = saved.name
 		isDefault.value = saved.is_default
 	}
@@ -291,14 +296,20 @@ const saveContractTerms = async () => {
 							<USelectMenu
 								placeholder="Выберите шаблон"
 								:items="selectItems"
-								v-model="selectedTemplate"
+								v-model="selectedTemplateId"
+								value-key="value"
 								class="w-full"
 							/>
+							<!-- Название только для нового («Свой шаблон») -->
 							<UInput
+								v-if="isCustomSelected"
 								v-model="templateName"
-								placeholder="Название шаблона"
+								placeholder="Название нового шаблона"
 								class="w-full"
 							/>
+							<p v-else class="text-xs text-neutral-500">
+								Выбран: {{ selectedLabel }}
+							</p>
 							<UCheckbox v-model="isDefault" label="По умолчанию" size="md" />
 
 							<p class="text-sm text-gray-500 mt-2">Вставить поле в курсор</p>

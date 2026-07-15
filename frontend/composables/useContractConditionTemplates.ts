@@ -194,8 +194,19 @@ export const useContractConditionTemplates = (
 				applyTextToTypedState(contentText)
 			}
 			return saved ?? null
-		} catch {
-			toast.add({ title: 'Не удалось сохранить шаблон', color: 'error' })
+		} catch (err: unknown) {
+			const detail =
+				(err as { data?: { detail?: string } })?.data?.detail
+				|| (err as Error)?.message
+				|| ''
+			toast.add({
+				title: 'Не удалось сохранить шаблон',
+				description:
+					detail === 'Template with this name already exists'
+						? 'Шаблон с таким названием уже есть — выберите его в списке или задайте другое имя'
+						: detail || undefined,
+				color: 'error',
+			})
 			return null
 		}
 	}

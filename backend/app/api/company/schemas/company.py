@@ -288,6 +288,7 @@ class CompanyRelationType(str, enum.Enum):
     SUPPLIER = "supplier"
     BUYER = "buyer"
     PARTNER = "partner"
+    CARRIER = "carrier"
 
 
 class CompanyRelationCreate(BaseModel):

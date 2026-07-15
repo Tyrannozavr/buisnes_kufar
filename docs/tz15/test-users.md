@@ -16,3 +16,18 @@ docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/
 ## Куда зайти — §5.x
 
 Пошагово: [manual-etap-05-checklist.md](manual-etap-05-checklist.md).
+
+## Куда зайти и что проверить — §6.1–§6.5 ✅
+
+Пошагово: [manual-etap-06-checklist.md](manual-etap-06-checklist.md).
+
+| Что | Куда |
+|-----|------|
+| Контрагенты | `seller@gmail.com` → Профиль → **Контрагенты** |
+| Перевозчики | Профиль → **Перевозчики** |
+| Добавить контрагента | `/companies/test-carrier-tz15` → кнопка |
+| Посмотреть договоры | Контрагенты → ООО Покупатель Тест → **Посмотреть договоры** |
+| Документы + фильтр | `/profile/documents` — контрагент / тип / период / продажи / заказ |
+| Перевозки (MVP) | Профиль → блок **Перевозки** |
+
+Пароль везде: `123456`.

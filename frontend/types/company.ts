@@ -290,4 +290,5 @@ export enum CompanyRelationType {
   SUPPLIER = 'supplier',
   BUYER = 'buyer',
   PARTNER = 'partner',
+  CARRIER = 'carrier',
 }

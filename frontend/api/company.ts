@@ -60,7 +60,12 @@ export const getCompanyRelations = async (relationType?: CompanyRelationType) =>
 }
 
 export const getPartners = async (page = 1, perPage = 10) => {
-  const { data, error, pending, refresh } = useApi<any>(`/v1/company/me/partners`, {
+  // Alias → counterparties (§6.1)
+  return getCounterparties(page, perPage)
+}
+
+export const getCounterparties = async (page = 1, perPage = 10) => {
+  const { data, error, pending, refresh } = useApi<any>(`/v1/company/me/counterparties`, {
     method: 'GET',
     params: { page, per_page: perPage }
   })
@@ -71,6 +76,41 @@ export const getPartners = async (page = 1, perPage = 10) => {
     pending,
     refresh
   }
+}
+
+export const getCarriers = async (page = 1, perPage = 10) => {
+  const { data, error, pending, refresh } = useApi<any>(`/v1/company/me/carriers`, {
+    method: 'GET',
+    params: { page, per_page: perPage }
+  })
+  return {
+    data: computed(() => (data.value?.data ?? []).map(mapCompanyToPartnerCompany)),
+    pagination: computed(() => data.value?.pagination),
+    error,
+    pending,
+    refresh
+  }
+}
+
+export const addCounterparty = async (
+  relatedCompanyId: number,
+  options: { asSupplier?: boolean; asBuyer?: boolean; asCarrier?: boolean } = {},
+) => {
+  return useApi(`/v1/company/me/counterparties/add`, {
+    method: 'POST',
+    params: {
+      related_company_id: relatedCompanyId,
+      as_supplier: options.asSupplier ?? false,
+      as_buyer: options.asBuyer ?? false,
+      as_carrier: options.asCarrier ?? false,
+    },
+  })
+}
+
+export const removeCounterparty = async (relatedCompanyId: number) => {
+  return useApi(`/v1/company/me/counterparties/${relatedCompanyId}`, {
+    method: 'DELETE',
+  })
 }
 
 export const getSuppliers = async (page = 1, perPage = 10) => {

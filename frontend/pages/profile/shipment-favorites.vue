@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SectionUnderDevelopment from '~/components/ui/SectionUnderDevelopment.vue'
+import EmptyShipmentsTable from '~/components/profile/EmptyShipmentsTable.vue'
 
 definePageMeta({
   layout: 'profile',
@@ -8,5 +8,9 @@ definePageMeta({
 </script>
 
 <template>
-  <SectionUnderDevelopment title="Избранные перевозки" />
+  <EmptyShipmentsTable
+    title="Избранное"
+    description="Избранные перевозчики и объявления (MVP)."
+    :columns="['Название', 'Тип', 'Город', '']"
+  />
 </template>

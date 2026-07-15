@@ -89,6 +89,7 @@ const handlePageChange = (page: number) => {
             :company-id="company.id"
             :company-name="company.name"
             :company-slug="company.slug"
+            :target-trade-activity="company.trade_activity"
           />
         </div>
       </div>

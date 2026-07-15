@@ -66,7 +66,7 @@ export const AVAILABLE_PERMISSIONS = {
   products: "Продукция",
   announcements: "Объявления",
   business_connections: "Бизнес-связи",
-  partners: "Партнеры",
+  partners: "Контрагенты",
   suppliers: "Поставщики", 
   buyers: "Покупатели",
   documents: "Документы",

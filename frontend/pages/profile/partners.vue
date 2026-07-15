@@ -1,41 +1,45 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import ProfileCompanyList from '~/components/profile/ProfileCompanyList.vue'
-import { getPartners, removeCompanyRelation } from '~/api/company'
-import { CompanyRelationType } from '~/types/company'
+import { getCounterparties, removeCounterparty } from '~/api/company'
 import { ref } from 'vue'
 
 definePageMeta({
-  layout: 'profile'
+  layout: 'profile',
+  title: 'Контрагенты',
 })
 
 const page = ref(1)
 const perPage = ref(10)
 const {
-  data: partners,
-  pending: loadingPartners,
-  refresh: refreshPartners
-} = await getPartners(page.value, perPage.value)
+  data: counterparties,
+  pending: loadingCounterparties,
+  refresh: refreshCounterparties,
+} = await getCounterparties(page.value, perPage.value)
 
-const handleRemovePartner = async (partner: PartnerCompany) => {
-  await removeCompanyRelation(partner.id, CompanyRelationType.PARTNER)
-  await refreshPartners()
+const handleRemove = async (company: PartnerCompany) => {
+  await removeCounterparty(company.id)
+  await refreshCounterparties()
 }
 
 const handleRefresh = async () => {
-  await refreshPartners()
+  await refreshCounterparties()
 }
 </script>
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
-      <h2 class="text-lg font-medium text-gray-900 mb-4">Партнеры</h2>
+    <div class="bg-white shadow rounded-lg p-4">
+      <h2 class="text-lg font-medium text-gray-900 mb-4">Контрагенты</h2>
+      <p class="text-sm text-neutral-500 mb-4">
+        Общий список: покупатели, поставщики и перевозчики.
+      </p>
       <ProfileCompanyList
-        :companies="partners || []"
-        :loading="loadingPartners"
-        type="partner"
-        :onRemove="handleRemovePartner"
+        :companies="counterparties || []"
+        :loading="loadingCounterparties"
+        type="counterparty"
+        :show-contracts-link="true"
+        :on-remove="handleRemove"
         @refresh="handleRefresh"
       />
     </div>

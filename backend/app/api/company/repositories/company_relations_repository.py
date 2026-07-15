@@ -72,3 +72,75 @@ class CompanyRelationsRepository:
         result = await self.session.execute(stmt)
         companies = result.scalars().all()
         return companies, total
+
+    async def get_counterparties_companies(
+        self,
+        company_id: int,
+        page: int = 1,
+        per_page: int = 10,
+    ):
+        """Общий список контрагентов: партнёры + покупатели + поставщики + перевозчики (distinct)."""
+        types = [
+            CompanyRelationType.PARTNER,
+            CompanyRelationType.BUYER,
+            CompanyRelationType.SUPPLIER,
+            CompanyRelationType.CARRIER,
+        ]
+        base = (
+            select(Company.id)
+            .join(CompanyRelation, Company.id == CompanyRelation.related_company_id)
+            .where(CompanyRelation.company_id == company_id)
+            .where(CompanyRelation.relation_type.in_(types))
+            .distinct()
+        )
+        count_stmt = select(func.count()).select_from(base.subquery())
+        total = (await self.session.execute(count_stmt)).scalar() or 0
+
+        id_page = (
+            base.order_by(Company.id)
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        )
+        ids = list((await self.session.execute(id_page)).scalars().all())
+        if not ids:
+            return [], total
+
+        stmt = (
+            select(Company)
+            .options(selectinload(Company.officials))
+            .where(Company.id.in_(ids))
+            .order_by(Company.id)
+        )
+        companies = list((await self.session.execute(stmt)).scalars().all())
+        return companies, total
+
+    async def remove_all_relations_to(
+        self,
+        company_id: int,
+        related_company_id: int,
+    ) -> int:
+        stmt = delete(CompanyRelation).where(
+            CompanyRelation.company_id == company_id,
+            CompanyRelation.related_company_id == related_company_id,
+        )
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount or 0
+
+    async def ensure_relation(
+        self,
+        company_id: int,
+        related_company_id: int,
+        relation_type: CompanyRelationType,
+    ) -> CompanyRelation:
+        existing = await self.get_relations(company_id, relation_type)
+        for rel in existing:
+            if rel.related_company_id == related_company_id:
+                return rel
+        return await self.add_relation(
+            company_id,
+            CompanyRelationCreate(
+                related_company_id=related_company_id,
+                relation_type=relation_type,
+            ),
+        )

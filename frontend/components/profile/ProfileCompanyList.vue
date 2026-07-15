@@ -6,7 +6,8 @@ import { ref, watch } from 'vue'
 const props = defineProps<{
   companies: PartnerCompany[]
   loading: boolean
-  type: 'partner' | 'supplier' | 'buyer'
+  type: 'partner' | 'supplier' | 'buyer' | 'carrier' | 'counterparty'
+  showContractsLink?: boolean
   onRemove: (company: PartnerCompany) => Promise<void>
 }>()
 
@@ -34,6 +35,7 @@ const handleRemove = async (company: PartnerCompany) => {
     :companies="localCompanies"
     :loading="loading"
     :type="type"
+    :show-contracts-link="showContractsLink"
     @remove="handleRemove"
   />
 </template> 

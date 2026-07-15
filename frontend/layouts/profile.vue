@@ -78,10 +78,16 @@ const navigationItems = computed((): NavigationMenuItem[][] => {
       type: 'label'
     },
     {
-      label: 'Партнеры',
+      label: 'Контрагенты',
       icon: 'i-heroicons-user-group',
       to: '/profile/partners',
-      active: route.path === '/profile/partners'
+      active: route.path === '/profile/partners' || route.path === '/profile/counterparties'
+    },
+    {
+      label: 'Перевозчики',
+      icon: 'i-heroicons-truck',
+      to: '/profile/carriers',
+      active: route.path === '/profile/carriers'
     },
   ]
 
@@ -89,7 +95,7 @@ const navigationItems = computed((): NavigationMenuItem[][] => {
     businessBlock.push(
       {
         label: 'Поставщики',
-        icon: 'i-heroicons-truck',
+        icon: 'i-heroicons-building-storefront',
         to: '/profile/suppliers',
         active: route.path === '/profile/suppliers'
       },
@@ -144,34 +150,35 @@ const navigationItems = computed((): NavigationMenuItem[][] => {
     )
   }
 
-  const items: NavigationMenuItem[][] = [companyBlock, businessBlock, docsBlock]
-
-  if (isLogistics.value) {
-    items.push([
-      {
-        label: 'Перевозки',
-        type: 'label'
-      },
-      {
-        label: 'Перевозки',
-        icon: 'i-heroicons-map',
-        to: '/profile/shipments',
-        active: route.path === '/profile/shipments'
-      },
-      {
-        label: 'Заявки',
-        icon: 'i-heroicons-clipboard-document-list',
-        to: '/profile/shipment-requests',
-        active: route.path === '/profile/shipment-requests'
-      },
-      {
-        label: 'Избранное',
-        icon: 'i-heroicons-star',
-        to: '/profile/shipment-favorites',
-        active: route.path === '/profile/shipment-favorites'
-      },
-    ])
+  const shipmentsBlock: NavigationMenuItem[] = [
+    {
+      label: 'Перевозки',
+      type: 'label'
+    },
+    {
+      label: 'Перевозки',
+      icon: 'i-heroicons-map',
+      to: '/profile/shipments',
+      active: route.path === '/profile/shipments'
+    },
+    {
+      label: 'Заявки',
+      icon: 'i-heroicons-clipboard-document-list',
+      to: '/profile/shipment-requests',
+      active: route.path === '/profile/shipment-requests'
+    },
+  ]
+  // Избранное — только у производителя/продавца (§C ТЗ_15)
+  if (!isLogistics.value) {
+    shipmentsBlock.push({
+      label: 'Избранное',
+      icon: 'i-heroicons-star',
+      to: '/profile/shipment-favorites',
+      active: route.path === '/profile/shipment-favorites'
+    })
   }
+
+  const items: NavigationMenuItem[][] = [companyBlock, businessBlock, docsBlock, shipmentsBlock]
 
   items.push([
     {

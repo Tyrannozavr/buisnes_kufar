@@ -579,27 +579,29 @@ async def ensure_company_relations(
     seller_company_id: int,
     buyer_company_id: int,
     buyer_no_contract_id: int,
+    carrier_company_id: int | None = None,
 ) -> None:
     repo = CompanyRelationsRepository(session)
     pairs = [
         (buyer_company_id, CompanyRelationType.BUYER),
+        (buyer_company_id, CompanyRelationType.PARTNER),
         (buyer_no_contract_id, CompanyRelationType.BUYER),
+        (buyer_no_contract_id, CompanyRelationType.PARTNER),
     ]
-    for related_id, relation_type in pairs:
-        existing = await repo.get_relations(seller_company_id, relation_type)
-        if any(r.related_company_id == related_id for r in existing):
-            continue
-        await repo.add_relation(
-            seller_company_id,
-            CompanyRelationCreate(
-                related_company_id=related_id,
-                relation_type=relation_type,
-            ),
+    if carrier_company_id:
+        pairs.extend(
+            [
+                (carrier_company_id, CompanyRelationType.CARRIER),
+                (carrier_company_id, CompanyRelationType.PARTNER),
+            ]
         )
+    for related_id, relation_type in pairs:
+        await repo.ensure_relation(seller_company_id, related_id, relation_type)
     await session.commit()
     print(
         f"  company relations: seller={seller_company_id} "
         f"buyers=[{buyer_company_id}, {buyer_no_contract_id}]"
+        + (f" carrier={carrier_company_id}" if carrier_company_id else "")
     )
 
 
@@ -657,12 +659,13 @@ async def main() -> None:
 
         await session.commit()
 
-        print("\nСвязи ЛК (Покупатели):")
+        print("\nСвязи ЛК (Контрагенты / Покупатели / Перевозчики) §6:")
         await ensure_company_relations(
             session,
             seller_company.id,
             buyer_company.id,
             buyer_no_contract.id,
+            carrier_company.id,
         )
 
         print("\nДоговоры ЛК (seller ↔ основной покупатель):")

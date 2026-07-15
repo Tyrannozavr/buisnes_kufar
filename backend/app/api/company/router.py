@@ -364,6 +364,26 @@ async def get_company_relations(
     return relations
 
 
+async def _counterparties_response(
+        company_id: int,
+        db,
+        page: int,
+        per_page: int,
+) -> CompaniesResponse:
+    repo = CompanyRelationsRepository(db)
+    companies, total = await repo.get_counterparties_companies(company_id, page, per_page)
+    total_pages = (total + per_page - 1) // per_page if total else 0
+    return CompaniesResponse(
+        data=companies,
+        pagination=PaginationInfo(
+            total=total,
+            page=page,
+            perPage=per_page,
+            totalPages=total_pages,
+        ),
+    )
+
+
 @router.get("/me/partners", response_model=CompaniesResponse)
 async def get_my_partners(
         page: int = Query(1, ge=1),
@@ -372,10 +392,44 @@ async def get_my_partners(
         company_service: company_service_dep = None,
         db: async_db_dep = None
 ):
+    """Alias → контрагенты (этап 6); оставлен для совместимости."""
     company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return await _counterparties_response(company.id, db, page, per_page)
+
+
+@router.get("/me/counterparties", response_model=CompaniesResponse)
+async def get_my_counterparties(
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1, le=100),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
+):
+    """Общий список контрагентов: покупатели + поставщики + перевозчики + партнёры."""
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return await _counterparties_response(company.id, db, page, per_page)
+
+
+@router.get("/me/carriers", response_model=CompaniesResponse)
+async def get_my_carriers(
+        page: int = Query(1, ge=1),
+        per_page: int = Query(10, ge=1, le=100),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None
+):
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
     repo = CompanyRelationsRepository(db)
-    companies, total = await repo.get_related_companies(company.id, CompanyRelationType.PARTNER, page, per_page)
-    total_pages = (total + per_page - 1) // per_page
+    companies, total = await repo.get_related_companies(
+        company.id, CompanyRelationType.CARRIER, page, per_page
+    )
+    total_pages = (total + per_page - 1) // per_page if total else 0
     return CompaniesResponse(
         data=companies,
         pagination=PaginationInfo(
@@ -385,6 +439,58 @@ async def get_my_partners(
             totalPages=total_pages
         )
     )
+
+
+@router.post("/me/counterparties/add", response_model=dict)
+async def add_counterparty(
+        related_company_id: int = Query(...),
+        as_supplier: bool = Query(False),
+        as_buyer: bool = Query(False),
+        as_carrier: bool = Query(False),
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None,
+):
+    """
+    Добавить контрагента (§6.3).
+    Всегда создаёт PARTNER; по флагам — SUPPLIER / BUYER / CARRIER.
+    """
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    if related_company_id == company.id:
+        raise HTTPException(status_code=400, detail="Cannot add own company")
+    repo = CompanyRelationsRepository(db)
+    await repo.ensure_relation(company.id, related_company_id, CompanyRelationType.PARTNER)
+    if as_supplier:
+        await repo.ensure_relation(company.id, related_company_id, CompanyRelationType.SUPPLIER)
+    if as_buyer:
+        await repo.ensure_relation(company.id, related_company_id, CompanyRelationType.BUYER)
+    if as_carrier:
+        await repo.ensure_relation(company.id, related_company_id, CompanyRelationType.CARRIER)
+    return {
+        "success": True,
+        "related_company_id": related_company_id,
+        "as_supplier": as_supplier,
+        "as_buyer": as_buyer,
+        "as_carrier": as_carrier,
+    }
+
+
+@router.delete("/me/counterparties/{related_company_id}", response_model=dict)
+async def remove_counterparty(
+        related_company_id: int,
+        current_user: current_user_dep = None,
+        company_service: company_service_dep = None,
+        db: async_db_dep = None,
+):
+    """Удалить компанию из всех списков связей владельца."""
+    company = await company_service.get_company_by_user_id(current_user.id)
+    if not company or not company.id:
+        raise HTTPException(status_code=404, detail="Company not found")
+    repo = CompanyRelationsRepository(db)
+    removed = await repo.remove_all_relations_to(company.id, related_company_id)
+    return {"success": removed > 0, "removed": removed}
 
 
 @router.get(

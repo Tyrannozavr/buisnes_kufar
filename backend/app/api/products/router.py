@@ -7,6 +7,7 @@ from app.db.dependencies import async_db_dep
 from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.user import User
 from app.api.company.schemas.filters import ProductFilterRequest, ServiceFilterRequest
+from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.products.dependencies import product_service_dep, get_filter_service, get_search_service
 from app.api.products.models.product import ProductType
 from app.api.products.schemas.filters import ProductFiltersResponse, ServiceFiltersResponse, CitiesProductCountResponse
@@ -24,7 +25,10 @@ from app.api.products.services.cache_service import product_location_cache
 from app.api.products.services.filter_service import FilterService
 from app.api.products.services.search_service import ProductSearchService
 
-owner_router = APIRouter(tags=["products"])
+owner_router = APIRouter(
+    tags=["products"],
+    dependencies=[Depends(require_not_logistics_company)],
+)
 
 
 # Эндпоинты для работы с собственными продуктами (требуют аутентификации)

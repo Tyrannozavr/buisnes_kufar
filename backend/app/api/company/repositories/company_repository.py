@@ -280,7 +280,7 @@ class CompanyRepository:
             name="Новая компания",
             slug=await self.create_company_slug("Новая компания"),
             type="ООО",
-            trade_activity=TradeActivity.BOTH,
+            trade_activity=TradeActivity.SELLER,
             business_type=BusinessType.BOTH,
             activity_type="Деятельность не указана",
             description=None,

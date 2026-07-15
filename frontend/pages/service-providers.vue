@@ -5,7 +5,7 @@ import CustomPagination from "~/components/ui/CustomPagination.vue";
 import CatalogFilter from "~/components/catalog/CatalogFilter.vue";
 
 const route = useRoute()
-const title = 'Поставщики услуг'
+const title = 'Перевозчики'
 
 // Success message handling
 const showSuccessMessage = ref(false)

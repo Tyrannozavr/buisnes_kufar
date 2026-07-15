@@ -23,7 +23,7 @@ def _company_payload(suffix: str, inn_seed: int) -> dict:
         "name": f"Checkout Company {suffix}",
         "slug": f"checkout-company-{suffix}",
         "type": "ООО",
-        "trade_activity": TradeActivity.BOTH,
+        "trade_activity": TradeActivity.SELLER,
         "business_type": BusinessType.BOTH,
         "activity_type": "Тест",
         "description": "Тест",

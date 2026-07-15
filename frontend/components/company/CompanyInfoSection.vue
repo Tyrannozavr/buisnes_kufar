@@ -12,15 +12,10 @@ const props = defineProps<{
 const emit = defineEmits(['update:formState'])
 
 const tradeActivityOptions = [
-  {label: 'Покупатель', value: 'Покупатель'},
+  {label: 'Производитель', value: 'Производитель'},
   {label: 'Продавец', value: 'Продавец'},
-  {label: 'Покупатель и продавец', value: 'Покупатель и продавец'}
-]
-
-const businessTypeOptions = [
-  {label: 'Производство товаров', value: 'Производство товаров'},
-  {label: 'Оказание услуг', value: 'Оказание услуг'},
-  {label: 'Производство товаров и оказание услуг', value: 'Производство товаров и оказание услуг'}
+  {label: 'Перевозчик', value: 'Перевозчик'},
+  {label: 'Экспедитор', value: 'Экспедитор'},
 ]
 
 const {
@@ -316,22 +311,12 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
   <div>
     <h4 class="text-lg font-medium mb-4 text-gray-700 border-b pb-2">Информация о компании</h4>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <UFormField label="Торговая деятельность" required help="Выберите тип торговой деятельности вашей компании">
+      <UFormField label="Торговая деятельность" required help="Определяет разделы главного меню и доступные пункты ЛК">
         <USelect
             :model-value="formState.tradeActivity"
             :items="tradeActivityOptions"
             class="min-w-1/2"
             @update:model-value="value => updateField('tradeActivity', value)"
-        />
-      </UFormField>
-
-      <UFormField label="Род деятельности" required
-                  help="Определяет в каком разделе будет отображаться ваша компания">
-        <USelect
-            :model-value="formState.businessType"
-            :items="businessTypeOptions"
-            class="min-w-1/2"
-            @update:model-value="value => updateField('businessType', value)"
         />
       </UFormField>
 
@@ -356,16 +341,6 @@ const updateField = (field: keyof CompanyDataFormState, value: any) => {
             placeholder="Например: ООО 'ЭкоПродукт'"
             class="min-w-1/2"
             @update:model-value="value => updateField('fullName', value)"
-        />
-      </UFormField>
-
-      <UFormField label="Вид деятельности" required
-                  help="Основное направление деятельности компании. Например: «Производство обуви», «Строительство каркасных домов»">
-        <UInput
-            :model-value="formState.activityType"
-            placeholder="Например: Производство обуви"
-            class="min-w-full"
-            @update:model-value="value => updateField('activityType', value)"
         />
       </UFormField>
 

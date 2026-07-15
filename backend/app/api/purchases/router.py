@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.api.authentication.dependencies import get_current_user
 from app_logging.logger import logger
 from app.api.authentication.models.user import User
+from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.purchases.dependencies import (
 	deal_service_dep_annotated,
 	supply_contract_service_dep_annotated,
@@ -55,7 +56,8 @@ from app.api.purchases.services.gotenberg_pdf_service import (
 )
 
 router = APIRouter(
-	tags=["purchases", "orders", "deals", "documents", "business"]
+	tags=["purchases", "orders", "deals", "documents", "business"],
+	dependencies=[Depends(require_not_logistics_company)],
 )
 
 # --- OpenAPI / Swagger: бинарные ответы и параметр deal_id для сгенерированных документов ---

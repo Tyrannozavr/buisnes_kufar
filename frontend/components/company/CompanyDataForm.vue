@@ -133,9 +133,9 @@ const transformCompanyData = (companyData: CompanyResponse | undefined): Company
       ogrn: '',
       registrationDate: '',
       type: 'ООО',
-      tradeActivity: 'Покупатель' as TradeActivity,
+      tradeActivity: 'Продавец' as TradeActivity,
       businessType: 'Производство товаров' as BusinessType,
-      activityType: null,
+      activityType: 'Деятельность не указана',
       description: null,
       website: null,
       legalAddress: null,
@@ -270,8 +270,8 @@ const transformFormData = (formData: CompanyDataFormState): CompanyUpdate => {
     registration_date: registrationDateValue,
     type: typeValue,
     trade_activity: tradeActivityValue,
-    business_type: businessTypeValue,
-    activity_type: activityTypeValue,
+    business_type: businessTypeValue || 'Производство товаров',
+    activity_type: activityTypeValue || 'Деятельность не указана',
     description: descriptionValue,
     website: websiteValue,
     legal_address: legalAddressValue,
@@ -459,12 +459,6 @@ const validateForm = () => {
   }
   if (!formState.value.tradeActivity) {
     errors.push('Выберите тип торговой деятельности')
-  }
-  if (!formState.value.businessType) {
-    errors.push('Выберите род деятельности')
-  }
-  if (!formState.value.activityType) {
-    errors.push('Введите вид деятельности')
   }
   if (!formState.value.legalAddress) {
     errors.push('Введите юридический адрес')

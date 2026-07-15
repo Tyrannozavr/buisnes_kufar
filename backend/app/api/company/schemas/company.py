@@ -62,7 +62,7 @@ class CompanyCreateInactive(BaseModel):
     """Схема для создания неактивной компании при регистрации пользователя"""
     name: str = "Новая компания"
     type: str = "ООО"
-    trade_activity: TradeActivity = TradeActivity.BOTH
+    trade_activity: TradeActivity = TradeActivity.SELLER
     business_type: BusinessType = BusinessType.BOTH
     activity_type: str = "Деятельность не указана"
     description: Optional[str] = None

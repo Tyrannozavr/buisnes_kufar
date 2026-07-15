@@ -55,7 +55,7 @@ async def contract_pair():
 
 	async with AsyncSessionLocal() as session:
 		seller = Company(**_company_payload(f"s-{suffix}", seller_inn, trade=TradeActivity.SELLER))
-		buyer = Company(**_company_payload(f"b-{suffix}", buyer_inn, trade=TradeActivity.BUYER))
+		buyer = Company(**_company_payload(f"b-{suffix}", buyer_inn, trade=TradeActivity.SELLER))
 		session.add_all([seller, buyer])
 		await session.flush()
 		seller_id = seller.id

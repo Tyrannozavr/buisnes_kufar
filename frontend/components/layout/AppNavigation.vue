@@ -10,12 +10,12 @@ const totalItems = computed(() => cartStore.totalUniqueItems)
 const navigationItems = [
   { name: 'Главная', path: '/' },
   { name: 'Каталог товаров', path: '/catalog/products' },
-  { name: 'Каталог услуг', path: '/catalog/services' },
+  { name: 'Продавцы', path: '/catalog/services' },
   { name: 'Производители', path: '/manufacturers' },
-  { name: 'Услуги', path: '/service-providers' },
+  { name: 'Перевозчики', path: '/service-providers' },
+  { name: 'Поиск транспорта', path: '/transport-search' },
   { name: 'О нас', path: '/about' },
   { name: 'Объявления', path: '/announcements' },
-  { name: 'Новости', path: '/companies' }
 ]
 
 // Function to check if a navigation item is active
@@ -99,4 +99,3 @@ const closeSidebar = () => {
     </template>
   </USlideover>
 </template>
-

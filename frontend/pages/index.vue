@@ -65,7 +65,7 @@ const mappedAnnouncements = computed(() => {
             variant="outline"
             size="xl"
           >
-            Каталог услуг
+            Продавцы
           </UButton>
         </div>
       </div>

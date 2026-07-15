@@ -22,7 +22,17 @@
               </li>
               <li>
                 <NuxtLink to="/catalog/services" class="text-sm text-gray-600 hover:text-gray-900">
-                  Услуги
+                  Продавцы
+                </NuxtLink>
+              </li>
+              <li>
+                <NuxtLink to="/service-providers" class="text-sm text-gray-600 hover:text-gray-900">
+                  Перевозчики
+                </NuxtLink>
+              </li>
+              <li>
+                <NuxtLink to="/transport-search" class="text-sm text-gray-600 hover:text-gray-900">
+                  Поиск транспорта
                 </NuxtLink>
               </li>
             </ul>

@@ -32,6 +32,11 @@ function getLabel(path: string): string {
     'auth': 'Авторизация',
     'create': 'Создание',
     'editor': 'Редактор документов',
+    'transport': 'Транспорт',
+    'drivers': 'Водители',
+    'shipments': 'Перевозки',
+    'shipment-requests': 'Заявки',
+    'shipment-favorites': 'Избранное',
   }
 
   return labels[path] || path

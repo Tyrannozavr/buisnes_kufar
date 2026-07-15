@@ -114,10 +114,12 @@ const getActivityColor = (tradeActivity: string) => {
   switch (tradeActivity) {
     case 'Продавец':
       return 'success'
-    case 'Покупатель':
-      return 'info'
-    case 'Покупатель и продавец':
+    case 'Производитель':
       return 'primary'
+    case 'Перевозчик':
+      return 'info'
+    case 'Экспедитор':
+      return 'warning'
     default:
       return 'neutral'
   }

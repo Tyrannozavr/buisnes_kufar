@@ -6,6 +6,7 @@ from fastapi import status
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
 from app.api.company.dependencies import company_service_dep, official_repository_dep, get_company_filter_service
+from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.announcements import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse, \
@@ -386,7 +387,11 @@ async def get_my_partners(
     )
 
 
-@router.get("/me/suppliers", response_model=CompaniesResponse)
+@router.get(
+    "/me/suppliers",
+    response_model=CompaniesResponse,
+    dependencies=[Depends(require_not_logistics_company)],
+)
 async def get_my_suppliers(
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1, le=100),
@@ -409,7 +414,11 @@ async def get_my_suppliers(
     )
 
 
-@router.get("/me/buyers", response_model=CompaniesResponse)
+@router.get(
+    "/me/buyers",
+    response_model=CompaniesResponse,
+    dependencies=[Depends(require_not_logistics_company)],
+)
 async def get_my_buyers(
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1, le=100),

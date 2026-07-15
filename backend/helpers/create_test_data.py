@@ -52,9 +52,9 @@ BUSINESS_TYPES = [
 ]
 
 TRADE_ACTIVITIES = [
-    TradeActivity.BUYER,
     TradeActivity.SELLER,
-    TradeActivity.BOTH
+    TradeActivity.SELLER,
+    TradeActivity.SELLER
 ]
 
 ACTIVITY_TYPES = [

@@ -1,8 +1,20 @@
 import type { OfficialsResponse } from './dealResponse'
 import type { LocationItem } from './location'
 
-export type TradeActivity = 'Покупатель' | 'Продавец' | 'Покупатель и продавец'
+export type TradeActivity = 'Производитель' | 'Продавец' | 'Перевозчик' | 'Экспедитор'
 export type BusinessType = 'Производство товаров' | 'Оказание услуг' | 'Производство товаров и оказание услуг'
+
+/** Компании только с логистической деятельностью — урезанное меню ЛК (ТЗ_15 §5.3). */
+export const LOGISTICS_TRADE_ACTIVITIES: readonly TradeActivity[] = [
+  'Перевозчик',
+  'Экспедитор',
+]
+
+export function isLogisticsTradeActivity(
+  value: string | null | undefined,
+): boolean {
+  return LOGISTICS_TRADE_ACTIVITIES.includes(value as TradeActivity)
+}
 
 export interface Company {
   id: number

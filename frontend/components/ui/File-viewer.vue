@@ -21,7 +21,7 @@ const loadError = ref(false)
 
 const isImageType = computed(() => {
 	const t = (props.type ?? "").toLowerCase()
-	return ["jpeg", "jpg", "png", "gif", "webp", "bmp"].includes(t)
+	return ["jpeg", "jpg", "png", "gif", "webp", "bmp", "avif", "svg"].includes(t)
 })
 
 const isPdfType = computed(() => (props.type ?? "").toLowerCase() === "pdf")
@@ -49,12 +49,27 @@ const loadPreview = async (): Promise<void> => {
 
 	try {
 		const result = await downloadDocument(props.dealId, props.documentId, true)
-		const blob =
+		const mimeByExt: Record<string, string> = {
+			jpeg: "image/jpeg",
+			jpg: "image/jpeg",
+			png: "image/png",
+			gif: "image/gif",
+			webp: "image/webp",
+			bmp: "image/bmp",
+			avif: "image/avif",
+			svg: "image/svg+xml",
+			pdf: "application/pdf",
+		}
+		const preferredType = mimeByExt[(props.type ?? "").toLowerCase()]
+		let blob: Blob | null =
 			result instanceof Blob
 				? result
 				: result != null
 					? new Blob([result as BlobPart])
 					: null
+		if (blob && preferredType && (!blob.type || blob.type === "application/octet-stream")) {
+			blob = new Blob([await blob.arrayBuffer()], { type: preferredType })
+		}
 		if (!blob || blob.size === 0) {
 			throw new Error("Не удалось получить файл")
 		}

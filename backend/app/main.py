@@ -33,6 +33,14 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("✅ Database tables created!")
+    if settings.S3_ENABLED:
+        try:
+            from app.core.s3 import ensure_bucket
+
+            ensure_bucket()
+            print(f"✅ S3 bucket ready: {settings.S3_BUCKET}")
+        except Exception as e:
+            print(f"⚠️ S3 bucket ensure failed: {e}")
     yield
     # Shutdown
     print("🔄 Disposing database engine...")

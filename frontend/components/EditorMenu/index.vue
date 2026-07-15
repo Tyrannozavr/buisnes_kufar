@@ -299,25 +299,6 @@
 			</div>
 		</template>
 	</UModal>
-	<UModal
-		v-model:open="updateDataModalOpen"
-		title="Контрагент изменил данные заказа"
-		description="Ознакомьтесь с предложенной версией заказа. Изменённые поля выделены цветом. Примите или отклоните изменения."
-	>
-		<template #footer>
-			<UButton
-				label="Позже"
-				color="neutral"
-				variant="outline"
-				@click="dismissUpdateDataModal"
-			/>
-			<UButton
-				label="Обновить данные"
-				color="primary"
-				@click="dismissUpdateDataModal"
-			/>
-		</template>
-	</UModal>
 </template>
 
 <script setup lang="ts">
@@ -722,25 +703,7 @@ const isHiddenForBuyer = computed(() => {
 	return activeTab.value !== "0"
 })
 
-const updateDataModalOpen = ref(false)
-const updateDataModalDismissedForVersion = ref<number | null>(null)
-
-watch(
-	() => [canRespondToChanges.value, changeReview.value?.version] as const,
-	([canRespond, version]) => {
-		if (!canRespond || version == null) return
-		if (updateDataModalDismissedForVersion.value === version) return
-		updateDataModalOpen.value = true
-	},
-	{ immediate: true },
-)
-
-const dismissUpdateDataModal = () => {
-	updateDataModalOpen.value = false
-	if (changeReview.value?.version != null) {
-		updateDataModalDismissedForVersion.value = changeReview.value.version
-	}
-}
+/** Предложенная версия уже в бланке (diff + Принять/Отклонить справа) — отдельная модалка «Обновить данные» не нужна. */
 
 const pendingReviewHint = computed(
 	() =>

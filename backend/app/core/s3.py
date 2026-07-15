@@ -32,6 +32,23 @@ def _bucket():
     return settings.S3_BUCKET
 
 
+def ensure_bucket() -> None:
+    """Создать бакет, если его ещё нет (свежий MinIO в docker-compose.dev)."""
+    if not settings.S3_ENABLED:
+        return
+    client = _client()
+    name = _bucket()
+    try:
+        client.head_bucket(Bucket=name)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code in ("404", "NoSuchBucket", "NotFound") or status == 404:
+            client.create_bucket(Bucket=name)
+        else:
+            raise
+
+
 def build_key(prefix: str, *parts: str) -> str:
     parts = [p.strip("/") for p in parts if p]
     return "/".join([prefix.strip("/")] + list(parts))
@@ -52,12 +69,25 @@ def upload_document(deal_id: int, filename: str, content: bytes, content_type: O
     extra = {}
     if content_type:
         extra["ContentType"] = content_type
-    client.put_object(
-        Bucket=_bucket(),
-        Key=key,
-        Body=content,
-        **extra,
-    )
+    try:
+        client.put_object(
+            Bucket=_bucket(),
+            Key=key,
+            Body=content,
+            **extra,
+        )
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "NoSuchBucket":
+            ensure_bucket()
+            client.put_object(
+                Bucket=_bucket(),
+                Key=key,
+                Body=content,
+                **extra,
+            )
+        else:
+            raise
     return key
 
 

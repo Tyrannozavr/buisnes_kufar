@@ -1,9 +1,9 @@
 # Этап 7 — 20 000 ₽. Данные заполнения · вес товара · «Заполнить данными»
 
-**Статус:** ⏳ черновик scope (после этапа 6)  
+**Статус:** ▶️ **текущий к реализации** (этап 6 ✅ принят)  
 **Зависимости:** [etap-06](etap-06-counterparties.md) принят  
-**Ветка (план):** `feature/etap7-company-fill-product`  
-**ТЗ:** [tz-requirements.md](tz-requirements.md) §D
+**Ветка (план):** `feature/etap7-company-fill-product` от `preprod`  
+**ТЗ:** [tz-requirements.md](tz-requirements.md) §D · оригинал [ТЗ_Изменения.docx](./ТЗ_Изменения.docx)
 
 ## Scope (кратко)
 

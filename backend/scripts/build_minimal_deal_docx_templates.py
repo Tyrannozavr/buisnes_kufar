@@ -286,7 +286,9 @@ def write_bill_offer(path: Path) -> None:
 	)
 	_para(doc, "{% if bill.contract_terms_text %}Условия счета-оферты:{% endif %}")
 	_para(doc, "{% if bill.contract_terms_text %}{{ bill.contract_terms_text }}{% endif %}")
-	_add_officials_signature(doc)
+	# Как на бланке Bill-Offer.vue: только место акцепта, без блока officials поставщика
+	_para(doc, "_______________")
+	_para(doc, "(должность, подпись, ФИО)")
 	path.parent.mkdir(parents=True, exist_ok=True)
 	doc.save(str(path))
 	print("Wrote", path)

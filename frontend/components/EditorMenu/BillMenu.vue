@@ -69,7 +69,21 @@
 		</div>
 
 		<div v-if="billType.value === 'bill-offer'" :hidden="hiddenForBuyer" class="flex flex-col gap-2">
-			<UCheckbox :disabled="isDisabled" label="Дополнительная информация" v-model="additionalInfoCheckOffer" size="xl"/>
+			<div class="flex flex-col gap-0.5">
+				<UTooltip text="Текст правится слева на бланке — в поле под итогами счёта.">
+					<span class="inline-flex w-fit">
+						<UCheckbox
+							:disabled="isDisabled"
+							label="Дополнительная информация"
+							v-model="additionalInfoCheckOffer"
+							size="xl"
+						/>
+					</span>
+				</UTooltip>
+				<p v-if="additionalInfoCheckOffer && !isDisabled" class="text-xs text-neutral-500 pl-7">
+					правка слева на бланке
+				</p>
+			</div>
 
 			<div class="flex gap-2 justify-between">
 				<UCheckbox :disabled="isDisabled" label="Условия договора" v-model="contractTermsCheckOffer" size="xl"/>

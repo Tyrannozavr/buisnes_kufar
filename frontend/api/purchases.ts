@@ -173,16 +173,52 @@ export const usePurchasesApi = () => {
 		}
 	}
 
-	const createBill = async (dealId: number, date?: string):Promise<{bill_number: string, bill_date: string} | undefined> => {
+	const createBill = async (
+		dealId: number,
+		date?: string,
+		options?: { replace?: boolean },
+	): Promise<{ bill_number: string; bill_date: string } | undefined> => {
 		try {
-			const body = date ? { date } : {}
+			const body: { date?: string; replace?: boolean } = {}
+			if (date) body.date = date
+			if (options?.replace) body.replace = true
 			const response = await $api.post(
 				normalizeApiPath(API_URLS.CREATE_BILL(dealId)),
-				body
+				body,
 			)
 			return response
 		} catch (error) {
 			console.log("ERROR: ", error)
+		}
+	}
+
+	const createTransportContract = async (
+		dealId: number,
+		payload?: { number?: string; date?: string },
+	) => {
+		try {
+			return await $api.post(
+				normalizeApiPath(API_URLS.CREATE_TRANSPORT_CONTRACT(dealId)),
+				payload ?? {},
+			)
+		} catch (error) {
+			console.error("ERROR createTransportContract:", error)
+			throw error
+		}
+	}
+
+	const createClosingDocument = async (
+		dealId: number,
+		payload?: { doc_type?: string; number?: string; date?: string },
+	) => {
+		try {
+			return await $api.post(
+				normalizeApiPath(API_URLS.CREATE_CLOSING_DOCUMENT(dealId)),
+				payload ?? { doc_type: 'UPD' },
+			)
+		} catch (error) {
+			console.error("ERROR createClosingDocument:", error)
+			throw error
 		}
 	}
 
@@ -556,6 +592,8 @@ export const usePurchasesApi = () => {
 		getDealsByIds,
 		updateDealById,
 		createBill,
+		createTransportContract,
+		createClosingDocument,
 		getCompanyContracts,
 		getCompanyContractNextNumber,
 		createCompanyContract,

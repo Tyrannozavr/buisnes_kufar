@@ -6,8 +6,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from app.api.authentication.dependencies import get_current_user
+from app.api.authentication.dependencies import get_token_data
 from app.api.authentication.models.user import User
+from app.api.authentication.schemas.user import TokenData
 from app.api.company.models.company import BusinessType, Company, TradeActivity
 from app.api.company.models.fill_address import CompanyFillAddress, FillAddressKind
 from app.db.base import AsyncSessionLocal
@@ -63,11 +64,10 @@ async def test_fill_addresses_crud_default_rules():
 		await session.commit()
 		owner_id, other_id, user_id = owner.id, other.id, user.id
 
-	async def _override():
-		async with AsyncSessionLocal() as session:
-			return await session.get(User, user_id)
+	async def _override_token():
+		return TokenData(user_id=user_id)
 
-	app.dependency_overrides[get_current_user] = _override
+	app.dependency_overrides[get_token_data] = _override_token
 	try:
 		transport = ASGITransport(app=app)
 		async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -143,7 +143,7 @@ async def test_fill_addresses_crud_default_rules():
 			assert upd.status_code == 200
 			assert "обновл" in upd.json()["address"]
 	finally:
-		app.dependency_overrides.pop(get_current_user, None)
+		app.dependency_overrides.pop(get_token_data, None)
 		async with AsyncSessionLocal() as session:
 			await session.execute(
 				delete(CompanyFillAddress).where(

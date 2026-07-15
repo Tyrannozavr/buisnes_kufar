@@ -11,6 +11,7 @@ const WITHOUT_CONTRACT_VALUE = "__without_contract__"
 /** Общий state — модалки на таблице Продажи и во вкладке «Счет» редактора. */
 const isNoContractModalOpen = ref(false)
 const isContractSelectModalOpen = ref(false)
+const isBillReplaceModalOpen = ref(false)
 const pendingDealNumber = ref("")
 const contractOptions = ref<CompanyContractItem[]>([])
 const selectedContractValue = ref<string | undefined>()
@@ -105,6 +106,12 @@ export function useCreateBillFromSales() {
 		const deal = findDealByDealNumber(dealNumber, "seller")
 		if (!deal) return
 
+		if (deal.billDate || deal.bill?.number) {
+			pendingDealNumber.value = dealNumber
+			isBillReplaceModalOpen.value = true
+			return
+		}
+
 		const buyerCompanyId = deal.buyer.companyId
 		if (!buyerCompanyId) {
 			toast.add({
@@ -191,9 +198,31 @@ export function useCreateBillFromSales() {
 		})
 	}
 
+	const confirmBillReplace = async () => {
+		const dealId = getDealIdForPending()
+		if (!dealId) return
+		isBusy.value = true
+		try {
+			await createBill(dealId, { fillFromDeal: false, replace: true })
+			await navigateToNewBill(dealId)
+			toast.add({
+				title: "Счёт пересоздан",
+				description: "Старый счёт удалён. Заполните новый бланк.",
+				color: "success",
+			})
+		} catch {
+			toast.add({ title: "Не удалось пересоздать счёт", color: "error" })
+		} finally {
+			isBusy.value = false
+			isBillReplaceModalOpen.value = false
+			pendingDealNumber.value = ""
+		}
+	}
+
 	const cancelDialogs = () => {
 		isNoContractModalOpen.value = false
 		isContractSelectModalOpen.value = false
+		isBillReplaceModalOpen.value = false
 		pendingDealNumber.value = ""
 		selectedContractValue.value = undefined
 		contractOptions.value = []
@@ -202,6 +231,7 @@ export function useCreateBillFromSales() {
 	return {
 		isNoContractModalOpen,
 		isContractSelectModalOpen,
+		isBillReplaceModalOpen,
 		contractSelectItems,
 		selectedContractValue,
 		isBusy,
@@ -209,6 +239,7 @@ export function useCreateBillFromSales() {
 		startCreateBillByDealId,
 		confirmCreateWithoutContract,
 		confirmCreateWithSelectedContract,
+		confirmBillReplace,
 		cancelDialogs,
 	}
 }

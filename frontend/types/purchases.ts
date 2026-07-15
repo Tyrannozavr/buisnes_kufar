@@ -8,6 +8,8 @@ export interface BuyerTableItems {
 	act?: string
 	supplyContract?: string
 	accompanyingDocuments?: string
+	transportContract?: string
+	closingDocuments?: string
 	invoice?: string
 	othersDocument?: string
 }

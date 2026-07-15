@@ -51,3 +51,17 @@ docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/
 4. Продукция → создать товар с весом нетто/брутто → сохранить → открыть снова — веса на месте.
 5. Продажи → сделка 1 → редактор → **Заполнить данными** → Продолжить — бланк заполнен, toast успеха.
 6. Повторить login `buyer@gmail.com` — вкладки данных заполнения; кнопка fill в редакторе disabled.
+
+## Куда зайти и что проверить — §8.1–§8.6
+
+Пошагово: [manual-etap-08-checklist.md](manual-etap-08-checklist.md).
+
+| Роль | Email | Что проверить |
+|------|-------|----------------|
+| Поставщик | `seller@gmail.com` | `/profile/sales` → **Товары**: 7 колонок TZ15, «Создать документ», «Найти транспорт» |
+| Поставщик | `seller@gmail.com` | Сделка со счётом → «Создать документ» (Счет) → диалог замены |
+| Поставщик | `seller@gmail.com` | «Договор поставки» → radio договор/спека |
+| Покупатель | `buyer@gmail.com` | `/profile/purchases` → **Товары**: те же колонки, read-only |
+| Поставщик | `seller@gmail.com` | `/profile/sales` → **Услуги** — колонки счёта не сломаны |
+
+Мастер-чеклист: [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md).

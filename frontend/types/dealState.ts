@@ -112,6 +112,7 @@ export interface Deal {
   contractDate: string
   supplyContract: SupplyContract
   supplyContractDate: string
-  closingDocuments: unknown[]
-  othersDocuments: unknown[]
+	closingDocuments: unknown[]
+	othersDocuments: unknown[]
+	transportContract?: { number?: string; date?: string; type?: string } | null
 }

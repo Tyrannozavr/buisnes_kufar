@@ -10,6 +10,10 @@ export const API_URLS = {
 	GET_DEALS_BY_IDS: "/api/v1/purchases/deals/by-ids",
 	PUT_DEAL_BY_ID: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}`, //работает с последней версией сделки
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
+	CREATE_TRANSPORT_CONTRACT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/transport-contract`,
+	CREATE_CLOSING_DOCUMENT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/closing-document`,
 
 	/** GET — договоры (ЛК «Договоры»); query counterparty_company_id опционален */
 	GET_COMPANY_CONTRACTS: "/api/v1/purchases/company-contracts",

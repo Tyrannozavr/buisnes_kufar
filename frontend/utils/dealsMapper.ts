@@ -143,6 +143,7 @@ export const createBodyForUpdate = (dealId: number): DealUpdate => {
 		}
 	}
 	if (deal.closingDocuments) body.closing_documents = deal.closingDocuments
+	if (deal.transportContract) body.transport_contract = deal.transportContract
 	if (deal.othersDocuments) body.others_documents = deal.othersDocuments
 
 	return body
@@ -270,7 +271,8 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			coverLetterCheck: dealResponse.supply_contract.cover_letter_check
 		} satisfies SupplyContract,
 		supplyContractDate: dealResponse.supply_contract_date,
-		closingDocuments: dealResponse.closing_documents || [],
-		othersDocuments: dealResponse.others_documents || []
+	closingDocuments: dealResponse.closing_documents || [],
+		othersDocuments: dealResponse.others_documents || [],
+		transportContract: dealResponse.transport_contract || null,
 	}
 }

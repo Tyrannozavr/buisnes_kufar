@@ -87,6 +87,7 @@ export interface DealUpdate {
 	supply_contract_date?: string
 	closing_documents?: unknown[]
 	others_documents?: unknown[]
+	transport_contract?: { number?: string; date?: string; type?: string } | null
 	buyer_company?: CompanyInDealResponse
 	seller_company?: CompanyInDealResponse
 }

@@ -87,12 +87,45 @@
 	</UModal>
 
 	<CreateBillFromSalesDialogs />
+
+	<UModal v-model:open="isSupplyDocTypeModalOpen" title="Выберите тип документа">
+		<template #body>
+			<div class="flex flex-col gap-3">
+				<URadioGroup v-model="supplyDocTypeRadio" :items="supplyDocTypeItems" />
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<UButton label="Создать" color="primary" class="w-full justify-center" :loading="isSupplyContractActionBusy" @click="handleSupplyDocTypeConfirm" />
+					<UButton label="Отмена" color="neutral" variant="subtle" class="w-full justify-center" @click="isSupplyDocTypeModalOpen = false" />
+				</div>
+			</div>
+		</template>
+	</UModal>
+
+	<UModal v-model:open="isTransportContractModalOpen" title="Договор транспортной экспедиции">
+		<template #body>
+			<div class="flex flex-col gap-3">
+				<p class="text-sm text-gray-600">Выберите существующий договор или создайте новый (MVP).</p>
+				<USelect
+					v-if="transportContractSelectionItems.length"
+					:items="transportContractSelectionItems"
+					:model-value="selectedTransportContractValue"
+					placeholder="Выберите договор"
+					@update:model-value="handleTransportSelectionChange"
+				/>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<UButton label="Выбор" color="primary" class="w-full justify-center" :loading="isTransportActionBusy" :disabled="!selectedTransportContractValue" @click="handleBindTransportContract" />
+					<UButton label="Создать новый" color="neutral" variant="subtle" class="w-full justify-center" :loading="isTransportActionBusy" @click="handleCreateNewTransportContract" />
+					<UButton label="Отмена" color="neutral" variant="ghost" class="w-full justify-center" @click="isTransportContractModalOpen = false" />
+				</div>
+			</div>
+		</template>
+	</UModal>
 </template>
 
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
 import { getPaginationRowModel } from "@tanstack/vue-table";
 import { normalizeDate, normalizeSpecificationNumber, formatDocumentLinkLabel } from "~/utils/normalize";
+import { renderTz15DocCell } from "~/utils/tz15DocumentCell";
 import { useRouter } from "vue-router";
 import { useDeals } from "~/composables/useDeals";
 import { useSupplyContractEntity } from "~/composables/useSupplyContractEntity";
@@ -122,6 +155,19 @@ const isContractCheckBusy = ref(false)
 const isSupplyContractActionBusy = ref(false)
 const isSupplyContractChoiceModalOpen = ref(false)
 const isSupplyContractSelectionModalOpen = ref(false)
+const isSupplyDocTypeModalOpen = ref(false)
+const supplyDocTypeRadio = ref<'supplyContract' | 'specification'>('supplyContract')
+const supplyDocTypeItems = [
+	{ label: 'Договор поставки товара', value: 'supplyContract' },
+	{ label: 'Спецификация к договору поставки', value: 'specification' },
+]
+const isTransportContractModalOpen = ref(false)
+const isTransportActionBusy = ref(false)
+const selectedTransportDealNumber = ref('')
+const selectedTransportContractValue = ref<string | undefined>()
+const transportContractSelectionItems = ref<{ label: string; value: string }[]>([
+	{ label: 'Договор экспедиции № TE-001 от 01.01.26', value: 'TE-001' },
+])
 const selectedSupplyContractEntityId = ref<number | undefined>(undefined)
 const {
 	contractEntity: checkedSupplyContractEntity,
@@ -203,6 +249,30 @@ const hasSupplyContract = (deal?: Deal) => Boolean(deal?.supplyContractDate)
 const hasSpecification = (deal?: Deal) => Boolean(
 	deal?.supplyContract.specificationEntityId || deal?.supplyContract.specificationNumber,
 )
+
+const formatBillDocLabel = (deal: Deal): string | null => {
+	if (!hasBill(deal)) return null
+	return formatDocumentLinkLabel(deal.bill.number, deal.billDate)
+}
+
+const formatTransportDocLabel = (deal: Deal): string | null => {
+	const tc = deal.transportContract
+	if (!tc?.number) return null
+	const dateStr = tc.date ? normalizeDate(String(tc.date).slice(0, 10)) : ''
+	return formatDocumentLinkLabel(tc.number, dateStr)
+}
+
+const formatClosingDocLabel = (deal: Deal): string | null => {
+	const docs = (deal.closingDocuments ?? []) as { name?: string; number?: string; date?: string; type?: string }[]
+	if (!docs.length) return null
+	const first = docs[docs.length - 1]
+	if (first?.name) return first.name
+	if (first?.number) {
+		const typeLabel = first.type === 'UPD' ? 'УПД' : (first.type || 'Документ')
+		return `${typeLabel} № ${first.number}${first.date ? ` от ${normalizeDate(String(first.date).slice(0, 10))} г.` : ''}`
+	}
+	return null
+}
 
 const formatBillCellLabel = (deal: Deal): string => {
 	if (!hasBill(deal)) {
@@ -370,10 +440,12 @@ watch(goodsDealsList, () => {
     date: deal.date,
     sellerCompany: deal.seller.companyName || '',
     status: deal.status,
-    bill: formatBillCellLabel(deal),
+    bill: formatBillDocLabel(deal),
+    supplyContract: formatSupplyContractLabel(deal),
+    transportContract: formatTransportDocLabel(deal),
+    closingDocuments: formatClosingDocLabel(deal),
     contract: formatContractCellLabel(deal),
     act: formatActCellLabel(deal),
-    supplyContract: formatSupplyContractLabel(deal),
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),
     othersDocument: formatOthersCellLabel(deal),
@@ -505,25 +577,20 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       const deal = dealId ? findDeal(dealId) : undefined
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('bill'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            if (hasBill(deal)) {
-              clearBillAwaitingFill(dealId)
-              openEditor(dealId, 'buyer', '#bill')
-						} else {
-							toast.add({
-								title: 'Счет пока не создан', 
-								color: 'warning',
-								icon: 'i-lucide-file-x',
-							})
-						}
+      const label = row.getValue('bill') as string | null
+      return renderTz15Cell(
+        label,
+        () => {
+          if (hasBill(deal)) {
+            clearBillAwaitingFill(dealId)
+            openEditor(dealId, 'buyer', '#bill')
+          } else {
+            toast.add({ title: 'Счет пока не создан', color: 'warning', icon: 'i-lucide-file-x' })
           }
-        })
+        },
+        () => {},
+        undefined,
+      )
     }
   },
   {
@@ -532,86 +599,41 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     cell: ({ row }) => {
 			const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
 			const deal = dealId ? findDeal(dealId) : undefined
-      return renderSupplyContractButton(String(row.getValue('supplyContract')), () => {
+			const label = row.getValue('supplyContract') as string
+      return renderSupplyContractButton(label, () => {
 				if (hasSupplyContract(deal)) {
 					openEditor(dealId, 'buyer', '#supplyContract')
 				} else {
-					toast.add({
-						title: 'Договор поставки пока не создан', 
-						color: 'warning',
-						icon: 'i-lucide-file-x',
-					})
+					toast.add({ title: 'Договор поставки пока не создан', color: 'warning', icon: 'i-lucide-file-x' })
 				}
 			})
     }
   },
   {
-    accessorKey: 'accompanyingDocuments',
-    header: 'Сопроводительные документы',
+    accessorKey: 'transportContract',
+    header: 'Договор перевозки',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('accompanyingDocuments'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            if (dealId) {
-              openEditor(dealId, 'buyer', '#accompanyingDocuments')
-            } else {
-							toast.add({
-								title: 'Нет доступных документов', 
-								color: 'warning',
-								icon: 'i-lucide-file-x',
-							})
-						}
-          }
-        })
+      const label = row.getValue('transportContract') as string | null
+      return renderTz15Cell(
+        label,
+        () => openEditor(dealId, 'buyer', '#contract'),
+        () => {},
+        [{ label: 'Найти транспорт', onClick: () => router.push('/transport-search') }],
+      )
     }
   },
   {
-    accessorKey: 'invoice',
-    header: 'Счет-фактура',
+    accessorKey: 'closingDocuments',
+    header: 'Закрывающие документы',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('invoice'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            if (dealId) {
-              openEditor(dealId, 'buyer', '#invoice')
-            }
-          }
-        })
-    }
-  },
-  {
-    accessorKey: 'othersDocument',
-    header: 'Другие документы',
-    cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('othersDocument'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            if (dealId) {
-              openEditor(dealId, 'buyer', '#othersDocument')
-            } else {
-							toast.add({
-								title: 'Нет доступных документов', 
-								color: 'warning',
-								icon: 'i-lucide-file-x',
-							})
-						}
-          }
-        })
+      const label = row.getValue('closingDocuments') as string | null
+      return renderTz15Cell(
+        label,
+        () => openEditor(dealId, 'buyer', '#accompanyingDocuments'),
+        () => {},
+      )
     }
   },
 ]
@@ -674,6 +696,36 @@ const purchasesActColumn: TableColumn<any> = {
 	},
 }
 
+const purchasesInvoiceColumnLegacy: TableColumn<any> = {
+	accessorKey: 'invoice',
+	header: 'Счет-фактура',
+	cell: ({ row }) => {
+		const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+		return h(UButton, {
+			color: 'neutral',
+			variant: 'ghost',
+			label: row.getValue('invoice'),
+			class: TABLE_LINK_CLASS,
+			onClick: () => openEditor(dealId, 'buyer', '#invoice'),
+		})
+	},
+}
+
+const purchasesOthersColumnLegacy: TableColumn<any> = {
+	accessorKey: 'othersDocument',
+	header: 'Другие документы',
+	cell: ({ row }) => {
+		const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
+		return h(UButton, {
+			color: 'neutral',
+			variant: 'ghost',
+			label: row.getValue('othersDocument'),
+			class: TABLE_LINK_CLASS,
+			onClick: () => openEditor(dealId, 'buyer', '#othersDocument'),
+		})
+	},
+}
+
 const columnsPurchasesServicesDeals: TableColumn<any>[] = [
 	...pickColumnsByAccessor(columnsPurchasesGoodsDeals, [
 		'dealNumber',
@@ -684,7 +736,8 @@ const columnsPurchasesServicesDeals: TableColumn<any>[] = [
 	]),
 	purchasesContractColumn,
 	purchasesActColumn,
-	...pickColumnsByAccessor(columnsPurchasesGoodsDeals, ['invoice', 'othersDocument']),
+	purchasesInvoiceColumnLegacy,
+	purchasesOthersColumnLegacy,
 ]
 
 //sales
@@ -905,6 +958,121 @@ const handleCreateNewSupplyContractFromChoice = async () => {
 	}
 }
 
+const handleSupplyDocumentCreateClick = (dealNumber: string) => {
+	selectedSupplyContractDealNumber.value = dealNumber
+	supplyDocTypeRadio.value = 'supplyContract'
+	isSupplyDocTypeModalOpen.value = true
+}
+
+const handleSupplyDocTypeConfirm = async () => {
+	const dealNumber = selectedSupplyContractDealNumber.value
+	if (!dealNumber) return
+	isSupplyDocTypeModalOpen.value = false
+	if (supplyDocTypeRadio.value === 'supplyContract') {
+		await handleSupplyContractCreateClick(dealNumber)
+		return
+	}
+	const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+	const deal = dealId ? findDeal(dealId) : undefined
+	if (!hasSupplyContract(deal)) {
+		toast.add({
+			title: 'В заказе нет выбранных Договоров поставки',
+			color: 'warning',
+		})
+		return
+	}
+	selectedSupplyContractDealId.value = dealId ?? null
+	handleOpenSupplyContractSelection()
+}
+
+const handleTransportSelectionChange = (value: unknown) => {
+	selectedTransportContractValue.value = value ? String(value) : undefined
+}
+
+const handleTransportDocumentCreateClick = (dealNumber: string) => {
+	selectedTransportDealNumber.value = dealNumber
+	selectedTransportContractValue.value = transportContractSelectionItems.value[0]?.value
+	isTransportContractModalOpen.value = true
+}
+
+const handleBindTransportContract = async () => {
+	const dealId = getDealIdByDealNumber(selectedTransportDealNumber.value, 'seller')
+	const number = selectedTransportContractValue.value
+	if (!dealId || !number) return
+	isTransportActionBusy.value = true
+	try {
+		await purchasesApi.createTransportContract(dealId, { number })
+		const deal = findDeal(dealId)
+		if (deal) {
+			deal.transportContract = { number, date: new Date().toISOString(), type: 'transport_expedition' }
+		}
+		isTransportContractModalOpen.value = false
+		toast.add({ title: 'Договор перевозки привязан', color: 'success' })
+	} catch {
+		toast.add({ title: 'Не удалось привязать договор перевозки', color: 'error' })
+	} finally {
+		isTransportActionBusy.value = false
+	}
+}
+
+const handleCreateNewTransportContract = async () => {
+	const dealId = getDealIdByDealNumber(selectedTransportDealNumber.value, 'seller')
+	if (!dealId) return
+	isTransportActionBusy.value = true
+	try {
+		await purchasesApi.createTransportContract(dealId)
+		const deal = findDeal(dealId)
+		if (deal) {
+			deal.transportContract = {
+				number: deal.sellerOrderNumber,
+				date: new Date().toISOString(),
+				type: 'transport_expedition',
+			}
+		}
+		isTransportContractModalOpen.value = false
+		openEditor(dealId, 'seller', '#contract')
+	} catch {
+		toast.add({ title: 'Не удалось создать договор перевозки', color: 'error' })
+	} finally {
+		isTransportActionBusy.value = false
+	}
+}
+
+const handleClosingDocumentCreateClick = async (dealNumber: string) => {
+	const dealId = getDealIdByDealNumber(dealNumber, type === 'sales' ? 'seller' : 'buyer')
+	if (!dealId) return
+	if (type === 'purchases') {
+		openEditor(dealId, 'buyer', '#accompanyingDocuments')
+		return
+	}
+	try {
+		const created = await purchasesApi.createClosingDocument(dealId)
+		const deal = findDeal(dealId)
+		if (deal && created?.name) {
+			const list = [...(deal.closingDocuments as object[] ?? []), created]
+			deal.closingDocuments = list
+		}
+		openEditor(dealId, 'seller', '#accompanyingDocuments')
+		toast.add({ title: 'Закрывающий документ создан', color: 'success' })
+	} catch {
+		toast.add({ title: 'Не удалось создать закрывающий документ', color: 'error' })
+	}
+}
+
+const renderTz15Cell = (
+	docLabel: string | null,
+	onView: () => void,
+	onCreate: () => void,
+	extraLines?: { label: string; onClick: () => void }[],
+) => renderTz15DocCell({
+	UButton,
+	docLabel,
+	onView,
+	onCreate,
+	showCreate: type === 'sales',
+	extraLines,
+})
+
 const columnsSalesGoodsDeals: TableColumn<any>[] = [
   {
     accessorKey: 'dealNumber',
@@ -1021,25 +1189,65 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
     header: 'Счет',
     cell: ({ row }) => {
 			const dealNumber = String(row.getValue('dealNumber'))
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('bill'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            if (row.getValue('bill') === 'Создать счет') {
-              void startCreateBill(dealNumber)
-							return
-            }
-						const dealId = getDealIdByDealNumber(dealNumber, 'seller')
-						clearBillAwaitingFill(dealId)
-						openEditor(dealId, 'seller', '#bill')
-          }
-        })
+			const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+			const label = row.getValue('bill') as string | null
+      return renderTz15Cell(
+        label,
+        () => {
+          clearBillAwaitingFill(dealId)
+          openEditor(dealId, 'seller', '#bill')
+        },
+        () => { void startCreateBill(dealNumber) },
+      )
     }
   },
   {
+    accessorKey: 'supplyContract',
+    header: 'Договор поставки',
+    cell: ({ row }) => {
+			const dealNumber = String(row.getValue('dealNumber'))
+			const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+			const label = String(row.getValue('supplyContract') ?? '')
+			const docLabel = label && label !== 'Создать договор поставки' ? label : null
+      return renderTz15Cell(
+        docLabel,
+        () => openEditor(dealId, 'seller', '#supplyContract'),
+        () => { void handleSupplyDocumentCreateClick(dealNumber) },
+      )
+    }
+  },
+  {
+    accessorKey: 'transportContract',
+    header: 'Договор перевозки',
+    cell: ({ row }) => {
+      const dealNumber = String(row.getValue('dealNumber'))
+      const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+      const label = row.getValue('transportContract') as string | null
+      return renderTz15Cell(
+        label,
+        () => openEditor(dealId, 'seller', '#contract'),
+        () => { void handleTransportDocumentCreateClick(dealNumber) },
+        [{ label: 'Найти транспорт', onClick: () => router.push('/transport-search') }],
+      )
+    }
+  },
+  {
+    accessorKey: 'closingDocuments',
+    header: 'Закрывающие документы',
+    cell: ({ row }) => {
+      const dealNumber = String(row.getValue('dealNumber'))
+      const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+      const label = row.getValue('closingDocuments') as string | null
+      return renderTz15Cell(
+        label,
+        () => openEditor(dealId, 'seller', '#accompanyingDocuments'),
+        () => { void handleClosingDocumentCreateClick(dealNumber) },
+      )
+    }
+  },
+]
+
+const salesContractColumnLegacy: TableColumn<any> = {
     accessorKey: 'contract',
     header: 'Договор',
     cell: ({ row }) => {
@@ -1063,39 +1271,9 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           }
         })
     }
-  },
-  {
-    accessorKey: 'supplyContract',
-    header: 'Договор поставки',
-    cell: ({ row }) => {
-			const dealNumber = String(row.getValue('dealNumber'))
-      return renderSupplyContractButton(String(row.getValue('supplyContract')), async () => {
-				if (row.getValue('supplyContract') === 'Создать договор поставки') {
-					await handleSupplyContractCreateClick(dealNumber)
-					return
-				}
-				const dealId = getDealIdByDealNumber(dealNumber, 'seller')
-				openEditor(dealId, 'seller', '#supplyContract')
-			})
-    }
-  },
-  {
-    accessorKey: 'accompanyingDocuments',
-    header: 'Сопроводительные документы',
-    cell: ({ row }) => {
-      return h(UButton,
-        {
-          color: 'neutral',
-          variant: 'ghost',
-          label: row.getValue('accompanyingDocuments'),
-          class: TABLE_LINK_CLASS,
-          onClick: () => {
-            editSalesDocument('accompanyingDocuments', row.getValue('dealNumber'))
-          }
-        })
-    }
-  },
-  {
+  }
+
+const salesInvoiceColumnLegacy: TableColumn<any> = {
     accessorKey: 'invoice',
     header: 'Счет-фактура',
     cell: ({ row }) => {
@@ -1110,8 +1288,9 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           }
         })
     }
-  },
-  {
+  }
+
+const salesOthersColumnLegacy: TableColumn<any> = {
     accessorKey: 'othersDocument',
     header: 'Другие документы',
     cell: ({ row }) => {
@@ -1126,8 +1305,31 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
           }
         })
     }
+  }
+
+const salesBillColumnLegacy: TableColumn<any> = {
+  accessorKey: 'bill',
+  header: 'Счет',
+  cell: ({ row }) => {
+    const dealNumber = String(row.getValue('dealNumber'))
+    return h(UButton, {
+      color: 'neutral',
+      variant: 'ghost',
+      label: row.getValue('bill') || 'Создать счет',
+      class: TABLE_LINK_CLASS,
+      onClick: () => {
+        const label = String(row.getValue('bill') ?? '')
+        if (!label) {
+          void startCreateBill(dealNumber)
+          return
+        }
+        const dealId = getDealIdByDealNumber(dealNumber, 'seller')
+        clearBillAwaitingFill(dealId)
+        openEditor(dealId, 'seller', '#bill')
+      },
+    })
   },
-]
+}
 
 const salesActColumn: TableColumn<any> = {
 	accessorKey: 'act',
@@ -1152,11 +1354,12 @@ const columnsSalesServicesDeals: TableColumn<any>[] = [
 		'date',
 		'buyerCompany',
 		'status',
-		'bill',
-		'contract',
 	]),
+	salesBillColumnLegacy,
+	salesContractColumnLegacy,
 	salesActColumn,
-	...pickColumnsByAccessor(columnsSalesGoodsDeals, ['invoice', 'othersDocument']),
+	salesInvoiceColumnLegacy,
+	salesOthersColumnLegacy,
 ]
 
 const activeTableColumns = computed(() => {
@@ -1173,10 +1376,12 @@ watch(goodsDealsList, () => {
     date: deal.date,
     buyerCompany: deal.buyer.companyName || '',
     status: deal.status,
-    bill: formatBillCellLabel(deal),
+    bill: formatBillDocLabel(deal),
+    supplyContract: formatSupplyContractLabel(deal),
+    transportContract: formatTransportDocLabel(deal),
+    closingDocuments: formatClosingDocLabel(deal),
     contract: formatContractCellLabel(deal),
     act: formatActCellLabel(deal),
-    supplyContract: formatSupplyContractLabel(deal),
     accompanyingDocuments: formatAccompanyingCellLabel(deal),
     invoice: formatInvoiceCellLabel(deal),
     othersDocument: formatOthersCellLabel(deal),

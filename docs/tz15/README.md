@@ -19,16 +19,19 @@
 |------|-------|------|--------|
 | **5** | 20k | Роли · меню · Перевозчик/Экспедитор · Поиск транспорта (stub) | ✅ [etap-05](etap-05-roles-nav-carriers.md) |
 | **6** | 20k | Контрагенты · Перевозчики · «Добавить контрагента» · Документы | ✅ [etap-06](etap-06-counterparties.md) |
-| **7** | 20k | Данные заполнения (адреса) · вес товара · «Заполнить данными» без проверок | ▶️ **в реализации** [etap-07](etap-07-company-fill-product.md) |
-| **8** | 20k | Таблица «Продажи» по ТЗ_15 · диалоги «Создать документ» · перевозка MVP | ⏳ [etap-08](etap-08-sales-table-dialogs.md) |
+| **7** | 20k | Данные заполнения (адреса) · вес товара · «Заполнить данными» без проверок | ✅ [etap-07](etap-07-company-fill-product.md) |
+| **8** | 20k | Таблица «Продажи» по ТЗ_15 · диалоги «Создать документ» · перевозка MVP | ✅ [etap-08](etap-08-sales-table-dialogs.md) |
 
-**Следующий шаг:** приёмка [этапа 7](etap-07-company-fill-product.md), затем этап 8. Оригинал ТЗ: [ТЗ_Изменения.docx](./ТЗ_Изменения.docx).
+**Пакет TZ15 (5–8) закрыт.** Мастер-чеклист: [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md)
 
 ## Справочники
 
 - [tz-requirements.md](tz-requirements.md) — карта пунктов ТЗ → этап
 - [manual-etap-05-checklist.md](manual-etap-05-checklist.md) — ручная приёмка этапа 5
 - [manual-etap-06-checklist.md](manual-etap-06-checklist.md) — ручная приёмка этапа 6
+- [manual-etap-07-checklist.md](manual-etap-07-checklist.md) — ручная приёмка этапа 7
+- [manual-etap-08-checklist.md](manual-etap-08-checklist.md) — ручная приёмка этапа 8
+- [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md) — мастер-чеклист TZ15
 - Аккаунты: [test-users.md](test-users.md) · [../schet/test-users.md](../schet/test-users.md)
 
 ## Порядок работы

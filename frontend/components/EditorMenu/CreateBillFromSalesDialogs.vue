@@ -7,11 +7,13 @@ import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales"
 const {
 	isNoContractModalOpen,
 	isContractSelectModalOpen,
+	isBillReplaceModalOpen,
 	contractSelectItems,
 	selectedContractValue,
 	isBusy,
 	confirmCreateWithoutContract,
 	confirmCreateWithSelectedContract,
+	confirmBillReplace,
 	cancelDialogs,
 } = useCreateBillFromSales()
 </script>
@@ -66,6 +68,34 @@ const {
 						:loading="isBusy"
 						:disabled="isBusy || !selectedContractValue"
 						@click="confirmCreateWithSelectedContract"
+					/>
+					<UButton
+						label="Отмена"
+						color="neutral"
+						variant="subtle"
+						class="w-full justify-center"
+						:disabled="isBusy"
+						@click="cancelDialogs"
+					/>
+				</div>
+			</div>
+		</template>
+	</UModal>
+
+	<UModal v-model:open="isBillReplaceModalOpen" title="Создать счёт">
+		<template #body>
+			<div class="flex flex-col gap-3">
+				<p class="text-sm text-gray-600">
+					У данного заказа уже создан Счет на оплату. Создание нового Счета на оплату удалит имеющийся. Продолжить?
+				</p>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<UButton
+						label="Создать"
+						color="primary"
+						class="w-full justify-center"
+						:loading="isBusy"
+						:disabled="isBusy"
+						@click="confirmBillReplace"
 					/>
 					<UButton
 						label="Отмена"

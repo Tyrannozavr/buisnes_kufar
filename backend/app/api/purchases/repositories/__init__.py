@@ -1237,23 +1237,113 @@ class DealRepository:
 
         return f"{next_number:05d}"
 
-    async def assign_bill(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
+    async def assign_bill(
+        self,
+        order_id: int,
+        company_id: int,
+        date: Optional[datetime] = None,
+        *,
+        replace: bool = False,
+    ) -> Optional[Tuple[str, datetime]]:
         """Генерирует и присваивает номер и дату счета заказу. bill_number привязан к seller_order_number — счёт выставляет продавец, его номер = номер заказа продавца."""
         order = await self.get_order_by_id(order_id, company_id)
         if not order:
             return None
+        if replace and order.bill_number:
+            self._reset_bill_fields(order)
         bill_date = date or _utc_now()
         if not order.bill_number:
             order.bill_number = order.seller_order_number
         order.bill_date = bill_date
         order.updated_at = _utc_now()
+        action = "bill_replaced" if replace else "bill_assigned"
         self._add_order_history(
-            order.row_id, company_id, "bill_assigned",
+            order.row_id, company_id, action,
             f"Присвоен счет № {order.bill_number} от {bill_date.strftime('%d.%m.%Y')}",
             None, {"bill_number": order.bill_number, "bill_date": str(bill_date)}
         )
         await self.session.commit()
         return (order.bill_number, order.bill_date)
+
+    @staticmethod
+    def _reset_bill_fields(order: Order) -> None:
+        order.bill_number = None
+        order.bill_date = None
+        order.bill_reason = ""
+        order.bill_officials = None
+        order.bill_document_type = "bill"
+        order.bill_supplier_details_check = True
+        order.bill_buyer_details_check = True
+        order.payment_terms = None
+        order.payment_terms_contract = None
+        order.delivery_terms_contract = None
+        order.additional_info = None
+        order.contract_terms_contract = "standard-delivery-supplier"
+        order.contract_terms_text_contract = ""
+        order.payment_terms_offer = None
+        order.contract_terms_offer = "standard-delivery-supplier"
+        order.contract_terms_text_offer = ""
+        order.additional_info_offer = None
+
+    async def assign_transport_contract(
+        self,
+        order_id: int,
+        company_id: int,
+        date: Optional[datetime] = None,
+        number: Optional[str] = None,
+    ) -> Optional[Tuple[str, datetime]]:
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        contract_date = date or _utc_now()
+        contract_number = (number or "").strip() or order.seller_order_number
+        order.transport_contract = {
+            "number": contract_number,
+            "date": contract_date.isoformat(),
+            "type": "transport_expedition",
+        }
+        order.updated_at = _utc_now()
+        self._add_order_history(
+            order.row_id, company_id, "transport_contract_assigned",
+            f"Присвоен договор перевозки № {contract_number} от {contract_date.strftime('%d.%m.%Y')}",
+            None, order.transport_contract,
+        )
+        await self.session.commit()
+        return (contract_number, contract_date)
+
+    async def append_closing_document(
+        self,
+        order_id: int,
+        company_id: int,
+        doc_type: str = "UPD",
+        number: Optional[str] = None,
+        date: Optional[datetime] = None,
+    ) -> Optional[dict]:
+        order = await self.get_order_by_id(order_id, company_id)
+        if not order:
+            return None
+        doc_date = date or _utc_now()
+        existing = list(order.closing_documents or [])
+        seq = len(existing) + 1
+        doc_number = (number or "").strip() or f"{order.seller_order_number}-{seq:02d}"
+        type_label = "УПД" if doc_type.upper() == "UPD" else doc_type
+        name = f"{type_label} № {doc_number} от {doc_date.strftime('%d.%m.%Y')} г."
+        entry = {
+            "type": doc_type.upper(),
+            "number": doc_number,
+            "date": doc_date.isoformat(),
+            "name": name,
+        }
+        existing.append(entry)
+        order.closing_documents = existing
+        order.updated_at = _utc_now()
+        self._add_order_history(
+            order.row_id, company_id, "closing_document_added",
+            f"Добавлен закрывающий документ: {name}",
+            None, entry,
+        )
+        await self.session.commit()
+        return entry
 
     async def assign_contract(self, order_id: int, company_id: int, date: Optional[datetime] = None) -> Optional[Tuple[str, datetime]]:
         """Генерирует и присваивает номер и дату договора заказу. contract_number = seller_order_number. Возвращает (contract_number, contract_date)."""

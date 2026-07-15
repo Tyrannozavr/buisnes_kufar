@@ -25,6 +25,8 @@ from app.api.purchases.schemas import (
     BuyerDealResponse, SellerDealResponse, DocumentUpload, DocumentResponse,
     CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
+    TransportContractAssignRequest, TransportContractResponse,
+    ClosingDocumentAssignRequest, ClosingDocumentResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     CompanyContractCreate,
     CompanyContractListResponse,
@@ -1324,12 +1326,83 @@ async def create_bill(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found for this user")
     try:
-        result = await deal_service.assign_bill(deal_id, company.id, body.date if (body and body.date) else None)
+        replace = bool(body and body.replace)
+        result = await deal_service.assign_bill(
+            deal_id,
+            company.id,
+            body.date if (body and body.date) else None,
+            replace=replace,
+        )
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return BillResponse(bill_number=result[0], bill_date=result[1])
+
+
+@router.post(
+    "/deals/{deal_id}/transport-contract",
+    response_model=TransportContractResponse,
+    tags=["transport"],
+    summary="Присвоить договор перевозки (MVP §8.5)",
+)
+async def create_transport_contract(
+    deal_id: int,
+    body: TransportContractAssignRequest | None = Body(default=None),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    try:
+        result = await deal_service.assign_transport_contract(
+            deal_id,
+            company.id,
+            body.date if (body and body.date) else None,
+            body.number if body else None,
+        )
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+    if not result:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return TransportContractResponse(number=result[0], date=result[1])
+
+
+@router.post(
+    "/deals/{deal_id}/closing-document",
+    response_model=ClosingDocumentResponse,
+    tags=["closing"],
+    summary="Добавить закрывающий документ (MVP §8.6)",
+)
+async def create_closing_document(
+    deal_id: int,
+    body: ClosingDocumentAssignRequest | None = Body(default=None),
+    current_user: Annotated[User, Depends(get_current_user)] = ...,
+    deal_service: deal_service_dep_annotated = ...,
+):
+    company = await deal_service.get_company_by_user_id(current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found for this user")
+    try:
+        payload = body or ClosingDocumentAssignRequest()
+        entry = await deal_service.append_closing_document(
+            deal_id,
+            company.id,
+            doc_type=payload.doc_type,
+            number=payload.number,
+            date=payload.date,
+        )
+    except OnlySellerCanModifyDealError:
+        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+    if not entry:
+        raise HTTPException(status_code=404, detail="Deal not found or access denied")
+    return ClosingDocumentResponse(
+        type=entry["type"],
+        number=entry["number"],
+        date=entry["date"],
+        name=entry["name"],
+    )
 
 
 @router.post(

@@ -287,10 +287,10 @@ export const useDeals = (options?: { role?: DealsLoadRole }) => {
 	 */
 	const createBill = (
 		dealId: number,
-		options?: { date?: string; fillFromDeal?: boolean },
+		options?: { date?: string; fillFromDeal?: boolean; replace?: boolean },
 	): Promise<{ bill_number: string; bill_date: string } | undefined> => {
 		const { createBill: createBillMutation } = useCreateBillQuery()
-		return createBillMutation(dealId, options?.date, options?.fillFromDeal)
+		return createBillMutation(dealId, options)
 	}
 
 	/**

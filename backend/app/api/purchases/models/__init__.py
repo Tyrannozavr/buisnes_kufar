@@ -111,6 +111,7 @@ class Order(Base):
 	# Закрывающие и прочие документы (пока пустые)
 	closing_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Закрывающие документы
 	others_documents: Mapped[Optional[list]] = mapped_column(JSON)  # Прочие документы
+	transport_contract: Mapped[Optional[dict]] = mapped_column(JSON)  # Договор перевозки (MVP §8.5)
 	
 	# Дополнительная информация
 	comments: Mapped[Optional[str]] = mapped_column(Text)

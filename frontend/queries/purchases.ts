@@ -79,11 +79,13 @@ export const useCreateBillQuery = defineMutation(() => {
 		mutation: ({
 			dealId,
 			date,
+			replace,
 		}: {
 			dealId: number
 			date?: string
 			fillFromDeal?: boolean
-		}) => usePurchasesApi().createBill(dealId, date),
+			replace?: boolean
+		}) => usePurchasesApi().createBill(dealId, date, replace ? { replace: true } : undefined),
 		onMutate: async ({ dealId, fillFromDeal }) => {
 			if (!fillFromDeal) {
 				markBillAwaitingFill(dealId)
@@ -117,9 +119,13 @@ export const useCreateBillQuery = defineMutation(() => {
 		...mutation,
 		createBill: (
 			dealId: number,
-			date?: string,
-			fillFromDeal?: boolean,
-		) => mutateAsync({ dealId, date, fillFromDeal }),
+			options?: { date?: string; fillFromDeal?: boolean; replace?: boolean },
+		) => mutateAsync({
+			dealId,
+			date: options?.date,
+			fillFromDeal: options?.fillFromDeal,
+			replace: options?.replace,
+		}),
 	}
 })
 

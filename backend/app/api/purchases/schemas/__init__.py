@@ -602,6 +602,7 @@ class DealResponse(BaseModel):
     supply_contract_date: Optional[datetime] = None
     closing_documents: List[Any] = Field(default_factory=list, description="Закрывающие документы (пока пустой список)")
     others_documents: List[Any] = Field(default_factory=list, description="Прочие документы (пока пустой список)")
+    transport_contract: Optional[dict] = Field(None, description="Договор перевозки (MVP §8.5)")
     created_at: datetime
     updated_at: datetime
 
@@ -697,6 +698,7 @@ class DealListResponse(BaseModel):
 class DocumentNumberDateRequest(BaseModel):
     """Опциональная дата для генерации номера документа."""
     date: Optional[datetime] = Field(None, description="Дата документа (если не указана — текущая дата)")
+    replace: bool = Field(False, description="Заменить существующий документ (сброс + новый бланк)")
 
     class Config:
         from_attributes = True
@@ -704,8 +706,46 @@ class DocumentNumberDateRequest(BaseModel):
             "examples": [
                 {},
                 {"date": "2026-02-11T12:00:00"},
+                {"replace": True},
             ]
         }
+
+
+class TransportContractAssignRequest(BaseModel):
+    """Привязка договора транспортной экспедиции к сделке (MVP §8.5)."""
+    number: Optional[str] = Field(None, max_length=20, description="Номер договора")
+    date: Optional[datetime] = Field(None, description="Дата договора")
+
+    class Config:
+        from_attributes = True
+
+
+class TransportContractResponse(BaseModel):
+    number: str
+    date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ClosingDocumentAssignRequest(BaseModel):
+    """Создание записи закрывающего документа (MVP §8.6)."""
+    doc_type: str = Field(default="UPD", description="Тип документа (UPD и т.п.)")
+    number: Optional[str] = Field(None, max_length=32)
+    date: Optional[datetime] = Field(None)
+
+    class Config:
+        from_attributes = True
+
+
+class ClosingDocumentResponse(BaseModel):
+    type: str
+    number: str
+    date: str
+    name: str
+
+    class Config:
+        from_attributes = True
 
 
 class BillResponse(BaseModel):

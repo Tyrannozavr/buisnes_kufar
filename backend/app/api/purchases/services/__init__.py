@@ -55,6 +55,7 @@ _SELLER_DOCUMENT_FIELDS = frozenset({
 	"supply_contract",
 	"closing_documents",
 	"others_documents",
+	"transport_contract",
 	"contract_date",
 	"bill_date",
 	"supply_contract_date",
@@ -337,11 +338,21 @@ class DealService:
 			logger.exception("Error deleting document from deal %s: %s", deal_id, e)
 			raise
 
-	async def assign_bill(self, deal_id: int, company_id: int, date=None):
+	async def assign_bill(self, deal_id: int, company_id: int, date=None, *, replace: bool = False):
 		"""Генерация и присвоение номера и даты счета."""
 		if not await self._ensure_seller_on_deal(deal_id, company_id):
 			return None
-		return await self.repository.assign_bill(deal_id, company_id, date)
+		return await self.repository.assign_bill(deal_id, company_id, date, replace=replace)
+
+	async def assign_transport_contract(self, deal_id: int, company_id: int, date=None, number=None):
+		if not await self._ensure_seller_on_deal(deal_id, company_id):
+			return None
+		return await self.repository.assign_transport_contract(deal_id, company_id, date, number)
+
+	async def append_closing_document(self, deal_id: int, company_id: int, doc_type="UPD", number=None, date=None):
+		if not await self._ensure_seller_on_deal(deal_id, company_id):
+			return None
+		return await self.repository.append_closing_document(deal_id, company_id, doc_type, number, date)
 
 	async def assign_contract(self, deal_id: int, company_id: int, date=None):
 		"""Генерация и присвоение номера и даты договора."""
@@ -534,6 +545,7 @@ class DealService:
 				supply_contract_date=order.supply_contracts_date,
 				closing_documents=closing_docs,
 				others_documents=others_docs,
+				transport_contract=getattr(order, "transport_contract", None),
 				created_at=order.created_at,
 				updated_at=order.updated_at,
 				role=role or DealRole.BUYER,

@@ -86,68 +86,7 @@
 		</template>
 	</UModal>
 
-	<UModal v-model:open="isNoContractModalOpen" title="Создать счёт">
-		<template #body>
-			<div class="flex flex-col gap-3">
-				<p class="text-sm text-gray-600">
-					С данным контрагентом нет договоров. Создать счёт без основания?
-				</p>
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<UButton
-						label="Да"
-						color="primary"
-						class="w-full justify-center"
-						:loading="isCreateBillBusy"
-						:disabled="isCreateBillBusy"
-						@click="confirmCreateWithoutContract"
-					/>
-					<UButton
-						label="Нет"
-						color="neutral"
-						variant="subtle"
-						class="w-full justify-center"
-						:disabled="isCreateBillBusy"
-						@click="cancelCreateBillDialogs"
-					/>
-				</div>
-			</div>
-		</template>
-	</UModal>
-
-	<UModal v-model:open="isContractSelectModalOpen" title="Создать счёт">
-		<template #body>
-			<div class="flex flex-col gap-3">
-				<p class="text-sm text-gray-600">
-					Выберите договор с данным покупателем или создайте счёт без основания.
-				</p>
-				<USelect
-					:disabled="isCreateBillBusy"
-					:items="contractSelectItems"
-					:model-value="selectedContractValue"
-					placeholder="Выберите договор"
-					@update:model-value="(value: string) => { selectedContractValue = value }"
-				/>
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<UButton
-						label="Создать счёт"
-						color="primary"
-						class="w-full justify-center"
-						:loading="isCreateBillBusy"
-						:disabled="isCreateBillBusy || !selectedContractValue"
-						@click="confirmCreateWithSelectedContract"
-					/>
-					<UButton
-						label="Отмена"
-						color="neutral"
-						variant="subtle"
-						class="w-full justify-center"
-						:disabled="isCreateBillBusy"
-						@click="cancelCreateBillDialogs"
-					/>
-				</div>
-			</div>
-		</template>
-	</UModal>
+	<CreateBillFromSalesDialogs />
 </template>
 
 <script setup lang="ts">
@@ -163,6 +102,7 @@ import { usePurchasesApi } from "~/api/purchases";
 import { Editor } from "~/constants/keys";
 import { useBillFillState } from "~/composables/useBillFillState";
 import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales";
+import CreateBillFromSalesDialogs from "~/components/EditorMenu/CreateBillFromSalesDialogs.vue";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
 const { type, dealFilter = 'Товары' } = defineProps<{
@@ -195,15 +135,7 @@ const { deals, findDealByDealNumber, findDeal, getDeals, isBuyerDealsLoading, is
 getDeals()
 const { clearBillAwaitingFill } = useBillFillState()
 const {
-	isNoContractModalOpen,
-	isContractSelectModalOpen,
-	contractSelectItems,
-	selectedContractValue,
-	isBusy: isCreateBillBusy,
 	startCreateBill,
-	confirmCreateWithoutContract,
-	confirmCreateWithSelectedContract,
-	cancelDialogs: cancelCreateBillDialogs,
 } = useCreateBillFromSales()
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))

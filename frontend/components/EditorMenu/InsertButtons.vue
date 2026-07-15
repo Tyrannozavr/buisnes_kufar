@@ -14,23 +14,31 @@ const { billAwaitingFill, clearBillAwaitingFill } = useBillFillState()
 const confirmOpen = ref(false)
 
 const canFill = computed(() => Boolean(route.query.dealId && route.query.role))
+const isBuyer = computed(() => route.query.role === 'buyer')
 
 /** Продавец сразу в режиме редактирования — кнопка должна быть доступна для пустого счёта и заказа. */
 const isFillDisabled = computed(() => {
-	if (!canFill.value || isHiddenForBuyer.value) return true
+	if (!canFill.value || isBuyer.value) return true
 	if (activeTab.value === '1') {
 		return !(billAwaitingFill.value || isDisabled.value)
 	}
 	return !(isDisabled.value || route.query.role === 'seller')
 })
 
-const isHiddenForBuyer = computed(() => {
-	if (route.query.role !== "buyer") return false
-	return activeTab.value !== "0"
+const fillTooltip = computed(() => {
+	if (!isFillDisabled.value) return ''
+	if (isBuyer.value) {
+		return 'Заполнить данными может только поставщик'
+	}
+	if (!canFill.value) return 'Сделка не выбрана'
+	if (activeTab.value === '1') {
+		return 'Кнопка нужна после «Создать счет» (только номер и дата) или в режиме просмотра — подставит данные сделки в бланк'
+	}
+	return 'Перейдите в режим просмотра, чтобы подставить данные текущей сделки'
 })
 
 const openConfirm = () => {
-	if (isHiddenForBuyer.value) return
+	if (isBuyer.value) return
 
 	if (!canFill.value) {
 		toast.add({ title: 'Сделка не выбрана', color: 'warning' })
@@ -72,13 +80,20 @@ const applyFill = () => {
 
 <template>
 	<div class="w-full">
-		<UButton
-			label="Заполнить данными"
-			icon="i-lucide-file-input"
-			class="w-full justify-center"
-			:disabled="isFillDisabled"
-			@click="openConfirm"
-		/>
+		<UTooltip :text="fillTooltip" :disabled="!fillTooltip">
+			<span
+				class="block w-full"
+				:class="{ 'cursor-not-allowed': Boolean(fillTooltip) }"
+			>
+				<UButton
+					label="Заполнить данными"
+					icon="i-lucide-file-input"
+					class="w-full justify-center"
+					:disabled="isFillDisabled"
+					@click="openConfirm"
+				/>
+			</span>
+		</UTooltip>
 
 		<UModal v-model:open="confirmOpen" title="Данные будут изменены. Продолжить?">
 			<template #body>

@@ -4,11 +4,20 @@ import { useBillFillState } from "~/composables/useBillFillState"
 import { usePurchasesApi } from "~/api/purchases"
 import { formatDocumentLinkLabel, normalizeDate } from "~/utils/normalize"
 import type { CompanyContractItem } from "~/types/companyContract"
+import { Editor } from "~/constants/keys"
 
 const WITHOUT_CONTRACT_VALUE = "__without_contract__"
 
+/** Общий state — модалки на таблице Продажи и во вкладке «Счет» редактора. */
+const isNoContractModalOpen = ref(false)
+const isContractSelectModalOpen = ref(false)
+const pendingDealNumber = ref("")
+const contractOptions = ref<CompanyContractItem[]>([])
+const selectedContractValue = ref<string | undefined>()
+const isBusy = ref(false)
+
 /**
- * Диалог «Создать счет» из таблицы Продажи (§3.1).
+ * Диалог «Создать счет» из таблицы Продажи / вкладки «Счет» (§3.1).
  */
 export function useCreateBillFromSales() {
 	const router = useRouter()
@@ -16,19 +25,15 @@ export function useCreateBillFromSales() {
 	const purchasesApi = usePurchasesApi()
 	const {
 		createBill,
+		findDeal,
 		findDealByDealNumber,
 		editBillReason,
 		editContractBinding,
 		updateDeal,
 	} = useDeals()
 	const { markBillAwaitingFill } = useBillFillState()
-
-	const isNoContractModalOpen = ref(false)
-	const isContractSelectModalOpen = ref(false)
-	const pendingDealNumber = ref("")
-	const contractOptions = ref<CompanyContractItem[]>([])
-	const selectedContractValue = ref<string | undefined>()
-	const isBusy = ref(false)
+	const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
+	const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
 
 	const contractSelectItems = computed(() => [
 		...contractOptions.value.map((contract) => ({
@@ -45,7 +50,10 @@ export function useCreateBillFromSales() {
 
 	const navigateToNewBill = async (dealId: number) => {
 		markBillAwaitingFill(dealId)
-		await router.push({
+		updateDeal(dealId)
+		activeTab.value = "1"
+		loadDealTrigger.value++
+		await router.replace({
 			path: "/profile/editor",
 			query: {
 				dealId: dealId.toString(),
@@ -75,7 +83,7 @@ export function useCreateBillFromSales() {
 				title: "Счёт создан",
 				description: basis
 					? "Основание заполнено из выбранного договора"
-					: "Номер и дата присвоены",
+					: "Номер и дата присвоены. Нажмите «Заполнить данными».",
 				color: "success",
 			})
 		} catch {
@@ -129,6 +137,19 @@ export function useCreateBillFromSales() {
 		} finally {
 			isBusy.value = false
 		}
+	}
+
+	const startCreateBillByDealId = async (dealId: number) => {
+		const deal = findDeal(dealId)
+		const dealNumber = deal?.sellerOrderNumber?.trim()
+		if (!dealNumber) {
+			toast.add({
+				title: "Не удалось определить номер заказа",
+				color: "error",
+			})
+			return
+		}
+		await startCreateBill(dealNumber)
 	}
 
 	const confirmCreateWithoutContract = async () => {
@@ -185,6 +206,7 @@ export function useCreateBillFromSales() {
 		selectedContractValue,
 		isBusy,
 		startCreateBill,
+		startCreateBillByDealId,
 		confirmCreateWithoutContract,
 		confirmCreateWithSelectedContract,
 		cancelDialogs,

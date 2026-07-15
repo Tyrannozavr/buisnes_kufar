@@ -2,14 +2,29 @@
 
 Базовые аккаунты счёта остаются ([../schet/test-users.md](../schet/test-users.md)).
 
-## Дополнительно (seed этапа 5)
+## Все аккаунты приёмки
 
-| Роль | Email | Пароль | Торговая деятельность |
-|------|-------|--------|------------------------|
-| Перевозчик | `carrier@gmail.com` | `123456` | Перевозчик |
-| Экспедитор | `forwarder@gmail.com` | `123456` | Экспедитор |
+| Роль | Email | Пароль | Компания |
+|------|-------|--------|----------|
+| Поставщик | `seller@gmail.com` | `123456` | ООО Поставщик Тест |
+| Покупатель | `buyer@gmail.com` | `123456` | ООО Покупатель Тест |
+| Перевозчик | `carrier@gmail.com` | `123456` | ООО Перевозчик Тест |
+| Экспедитор | `forwarder@gmail.com` | `123456` | ООО Экспедитор Тест |
+
+## Seed на новом ПК
 
 ```bash
+# 1) поднять стек
+docker compose -f docker-compose.dev.yml up -d
+
+# 2) миграции + пользователи + сделки (idempotent)
+bash scripts/seed_acceptance_users.sh
+```
+
+Эквивалент без обёртки:
+
+```bash
+docker compose -f docker-compose.dev.yml exec backend poetry run alembic upgrade head
 docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/ensure_schet_test_users.py
 ```
 

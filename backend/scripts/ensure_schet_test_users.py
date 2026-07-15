@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """
-Тестовые пользователи и сделки для проверки счёта (этапы 1–2).
+Тестовые пользователи и сделки для приёмки (счёт + ТЗ_15 этапы 5–8).
 
-Запуск (dev Docker):
-  docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/ensure_schet_test_users.py
+Создаёт / обновляет (идемпотентно):
+  seller@gmail.com, buyer@gmail.com, carrier@gmail.com, forwarder@gmail.com
+  + компании, связи, договоры, сделки, fill-адреса, ОКЕИ. Пароль: 123456.
+
+Запуск на новом ПК (рекомендуется обёртка):
+  bash scripts/seed_acceptance_users.sh
+
+Или напрямую:
+  docker compose -f docker-compose.dev.yml exec backend \\
+    poetry run python scripts/ensure_schet_test_users.py
 """
 from __future__ import annotations
 

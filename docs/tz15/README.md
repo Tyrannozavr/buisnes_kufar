@@ -22,7 +22,16 @@
 | **7** | 20k | Данные заполнения (адреса) · вес товара · «Заполнить данными» без проверок | ✅ [etap-07](etap-07-company-fill-product.md) |
 | **8** | 20k | Таблица «Продажи» по ТЗ_15 · диалоги «Создать документ» · перевозка MVP | ✅ [etap-08](etap-08-sales-table-dialogs.md) |
 
-**Пакет TZ15 (5–8) закрыт.** Мастер-чеклист: [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md)
+**Пакет TZ15 (5–8) закрыт.** Мастер-чеклист: [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md) ✅
+
+## Новый ПК — seed для приёмки
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+bash scripts/seed_acceptance_users.sh
+```
+
+Создаёт `seller` / `buyer` / `carrier` / `forwarder` (+ сделки, договоры). Пароль: `123456`. Подробнее: [test-users.md](test-users.md).
 
 ## Справочники
 

@@ -17,7 +17,7 @@ def _build_company_payload(suffix: str, inn_seed: int) -> dict:
         "name": f"Test Company {suffix}",
         "slug": f"test-company-{suffix}",
         "type": "ООО",
-        "trade_activity": TradeActivity.BOTH,
+        "trade_activity": TradeActivity.SELLER,
         "business_type": BusinessType.BOTH,
         "activity_type": "Тестовая деятельность",
         "description": "Интеграционный тест",

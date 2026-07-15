@@ -5,7 +5,10 @@ from logging.handlers import TimedRotatingFileHandler
 
 log_directory = "logging"
 if not os.path.exists(log_directory):
-    os.makedirs(log_directory)
+    try:
+        os.makedirs(log_directory)
+    except OSError:
+        pass
 
 
 class _ExcludeErrorLevelsFilter(logging.Filter):
@@ -15,44 +18,41 @@ class _ExcludeErrorLevelsFilter(logging.Filter):
         return record.levelno < logging.ERROR
 
 
-# Настройка логирования
 logger = logging.getLogger("my_logger")
 logger.setLevel(logging.DEBUG)
 
-# Базовые имена; после ротации к имени добавляется суффикс даты (когда=midnight)
 general_log_path = os.path.join(log_directory, "app.log")
 error_log_path = os.path.join(log_directory, "app_error.log")
 
-# Общий лог: без ERROR/CRITICAL (ротация каждый день в полночь)
-general_file_handler = TimedRotatingFileHandler(
-    filename=general_log_path,
-    when="midnight",
-    interval=1,
-    backupCount=7,
-    encoding="utf-8",
-)
-# Как раньше: в общий файл не пишем DEBUG (только консоль)
-general_file_handler.setLevel(logging.INFO)
-general_file_handler.addFilter(_ExcludeErrorLevelsFilter())
-
-# Только ошибки: ERROR, CRITICAL (в т.ч. traceback из logger.exception)
-error_file_handler = TimedRotatingFileHandler(
-    filename=error_log_path,
-    when="midnight",
-    interval=1,
-    backupCount=7,
-    encoding="utf-8",
-)
-error_file_handler.setLevel(logging.ERROR)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-general_file_handler.setFormatter(formatter)
-error_file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
-
-logger.addHandler(general_file_handler)
-logger.addHandler(error_file_handler)
 logger.addHandler(console_handler)
+
+try:
+    general_file_handler = TimedRotatingFileHandler(
+        filename=general_log_path,
+        when="midnight",
+        interval=1,
+        backupCount=7,
+        encoding="utf-8",
+    )
+    general_file_handler.setLevel(logging.INFO)
+    general_file_handler.addFilter(_ExcludeErrorLevelsFilter())
+    general_file_handler.setFormatter(formatter)
+    logger.addHandler(general_file_handler)
+
+    error_file_handler = TimedRotatingFileHandler(
+        filename=error_log_path,
+        when="midnight",
+        interval=1,
+        backupCount=7,
+        encoding="utf-8",
+    )
+    error_file_handler.setLevel(logging.ERROR)
+    error_file_handler.setFormatter(formatter)
+    logger.addHandler(error_file_handler)
+except OSError as e:
+    print(f"logging: cannot open {log_directory}/*.log: {e}; console only", file=sys.stderr)

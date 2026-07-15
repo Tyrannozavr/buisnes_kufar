@@ -220,7 +220,7 @@ async def search_companies_with_filters(
         CompaniesResponse: Список компаний с пагинацией
     """
     from sqlalchemy import select, func, and_, or_
-    from app.api.company.models.company import Company, BusinessType
+    from app.api.company.models.company import Company, BusinessType, TradeActivity
     from sqlalchemy.orm import selectinload
     
     # Базовые условия
@@ -239,7 +239,7 @@ async def search_companies_with_filters(
         if city_names:
             conditions.append(Company.city.in_(city_names))
     
-    # Фильтр по типу бизнеса
+    # Фильтр по типу бизнеса (legacy)
     if filter_request.business_type == "goods":
         conditions.append(or_(
             Company.business_type == BusinessType.GOODS,
@@ -251,8 +251,22 @@ async def search_companies_with_filters(
             Company.business_type == BusinessType.BOTH
         ))
     
-    # Фильтр по торговой активности
-    # TODO: реализовать при необходимости
+    # Фильтр по торговой деятельности (ТЗ_15 §5.2)
+    ta = (filter_request.trade_activity or "").strip().lower()
+    if ta in ("producer", "производитель"):
+        conditions.append(Company.trade_activity == TradeActivity.PRODUCER)
+    elif ta in ("seller", "продавец"):
+        conditions.append(Company.trade_activity == TradeActivity.SELLER)
+    elif ta in ("carrier", "перевозчик"):
+        conditions.append(Company.trade_activity == TradeActivity.CARRIER)
+    elif ta in ("forwarder", "экспедитор"):
+        conditions.append(Company.trade_activity == TradeActivity.FORWARDER)
+    elif ta in ("carriers", "перевозчики", "logistics"):
+        conditions.append(
+            Company.trade_activity.in_(
+                [TradeActivity.CARRIER, TradeActivity.FORWARDER]
+            )
+        )
     
     # Базовый запрос
     base_query = select(Company).options(
@@ -292,16 +306,10 @@ async def search_product_companies_with_filters(
         companies_repository: companies_repository_dep = None
 ):
     """
-    POST endpoint для поиска производителей товаров с фильтрацией
-    
-    Args:
-        filter_request: Параметры фильтрации компаний
-        
-    Returns:
-        CompaniesResponse: Список компаний производящих товары с пагинацией
+    POST: каталог «Производители» — компании с trade_activity = Производитель.
     """
-    # Устанавливаем business_type = "goods" по умолчанию
-    filter_request.business_type = filter_request.business_type or "goods"
+    filter_request.trade_activity = filter_request.trade_activity or "producer"
+    filter_request.business_type = None
     return await search_companies_with_filters(filter_request, companies_repository)
 
 
@@ -311,16 +319,10 @@ async def search_service_companies_with_filters(
         companies_repository: companies_repository_dep = None
 ):
     """
-    POST endpoint для поиска поставщиков услуг с фильтрацией
-    
-    Args:
-        filter_request: Параметры фильтрации компаний
-        
-    Returns:
-        CompaniesResponse: Список компаний оказывающих услуги с пагинацией
+    POST: каталог «Перевозчики» — Перевозчик и Экспедитор.
     """
-    # Устанавливаем business_type = "services" по умолчанию
-    filter_request.business_type = filter_request.business_type or "services"
+    filter_request.trade_activity = filter_request.trade_activity or "logistics"
+    filter_request.business_type = None
     return await search_companies_with_filters(filter_request, companies_repository)
 
 

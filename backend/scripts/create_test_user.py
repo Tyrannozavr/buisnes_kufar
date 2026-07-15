@@ -43,7 +43,7 @@ async def main():
             name=TEST_COMPANY_NAME,
             slug=TEST_SLUG,
             type="ООО",
-            trade_activity=TradeActivity.BOTH,
+            trade_activity=TradeActivity.SELLER,
             business_type=BusinessType.BOTH,
             activity_type="Деятельность не указана",
             country="RU",

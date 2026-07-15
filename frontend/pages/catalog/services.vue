@@ -5,6 +5,6 @@ import CatalogView from "~/components/catalog/CatalogView.vue";
 <template>
   <CatalogView
     type="services"
-    title="Каталог услуг"
+    title="Продавцы"
   />
 </template>

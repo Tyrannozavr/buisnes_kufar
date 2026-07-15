@@ -3,7 +3,7 @@ import {searchManufacturersSSR} from "~/api";
 import CustomPagination from "~/components/ui/CustomPagination.vue";
 
 const route = useRoute()
-const title = 'Производители товаров'
+const title = 'Производители'
 
 // Success message handling
 const showSuccessMessage = ref(false)

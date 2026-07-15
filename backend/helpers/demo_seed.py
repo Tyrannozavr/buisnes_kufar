@@ -97,7 +97,7 @@ class DemoSeeder(DatabaseSeeder):
                 slug=f"demo-company-{i}",
                 logo=None,
                 type="ООО",
-                trade_activity=TradeActivity.BOTH,
+                trade_activity=TradeActivity.SELLER,
                 business_type=BusinessType.BOTH,
                 activity_type=company_data["activity"],
                 description=company_data["description"],

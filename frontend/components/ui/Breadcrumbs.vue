@@ -22,7 +22,12 @@ function getLabel(path: string): string {
     'profile': 'Профиль',
     'announcements': 'Объявления',
     'products': 'Продукция',
-    'partners': 'Партнеры',
+    'partners': 'Контрагенты',
+    'counterparties': 'Контрагенты',
+    'carriers': 'Перевозчики',
+    'shipments': 'Перевозки',
+    'shipment-requests': 'Заявки',
+    'shipment-favorites': 'Избранное',
     'suppliers': 'Поставщики',
     'buyers': 'Покупатели',
     'documents': 'Документы',
@@ -32,6 +37,11 @@ function getLabel(path: string): string {
     'auth': 'Авторизация',
     'create': 'Создание',
     'editor': 'Редактор документов',
+    'transport': 'Транспорт',
+    'drivers': 'Водители',
+    'shipments': 'Перевозки',
+    'shipment-requests': 'Заявки',
+    'shipment-favorites': 'Избранное',
   }
 
   return labels[path] || path

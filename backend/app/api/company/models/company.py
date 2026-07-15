@@ -9,9 +9,20 @@ from app.db.base_class import Base
 
 
 class TradeActivity(str, enum.Enum):
-    BUYER = "Покупатель"
+    """Торговая деятельность компании (каталоги / меню ЛК). Не путать с ролью в сделке."""
+
+    PRODUCER = "Производитель"
     SELLER = "Продавец"
-    BOTH = "Покупатель и продавец"
+    CARRIER = "Перевозчик"
+    FORWARDER = "Экспедитор"
+
+    @classmethod
+    def logistics_only(cls) -> frozenset["TradeActivity"]:
+        return frozenset({cls.CARRIER, cls.FORWARDER})
+
+    @property
+    def is_logistics_only(self) -> bool:
+        return self in TradeActivity.logistics_only()
 
 
 class BusinessType(str, enum.Enum):
@@ -117,6 +128,7 @@ class CompanyRelationType(str, enum.Enum):
     SUPPLIER = "supplier"
     BUYER = "buyer"
     PARTNER = "partner"
+    CARRIER = "carrier"
 
 
 class CompanyRelation(Base):

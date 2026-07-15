@@ -21,7 +21,7 @@ def _company_payload(suffix: str, inn_seed: int) -> dict:
 		"name": f"BillType Co {suffix}",
 		"slug": f"bill-type-co-{suffix}",
 		"type": "ООО",
-		"trade_activity": TradeActivity.BOTH,
+		"trade_activity": TradeActivity.SELLER,
 		"business_type": BusinessType.BOTH,
 		"activity_type": "Тест",
 		"description": "Тест",

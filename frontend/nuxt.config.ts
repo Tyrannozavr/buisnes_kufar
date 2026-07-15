@@ -36,7 +36,8 @@ export default defineNuxtConfig({
       '/api/**': { 
         headers: { 'cache-control': 's-maxage=60' },
         cors: true
-      }
+      },
+      '/profile/documents': { ssr: false },
     }
   },
   // Add explicit colorMode configuration

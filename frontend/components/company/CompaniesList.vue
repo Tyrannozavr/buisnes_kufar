@@ -2,12 +2,13 @@
 import type { PartnerCompany } from '~/types/company'
 import CompanyCard from './CompanyCard.vue'
 
-type CompanyType = 'partner' | 'supplier' | 'buyer'
+type CompanyType = 'partner' | 'supplier' | 'buyer' | 'carrier' | 'counterparty'
 
-defineProps<{
+const props = defineProps<{
   companies: PartnerCompany[]
   loading?: boolean
   type: CompanyType
+  showContractsLink?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -18,10 +19,12 @@ const handleRemove = (company: PartnerCompany) => {
   emit('remove', company)
 }
 
-const emptyMessages = {
-  partner: 'У вас пока нет партнеров',
+const emptyMessages: Record<CompanyType, string> = {
+  partner: 'У вас пока нет контрагентов',
+  counterparty: 'У вас пока нет контрагентов',
   supplier: 'У вас пока нет поставщиков',
-  buyer: 'У вас пока нет покупателей'
+  buyer: 'У вас пока нет покупателей',
+  carrier: 'У вас пока нет перевозчиков',
 }
 </script>
 
@@ -41,6 +44,7 @@ const emptyMessages = {
           v-for="company in companies"
           :key="company.slug"
           :partner="company"
+          :show-contracts-link="props.showContractsLink !== false && (type === 'partner' || type === 'counterparty')"
           @remove="handleRemove"
         />
       </div>

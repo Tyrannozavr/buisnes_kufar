@@ -67,7 +67,7 @@ async def main() -> None:
             name=COMPANY_NAME,
             slug=slug,
             type="ООО",
-            trade_activity=TradeActivity.BOTH,
+            trade_activity=TradeActivity.SELLER,
             business_type=BusinessType.BOTH,
             activity_type="Администрирование",
             country="Российская Федерация",

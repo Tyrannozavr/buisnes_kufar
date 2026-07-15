@@ -50,7 +50,7 @@ async def test_user_and_company(db_session: AsyncSession):
         name="Тестовая компания",
         slug=slug,
         type="ООО",
-        trade_activity=TradeActivity.BUYER,
+        trade_activity=TradeActivity.SELLER,
         business_type=BusinessType.GOODS,
         activity_type="Тестовая деятельность",
         description="Описание тестовой компании",

@@ -99,7 +99,7 @@ BUYER_COMPANY = {
     "ogrn": "1027700132196",
     "kpp": "770701002",
     "type": "ООО",
-    "trade_activity": TradeActivity.BUYER,
+    "trade_activity": TradeActivity.SELLER,
     "business_type": BusinessType.GOODS,
     "activity_type": "Торговля",
     "description": "Тестовый покупатель (buyer@gmail.com) — этап 2",
@@ -123,7 +123,7 @@ BUYER_NO_CONTRACT_COMPANY = {
     "ogrn": "1027700132197",
     "kpp": "770701003",
     "type": "ООО",
-    "trade_activity": TradeActivity.BUYER,
+    "trade_activity": TradeActivity.SELLER,
     "business_type": BusinessType.GOODS,
     "activity_type": "Торговля",
     "description": "Покупатель без договоров с поставщиком — этап 3.1",
@@ -137,6 +137,71 @@ BUYER_NO_CONTRACT_COMPANY = {
     "phone": "+79001234003",
     "email": "buyer-no-contract@gmail.com",
     "vat_rate": 0,
+}
+
+# --- ТЗ_15 §5.6: перевозчик / экспедитор ---
+CARRIER_USER = {
+    "email": "carrier@gmail.com",
+    "first_name": "Игорь",
+    "last_name": "Перевозчик",
+    "patronymic": "Сергеевич",
+    "phone": "79001234011",
+}
+
+FORWARDER_USER = {
+    "email": "forwarder@gmail.com",
+    "first_name": "Ольга",
+    "last_name": "Экспедитор",
+    "patronymic": "Николаевна",
+    "phone": "79001234012",
+}
+
+CARRIER_COMPANY = {
+    "name": "ООО Перевозчик Тест",
+    "slug": "test-carrier-tz15",
+    "full_name": "Общество с ограниченной ответственностью «Перевозчик Тест»",
+    "inn": "7707083911",
+    "ogrn": "1027700132211",
+    "kpp": "770701011",
+    "type": "ООО",
+    "trade_activity": TradeActivity.CARRIER,
+    "business_type": BusinessType.SERVICES,
+    "activity_type": "Автоперевозки",
+    "description": "Тестовый перевозчик (carrier@gmail.com) — ТЗ_15 этап 5",
+    "country": "Россия",
+    "federal_district": "Центральный федеральный округ",
+    "region": "Москва",
+    "city": "Москва",
+    "index": "109020",
+    "legal_address": "109020, г. Москва, ул. Транспортная, д. 1",
+    "production_address": "109020, г. Москва, ул. Транспортная, д. 1",
+    "phone": "+79001234011",
+    "email": "carrier@gmail.com",
+    "vat_rate": 20,
+}
+
+FORWARDER_COMPANY = {
+    "name": "ООО Экспедитор Тест",
+    "slug": "test-forwarder-tz15",
+    "full_name": "Общество с ограниченной ответственностью «Экспедитор Тест»",
+    "inn": "7707083912",
+    "ogrn": "1027700132212",
+    "kpp": "770701012",
+    "type": "ООО",
+    "trade_activity": TradeActivity.FORWARDER,
+    "business_type": BusinessType.SERVICES,
+    "activity_type": "Экспедирование грузов",
+    "description": "Тестовый экспедитор (forwarder@gmail.com) — ТЗ_15 этап 5",
+    "country": "Россия",
+    "federal_district": "Центральный федеральный округ",
+    "region": "Москва",
+    "city": "Москва",
+    "index": "109021",
+    "legal_address": "109021, г. Москва, ул. Логистическая, д. 2",
+    "production_address": "109021, г. Москва, ул. Логистическая, д. 2",
+    "phone": "+79001234012",
+    "email": "forwarder@gmail.com",
+    "vat_rate": 20,
 }
 
 SELLER_OFFICIAL = {
@@ -514,27 +579,29 @@ async def ensure_company_relations(
     seller_company_id: int,
     buyer_company_id: int,
     buyer_no_contract_id: int,
+    carrier_company_id: int | None = None,
 ) -> None:
     repo = CompanyRelationsRepository(session)
     pairs = [
         (buyer_company_id, CompanyRelationType.BUYER),
+        (buyer_company_id, CompanyRelationType.PARTNER),
         (buyer_no_contract_id, CompanyRelationType.BUYER),
+        (buyer_no_contract_id, CompanyRelationType.PARTNER),
     ]
-    for related_id, relation_type in pairs:
-        existing = await repo.get_relations(seller_company_id, relation_type)
-        if any(r.related_company_id == related_id for r in existing):
-            continue
-        await repo.add_relation(
-            seller_company_id,
-            CompanyRelationCreate(
-                related_company_id=related_id,
-                relation_type=relation_type,
-            ),
+    if carrier_company_id:
+        pairs.extend(
+            [
+                (carrier_company_id, CompanyRelationType.CARRIER),
+                (carrier_company_id, CompanyRelationType.PARTNER),
+            ]
         )
+    for related_id, relation_type in pairs:
+        await repo.ensure_relation(seller_company_id, related_id, relation_type)
     await session.commit()
     print(
         f"  company relations: seller={seller_company_id} "
         f"buyers=[{buyer_company_id}, {buyer_no_contract_id}]"
+        + (f" carrier={carrier_company_id}" if carrier_company_id else "")
     )
 
 
@@ -582,14 +649,23 @@ async def main() -> None:
         print("\nПокупатель без договоров (§3.1):")
         buyer_no_contract = await upsert_company(session, BUYER_NO_CONTRACT_COMPANY)
 
+        print("\nПеревозчик (ТЗ_15 §5.6):")
+        carrier_company = await upsert_company(session, CARRIER_COMPANY)
+        await upsert_user(session, CARRIER_USER, carrier_company.id)
+
+        print("\nЭкспедитор (ТЗ_15 §5.6):")
+        forwarder_company = await upsert_company(session, FORWARDER_COMPANY)
+        await upsert_user(session, FORWARDER_USER, forwarder_company.id)
+
         await session.commit()
 
-        print("\nСвязи ЛК (Покупатели):")
+        print("\nСвязи ЛК (Контрагенты / Покупатели / Перевозчики) §6:")
         await ensure_company_relations(
             session,
             seller_company.id,
             buyer_company.id,
             buyer_no_contract.id,
+            carrier_company.id,
         )
 
         print("\nДоговоры ЛК (seller ↔ основной покупатель):")
@@ -695,6 +771,8 @@ async def main() -> None:
     print(f"Пароль для всех тестовых: {TEST_PASSWORD}")
     print(f"Поставщик:  {SELLER_USER['email']}  ({SELLER_COMPANY['name']})")
     print(f"Покупатель: {BUYER_USER['email']}  ({BUYER_COMPANY['name']})")
+    print(f"Перевозчик: {CARRIER_USER['email']}  ({CARRIER_COMPANY['name']})")
+    print(f"Экспедитор: {FORWARDER_USER['email']}  ({FORWARDER_COMPANY['name']})")
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
     print(f"Сделка 2 (§3.1 договоры): id={order_stage31_contracts.id}, заказ {order_stage31_contracts.seller_order_number}")
     print(f"Сделка 3 (§3.1 без договоров): id={order_no_contract.id}, заказ {order_no_contract.seller_order_number}")

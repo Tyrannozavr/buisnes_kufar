@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { PartnerCompany } from '~/types/company'
 import { getFullImageUrl } from '~/types/company'
-import { useCompaniesApi } from '~/api/companies'
 
 const props = defineProps<{
   partner: PartnerCompany
+  /** Показывать «Посмотреть договоры» (список Контрагенты) */
+  showContractsLink?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -12,21 +13,25 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const { deletePartnerById } = useCompaniesApi()
 
 const navigateToCompany = () => {
   router.push(`/companies/${props.partner.slug}`)
 }
 
-const handleDelete = async () => {
-  emit('remove', props.partner)
+const openDocuments = () => {
+  router.push({
+    path: '/profile/documents',
+    query: { counterparty_id: String(props.partner.id) },
+  })
+}
 
+const handleDelete = () => {
+  emit('remove', props.partner)
 }
 </script>
 
 <template>
   <div class="bg-white rounded-lg shadow p-4 flex items-start space-x-4">
-    <!-- Company Logo -->
     <div class="flex-shrink-0">
       <NuxtImg
         :src="getFullImageUrl(partner.logo) || '/images/default-company-logo.png'"
@@ -35,9 +40,8 @@ const handleDelete = async () => {
       />
     </div>
 
-    <!-- Company Info -->
     <div class="flex-grow">
-      <div class="flex justify-between items-start">
+      <div class="flex justify-between items-start gap-3 flex-wrap">
         <div>
           <h3
             class="text-lg font-semibold text-blue-600 cursor-pointer hover:text-blue-800"
@@ -50,7 +54,7 @@ const handleDelete = async () => {
           </p>
           <p class="text-gray-700 mt-1">{{ partner.businessType }}</p>
         </div>
-        <div class="flex space-x-2">
+        <div class="flex flex-wrap gap-2 items-center">
           <MessageButtonBySlug
             :company-slug="partner.slug"
             :company-name="partner.fullName"
@@ -58,14 +62,23 @@ const handleDelete = async () => {
             size="sm"
             custom-text="Написать сообщение"
           />
+          <UButton
+            v-if="showContractsLink !== false"
+            label="Посмотреть договоры"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="openDocuments"
+          />
           <button
+            type="button"
+            class="text-red-600 hover:text-red-800 text-sm font-medium px-2"
             @click="handleDelete"
-            class="text-red-600 hover:text-red-800 text-sm font-medium"
           >
-            Удалить из списка
+            Удалить
           </button>
         </div>
       </div>
     </div>
   </div>
-</template> 
+</template>

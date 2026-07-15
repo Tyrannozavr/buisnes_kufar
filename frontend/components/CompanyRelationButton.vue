@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { getCompanyRelations, addCounterparty, removeCounterparty } from '~/api/company'
+import { CompanyRelationType, isLogisticsTradeActivity, type TradeActivity } from '~/types/company'
 import { useUserStore } from '~/stores/user'
-import { addCompanyRelation, removeCompanyRelation, getCompanyRelations } from '~/api/company'
-import { CompanyRelationType } from '~/types/company'
+import { getMyCompany } from '~/api/companyOwner'
 
 interface Props {
   companyId: number
   companyName?: string
   companySlug?: string
+  /** Торговая деятельность компании на странице (целевая) */
+  targetTradeActivity?: string | null
 }
 
 const props = defineProps<Props>()
@@ -19,92 +21,128 @@ const isOwnCompany = computed(() => {
   return props.companyId === userStore.companyId
 })
 
-const relations = ref<{ [key in CompanyRelationType]?: boolean }>({})
+const viewerIsLogistics = ref(false)
+const linked = ref(false)
 const loading = ref(false)
+const dialogOpen = ref(false)
+const asSupplier = ref(false)
+const asBuyer = ref(true)
 
-const fetchRelations = async () => {
+const targetIsLogistics = computed(() =>
+  isLogisticsTradeActivity(props.targetTradeActivity as TradeActivity | null | undefined),
+)
+
+onMounted(async () => {
   if (!userStore.isAuthenticated || isOwnCompany.value) return
+  try {
+    const me = await getMyCompany()
+    viewerIsLogistics.value = isLogisticsTradeActivity(me?.trade_activity)
+  } catch {
+    viewerIsLogistics.value = false
+  }
+  await fetchLinked()
+})
+
+const fetchLinked = async () => {
   loading.value = true
   try {
-    for (const type of Object.values(CompanyRelationType)) {
-      const { data } = await getCompanyRelations(type as CompanyRelationType)
-      const relationsArr = data?.data ?? data ?? []
-      relations.value[type as CompanyRelationType] = Array.isArray(relationsArr)
-        ? relationsArr.some((rel: any) => rel.related_company_id === props.companyId)
-        : false
-    }
+    const { data } = await getCompanyRelations()
+    const relationsArr = (data?.data ?? data ?? []) as { related_company_id: number }[]
+    linked.value = Array.isArray(relationsArr)
+      ? relationsArr.some((rel) => rel.related_company_id === props.companyId)
+      : false
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchRelations)
+const onPrimaryClick = async () => {
+  if (linked.value) {
+    await handleRemove()
+    return
+  }
+  // Целевая — перевозчик/экспедитор: сразу в Контрагенты + Перевозчики
+  if (targetIsLogistics.value) {
+    await doAdd({ asCarrier: true })
+    return
+  }
+  // Продавец/производитель: диалог ролей (у логистики-viewer без supplier/buyer — только контрагент)
+  if (viewerIsLogistics.value) {
+    await doAdd({})
+    return
+  }
+  dialogOpen.value = true
+  asSupplier.value = false
+  asBuyer.value = true
+}
 
-const handleAdd = async (type: CompanyRelationType) => {
+const confirmDialog = async () => {
+  if (!asSupplier.value && !asBuyer.value) {
+    toast.add({
+      title: 'Выберите роль',
+      description: 'Отметьте «Поставщики» и/или «Покупатели»',
+      color: 'warning',
+    })
+    return
+  }
+  dialogOpen.value = false
+  await doAdd({ asSupplier: asSupplier.value, asBuyer: asBuyer.value })
+}
+
+const doAdd = async (opts: { asSupplier?: boolean; asBuyer?: boolean; asCarrier?: boolean }) => {
   loading.value = true
   try {
-    await addCompanyRelation(props.companyId, type)
-    relations.value[type] = true
-    toast.add({ title: 'Компания добавлена в список', color: 'success' })
-  } catch (e) {
-    toast.add({ title: 'Ошибка при добавлении', color: 'error' })
+    await addCounterparty(props.companyId, opts)
+    linked.value = true
+    toast.add({ title: 'Контрагент добавлен', color: 'success' })
+  } catch {
+    toast.add({ title: 'Не удалось добавить контрагента', color: 'error' })
   } finally {
     loading.value = false
   }
 }
 
-const handleRemove = async (type: CompanyRelationType) => {
+const handleRemove = async () => {
   loading.value = true
   try {
-    await removeCompanyRelation(props.companyId, type)
-    relations.value[type] = false
-    toast.add({ title: 'Компания удалена из списка', color: 'success' })
-  } catch (e) {
+    await removeCounterparty(props.companyId)
+    linked.value = false
+    toast.add({ title: 'Контрагент удалён из списков', color: 'success' })
+  } catch {
     toast.add({ title: 'Ошибка при удалении', color: 'error' })
   } finally {
     loading.value = false
-  }
-}
-
-function relationLabel(type: CompanyRelationType) {
-  switch (type) {
-    case CompanyRelationType.PARTNER:
-      return 'партнеров'
-    case CompanyRelationType.SUPPLIER:
-      return 'поставщиков'
-    case CompanyRelationType.BUYER:
-      return 'покупателей'
-    default:
-      return ''
   }
 }
 </script>
 
 <template>
   <div v-if="userStore.isAuthenticated && !isOwnCompany">
-    <div class="flex gap-2">
-      <template v-for="type in [CompanyRelationType.PARTNER, CompanyRelationType.SUPPLIER, CompanyRelationType.BUYER]" :key="type">
-        <UButton
-          :loading="loading"
-          :color="relations[type] ? 'success' : 'primary'"
-          :variant="relations[type] ? 'soft' : 'solid'"
-          size="md"
-          class="min-w-[180px]"
-          @click="relations[type] ? handleRemove(type) : handleAdd(type)"
-        >
-          {{ relations[type] ? `Удалить из ${relationLabel(type)}` : `Добавить в ${relationLabel(type)}` }}
-        </UButton>
+    <UButton
+      :loading="loading"
+      :color="linked ? 'success' : 'primary'"
+      :variant="linked ? 'soft' : 'solid'"
+      size="md"
+      class="min-w-[200px]"
+      @click="onPrimaryClick"
+    >
+      {{ linked ? 'Удалить контрагента' : 'Добавить контрагента' }}
+    </UButton>
+
+    <UModal v-model:open="dialogOpen" title="Добавить контрагента">
+      <template #body>
+        <div class="flex flex-col gap-3">
+          <p class="text-sm text-neutral-600">
+            Компания попадёт в «Контрагенты». Выберите также списки:
+          </p>
+          <UCheckbox v-model="asSupplier" label="Поставщики" />
+          <UCheckbox v-model="asBuyer" label="Покупатели" />
+          <div class="flex gap-2 mt-2">
+            <UButton label="Отмена" color="neutral" variant="subtle" class="flex-1" @click="dialogOpen = false" />
+            <UButton label="Добавить" color="primary" class="flex-1" :loading="loading" @click="confirmDialog" />
+          </div>
+        </div>
       </template>
-    </div>
+    </UModal>
   </div>
 </template>
-
-<style scoped>
-.flex {
-  display: flex;
-  gap: 0.5rem;
-}
-.min-w-180px {
-  min-width: 180px;
-}
-</style> 

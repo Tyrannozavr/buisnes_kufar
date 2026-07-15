@@ -9,20 +9,20 @@ const activeTab = useTypedState(Editor.ACTIVE_TAB)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const { findDeal } = useDeals()
-const { billAwaitingFill, clearBillAwaitingFill } = useBillFillState()
+const { clearBillAwaitingFill } = useBillFillState()
 
 const confirmOpen = ref(false)
 
 const canFill = computed(() => Boolean(route.query.dealId && route.query.role))
 const isBuyer = computed(() => route.query.role === 'buyer')
 
-/** Продавец сразу в режиме редактирования — кнопка должна быть доступна для пустого счёта и заказа. */
+/**
+ * ТЗ_15 §7.4: не проверяем заполненность полей компании/бланка.
+ * Достаточно сделки и роли продавца — даже при пустых реквизитах.
+ */
 const isFillDisabled = computed(() => {
 	if (!canFill.value || isBuyer.value) return true
-	if (activeTab.value === '1') {
-		return !(billAwaitingFill.value || isDisabled.value)
-	}
-	return !(isDisabled.value || route.query.role === 'seller')
+	return route.query.role !== 'seller'
 })
 
 const fillTooltip = computed(() => {
@@ -31,10 +31,7 @@ const fillTooltip = computed(() => {
 		return 'Заполнить данными может только поставщик'
 	}
 	if (!canFill.value) return 'Сделка не выбрана'
-	if (activeTab.value === '1') {
-		return 'Кнопка нужна после «Создать счет» (только номер и дата) или в режиме просмотра — подставит данные сделки в бланк'
-	}
-	return 'Перейдите в режим просмотра, чтобы подставить данные текущей сделки'
+	return 'Доступно только поставщику по выбранной сделке'
 })
 
 const openConfirm = () => {
@@ -45,6 +42,7 @@ const openConfirm = () => {
 		return
 	}
 
+	// §7.4: не блокируем из‑за пустых реквизитов — подставляем что есть
 	const deal = findDeal(Number(route.query.dealId))
 	if (!deal) {
 		toast.add({ title: 'Сделка не найдена', color: 'warning' })

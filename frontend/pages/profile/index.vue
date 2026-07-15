@@ -11,6 +11,13 @@ const isNewCompany = ref(false)
 
 const userStore = useUserStore()
 
+/** 0 — Данные компании, 1 — Данные заполнения (ТЗ_15 §7.1) */
+const activeTab = ref('0')
+const tabItems = [
+  { label: 'Данные компании' },
+  { label: 'Данные заполнения' },
+]
+
 definePageMeta({
   layout: 'profile'
 })
@@ -205,7 +212,21 @@ onMounted(() => {
 </script>
 <template>
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold text-gray-900 mb-8">Профиль компании</h1>
+    <h1 class="text-2xl font-bold text-gray-900 mb-4">Профиль компании</h1>
+
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      color="primary"
+      variant="pill"
+      :content="false"
+      class="mb-6"
+      :ui="{
+        indicator: 'hidden',
+        trigger:
+          'data-[state=active]:bg-primary-500 data-[state=active]:text-white rounded-md data-[state=inactive]:text-gray-600 hover:data-[state=inactive]:text-gray-900',
+      }"
+    />
 
     <div v-if="error" class="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
       {{ error }}
@@ -215,14 +236,17 @@ onMounted(() => {
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
     </div>
 
-    <CompanyDataForm
-      v-else-if="company"
-      :company="company"
-      :loading="loading"
-      :is-new-company="isNewCompany"
-      @save="handleSave"
-      @logo-upload="handleLogoUpload"
-      @logo-updated="handleLogoUpdated"
-    />
+    <template v-else-if="company">
+      <CompanyDataForm
+        v-if="activeTab === '0'"
+        :company="company"
+        :loading="loading"
+        :is-new-company="isNewCompany"
+        @save="handleSave"
+        @logo-upload="handleLogoUpload"
+        @logo-updated="handleLogoUpdated"
+      />
+      <CompanyFillDataPanel v-else />
+    </template>
   </div>
 </template>

@@ -15,6 +15,8 @@ export interface Product {
   is_deleted: boolean;
   slug: string;
   unit_of_measurement?: string;
+  net_weight?: number | null;
+  gross_weight?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +38,8 @@ export interface ProductResponse {
   is_deleted: boolean;
   slug: string;
   unit_of_measurement?: string;
+  net_weight?: number | null;
+  gross_weight?: number | null;
   created_at: string;
   updated_at: string;
 }

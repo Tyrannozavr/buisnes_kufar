@@ -6,10 +6,12 @@ export interface ProductCreate {
   name: string
   description?: string
   article: string
-  type: 'Товар' | 'Услуга'
+  type?: 'Товар' | 'Услуга'
   price: number
   unit_of_measurement?: string
   is_hidden?: boolean
+  net_weight?: number | null
+  gross_weight?: number | null
   characteristics?: Array<{
     name: string
     value: string
@@ -24,6 +26,8 @@ export interface ProductUpdate {
   price?: number
   unit_of_measurement?: string
   is_hidden?: boolean
+  net_weight?: number | null
+  gross_weight?: number | null
   characteristics?: Array<{
     name: string
     value: string
@@ -111,10 +115,16 @@ export const createProductWithImages = async (productData: ProductCreate, files:
   formData.append('name', productData.name)
   formData.append('description', productData.description || '')
   formData.append('article', productData.article)
-  formData.append('type', productData.type)
+  formData.append('type', productData.type || 'Товар')
   formData.append('price', productData.price.toString())
   formData.append('unit_of_measurement', productData.unit_of_measurement || '')
   formData.append('is_hidden', productData.is_hidden?.toString() || 'false')
+  if (productData.net_weight != null) {
+    formData.append('net_weight', String(productData.net_weight))
+  }
+  if (productData.gross_weight != null) {
+    formData.append('gross_weight', String(productData.gross_weight))
+  }
   formData.append('characteristics', JSON.stringify(productData.characteristics || []))
   
   // Добавляем файлы

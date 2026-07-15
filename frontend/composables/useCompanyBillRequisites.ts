@@ -60,6 +60,10 @@ export const mapCompanyOfficialsToBill = (officials: OfficialsResponse[]): Offic
 		baseDocumentName: official.base_document_name ?? '',
 	}))
 
+/**
+ * Подмешивает реквизиты из ЛК. Пустые значения из ЛК не затирают уже подставленные
+ * данные сделки (чтобы «Заполнить данными» работало при частично пустом профиле — §7.4).
+ */
 export const mergeDealPartyRequisites = (
 	current: DealCompany,
 	fresh: DealCompany,

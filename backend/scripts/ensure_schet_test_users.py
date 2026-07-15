@@ -21,6 +21,7 @@ from app.api.authentication.models.user import User
 from app.api.authentication.permissions import PermissionManager
 from app.api.company.models.company import BusinessType, Company, TradeActivity, CompanyRelationType
 from app.api.company.models.official import CompanyOfficial
+from app.api.company.models.fill_address import CompanyFillAddress, FillAddressKind
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
 from app.api.company.schemas.company import CompanyRelationCreate
 from app.api.products.models.product import Product, ProductType
@@ -301,6 +302,8 @@ CHECKOUT_CATALOG = [
         "price": 15.00,
         "unit_of_measurement": "шт",
         "description": "Тестовый товар для checkout §2.2",
+        "net_weight": 0.012,
+        "gross_weight": 0.015,
     },
     {
         "slug": "test-checkout-montazh",
@@ -311,6 +314,13 @@ CHECKOUT_CATALOG = [
         "unit_of_measurement": "усл",
         "description": "Тестовая услуга для checkout §2.2",
     },
+]
+
+# Адреса «Данные заполнения» §7.2
+FILL_ADDRESSES_SEED = [
+    (FillAddressKind.LOADING, "г. Москва, ул. Складская, д. 10 (погрузка)", True),
+    (FillAddressKind.LOADING, "г. Москва, ул. Запасная, д. 2", False),
+    (FillAddressKind.RECEIVING, "г. Москва, ул. Приёмная, д. 5 (приём груза)", True),
 ]
 
 
@@ -461,6 +471,30 @@ async def ensure_seller_official(session, company_id: int) -> None:
 
     session.add(CompanyOfficial(company_id=company_id, **SELLER_OFFICIAL))
     print("  official CREATED")
+
+
+async def ensure_fill_addresses(session, company_id: int) -> None:
+    """Seed адресов погрузки/приёма (ТЗ_15 §7.2)."""
+    existing = (
+        await session.execute(
+            select(CompanyFillAddress).where(CompanyFillAddress.company_id == company_id)
+        )
+    ).scalars().all()
+    if existing:
+        print(f"  fill addresses EXISTS: {len(existing)} шт.")
+        return
+
+    for kind, address, is_default in FILL_ADDRESSES_SEED:
+        session.add(
+            CompanyFillAddress(
+                company_id=company_id,
+                kind=kind,
+                address=address,
+                is_default=is_default,
+            )
+        )
+    await session.flush()
+    print(f"  fill addresses CREATED: {len(FILL_ADDRESSES_SEED)} шт.")
 
 
 async def ensure_contract_condition_templates(session, seller_company_id: int) -> None:
@@ -638,6 +672,8 @@ async def main() -> None:
         await upsert_user(session, SELLER_USER, seller_company.id)
         await link_primary_users(session, seller_company.id)
         await ensure_seller_official(session, seller_company.id)
+        print("\nДанные заполнения §7.2 (seller):")
+        await ensure_fill_addresses(session, seller_company.id)
 
         print("\nКаталог для checkout §2.2:")
         catalog = await ensure_catalog_products(session, seller_company.id)
@@ -645,6 +681,8 @@ async def main() -> None:
         print("\nПокупатель:")
         buyer_company = await upsert_company(session, BUYER_COMPANY)
         await upsert_user(session, BUYER_USER, buyer_company.id)
+        print("\nДанные заполнения §7.2 (buyer):")
+        await ensure_fill_addresses(session, buyer_company.id)
 
         print("\nПокупатель без договоров (§3.1):")
         buyer_no_contract = await upsert_company(session, BUYER_NO_CONTRACT_COMPANY)
@@ -792,6 +830,11 @@ async def main() -> None:
     print("  2) Шаблоны условий: API GET/POST /contract-condition-templates (seed: 4 шт.)")
     print("  3) Продажи → Услуги → сделка 4 (без счёта) → «Создать счет»")
     print("  4) DOC/PDF bill-contract / bill-offer — условия и галки реквизитов")
+    print("\n§7 — ТЗ_15:")
+    print("  1) Данные компании → вкладки «Данные компании» / «Данные заполнения»")
+    print("  2) Адреса погрузки/приёма + «По умолчанию»")
+    print("  3) Продукция → карточка товара: вес нетто/брутто, без радио Товар/Услуга")
+    print("  4) Редактор → «Заполнить данными» при частично пустых реквизитах")
 
 
 if __name__ == "__main__":

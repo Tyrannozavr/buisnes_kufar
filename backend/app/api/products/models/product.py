@@ -30,6 +30,8 @@ class Product(Base):
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     unit_of_measurement: Mapped[str] = mapped_column(String(100))
+    net_weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    gross_weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

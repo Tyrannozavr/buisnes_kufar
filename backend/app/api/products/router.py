@@ -53,10 +53,12 @@ async def create_my_product_with_images(
         name: str = Form(...),
         description: Optional[str] = Form(None),
         article: str = Form(...),
-        type: str = Form(...),
+        type: str = Form("Товар"),
         price: float = Form(...),
         unit_of_measurement: Optional[str] = Form(None),
         is_hidden: bool = Form(False),
+        net_weight: Optional[float] = Form(None),
+        gross_weight: Optional[float] = Form(None),
         characteristics: str = Form("[]"),  # JSON string
         files: list[UploadFile] = File([])
 ):
@@ -65,15 +67,17 @@ async def create_my_product_with_images(
         # Парсим характеристики из JSON строки
         characteristics_list = json.loads(characteristics) if characteristics else []
 
-        # Создаем объект продукта
+        # Создаем объект продукта (тип по умолчанию — Товар, ТЗ_15 §7.3)
         product_data = ProductCreateWithFiles(
             name=name,
             description=description,
             article=article,
-            type=ProductType(type),
+            type=ProductType(type or ProductType.GOOD.value),
             price=price,
             unit_of_measurement=unit_of_measurement,
             is_hidden=is_hidden,
+            net_weight=net_weight,
+            gross_weight=gross_weight,
             characteristics=characteristics_list
         )
 

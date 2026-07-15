@@ -24,13 +24,14 @@ const formData = ref({
   price: 0 as number,
   unitCategory: 'economic' as string,
   unit_of_measurement: 'шт',
+  net_weight: null as number | null,
+  gross_weight: null as number | null,
   characteristics: [] as Array<{ name: string; value: string }>,
   images: [] as string[],
   selectedFiles: [] as File[]
 });
 
 const loading = ref(false);
-const productTypeItems = ['Товар', 'Услуга'];
 
 // Units mapping based on category
 const unititems: Record<string, Array<{ value: string; label: string }>> = {
@@ -80,13 +81,15 @@ const availableUnits = computed(() => {
 watch(() => props.product, (newProduct) => {
   if (newProduct) {
     formData.value = {
-      type: newProduct.type || 'Товар',
+      type: 'Товар',
       article: newProduct.article || '',
       name: newProduct.name || '',
       description: newProduct.description || '',
       price: newProduct.price || 0,
       unit_of_measurement: newProduct.unit_of_measurement || 'шт',
       unitCategory: unitCategoryNameByItem(newProduct.unit_of_measurement || ''),
+      net_weight: newProduct.net_weight ?? null,
+      gross_weight: newProduct.gross_weight ?? null,
       characteristics: [...(newProduct.characteristics || [])],
       images: [...(newProduct.images || [])],
       selectedFiles: []
@@ -101,6 +104,8 @@ watch(() => props.product, (newProduct) => {
       price: 0,
       unitCategory: 'economic',
       unit_of_measurement: 'шт',
+      net_weight: null,
+      gross_weight: null,
       characteristics: [],
       images: [],
       selectedFiles: []
@@ -196,16 +201,26 @@ const removeImage = async (index: number) => {
   }
 };
 
+const parseOptionalWeight = (value: number | string | null | undefined): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
 // Submit form
 const handleSubmit = () => {
-  // Убираем images и selectedFiles из данных формы
-  const { images, selectedFiles, ...submitData } = formData.value;
+  // Убираем images и selectedFiles из данных формы; тип всегда Товар (ТЗ_15 §7.3)
+  const { images, selectedFiles, unitCategory, ...rest } = formData.value;
+  const submitData = {
+    ...rest,
+    type: 'Товар' as const,
+    net_weight: parseOptionalWeight(formData.value.net_weight as number | string | null),
+    gross_weight: parseOptionalWeight(formData.value.gross_weight as number | string | null),
+  };
   
   if (props.product?.id) {
-    // Для существующих продуктов - отправляем только данные
     emit('save', submitData);
   } else {
-    // Для новых продуктов - отправляем данные с файлами
     emit('save', { ...submitData, files: selectedFiles });
   }
 };
@@ -301,12 +316,6 @@ const handleClose = () => {
             </div>
           </UFormField>
 
-          <URadioGroup
-              v-model="formData.type"
-              orientation="horizontal"
-              label="Тип продукта"
-              :items="productTypeItems"
-          />
           <UFormField label="Артикул" required>
             <UInput
               v-model="formData.article"
@@ -364,6 +373,30 @@ const handleClose = () => {
               />
             </div>
           </UFormField>
+
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Вес нетто">
+              <UInput
+                v-model="formData.net_weight"
+                type="number"
+                min="0"
+                step="0.001"
+                placeholder="Необязательно"
+                class="min-w-full"
+              />
+            </UFormField>
+            <UFormField label="Вес брутто">
+              <UInput
+                v-model="formData.gross_weight"
+                type="number"
+                min="0"
+                step="0.001"
+                placeholder="Необязательно"
+                class="min-w-full"
+              />
+            </UFormField>
+          </div>
+
           <div class="space-y-4">
             <div class="flex justify-between items-center">
               <h4 class="font-medium text-lg">Характеристики</h4>

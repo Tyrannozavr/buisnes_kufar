@@ -11,10 +11,12 @@ class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     article: str = Field(..., min_length=1, max_length=100)
-    type: ProductType
+    type: ProductType = ProductType.GOOD
     price: float = Field(..., gt=0)
     unit_of_measurement: Optional[str] = Field(None, max_length=100)
     is_hidden: bool = False
+    net_weight: Optional[float] = Field(None, ge=0)
+    gross_weight: Optional[float] = Field(None, ge=0)
 
 
 class ProductCreate(ProductBase):
@@ -26,10 +28,12 @@ class ProductCreateWithFiles(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     article: str = Field(..., min_length=1, max_length=100)
-    type: ProductType
+    type: ProductType = ProductType.GOOD
     price: float = Field(..., gt=0)
     unit_of_measurement: Optional[str] = Field(None, max_length=100)
     is_hidden: bool = False
+    net_weight: Optional[float] = Field(None, ge=0)
+    gross_weight: Optional[float] = Field(None, ge=0)
     characteristics: List[dict] = []
 
 
@@ -43,6 +47,8 @@ class ProductUpdate(BaseModel):
     is_hidden: Optional[bool] = False
     is_deleted: Optional[bool] = False
     characteristics: Optional[List[dict]] = None
+    net_weight: Optional[float] = Field(None, ge=0)
+    gross_weight: Optional[float] = Field(None, ge=0)
 
 
 class ProductResponse(ProductBase):

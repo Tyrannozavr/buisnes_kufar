@@ -5,7 +5,18 @@ from fastapi import status
 
 from app.api.authentication.dependencies import current_user_dep, token_data_dep
 from app.api.companies.schemas.companies import CompaniesResponse, PaginationInfo
-from app.api.company.dependencies import company_service_dep, official_repository_dep, get_company_filter_service
+from app.api.company.dependencies import (
+    company_service_dep,
+    official_repository_dep,
+    fill_address_repository_dep,
+    get_company_filter_service,
+)
+from app.api.company.models.fill_address import FillAddressKind
+from app.api.company.schemas.fill_address import (
+    CompanyFillAddressCreate,
+    CompanyFillAddressUpdate,
+    CompanyFillAddressResponse,
+)
 from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
@@ -112,6 +123,79 @@ async def delete_official(
         raise HTTPException(status_code=404, detail="Official not found")
     await officials_repository.delete(official_id)
     return {"message": "Official successfully deleted"}
+
+
+@router.get("/me/fill-addresses", response_model=List[CompanyFillAddressResponse])
+async def list_fill_addresses(
+        fill_address_repository: fill_address_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+        kind: Annotated[FillAddressKind | None, Query()] = None,
+):
+    """Адреса погрузки / приёма груза — «Данные заполнения» (ТЗ_15 §7.2)."""
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await fill_address_repository.list_by_company(company.id, kind=kind)
+
+
+@router.post("/me/fill-addresses", response_model=CompanyFillAddressResponse, status_code=status.HTTP_201_CREATED)
+async def create_fill_address(
+        data: CompanyFillAddressCreate,
+        fill_address_repository: fill_address_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await fill_address_repository.create(data, company_id=company.id)
+
+
+@router.put("/me/fill-addresses/{address_id}", response_model=CompanyFillAddressResponse)
+async def update_fill_address(
+        address_id: int,
+        data: CompanyFillAddressUpdate,
+        fill_address_repository: fill_address_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await fill_address_repository.get_by_id(address_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Address not found")
+    updated = await fill_address_repository.update(address_id, data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return updated
+
+
+@router.patch("/me/fill-addresses/{address_id}/default", response_model=CompanyFillAddressResponse)
+async def set_fill_address_default(
+        address_id: int,
+        fill_address_repository: fill_address_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await fill_address_repository.get_by_id(address_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Address not found")
+    updated = await fill_address_repository.set_default(address_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return updated
+
+
+@router.delete("/me/fill-addresses/{address_id}", response_model=dict)
+async def delete_fill_address(
+        address_id: int,
+        fill_address_repository: fill_address_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await fill_address_repository.get_by_id(address_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Address not found")
+    await fill_address_repository.delete(address_id)
+    return {"message": "Address successfully deleted"}
 
 
 @router.patch("/me/officials/{official_id}", response_model=CompanyOfficial)

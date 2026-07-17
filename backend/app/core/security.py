@@ -56,3 +56,33 @@ def get_current_user_id_from_token(token: str) -> UUID:
         return UUID(user_id)
     except (JWTError, ValueError):
         raise ValueError("Token is invalid")
+
+
+EMAIL_UNSUBSCRIBE_PURPOSE = "email_notifications_unsubscribe"
+# Ссылка в письме должна жить долго — пользователь может отписаться позже
+EMAIL_UNSUBSCRIBE_EXPIRE_DAYS = 365 * 2
+
+
+def create_email_unsubscribe_token(user_id: int) -> str:
+    """Подписанный токен для одноразовой отписки от email-уведомлений."""
+    expire = datetime.utcnow() + timedelta(days=EMAIL_UNSUBSCRIBE_EXPIRE_DAYS)
+    payload = {
+        "sub": str(user_id),
+        "purpose": EMAIL_UNSUBSCRIBE_PURPOSE,
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_email_unsubscribe_token(token: str) -> Optional[int]:
+    """Вернуть user_id при валидном токене отписки, иначе None."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("purpose") != EMAIL_UNSUBSCRIBE_PURPOSE:
+            return None
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        return int(user_id)
+    except (JWTError, ValueError, TypeError):
+        return None

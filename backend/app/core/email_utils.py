@@ -190,3 +190,61 @@ async def send_email_change_code(email: str, code: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to send email change code to {email}: {str(e)}")
         return False
+
+
+async def send_new_message_notification_email(
+    email: str,
+    *,
+    sender_name: str,
+    message_preview: str,
+    chat_url: str,
+    unsubscribe_url: str,
+) -> bool:
+    """Письмо о новом сообщении в чате (с ссылкой отписки)."""
+    import html as html_lib
+
+    try:
+        safe_sender = html_lib.escape((sender_name or "контрагент").strip() or "контрагент")
+        safe_preview = (message_preview or "").strip()
+        if len(safe_preview) > 300:
+            safe_preview = safe_preview[:297] + "..."
+        if not safe_preview:
+            safe_preview = "Новое сообщение"
+
+        message = MessageSchema(
+            subject=f"Новое сообщение от {safe_sender}",
+            recipients=[email],
+            body=f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #222; line-height: 1.5;">
+                    <h2 style="margin-bottom: 12px;">Новое сообщение</h2>
+                    <p>Вам написали с платформы TradeSynergy.</p>
+                    <p><strong>От:</strong> {safe_sender}</p>
+                    <div style="padding: 12px 16px; background: #f5f5f5; border-radius: 8px; margin: 16px 0;">
+                        {safe_preview}
+                    </div>
+                    <p>
+                        <a href="{chat_url}"
+                           style="display: inline-block; padding: 10px 20px; background-color: #4CAF50;
+                                  color: white; text-decoration: none; border-radius: 4px;">
+                            Открыть переписку
+                        </a>
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+                    <p style="font-size: 12px; color: #666;">
+                        Чтобы отказаться от уведомлений на почту,
+                        <a href="{unsubscribe_url}">перейдите по ссылке</a>.
+                    </p>
+                </body>
+            </html>
+            """,
+            subtype="html",
+        )
+
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        logger.info(f"New message notification email sent to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send new message notification email to {email}: {str(e)}")
+        return False

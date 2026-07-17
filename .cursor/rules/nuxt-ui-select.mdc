@@ -1,0 +1,43 @@
+---
+description: Nuxt UI v3 — USelect / USelectMenu (items, не options)
+globs: frontend/**/*.{vue,ts}
+alwaysApply: false
+---
+
+# Nuxt UI Select (v3)
+
+В проекте `@nuxt/ui` **^3.x**. У `USelect` / `USelectMenu` список вариантов — проп **`:items`**, не `:options` (это API v2).
+
+## Обязательно
+
+```vue
+<!-- ✅ правильно -->
+<USelect
+  v-model="roleFilter"
+  :items="[
+    { label: 'Все роли', value: 'all' },
+    { label: 'Пользователь', value: 'user' },
+  ]"
+/>
+
+<!-- ❌ неправильно — список пустой, в поле видно сырое значение (all) -->
+<USelect
+  v-model="roleFilter"
+  :options="[{ label: 'Все роли', value: 'all' }]"
+/>
+```
+
+## Ключи
+
+- По умолчанию: `valueKey="value"`, `labelKey="label"`.
+- Формат элемента: `{ label: string, value: string | number }`.
+
+## Когда лучше нативный select
+
+Для простых фильтров (роль/статус без поиска) допустим обычный `<select v-model>` — нет проблем с portal/z-index и API Nuxt UI.
+
+## Симптомы бага
+
+- В поле отображается `all` / `pending` вместо «Все роли» / «Ожидает регистрации».
+- По клику выпадающий список пустой или не открывается с вариантами.
+- Причина почти всегда: `:options` вместо `:items`.

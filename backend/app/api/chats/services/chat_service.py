@@ -242,4 +242,19 @@ class ChatService:
 
             logger.warning("WebSocket broadcast failed for chat %s: %s", chat_id, exc)
 
+        try:
+            from app.api.chats.services.email_notify import notify_recipients_about_new_message
+
+            await notify_recipients_about_new_message(
+                self.db,
+                chat_id=chat_id,
+                sender_user_id=sender_user_id,
+                sender_company_id=sender_company_id,
+                content=content,
+            )
+        except Exception as exc:
+            from app_logging.logger import logger
+
+            logger.warning("Email notify failed for chat %s: %s", chat_id, exc)
+
         return message

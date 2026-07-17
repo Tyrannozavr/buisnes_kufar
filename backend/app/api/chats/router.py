@@ -364,6 +364,20 @@ async def send_message(
         participant_user_ids={p.user_id for p in chat.participants},
     )
 
+    try:
+        from app.api.chats.services.email_notify import notify_recipients_about_new_message
+
+        await notify_recipients_about_new_message(
+            db,
+            chat_id=chat_id,
+            sender_user_id=current_user.id,
+            sender_company_id=current_company.id,
+            content=content,
+            file_name=file_name,
+        )
+    except Exception as exc:
+        logger.warning("Email notify failed for chat %s: %s", chat_id, exc)
+
     return message_data
 
 

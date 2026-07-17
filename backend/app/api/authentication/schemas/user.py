@@ -39,6 +39,7 @@ class UserUpdate(BaseModel):
     patronymic: Optional[str] = None
     phone: Optional[constr(min_length=10, max_length=20)] = None
     position: Optional[str] = None
+    email_notifications_enabled: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,6 +47,7 @@ class UserUpdate(BaseModel):
 class UserInDB(UserBase):
     id: int
     is_active: bool
+    email_notifications_enabled: bool = False
     hashed_password: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

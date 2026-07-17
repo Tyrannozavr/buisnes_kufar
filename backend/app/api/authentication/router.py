@@ -18,7 +18,7 @@ from app.api.authentication.services.recaptcha_service import recaptcha_service
 from app.api.company.dependencies import company_service_dep
 from app.db.dependencies import async_db_dep
 from app.core.config import settings
-from app.core.security import create_access_token
+from app.core.security import create_access_token, verify_email_unsubscribe_token
 from app.schemas.user import UserLogin
 from app_logging.logger import logger
 
@@ -386,8 +386,8 @@ async def update_my_profile(
     user_repository = UserRepository(session=db)
     
     try:
-        # Фильтруем только переданные поля
-        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
+        # Только явно переданные поля (чтобы false для чекбокса не терялся)
+        update_data = user_data.model_dump(exclude_unset=True)
         
         updated_user = await user_repository.update_user_profile(user.id, update_data)
         if not updated_user:
@@ -409,3 +409,36 @@ async def update_my_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update profile: {str(e)}"
         )
+
+
+@router.get("/email-notifications/unsubscribe")
+async def unsubscribe_email_notifications(
+        token: str,
+        db: async_db_dep,
+):
+    """Отписаться от email-уведомлений по ссылке из письма (без авторизации)."""
+    user_id = verify_email_unsubscribe_token(token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ссылка недействительна или устарела",
+        )
+
+    user_repository = UserRepository(session=db)
+    user = await user_repository.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+
+    if user.email_notifications_enabled:
+        await user_repository.update_user_profile(
+            user.id,
+            {"email_notifications_enabled": False},
+        )
+
+    return {
+        "message": "Уведомления на почту отключены",
+        "email_notifications_enabled": False,
+    }

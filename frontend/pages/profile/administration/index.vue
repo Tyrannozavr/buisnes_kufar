@@ -35,6 +35,21 @@ const newEmployee = ref({
 const roleFilter = ref<'all' | 'owner' | 'admin' | 'user'>('all')
 const statusFilter = ref<'all' | 'pending' | 'active' | 'inactive' | 'deleted'>('all')
 
+const roleFilterItems = [
+  { label: 'Все роли', value: 'all' },
+  { label: 'Владелец', value: 'owner' },
+  { label: 'Администратор', value: 'admin' },
+  { label: 'Пользователь', value: 'user' },
+]
+
+const statusFilterItems = [
+  { label: 'Все статусы', value: 'all' },
+  { label: 'Ожидает регистрации', value: 'pending' },
+  { label: 'Активный', value: 'active' },
+  { label: 'Неактивный', value: 'inactive' },
+  { label: 'Удален', value: 'deleted' },
+]
+
 // Вычисляемые свойства
 const filteredEmployees = computed(() => {
   let filtered = employees.value
@@ -263,30 +278,31 @@ definePageMeta({
     </div>
 
     <!-- Фильтры -->
-    <div class="mb-6 flex gap-4">
-      <USelect
-        v-model="roleFilter"
-        :options="[
-          { label: 'Все роли', value: 'all' },
-          { label: 'Владелец', value: 'owner' },
-          { label: 'Администратор', value: 'admin' },
-          { label: 'Пользователь', value: 'user' }
-        ]"
-        placeholder="Фильтр по роли"
-        class="w-48"
-      />
-      <USelect
-        v-model="statusFilter"
-        :options="[
-          { label: 'Все статусы', value: 'all' },
-          { label: 'Ожидает регистрации', value: 'pending' },
-          { label: 'Активный', value: 'active' },
-          { label: 'Неактивный', value: 'inactive' },
-          { label: 'Удален', value: 'deleted' }
-        ]"
-        placeholder="Фильтр по статусу"
-        class="w-48"
-      />
+    <div class="mb-6 flex flex-wrap gap-4">
+      <label class="filter-field">
+        <span class="filter-label">Роль</span>
+        <select v-model="roleFilter" class="filter-select">
+          <option
+            v-for="item in roleFilterItems"
+            :key="item.value"
+            :value="item.value"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+      </label>
+      <label class="filter-field">
+        <span class="filter-label">Статус</span>
+        <select v-model="statusFilter" class="filter-select">
+          <option
+            v-for="item in statusFilterItems"
+            :key="item.value"
+            :value="item.value"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+      </label>
     </div>
 
     <!-- Список сотрудников -->
@@ -547,3 +563,33 @@ definePageMeta({
     </UModal>
   </div>
 </template>
+
+<style scoped>
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.filter-select {
+  min-width: 14rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+</style>

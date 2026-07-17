@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 definePageMeta({
   layout: 'profile'
@@ -21,6 +21,11 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const isPasswordLoading = ref(false)
+
+// Email notifications
+const emailNotificationsEnabled = ref(false)
+const isNotificationsLoading = ref(false)
+const isNotificationsSaving = ref(false)
 
 const showSuccessToast = (message: string) => {
   toast.add({
@@ -97,6 +102,43 @@ const verifyEmailCode = async () => {
   }
 }
 
+const loadNotificationSettings = async () => {
+  try {
+    isNotificationsLoading.value = true
+    const profile = await $api.get('/v1/auth/me')
+    emailNotificationsEnabled.value = profile?.email_notifications_enabled === true
+  } catch (error: any) {
+    const errorMessage = error.response?._data?.detail || 'Не удалось загрузить настройки уведомлений'
+    showErrorToast(errorMessage)
+  } finally {
+    isNotificationsLoading.value = false
+  }
+}
+
+const saveNotificationSettings = async () => {
+  try {
+    isNotificationsSaving.value = true
+    await $api.put('/v1/auth/me', {
+      email_notifications_enabled: emailNotificationsEnabled.value,
+    })
+    showSuccessToast(
+      emailNotificationsEnabled.value
+        ? 'Уведомления на почту включены'
+        : 'Уведомления на почту отключены'
+    )
+  } catch (error: any) {
+    const errorMessage = error.response?._data?.detail || 'Не удалось сохранить настройку'
+    showErrorToast(errorMessage)
+    emailNotificationsEnabled.value = !emailNotificationsEnabled.value
+  } finally {
+    isNotificationsSaving.value = false
+  }
+}
+
+onMounted(() => {
+  loadNotificationSettings()
+})
+
 // Password change handler
 const changePassword = async () => {
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
@@ -137,6 +179,20 @@ const changePassword = async () => {
     <h1>Настройки безопасности</h1>
 
     <div class="forms-container">
+      <div class="form-section notifications-section">
+        <h2>Уведомления на email</h2>
+        <p class="help-text">
+          Дублировать новые сообщения на почту, указанную при регистрации.
+          Отключить можно здесь или по ссылке в письме.
+        </p>
+        <UCheckbox
+          v-model="emailNotificationsEnabled"
+          label="Получать уведомления о новых сообщениях на email"
+          :disabled="isNotificationsLoading || isNotificationsSaving"
+          @update:model-value="saveNotificationSettings"
+        />
+      </div>
+
       <!-- Email change form -->
       <div class="form-section">
         <h2>Изменение email</h2>
@@ -363,5 +419,10 @@ h1 {
 .success-message p {
   margin: 0;
   font-weight: 500;
+}
+
+.notifications-section {
+  border: 1px solid #c8e6c9;
+  background: #f7fcf7;
 }
 </style> 

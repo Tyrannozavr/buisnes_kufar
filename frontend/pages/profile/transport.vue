@@ -7,11 +7,7 @@ definePageMeta({
 	title: 'Транспорт',
 })
 
-const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useFleetApi()
-const toast = useToast()
-const items = ref<CompanyVehicle[]>([])
-const loading = ref(false)
-const draft = ref({
+const emptyDraft = () => ({
 	name: '',
 	plate_number: '',
 	vehicle_type: '',
@@ -19,6 +15,17 @@ const draft = ref({
 	volume_m3: null as number | null,
 	notes: '',
 })
+
+const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useFleetApi()
+const toast = useToast()
+const items = ref<CompanyVehicle[]>([])
+const loading = ref(false)
+const editingId = ref<number | null>(null)
+const draft = ref(emptyDraft())
+
+const isEditing = computed(() => editingId.value != null)
+const formTitle = computed(() => (isEditing.value ? 'Редактировать ТС' : 'Добавить ТС'))
+const submitLabel = computed(() => (isEditing.value ? 'Сохранить' : 'Добавить'))
 
 const load = async () => {
 	loading.value = true
@@ -33,27 +40,53 @@ const load = async () => {
 
 onMounted(load)
 
-const add = async () => {
+const resetForm = () => {
+	editingId.value = null
+	draft.value = emptyDraft()
+}
+
+const startEdit = (row: CompanyVehicle) => {
+	editingId.value = row.id
+	draft.value = {
+		name: row.name || '',
+		plate_number: row.plate_number || '',
+		vehicle_type: row.vehicle_type || '',
+		capacity_tons: row.capacity_tons ?? null,
+		volume_m3: row.volume_m3 ?? null,
+		notes: row.notes || '',
+	}
+}
+
+const submit = async () => {
 	if (!draft.value.name.trim()) {
 		toast.add({ title: 'Укажите название ТС', color: 'warning' })
 		return
 	}
+	const payload = {
+		name: draft.value.name.trim(),
+		plate_number: draft.value.plate_number.trim() || null,
+		vehicle_type: draft.value.vehicle_type.trim() || null,
+		capacity_tons: draft.value.capacity_tons,
+		volume_m3: draft.value.volume_m3,
+		notes: draft.value.notes.trim() || null,
+	}
 	loading.value = true
 	try {
-		await createVehicle({
-			name: draft.value.name.trim(),
-			plate_number: draft.value.plate_number.trim() || null,
-			vehicle_type: draft.value.vehicle_type.trim() || null,
-			capacity_tons: draft.value.capacity_tons,
-			volume_m3: draft.value.volume_m3,
-			notes: draft.value.notes.trim() || null,
-			is_active: true,
-		})
-		draft.value = { name: '', plate_number: '', vehicle_type: '', capacity_tons: null, volume_m3: null, notes: '' }
+		if (editingId.value != null) {
+			await updateVehicle(editingId.value, payload)
+			toast.add({ title: 'ТС сохранено', color: 'success' })
+		} else {
+			await createVehicle({ ...payload, is_active: true })
+			toast.add({ title: 'ТС добавлено', color: 'success' })
+		}
+		resetForm()
 		await load()
-		toast.add({ title: 'ТС добавлено', color: 'success' })
 	} catch (e: any) {
-		toast.add({ title: 'Не удалось добавить', description: e?.data?.detail || e?.message, color: 'error' })
+		toast.add({
+			title: isEditing.value ? 'Не удалось сохранить' : 'Не удалось добавить',
+			description: e?.data?.detail || e?.message,
+			color: 'error',
+		})
 	} finally {
 		loading.value = false
 	}
@@ -66,6 +99,7 @@ const toggleActive = async (row: CompanyVehicle) => {
 
 const remove = async (id: number) => {
 	await deleteVehicle(id)
+	if (editingId.value === id) resetForm()
 	await load()
 	toast.add({ title: 'ТС удалено', color: 'success' })
 }
@@ -80,7 +114,7 @@ const remove = async (id: number) => {
 
 		<UCard>
 			<template #header>
-				<span class="font-medium">Добавить ТС</span>
+				<span class="font-medium">{{ formTitle }}</span>
 			</template>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				<UFormField label="Название / марка">
@@ -102,8 +136,16 @@ const remove = async (id: number) => {
 					<UInput v-model="draft.notes" />
 				</UFormField>
 			</div>
-			<div class="mt-4">
-				<UButton label="Добавить" color="primary" :loading="loading" @click="add" />
+			<div class="mt-4 flex flex-wrap gap-2">
+				<UButton :label="submitLabel" color="primary" :loading="loading" @click="submit" />
+				<UButton
+					v-if="isEditing"
+					label="Отмена"
+					color="neutral"
+					variant="soft"
+					:disabled="loading"
+					@click="resetForm"
+				/>
 			</div>
 		</UCard>
 
@@ -112,6 +154,7 @@ const remove = async (id: number) => {
 				v-for="row in items"
 				:key="row.id"
 				class="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+				:class="editingId === row.id ? 'border-primary-300 bg-primary-50/40' : ''"
 			>
 				<div>
 					<p class="font-medium">
@@ -127,7 +170,8 @@ const remove = async (id: number) => {
 						</span>
 					</p>
 				</div>
-				<div class="flex gap-2">
+				<div class="flex flex-wrap gap-2">
+					<UButton size="sm" color="primary" variant="soft" label="Редактировать" @click="startEdit(row)" />
 					<UButton size="sm" color="neutral" variant="soft" :label="row.is_active ? 'Выключить' : 'Включить'" @click="toggleActive(row)" />
 					<UButton size="sm" color="error" variant="ghost" label="Удалить" @click="remove(row.id)" />
 				</div>

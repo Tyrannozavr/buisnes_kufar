@@ -640,10 +640,16 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 			(err as { data?: { detail?: string } })?.data?.detail
 			|| (err as Error)?.message
 			|| ""
+		const noUserOnPlatform =
+			/нет пользователя на платформе|No user found for company/i.test(detail)
 		useToast().add({
-			title: "Изменения сохранены, но уведомление в чат не отправлено",
-			description: detail || "Проверьте чат / перезагрузите сделку (F5) и повторите",
-			color: "warning",
+			title: noUserOnPlatform
+				? "Изменения сохранены"
+				: "Изменения сохранены, но уведомление в чат не отправлено",
+			description: noUserOnPlatform
+				? "У контрагента нет аккаунта на платформе — уведомление в чат пропущено"
+				: (detail || "Проверьте чат / перезагрузите сделку (F5) и повторите"),
+			color: noUserOnPlatform ? "success" : "warning",
 		})
 	}
 }

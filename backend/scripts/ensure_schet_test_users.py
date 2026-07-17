@@ -66,6 +66,15 @@ BUYER_USER = {
     "phone": "79001234002",
 }
 
+# Покупатель сделки №00003 («без договоров») — нужен логин, иначе чат при отправке счёта падает
+BUYER_NO_CONTRACT_USER = {
+    "email": "buyer-no-contract@gmail.com",
+    "first_name": "Пётр",
+    "last_name": "Бездоговоров",
+    "patronymic": "Сидорович",
+    "phone": "79001234003",
+}
+
 # Алиас разработчика (привязывается к компании поставщика)
 PRIMARY_EMAILS = (
     "dmitiry40647274@gmail.com",
@@ -694,6 +703,7 @@ async def main() -> None:
 
         print("\nПокупатель без договоров (§3.1):")
         buyer_no_contract = await upsert_company(session, BUYER_NO_CONTRACT_COMPANY)
+        await upsert_user(session, BUYER_NO_CONTRACT_USER, buyer_no_contract.id)
 
         print("\nПеревозчик (ТЗ_15 §5.6):")
         carrier_company = await upsert_company(session, CARRIER_COMPANY)

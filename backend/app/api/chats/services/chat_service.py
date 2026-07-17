@@ -33,7 +33,10 @@ class ChatService:
 
         participant_user_id = await self.repository.get_company_user_id(chat_data.participant_company_id)
         if not participant_user_id:
-            raise ValueError(f"No user found for company ID {chat_data.participant_company_id}")
+            raise ValueError(
+                f"У компании (id={chat_data.participant_company_id}) нет пользователя на платформе — "
+                "чат создать нельзя"
+            )
 
         # Создаем новый чат
         chat = await self.repository.create_chat(title=chat_data.title)
@@ -73,7 +76,9 @@ class ChatService:
 
         participant_user_id = await self.repository.get_company_user_id(participant_company.id)
         if not participant_user_id:
-            raise ValueError(f"No user found for company {participant_slug}")
+            raise ValueError(
+                f"У компании «{participant_slug}» нет пользователя на платформе — чат создать нельзя"
+            )
 
         # Проверяем, существует ли уже чат
         existing_chat = await self.repository.find_existing_chat(current_company_id, participant_company.id)

@@ -3,6 +3,7 @@ import type { CompanyShort } from '~/types/company'
 import { useCompaniesApi } from '~/api/companies'
 import CustomPagination from '~/components/ui/CustomPagination.vue'
 import { usePurchasesApi } from '~/api/purchases'
+import { useDeals } from '~/composables/useDeals'
 
 useHead({ title: 'Поиск транспорта — TradeSynergy' })
 
@@ -11,6 +12,7 @@ const router = useRouter()
 const toast = useToast()
 const { searchServiceProviders } = useCompaniesApi()
 const purchasesApi = usePurchasesApi()
+const { refreshDealFromServer, findDeal } = useDeals({ role: 'seller' })
 
 const dealId = computed(() => {
 	const raw = route.query.deal
@@ -69,6 +71,18 @@ const selectCarrier = async (company: CompanyShort) => {
 	try {
 		const number = `TE-${company.id}-${dealId.value}`
 		await purchasesApi.createTransportContract(dealId.value, { number })
+		// Store сделок кэшируется: без refresh колонка перевозки остаётся пустой.
+		const refreshed = await refreshDealFromServer(dealId.value)
+		if (!refreshed) {
+			const deal = findDeal(dealId.value)
+			if (deal) {
+				deal.transportContract = {
+					number,
+					date: new Date().toISOString(),
+					type: 'transport_expedition',
+				}
+			}
+		}
 		toast.add({
 			title: 'Перевозчик выбран',
 			description: `${company.name}: договор экспедиции № ${number}`,

@@ -7,16 +7,23 @@ definePageMeta({
 	title: 'Водители',
 })
 
-const { listDrivers, createDriver, updateDriver, deleteDriver } = useFleetApi()
-const toast = useToast()
-const items = ref<CompanyDriver[]>([])
-const loading = ref(false)
-const draft = ref({
+const emptyDraft = () => ({
 	full_name: '',
 	phone: '',
 	license_number: '',
 	notes: '',
 })
+
+const { listDrivers, createDriver, updateDriver, deleteDriver } = useFleetApi()
+const toast = useToast()
+const items = ref<CompanyDriver[]>([])
+const loading = ref(false)
+const editingId = ref<number | null>(null)
+const draft = ref(emptyDraft())
+
+const isEditing = computed(() => editingId.value != null)
+const formTitle = computed(() => (isEditing.value ? 'Редактировать водителя' : 'Добавить водителя'))
+const submitLabel = computed(() => (isEditing.value ? 'Сохранить' : 'Добавить'))
 
 const load = async () => {
 	loading.value = true
@@ -31,25 +38,49 @@ const load = async () => {
 
 onMounted(load)
 
-const add = async () => {
+const resetForm = () => {
+	editingId.value = null
+	draft.value = emptyDraft()
+}
+
+const startEdit = (row: CompanyDriver) => {
+	editingId.value = row.id
+	draft.value = {
+		full_name: row.full_name || '',
+		phone: row.phone || '',
+		license_number: row.license_number || '',
+		notes: row.notes || '',
+	}
+}
+
+const submit = async () => {
 	if (!draft.value.full_name.trim()) {
 		toast.add({ title: 'Укажите ФИО водителя', color: 'warning' })
 		return
 	}
+	const payload = {
+		full_name: draft.value.full_name.trim(),
+		phone: draft.value.phone.trim() || null,
+		license_number: draft.value.license_number.trim() || null,
+		notes: draft.value.notes.trim() || null,
+	}
 	loading.value = true
 	try {
-		await createDriver({
-			full_name: draft.value.full_name.trim(),
-			phone: draft.value.phone.trim() || null,
-			license_number: draft.value.license_number.trim() || null,
-			notes: draft.value.notes.trim() || null,
-			is_active: true,
-		})
-		draft.value = { full_name: '', phone: '', license_number: '', notes: '' }
+		if (editingId.value != null) {
+			await updateDriver(editingId.value, payload)
+			toast.add({ title: 'Водитель сохранён', color: 'success' })
+		} else {
+			await createDriver({ ...payload, is_active: true })
+			toast.add({ title: 'Водитель добавлен', color: 'success' })
+		}
+		resetForm()
 		await load()
-		toast.add({ title: 'Водитель добавлен', color: 'success' })
 	} catch (e: any) {
-		toast.add({ title: 'Не удалось добавить', description: e?.data?.detail || e?.message, color: 'error' })
+		toast.add({
+			title: isEditing.value ? 'Не удалось сохранить' : 'Не удалось добавить',
+			description: e?.data?.detail || e?.message,
+			color: 'error',
+		})
 	} finally {
 		loading.value = false
 	}
@@ -62,6 +93,7 @@ const toggleActive = async (row: CompanyDriver) => {
 
 const remove = async (id: number) => {
 	await deleteDriver(id)
+	if (editingId.value === id) resetForm()
 	await load()
 	toast.add({ title: 'Водитель удалён', color: 'success' })
 }
@@ -76,7 +108,7 @@ const remove = async (id: number) => {
 
 		<UCard>
 			<template #header>
-				<span class="font-medium">Добавить водителя</span>
+				<span class="font-medium">{{ formTitle }}</span>
 			</template>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				<UFormField label="ФИО">
@@ -92,8 +124,16 @@ const remove = async (id: number) => {
 					<UInput v-model="draft.notes" />
 				</UFormField>
 			</div>
-			<div class="mt-4">
-				<UButton label="Добавить" color="primary" :loading="loading" @click="add" />
+			<div class="mt-4 flex flex-wrap gap-2">
+				<UButton :label="submitLabel" color="primary" :loading="loading" @click="submit" />
+				<UButton
+					v-if="isEditing"
+					label="Отмена"
+					color="neutral"
+					variant="soft"
+					:disabled="loading"
+					@click="resetForm"
+				/>
 			</div>
 		</UCard>
 
@@ -102,6 +142,7 @@ const remove = async (id: number) => {
 				v-for="row in items"
 				:key="row.id"
 				class="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+				:class="editingId === row.id ? 'border-primary-300 bg-primary-50/40' : ''"
 			>
 				<div>
 					<p class="font-medium">{{ row.full_name }}</p>
@@ -113,7 +154,8 @@ const remove = async (id: number) => {
 						</span>
 					</p>
 				</div>
-				<div class="flex gap-2">
+				<div class="flex flex-wrap gap-2">
+					<UButton size="sm" color="primary" variant="soft" label="Редактировать" @click="startEdit(row)" />
 					<UButton size="sm" color="neutral" variant="soft" :label="row.is_active ? 'Выключить' : 'Включить'" @click="toggleActive(row)" />
 					<UButton size="sm" color="error" variant="ghost" label="Удалить" @click="remove(row.id)" />
 				</div>

@@ -40,34 +40,29 @@ const toggleSidebar = () => {
 <template>
   <header class="bg-white shadow fixed top-0 left-0 right-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between py-4">
-        <!-- Logo and Site Name -->
-        <div class="flex items-center space-x-4">
-          <NuxtLink
-              class="flex items-center space-x-4"
-              to="/"
-          >
-            <Logo class="h-12 w-auto max-w-[220px]" />
+      <div class="flex items-center justify-between gap-2 py-4">
+        <!-- Left: burger (mobile) + logo -->
+        <div class="flex min-w-0 items-center gap-1 sm:gap-3">
+          <UButton
+            icon="i-heroicons-bars-3"
+            variant="ghost"
+            color="neutral"
+            class="md:hidden shrink-0"
+            aria-label="Открыть меню"
+            @click="toggleSidebar"
+          />
+          <NuxtLink class="flex min-w-0 items-center" to="/">
+            <Logo class="h-10 w-auto max-w-[160px] sm:h-12 sm:max-w-[220px]" />
           </NuxtLink>
         </div>
 
-        <!-- Mobile Menu Button -->
-        <UButton
-          icon="i-heroicons-bars-3"
-          variant="ghost"
-          color="neutral"
-          class="md:hidden"
-          @click="toggleSidebar"
-        />
-
-        <!-- Cart Link -->
-        <div class="flex items-center">
+        <!-- Right: cart + auth -->
+        <div class="flex shrink-0 items-center gap-1 sm:gap-2">
           <UChip
               v-if="totalItems > 0"
               :text="totalItems"
               color="primary"
               size="xl"
-              class="mr-2"
           >
             <UButton
                 to="/cart"
@@ -85,10 +80,7 @@ const toggleSidebar = () => {
               variant="ghost"
               icon="i-heroicons-shopping-cart"
           />
-        </div>
 
-        <!-- Login/Register Button or Profile Button with Logout Icon -->
-        <div class="flex items-center space-x-2">
           <UButton
               v-if="!userStore.isAuthenticated"
               to="/auth/login"
@@ -124,7 +116,6 @@ const toggleSidebar = () => {
               />
             </div>
 
-            <!-- Logout Button with Tooltip -->
             <UTooltip text="Выйти">
               <UButton
                   color="neutral"

@@ -226,9 +226,17 @@ async def search_companies_with_filters(
     # Базовые условия
     conditions = [Company.is_active == True]
     
-    # Фильтр по поиску
+    # Фильтр по поиску: название, полное имя, ИНН, город (частичное совпадение)
     if filter_request.search:
-        conditions.append(Company.name.ilike(f"%{filter_request.search}%"))
+        q = f"%{filter_request.search.strip()}%"
+        conditions.append(
+            or_(
+                Company.name.ilike(q),
+                Company.full_name.ilike(q),
+                Company.inn.ilike(q),
+                Company.city.ilike(q),
+            )
+        )
     
     # Фильтр по городам
     if filter_request.cities:

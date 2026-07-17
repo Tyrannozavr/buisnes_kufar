@@ -301,10 +301,11 @@ const formatBillDocLabel = (deal: Deal): string | null => {
 const formatTransportDocLabel = (deal: Deal): string | null => {
 	const tc = deal.transportContract
 	if (!tc?.number) return null
-	const dateStr = tc.date ? normalizeDate(String(tc.date).slice(0, 10)) : ''
-	const core = formatDocumentLinkLabel(tc.number, dateStr)
+	// formatDocumentLinkLabel сам вызывает normalizeDate — передаём ISO YYYY-MM-DD, не DD.MM.YYYY
+	const rawDate = tc.date ? String(tc.date).slice(0, 10) : ''
+	const core = formatDocumentLinkLabel(String(tc.number), rawDate)
 	if (!core) return null
-	return core.startsWith('Договор') ? core : `Договор транспортной экспедиции № ${core.replace(/^№\s*/, '')}`
+	return `Договор транспортной экспедиции № ${core}`
 }
 
 const formatClosingDocLabel = (deal: Deal): string | null => {

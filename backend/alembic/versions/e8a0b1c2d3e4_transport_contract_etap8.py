@@ -18,8 +18,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-	op.add_column("orders", sa.Column("transport_contract", sa.JSON(), nullable=True))
+	bind = op.get_bind()
+	inspector = sa.inspect(bind)
+	cols = {c["name"] for c in inspector.get_columns("orders")}
+	if "transport_contract" not in cols:
+		op.add_column("orders", sa.Column("transport_contract", sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:
-	op.drop_column("orders", "transport_contract")
+	bind = op.get_bind()
+	inspector = sa.inspect(bind)
+	cols = {c["name"] for c in inspector.get_columns("orders")}
+	if "transport_contract" in cols:
+		op.drop_column("orders", "transport_contract")

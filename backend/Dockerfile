@@ -24,6 +24,7 @@ COPY app/ ./app/
 COPY app_logging/ ./app_logging/
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
+COPY scripts ./scripts
 COPY entrypoint.sh ./entrypoint.sh
 
 # Создаем директорию static
@@ -50,6 +51,7 @@ COPY --from=builder /app/app /app/app
 COPY --from=builder /app/app_logging /app/app_logging
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/alembic /app/alembic
+COPY --from=builder /app/scripts /app/scripts
 COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
 COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 

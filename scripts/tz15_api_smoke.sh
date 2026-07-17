@@ -76,5 +76,15 @@ check "GET company contracts" "$code"
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $SELLER_TOKEN" "$API/purchases/units")
 check "GET units (OKEI)" "$code"
 
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CARRIER_TOKEN" "$API/company/me/vehicles")
+check "GET vehicles (carrier)" "$code"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CARRIER_TOKEN" "$API/company/me/drivers")
+check "GET drivers (carrier)" "$code"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $SELLER_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"search":"","skip":0,"limit":10}' "$API/companies/services/search")
+check "POST transport search (carriers)" "$code"
+
 echo "=== done ==="
 exit $FAIL

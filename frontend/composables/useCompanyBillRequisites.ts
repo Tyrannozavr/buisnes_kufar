@@ -4,6 +4,7 @@ import type { OfficialsResponse } from '~/types/dealResponse'
 import type { OfficialBill } from '~/types/bill'
 import type { Company as DealCompany } from '~/types/dealState'
 import { useUserStore } from '~/stores/user'
+import type { CompanyFillAddress } from '~/types/fillAddress'
 
 const OWNER_POSITION = 'owner'
 
@@ -80,23 +81,47 @@ export const mergeDealPartyRequisites = (
 	return merged
 }
 
+const pickDefaultFillAddress = (
+	addresses: CompanyFillAddress[],
+	kind: 'loading' | 'receiving',
+): string | undefined => {
+	const ofKind = addresses.filter((a) => a.kind === kind)
+	const preferred = ofKind.find((a) => a.is_default) ?? ofKind[0]
+	return preferred?.address?.trim() || undefined
+}
+
 /**
  * Загрузка актуальных реквизитов компании из ЛК для бланка счёта.
- * Доступно только для компании текущего пользователя.
+ * Адреса из «Данные заполнения» подставляются в productionAddress.
  */
 export function useCompanyBillRequisites(companyId?: MaybeRef<number | undefined>) {
 	const userStore = useUserStore()
 
 	const loadBillRequisites = async (
 		forCompanyId?: number,
+		opts?: { fillKind?: 'loading' | 'receiving' },
 	): Promise<{ party: DealCompany; officials: OfficialBill[] } | null> => {
 		const targetId = forCompanyId ?? unref(companyId) ?? userStore.companyId
 		if (!targetId || targetId !== userStore.companyId) return null
 
 		try {
 			const company = await getMyCompany()
+			const party = mapCompanyResponseToDealParty(company)
+
+			try {
+				const { $api } = useNuxtApp()
+				const addresses = (await $api.get('/v1/company/me/fill-addresses')) as CompanyFillAddress[]
+				const kind = opts?.fillKind ?? 'loading'
+				const fillAddr = pickDefaultFillAddress(addresses ?? [], kind)
+				if (fillAddr) {
+					party.productionAddress = fillAddr
+				}
+			} catch {
+				/* адреса заполнения опциональны */
+			}
+
 			return {
-				party: mapCompanyResponseToDealParty(company),
+				party,
 				officials: mapCompanyOfficialsToBill(company.officials ?? []),
 			}
 		} catch {

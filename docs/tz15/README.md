@@ -24,6 +24,8 @@
 
 **Пакет TZ15 (5–8) закрыт.** Мастер-чеклист: [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md) ✅
 
+**Пошаговая ручная приёмка (зайти → нажать → проверить):** [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md)
+
 ## Новый ПК — seed для приёмки
 
 ```bash
@@ -41,6 +43,7 @@ bash scripts/seed_acceptance_users.sh
 - [manual-etap-07-checklist.md](manual-etap-07-checklist.md) — ручная приёмка этапа 7
 - [manual-etap-08-checklist.md](manual-etap-08-checklist.md) — ручная приёмка этапа 8
 - [manual-full-acceptance-checklist.md](manual-full-acceptance-checklist.md) — мастер-чеклист TZ15
+- [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md) — пошаговый план ручного тестирования
 - Аккаунты: [test-users.md](test-users.md) · [../schet/test-users.md](../schet/test-users.md)
 
 ## Порядок работы

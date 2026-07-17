@@ -103,7 +103,9 @@
 	<UModal v-model:open="isTransportContractModalOpen" title="Договор транспортной экспедиции">
 		<template #body>
 			<div class="flex flex-col gap-3">
-				<p class="text-sm text-gray-600">Выберите существующий договор или создайте новый (MVP).</p>
+				<p class="text-sm text-gray-600">
+					Выберите существующий договор транспортной экспедиции или создайте новый.
+				</p>
 				<USelect
 					v-if="transportContractSelectionItems.length"
 					:items="transportContractSelectionItems"
@@ -111,10 +113,33 @@
 					placeholder="Выберите договор"
 					@update:model-value="handleTransportSelectionChange"
 				/>
+				<p v-else class="text-sm text-amber-700">
+					Ранее созданных договоров экспедиции нет — нажмите «Создать новый».
+				</p>
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<UButton label="Выбор" color="primary" class="w-full justify-center" :loading="isTransportActionBusy" :disabled="!selectedTransportContractValue" @click="handleBindTransportContract" />
-					<UButton label="Создать новый" color="neutral" variant="subtle" class="w-full justify-center" :loading="isTransportActionBusy" @click="handleCreateNewTransportContract" />
-					<UButton label="Отмена" color="neutral" variant="ghost" class="w-full justify-center" @click="isTransportContractModalOpen = false" />
+					<UButton
+						label="Выбор"
+						color="primary"
+						class="w-full justify-center"
+						:loading="isTransportActionBusy"
+						:disabled="!selectedTransportContractValue"
+						@click="handleBindTransportContract"
+					/>
+					<UButton
+						label="Создать новый"
+						color="neutral"
+						variant="subtle"
+						class="w-full justify-center"
+						:loading="isTransportActionBusy"
+						@click="handleCreateNewTransportContract"
+					/>
+					<UButton
+						label="Отмена"
+						color="neutral"
+						variant="ghost"
+						class="w-full justify-center"
+						@click="isTransportContractModalOpen = false"
+					/>
 				</div>
 			</div>
 		</template>
@@ -138,9 +163,10 @@ import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales";
 import CreateBillFromSalesDialogs from "~/components/EditorMenu/CreateBillFromSalesDialogs.vue";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
-const { type, dealFilter = 'Товары' } = defineProps<{
+const { type, dealFilter = 'all' } = defineProps<{
   type: 'purchases' | 'sales'
-  dealFilter?: 'Товары' | 'Услуги'
+  /** all = таблица «Товары» по ТЗ (услуг в каталоге/ЛК больше нет) */
+  dealFilter?: 'Товары' | 'Услуги' | 'all'
 }>()
 
 const router = useRouter()
@@ -165,10 +191,26 @@ const isTransportContractModalOpen = ref(false)
 const isTransportActionBusy = ref(false)
 const selectedTransportDealNumber = ref('')
 const selectedTransportContractValue = ref<string | undefined>()
-const transportContractSelectionItems = ref<{ label: string; value: string }[]>([
-	{ label: 'Договор экспедиции № TE-001 от 01.01.26', value: 'TE-001' },
-])
+const transportContractSelectionItems = ref<{ label: string; value: string }[]>([])
 const selectedSupplyContractEntityId = ref<number | undefined>(undefined)
+
+const rebuildTransportContractOptions = () => {
+	const seen = new Set<string>()
+	const items: { label: string; value: string }[] = []
+	for (const deal of deals.value ?? []) {
+		const tc = deal.transportContract
+		if (!tc?.number) continue
+		const key = String(tc.number)
+		if (seen.has(key)) continue
+		seen.add(key)
+		const dateStr = tc.date ? normalizeDate(String(tc.date).slice(0, 10)) : ''
+		const label = dateStr
+			? `Договор транспортной экспедиции № ${key} от ${dateStr} г.`
+			: `Договор транспортной экспедиции № ${key}`
+		items.push({ label, value: key })
+	}
+	transportContractSelectionItems.value = items
+}
 const {
 	contractEntity: checkedSupplyContractEntity,
 	refreshStatus: refreshSupplyContractStatus,
@@ -214,10 +256,11 @@ const dealsList = computed(() => {
 		: list.filter(deal => deal.role === 'seller')
 })
 
-/** Закладка «Товары» / «Услуги» — фильтр по типу сделки (§2.3, §4.6). */
-const goodsDealsList = computed(() =>
-	dealsList.value.filter(deal => deal.dealType === dealFilter),
-)
+/** ТЗ_15: одна таблица «Товары»; фильтр «Услуги» только для совместимости. */
+const goodsDealsList = computed(() => {
+	if (dealFilter === 'all') return dealsList.value
+	return dealsList.value.filter(deal => deal.dealType === dealFilter)
+})
 const purchasesTable: Ref<BuyerTableItems[]> = ref([])
 const salesTable: Ref<SellerTableItems[]> = ref([])
 
@@ -259,7 +302,9 @@ const formatTransportDocLabel = (deal: Deal): string | null => {
 	const tc = deal.transportContract
 	if (!tc?.number) return null
 	const dateStr = tc.date ? normalizeDate(String(tc.date).slice(0, 10)) : ''
-	return formatDocumentLinkLabel(tc.number, dateStr)
+	const core = formatDocumentLinkLabel(tc.number, dateStr)
+	if (!core) return null
+	return core.startsWith('Договор') ? core : `Договор транспортной экспедиции № ${core.replace(/^№\s*/, '')}`
 }
 
 const formatClosingDocLabel = (deal: Deal): string | null => {
@@ -619,7 +664,10 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
         label,
         () => openEditor(dealId, 'buyer', '#contract'),
         () => {},
-        [{ label: 'Найти транспорт', onClick: () => router.push('/transport-search') }],
+        [{ label: 'Найти транспорт', onClick: () => {
+					const dealId = getDealIdByDealNumber(String(row.getValue('dealNumber')), type === 'sales' ? 'seller' : 'buyer')
+					router.push(dealId ? `/transport-search?deal=${dealId}` : '/transport-search')
+				} }],
       )
     }
   },
@@ -991,6 +1039,7 @@ const handleTransportSelectionChange = (value: unknown) => {
 
 const handleTransportDocumentCreateClick = (dealNumber: string) => {
 	selectedTransportDealNumber.value = dealNumber
+	rebuildTransportContractOptions()
 	selectedTransportContractValue.value = transportContractSelectionItems.value[0]?.value
 	isTransportContractModalOpen.value = true
 }
@@ -1227,7 +1276,10 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
         label,
         () => openEditor(dealId, 'seller', '#contract'),
         () => { void handleTransportDocumentCreateClick(dealNumber) },
-        [{ label: 'Найти транспорт', onClick: () => router.push('/transport-search') }],
+        [{ label: 'Найти транспорт', onClick: () => {
+					const dealId = getDealIdByDealNumber(String(row.getValue('dealNumber')), type === 'sales' ? 'seller' : 'buyer')
+					router.push(dealId ? `/transport-search?deal=${dealId}` : '/transport-search')
+				} }],
       )
     }
   },

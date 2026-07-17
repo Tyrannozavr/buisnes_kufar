@@ -9,6 +9,8 @@ from app.api.company.dependencies import (
     company_service_dep,
     official_repository_dep,
     fill_address_repository_dep,
+    vehicle_repository_dep,
+    driver_repository_dep,
     get_company_filter_service,
 )
 from app.api.company.models.fill_address import FillAddressKind
@@ -16,6 +18,14 @@ from app.api.company.schemas.fill_address import (
     CompanyFillAddressCreate,
     CompanyFillAddressUpdate,
     CompanyFillAddressResponse,
+)
+from app.api.company.schemas.fleet import (
+    CompanyVehicleCreate,
+    CompanyVehicleUpdate,
+    CompanyVehicleResponse,
+    CompanyDriverCreate,
+    CompanyDriverUpdate,
+    CompanyDriverResponse,
 )
 from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
@@ -196,6 +206,116 @@ async def delete_fill_address(
         raise HTTPException(status_code=404, detail="Address not found")
     await fill_address_repository.delete(address_id)
     return {"message": "Address successfully deleted"}
+
+
+@router.get("/me/vehicles", response_model=List[CompanyVehicleResponse])
+async def list_vehicles(
+        vehicle_repository: vehicle_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    """Парк ТС компании (ЛК → Транспорт)."""
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await vehicle_repository.list_by_company(company.id)
+
+
+@router.post("/me/vehicles", response_model=CompanyVehicleResponse, status_code=status.HTTP_201_CREATED)
+async def create_vehicle(
+        data: CompanyVehicleCreate,
+        vehicle_repository: vehicle_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await vehicle_repository.create(data, company_id=company.id)
+
+
+@router.put("/me/vehicles/{vehicle_id}", response_model=CompanyVehicleResponse)
+async def update_vehicle(
+        vehicle_id: int,
+        data: CompanyVehicleUpdate,
+        vehicle_repository: vehicle_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await vehicle_repository.get_by_id(vehicle_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    updated = await vehicle_repository.update(vehicle_id, data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return updated
+
+
+@router.delete("/me/vehicles/{vehicle_id}", response_model=dict)
+async def delete_vehicle(
+        vehicle_id: int,
+        vehicle_repository: vehicle_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await vehicle_repository.get_by_id(vehicle_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    await vehicle_repository.delete(vehicle_id)
+    return {"message": "Vehicle successfully deleted"}
+
+
+@router.get("/me/drivers", response_model=List[CompanyDriverResponse])
+async def list_drivers(
+        driver_repository: driver_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    """Водители компании (ЛК → Водители)."""
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await driver_repository.list_by_company(company.id)
+
+
+@router.post("/me/drivers", response_model=CompanyDriverResponse, status_code=status.HTTP_201_CREATED)
+async def create_driver(
+        data: CompanyDriverCreate,
+        driver_repository: driver_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    return await driver_repository.create(data, company_id=company.id)
+
+
+@router.put("/me/drivers/{driver_id}", response_model=CompanyDriverResponse)
+async def update_driver(
+        driver_id: int,
+        data: CompanyDriverUpdate,
+        driver_repository: driver_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await driver_repository.get_by_id(driver_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    updated = await driver_repository.update(driver_id, data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return updated
+
+
+@router.delete("/me/drivers/{driver_id}", response_model=dict)
+async def delete_driver(
+        driver_id: int,
+        driver_repository: driver_repository_dep,
+        token_data: token_data_dep,
+        company_service: company_service_dep,
+):
+    company = await company_service.get_company_by_user_id(user_id=token_data.user_id)
+    row = await driver_repository.get_by_id(driver_id)
+    if not row or row.company_id != company.id:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    await driver_repository.delete(driver_id)
+    return {"message": "Driver successfully deleted"}
 
 
 @router.patch("/me/officials/{official_id}", response_model=CompanyOfficial)

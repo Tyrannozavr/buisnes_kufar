@@ -11,6 +11,7 @@ from app.api.chats.models.chat_participant import ChatParticipant  # noqa
 from app.api.company.models.company import Company  # noqa
 from app.api.company.models.official import CompanyOfficial  # noqa
 from app.api.company.models.fill_address import CompanyFillAddress  # noqa
+from app.api.company.models.fleet import CompanyVehicle, CompanyDriver  # noqa
 from app.api.messages.models.message import Message  # noqa
 from app.api.products.models.product import Product  # noqa
 from app.api.common.models import Country, FederalDistrict, Region, City  # noqa

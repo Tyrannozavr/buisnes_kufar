@@ -11,6 +11,7 @@ const emptyDraft = () => ({
 	full_name: '',
 	phone: '',
 	license_number: '',
+	inn: '',
 	notes: '',
 })
 
@@ -49,6 +50,7 @@ const startEdit = (row: CompanyDriver) => {
 		full_name: row.full_name || '',
 		phone: row.phone || '',
 		license_number: row.license_number || '',
+		inn: row.inn || '',
 		notes: row.notes || '',
 	}
 }
@@ -62,6 +64,7 @@ const submit = async () => {
 		full_name: draft.value.full_name.trim(),
 		phone: draft.value.phone.trim() || null,
 		license_number: draft.value.license_number.trim() || null,
+		inn: draft.value.inn.trim() || null,
 		notes: draft.value.notes.trim() || null,
 	}
 	loading.value = true
@@ -120,6 +123,9 @@ const remove = async (id: number) => {
 				<UFormField label="ВУ / номер удостоверения">
 					<UInput v-model="draft.license_number" />
 				</UFormField>
+				<UFormField label="ИНН">
+					<UInput v-model="draft.inn" inputmode="numeric" />
+				</UFormField>
 				<UFormField label="Комментарий">
 					<UInput v-model="draft.notes" />
 				</UFormField>
@@ -149,6 +155,7 @@ const remove = async (id: number) => {
 					<p class="text-sm text-gray-500">
 						<span v-if="row.phone">{{ row.phone }}</span>
 						<span v-if="row.license_number"> · ВУ {{ row.license_number }}</span>
+						<span v-if="row.inn"> · ИНН {{ row.inn }}</span>
 						<span :class="row.is_active ? 'text-green-600' : 'text-gray-400'">
 							· {{ row.is_active ? 'активен' : 'неактивен' }}
 						</span>

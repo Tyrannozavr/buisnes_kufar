@@ -27,6 +27,7 @@ from app.api.company.schemas.fleet import (
     CompanyDriverUpdate,
     CompanyDriverResponse,
 )
+from app.api.company.constants.transport_dictionaries import ADR_CLASSES, BODY_TYPES, LOADING_METHODS
 from app.api.company.trade_activity_guards import require_not_logistics_company
 from app.api.company.repositories.announcement_repository import AnnouncementRepository
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
@@ -43,6 +44,16 @@ from app.api.company.services.filter_service import CompanyFilterService
 from app.db.dependencies import async_db_dep
 
 router = APIRouter(tags=["company"])
+
+
+@router.get("/fleet-dictionaries", response_model=dict)
+async def fleet_dictionaries():
+	"""Reference values used by carrier vehicle forms and transport search."""
+	return {
+		"body_types": BODY_TYPES,
+		"loading_methods": LOADING_METHODS,
+		"adr_classes": ADR_CLASSES,
+	}
 
 
 @router.get("/me", response_model=Union[CompanyResponse, CompanyProfileResponse])

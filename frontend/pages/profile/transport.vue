@@ -7,9 +7,24 @@ definePageMeta({
 	title: 'Транспорт',
 })
 
+import type { TransportDictionaries } from '~/types/transport'
+
 const emptyDraft = () => ({
 	name: '',
 	plate_number: '',
+	trailer_plate_number: '',
+	trailer_length_m: null as number | null,
+	trailer_width_m: null as number | null,
+	trailer_height_m: null as number | null,
+	load_date: '',
+	body_type: '',
+	loading_methods: [] as string[],
+	adr_classes: [] as string[],
+	from_locations_text: '',
+	to_locations_text: '',
+	partial_load: false,
+	partial_load_weight_kg: null as number | null,
+	partial_load_volume_m3: null as number | null,
 	vehicle_type: '',
 	capacity_tons: null as number | null,
 	volume_m3: null as number | null,
@@ -19,6 +34,7 @@ const emptyDraft = () => ({
 const { listVehicles, createVehicle, updateVehicle, deleteVehicle } = useFleetApi()
 const toast = useToast()
 const items = ref<CompanyVehicle[]>([])
+const dictionaries = ref<TransportDictionaries>({ body_types: [], loading_methods: [], adr_classes: [] })
 const loading = ref(false)
 const editingId = ref<number | null>(null)
 const draft = ref(emptyDraft())
@@ -30,7 +46,13 @@ const submitLabel = computed(() => (isEditing.value ? 'Сохранить' : 'Д
 const load = async () => {
 	loading.value = true
 	try {
-		items.value = await listVehicles()
+		const { $api } = useNuxtApp()
+		const [vehicles, dicts] = await Promise.all([
+			listVehicles(),
+			$api.get('/v1/company/fleet-dictionaries') as Promise<TransportDictionaries>,
+		])
+		items.value = vehicles
+		dictionaries.value = dicts
 	} catch (e: any) {
 		toast.add({ title: 'Ошибка загрузки транспорта', description: e?.message, color: 'error' })
 	} finally {
@@ -50,6 +72,19 @@ const startEdit = (row: CompanyVehicle) => {
 	draft.value = {
 		name: row.name || '',
 		plate_number: row.plate_number || '',
+		trailer_plate_number: row.trailer_plate_number || '',
+		trailer_length_m: row.trailer_length_m ?? null,
+		trailer_width_m: row.trailer_width_m ?? null,
+		trailer_height_m: row.trailer_height_m ?? null,
+		load_date: row.load_date || '',
+		body_type: row.body_type || '',
+		loading_methods: [...(row.loading_methods || [])],
+		adr_classes: [...(row.adr_classes || [])],
+		from_locations_text: (row.from_locations || []).map(location => location.name).join(', '),
+		to_locations_text: (row.to_locations || []).map(location => location.name).join(', '),
+		partial_load: row.partial_load || false,
+		partial_load_weight_kg: row.partial_load_weight_kg ?? null,
+		partial_load_volume_m3: row.partial_load_volume_m3 ?? null,
 		vehicle_type: row.vehicle_type || '',
 		capacity_tons: row.capacity_tons ?? null,
 		volume_m3: row.volume_m3 ?? null,
@@ -65,6 +100,19 @@ const submit = async () => {
 	const payload = {
 		name: draft.value.name.trim(),
 		plate_number: draft.value.plate_number.trim() || null,
+		trailer_plate_number: draft.value.trailer_plate_number.trim() || null,
+		trailer_length_m: draft.value.trailer_length_m,
+		trailer_width_m: draft.value.trailer_width_m,
+		trailer_height_m: draft.value.trailer_height_m,
+		load_date: draft.value.load_date || null,
+		body_type: draft.value.body_type || null,
+		loading_methods: draft.value.loading_methods,
+		adr_classes: draft.value.adr_classes,
+		from_locations: draft.value.from_locations_text.split(',').map(name => name.trim()).filter(Boolean).map(name => ({ name })),
+		to_locations: draft.value.to_locations_text.split(',').map(name => name.trim()).filter(Boolean).map(name => ({ name })),
+		partial_load: draft.value.partial_load,
+		partial_load_weight_kg: draft.value.partial_load ? draft.value.partial_load_weight_kg : null,
+		partial_load_volume_m3: draft.value.partial_load ? draft.value.partial_load_volume_m3 : null,
 		vehicle_type: draft.value.vehicle_type.trim() || null,
 		capacity_tons: draft.value.capacity_tons,
 		volume_m3: draft.value.volume_m3,
@@ -98,6 +146,7 @@ const toggleActive = async (row: CompanyVehicle) => {
 }
 
 const remove = async (id: number) => {
+	if (!window.confirm('Удалить транспортное средство?')) return
 	await deleteVehicle(id)
 	if (editingId.value === id) resetForm()
 	await load()
@@ -117,14 +166,26 @@ const remove = async (id: number) => {
 				<span class="font-medium">{{ formTitle }}</span>
 			</template>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<UFormField
+					label="Откуда"
+					help="Выберите город для точного адреса погрузки (например, Москва) или один/несколько регионов для всех городов этих регионов."
+				>
+					<UInput v-model="draft.from_locations_text" placeholder="Города или регионы через запятую" />
+				</UFormField>
+				<UFormField
+					label="Куда"
+					help="Город, регион(ы) или страна для доставки в любой город страны (например, Россия)."
+				>
+					<UInput v-model="draft.to_locations_text" placeholder="Города или регионы через запятую" />
+				</UFormField>
 				<UFormField label="Название / марка">
 					<UInput v-model="draft.name" placeholder="Газель Next" />
 				</UFormField>
 				<UFormField label="Госномер">
 					<UInput v-model="draft.plate_number" placeholder="А123ВС 77" />
 				</UFormField>
-				<UFormField label="Тип">
-					<UInput v-model="draft.vehicle_type" placeholder="Тент / рефрижератор…" />
+				<UFormField label="Тип кузова">
+					<USelect v-model="draft.body_type" :items="dictionaries.body_types" placeholder="Выберите тип" />
 				</UFormField>
 				<UFormField label="Грузоподъёмность, т">
 					<UInput v-model.number="draft.capacity_tons" type="number" step="0.1" />
@@ -132,8 +193,40 @@ const remove = async (id: number) => {
 				<UFormField label="Объём, м³">
 					<UInput v-model.number="draft.volume_m3" type="number" step="0.1" />
 				</UFormField>
+				<UFormField label="Номер прицепа">
+					<UInput v-model="draft.trailer_plate_number" />
+				</UFormField>
+				<UFormField label="Дата загрузки">
+					<UInput v-model="draft.load_date" type="date" />
+				</UFormField>
+				<UFormField label="Длина прицепа, м">
+					<UInput v-model.number="draft.trailer_length_m" type="number" step="0.1" />
+				</UFormField>
+				<UFormField label="Ширина прицепа, м">
+					<UInput v-model.number="draft.trailer_width_m" type="number" step="0.1" />
+				</UFormField>
+				<UFormField label="Высота прицепа, м">
+					<UInput v-model.number="draft.trailer_height_m" type="number" step="0.1" />
+				</UFormField>
+				<UFormField label="Способы загрузки">
+					<USelectMenu v-model="draft.loading_methods" :items="dictionaries.loading_methods" multiple />
+				</UFormField>
+				<UFormField label="Классы ADR">
+					<USelectMenu v-model="draft.adr_classes" :items="dictionaries.adr_classes" multiple />
+				</UFormField>
 				<UFormField label="Комментарий">
 					<UInput v-model="draft.notes" />
+				</UFormField>
+			</div>
+			<div class="mt-3 flex items-center gap-2">
+				<UCheckbox v-model="draft.partial_load" label="Готов к догрузу" />
+			</div>
+			<div v-if="draft.partial_load" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<UFormField label="Догруз, кг">
+					<UInput v-model.number="draft.partial_load_weight_kg" type="number" />
+				</UFormField>
+				<UFormField label="Догруз, м³">
+					<UInput v-model.number="draft.partial_load_volume_m3" type="number" step="0.1" />
 				</UFormField>
 			</div>
 			<div class="mt-4 flex flex-wrap gap-2">
@@ -162,12 +255,17 @@ const remove = async (id: number) => {
 						<span v-if="row.plate_number" class="text-gray-500 font-normal"> · {{ row.plate_number }}</span>
 					</p>
 					<p class="text-sm text-gray-500">
-						<span v-if="row.vehicle_type">{{ row.vehicle_type }}</span>
+						<span v-if="row.body_type">{{ row.body_type }}</span>
 						<span v-if="row.capacity_tons != null"> · {{ row.capacity_tons }} т</span>
 						<span v-if="row.volume_m3 != null"> · {{ row.volume_m3 }} м³</span>
 						<span :class="row.is_active ? 'text-green-600' : 'text-gray-400'">
 							· {{ row.is_active ? 'активен' : 'неактивен' }}
 						</span>
+					</p>
+					<p class="text-sm text-gray-500">
+						{{ row.from_locations?.map(location => location.name).join(', ') || '—' }}
+						→ {{ row.to_locations?.map(location => location.name).join(', ') || '—' }}
+						<span v-if="row.partial_load"> · догруз {{ row.partial_load_weight_kg || '—' }} кг</span>
 					</p>
 				</div>
 				<div class="flex flex-wrap gap-2">

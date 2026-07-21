@@ -168,15 +168,13 @@ const navigationItems = computed((): NavigationMenuItem[][] => {
       active: route.path === '/profile/shipment-requests'
     },
   ]
-  // Избранное — только у производителя/продавца (§C ТЗ_15)
-  if (!isLogistics.value) {
-    shipmentsBlock.push({
-      label: 'Избранное',
-      icon: 'i-heroicons-star',
-      to: '/profile/shipment-favorites',
-      active: route.path === '/profile/shipment-favorites'
-    })
-  }
+  // Избранное: клиент — ТС; перевозчик/экспедитор — заявки (ТЗ_Перевозчик §G)
+  shipmentsBlock.push({
+    label: 'Избранное',
+    icon: 'i-heroicons-star',
+    to: '/profile/shipment-favorites',
+    active: route.path === '/profile/shipment-favorites'
+  })
 
   const items: NavigationMenuItem[][] = [companyBlock, businessBlock, docsBlock, shipmentsBlock]
 

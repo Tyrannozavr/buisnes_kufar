@@ -16,6 +16,7 @@ from app.api.chats.models import *
 from app.api.products.models import *
 from app.api.common.models import *
 from app.api.purchases.models import *
+from app.api.shipments import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

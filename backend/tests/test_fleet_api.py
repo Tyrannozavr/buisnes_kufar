@@ -74,10 +74,23 @@ async def test_vehicles_and_drivers_crud():
 		async with AsyncClient(transport=transport, base_url="http://test") as client:
 			v = await client.post(
 				"/api/v1/company/me/vehicles",
-				json={"name": "Газель", "plate_number": "A111AA77", "capacity_tons": 1.5},
+				json={
+					"name": "Газель", "plate_number": "A111AA77", "capacity_tons": 1.5,
+					"trailer_plate_number": "B222BB77", "body_type": "Тентованный",
+					"loading_methods": ["Задняя"], "adr_classes": ["Класс 3 (ADR-3)"],
+					"from_locations": [{"type": "city", "name": "Москва"}],
+					"to_locations": [{"type": "city", "name": "Тула"}], "partial_load": True,
+					"partial_load_weight_kg": 500,
+				},
 			)
 			assert v.status_code == 201, v.text
 			vid = v.json()["id"]
+			assert v.json()["body_type"] == "Тентованный"
+			assert v.json()["partial_load"] is True
+
+			dictionaries = await client.get("/api/v1/company/fleet-dictionaries")
+			assert dictionaries.status_code == 200
+			assert "Тентованный" in dictionaries.json()["body_types"]
 
 			lst = await client.get("/api/v1/company/me/vehicles")
 			assert lst.status_code == 200
@@ -92,10 +105,11 @@ async def test_vehicles_and_drivers_crud():
 
 			d = await client.post(
 				"/api/v1/company/me/drivers",
-				json={"full_name": "Иванов И.И.", "phone": "+79001234567"},
+				json={"full_name": "Иванов И.И.", "phone": "+79001234567", "inn": "7701234567"},
 			)
 			assert d.status_code == 201, d.text
 			did = d.json()["id"]
+			assert d.json()["inn"] == "7701234567"
 
 			dlst = await client.get("/api/v1/company/me/drivers")
 			assert dlst.status_code == 200

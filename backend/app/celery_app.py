@@ -8,7 +8,7 @@ celery_app = Celery(
     broker=os.getenv("CELERY_BROKER_URL", "amqp://admin:admin123@localhost:5672//"),
     backend=os.getenv("CELERY_RESULT_BACKEND", "rpc://"),
     include=[
-        # Удалены задачи кэширования - теперь используется прямой JOIN
+        "app.api.shipments.tasks",
     ]
 )
 
@@ -30,7 +30,10 @@ celery_app.conf.update(
 # Периодические задачи (Celery Beat)
 # Убраны задачи кэширования - теперь используется JOIN напрямую через API
 celery_app.conf.beat_schedule = {
-    # Задачи кэширования удалены - теперь используется прямая выборка через JOIN
+    "purge-expired-shipment-requests": {
+        "task": "shipments.purge_expired_requests",
+        "schedule": crontab(hour=3, minute=0),
+    },
 }
 
 # Настройки для разработки

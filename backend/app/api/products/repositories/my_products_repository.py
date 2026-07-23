@@ -3,7 +3,7 @@ import time
 from typing import Optional, List
 
 from slugify import slugify
-from sqlalchemy import select, update, delete, and_
+from sqlalchemy import select, update, delete, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models.user import User
@@ -100,9 +100,8 @@ class MyProductsRepository:
             base_query = base_query.where(Product.is_deleted == False)
 
         # Получаем общее количество
-        count_query = select(Product).where(base_query.whereclause)
-        count_result = await self.session.execute(count_query)
-        total = len(count_result.scalars().all())
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total = int((await self.session.execute(count_query)).scalar() or 0)
 
         # Получаем продукты с пагинацией
         query = base_query.offset(skip).limit(limit)
@@ -132,8 +131,8 @@ class MyProductsRepository:
         )
 
         # Получаем общее количество
-        count_result = await self.session.execute(base_query)
-        total = len(count_result.scalars().all())
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total = int((await self.session.execute(count_query)).scalar() or 0)
 
         # Получаем продукты с пагинацией
         query = base_query.offset(skip).limit(limit)

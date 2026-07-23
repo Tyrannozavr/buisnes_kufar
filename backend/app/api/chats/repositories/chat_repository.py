@@ -58,13 +58,15 @@ class ChatRepository:
         await self.db.refresh(participant)
         return participant
 
-    async def get_chat_by_id(self, chat_id: int) -> Optional[Chat]:
-        """Получает чат по ID с участниками"""
-        stmt = select(Chat).options(
+    def _participant_options(self):
+        return (
             joinedload(Chat.participants).joinedload(ChatParticipant.company),
             joinedload(Chat.participants).joinedload(ChatParticipant.user),
-            joinedload(Chat.messages)
-        ).where(Chat.id == chat_id)
+        )
+
+    async def get_chat_by_id(self, chat_id: int) -> Optional[Chat]:
+        """Получает чат по ID с участниками (без полной истории сообщений)."""
+        stmt = select(Chat).options(*self._participant_options()).where(Chat.id == chat_id)
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
 
@@ -74,11 +76,7 @@ class ChatRepository:
             select(Chat)
             .join(ChatParticipant)
             .where(ChatParticipant.user_id == user_id)
-            .options(
-                joinedload(Chat.participants).joinedload(ChatParticipant.company),
-                joinedload(Chat.participants).joinedload(ChatParticipant.user),
-                joinedload(Chat.messages),
-            )
+            .options(*self._participant_options())
         )
         result = await self.db.execute(stmt)
         chats = list(result.unique().scalars().all())
@@ -89,11 +87,7 @@ class ChatRepository:
                 select(Chat)
                 .join(ChatParticipant)
                 .where(ChatParticipant.company_id == company_id)
-                .options(
-                    joinedload(Chat.participants).joinedload(ChatParticipant.company),
-                    joinedload(Chat.participants).joinedload(ChatParticipant.user),
-                    joinedload(Chat.messages),
-                )
+                .options(*self._participant_options())
             )
             company_result = await self.db.execute(stmt_company)
             for chat in company_result.unique().scalars().all():
@@ -107,18 +101,12 @@ class ChatRepository:
         """Получает все чаты компании"""
         stmt = select(Chat).join(ChatParticipant).where(
             ChatParticipant.company_id == company_id
-        ).options(
-            joinedload(Chat.participants).joinedload(ChatParticipant.company),
-            joinedload(Chat.participants).joinedload(ChatParticipant.user),
-            joinedload(Chat.messages)
-        )
+        ).options(*self._participant_options())
         result = await self.db.execute(stmt)
         return result.unique().scalars().all()
 
     async def find_existing_chat(self, company1_id: int, company2_id: int) -> Optional[Chat]:
-        print(company1_id, company2_id)
         """Находит существующий чат между двумя компаниями"""
-        # Находим чаты, где участвуют обе компании
         subquery = select(ChatParticipant.chat_id).where(
             ChatParticipant.company_id.in_([company1_id, company2_id])
         ).group_by(ChatParticipant.chat_id).having(
@@ -130,13 +118,41 @@ class ChatRepository:
                 Chat.id.in_(subquery),
                 Chat.is_group == False  # Только личные чаты
             )
-        ).options(
-            joinedload(Chat.participants).joinedload(ChatParticipant.company),
-            joinedload(Chat.participants).joinedload(ChatParticipant.user),
-            joinedload(Chat.messages)
-        )
+        ).options(*self._participant_options())
         result = await self.db.execute(stmt)
         return result.unique().scalar_one_or_none()
+
+    async def get_last_messages_for_chats(self, chat_ids: List[int]) -> dict[int, Message]:
+        """Последнее сообщение по каждому чату (один запрос с DISTINCT ON)."""
+        if not chat_ids:
+            return {}
+        # PostgreSQL DISTINCT ON
+        stmt = (
+            select(Message)
+            .where(Message.chat_id.in_(chat_ids))
+            .distinct(Message.chat_id)
+            .order_by(Message.chat_id, Message.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return {msg.chat_id: msg for msg in result.scalars().all()}
+
+    async def count_unread_for_chats(
+        self, chat_ids: List[int], reader_company_id: int
+    ) -> dict[int, int]:
+        """Непрочитанные по списку чатов одним GROUP BY."""
+        if not chat_ids:
+            return {}
+        stmt = (
+            select(Message.chat_id, func.count(Message.id))
+            .where(
+                Message.chat_id.in_(chat_ids),
+                Message.sender_company_id != reader_company_id,
+                Message.is_read.is_(False),
+            )
+            .group_by(Message.chat_id)
+        )
+        result = await self.db.execute(stmt)
+        return {chat_id: int(count) for chat_id, count in result.all()}
 
     async def get_company_by_slug(self, slug: str) -> Optional[Company]:
         """Получает компанию по slug"""

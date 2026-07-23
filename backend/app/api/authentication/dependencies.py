@@ -63,10 +63,47 @@ async def get_current_user(
     except Exception:
         raise credentials_exception
 
-    user_repository = UserRepository(session=db)
-    user = await user_repository.get_user_by_id(int(user_id))
-    if user is None:
+    from app.core.ttl_cache import cache_get, cache_set, user_cache_key
+
+    uid = int(user_id)
+    cache_key = user_cache_key(uid)
+    cached = await cache_get(cache_key)
+    if isinstance(cached, dict) and cached.get("id") == uid and cached.get("is_active", True):
+        from app.api.authentication.models.roles_positions import UserRole
+
+        role_raw = cached.get("role") or UserRole.USER
+        try:
+            role = UserRole(role_raw) if not isinstance(role_raw, UserRole) else role_raw
+        except Exception:
+            role = UserRole.USER
+        return User(
+            id=cached["id"],
+            email=cached.get("email") or f"user{uid}@cache.local",
+            company_id=cached.get("company_id"),
+            is_active=bool(cached.get("is_active", True)),
+            hashed_password="",
+            phone=cached.get("phone") or "",
+            first_name=cached.get("first_name"),
+            last_name=cached.get("last_name"),
+            role=role,
+        )
+
+    user = await db.get(User, uid)
+    if user is None or not user.is_active:
         raise credentials_exception
+    await cache_set(
+        cache_key,
+        {
+            "id": user.id,
+            "email": user.email,
+            "company_id": user.company_id,
+            "is_active": user.is_active,
+            "phone": user.phone,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": getattr(user.role, "value", user.role),
+        },
+    )
     return user
 
 

@@ -133,10 +133,17 @@ class CompanyRelationsRepository:
         related_company_id: int,
         relation_type: CompanyRelationType,
     ) -> CompanyRelation:
-        existing = await self.get_relations(company_id, relation_type)
-        for rel in existing:
-            if rel.related_company_id == related_company_id:
-                return rel
+        existing = (
+            await self.session.execute(
+                select(CompanyRelation).where(
+                    CompanyRelation.company_id == company_id,
+                    CompanyRelation.related_company_id == related_company_id,
+                    CompanyRelation.relation_type == relation_type,
+                ).limit(1)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
         return await self.add_relation(
             company_id,
             CompanyRelationCreate(

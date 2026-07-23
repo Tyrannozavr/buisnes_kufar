@@ -93,9 +93,12 @@ async def test_carrier_transport_flow():
 						ShipmentRequest.carrier_company_id == carrier_company_id,
 					).order_by(ShipmentRequest.id.desc())
 				)).scalars().first()
-				assert request is not None
-				request_id = request.id
-			assert (await api.post(f"/api/v1/transport/requests/{request_id}/activate")).status_code == 200
+				assert request is None, "search must not create shipment requests"
+
+			send = await api.post(f"/api/v1/transport/vehicles/{vehicle_id}/send-request")
+			assert send.status_code == 200, send.text
+			assert send.json()["is_highlighted"] is True
+			request_id = send.json()["id"]
 			assert (await api.post(f"/api/v1/transport/favorites/vehicles/{vehicle_id}")).status_code == 201
 
 			current_user_id = carrier_user_id

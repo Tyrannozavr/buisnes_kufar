@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import delete, func, select
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import delete, func, or_, select
 
 from app.api.authentication.dependencies import current_user_dep
 from app.api.chats.schemas.chat import ChatCreate
@@ -18,6 +18,10 @@ from app.api.shipments.schemas import (
 from app.db.dependencies import async_db_dep
 
 router = APIRouter(tags=["transport"])
+
+_SEARCH_LIMIT = 200
+_LIST_DEFAULT = 50
+_LIST_MAX = 100
 
 
 def _company_id(user) -> int:
@@ -96,33 +100,58 @@ def _vehicle_response(vehicle: CompanyVehicle, company: Company) -> dict:
 	}
 
 
+def _page_clamp(page: int, per_page: int) -> tuple[int, int]:
+	return max(1, page), min(max(1, per_page), _LIST_MAX)
+
+
 @router.post("/search")
 async def search_transport(
 	filters: TransportSearchFilters,
 	db: async_db_dep,
 	current_user: current_user_dep,
 ):
+	"""Поиск ТС без записи заявок — заявка создаётся только в send-request."""
 	client_company_id = _company_id(current_user)
-	rows = (await db.execute(
-		select(CompanyVehicle, Company).join(Company).where(
+	stmt = (
+		select(CompanyVehicle, Company)
+		.join(Company, Company.id == CompanyVehicle.company_id)
+		.where(
 			Company.trade_activity.in_([TradeActivity.CARRIER, TradeActivity.FORWARDER]),
 			Company.id != client_company_id,
+			CompanyVehicle.is_active.is_(True),
 		)
-	)).all()
+	)
+	if filters.body_types:
+		stmt = stmt.where(CompanyVehicle.body_type.in_(filters.body_types))
+	if filters.partial_load:
+		stmt = stmt.where(CompanyVehicle.partial_load.is_(True))
+		weight = filters.cargo_weight_kg or filters.capacity_min_kg
+		volume = filters.cargo_volume_m3 or filters.volume_min_m3
+		if weight is not None:
+			stmt = stmt.where(CompanyVehicle.partial_load_weight_kg >= weight)
+		if volume is not None:
+			stmt = stmt.where(CompanyVehicle.partial_load_volume_m3 >= volume)
+	else:
+		weight = filters.cargo_weight_kg or filters.capacity_min_kg
+		volume = filters.cargo_volume_m3 or filters.volume_min_m3
+		if weight is not None:
+			stmt = stmt.where((CompanyVehicle.capacity_tons * 1000) >= weight)
+		if volume is not None:
+			stmt = stmt.where(CompanyVehicle.volume_m3 >= volume)
+	if filters.capacity_max_kg is not None:
+		stmt = stmt.where((CompanyVehicle.capacity_tons * 1000) <= filters.capacity_max_kg)
+	if filters.volume_max_m3 is not None:
+		stmt = stmt.where(CompanyVehicle.volume_m3 <= filters.volume_max_m3)
+	if filters.load_date is not None:
+		stmt = stmt.where(
+			or_(CompanyVehicle.load_date.is_(None), CompanyVehicle.load_date == filters.load_date)
+		)
+
+	# Cap candidate set before Python JSON/location matching
+	stmt = stmt.limit(_SEARCH_LIMIT * 3)
+	rows = (await db.execute(stmt)).all()
 	matched = [(vehicle, company) for vehicle, company in rows if _matches(vehicle, filters)]
-	by_carrier: dict[int, list[int]] = {}
-	for vehicle, company in matched:
-		by_carrier.setdefault(company.id, []).append(vehicle.id)
-	now = datetime.utcnow()
-	for carrier_company_id, vehicle_ids in by_carrier.items():
-		db.add(ShipmentRequest(
-			client_company_id=client_company_id,
-			carrier_company_id=carrier_company_id,
-			search_filters=filters.model_dump(mode="json"),
-			matched_vehicle_ids=vehicle_ids,
-			expires_at=now + timedelta(days=14),
-		))
-	await db.commit()
+	matched = matched[:_SEARCH_LIMIT]
 	return {"vehicles": [_vehicle_response(vehicle, company) for vehicle, company in matched]}
 
 
@@ -141,28 +170,63 @@ async def activate_request(request_id: int, db: async_db_dep, current_user: curr
 
 @router.post("/vehicles/{vehicle_id}/send-request", response_model=ShipmentRequestResponse)
 async def send_vehicle_request(vehicle_id: int, db: async_db_dep, current_user: current_user_dep):
+	"""Создать/поднять заявку перевозчику по конкретному ТС (явное действие клиента)."""
 	company_id = _company_id(current_user)
-	candidates = (await db.execute(
+	vehicle = await db.get(CompanyVehicle, vehicle_id)
+	if not vehicle or not vehicle.is_active:
+		raise HTTPException(status_code=404, detail="Vehicle not found")
+	carrier_company_id = vehicle.company_id
+	if carrier_company_id == company_id:
+		raise HTTPException(status_code=400, detail="Cannot send request to own vehicle")
+
+	existing = (await db.execute(
 		select(ShipmentRequest).where(
 			ShipmentRequest.client_company_id == company_id,
+			ShipmentRequest.carrier_company_id == carrier_company_id,
 			ShipmentRequest.status.in_(["passive", "active"]),
-		).order_by(ShipmentRequest.created_at.desc())
-	)).scalars().all()
-	request = next(
-		(item for item in candidates if vehicle_id in (item.matched_vehicle_ids or [])),
-		None,
+		).order_by(ShipmentRequest.updated_at.desc())
+	)).scalars().first()
+
+	now = datetime.utcnow()
+	if existing:
+		ids = list(existing.matched_vehicle_ids or [])
+		if vehicle_id not in ids:
+			ids.append(vehicle_id)
+		existing.matched_vehicle_ids = ids
+		existing.updated_at = now
+		await db.commit()
+		return await activate_request(existing.id, db, current_user)
+
+	request = ShipmentRequest(
+		client_company_id=company_id,
+		carrier_company_id=carrier_company_id,
+		search_filters={},
+		matched_vehicle_ids=[vehicle_id],
+		status="active",
+		is_highlighted=True,
+		activated_at=now,
+		expires_at=now + timedelta(days=14),
 	)
-	if not request:
-		raise HTTPException(status_code=404, detail="Passive shipment request for vehicle not found")
-	return await activate_request(request.id, db, current_user)
+	db.add(request)
+	await db.commit()
+	await db.refresh(request)
+	return request
 
 
 @router.get("/requests", response_model=list[ShipmentRequestResponse])
-async def list_requests(db: async_db_dep, current_user: current_user_dep):
+async def list_requests(
+	db: async_db_dep,
+	current_user: current_user_dep,
+	page: int = Query(1, ge=1),
+	per_page: int = Query(_LIST_DEFAULT, ge=1, le=_LIST_MAX),
+):
 	company_id = _company_id(current_user)
+	page, per_page = _page_clamp(page, per_page)
 	result = await db.execute(
 		select(ShipmentRequest).where(ShipmentRequest.carrier_company_id == company_id)
 		.order_by(ShipmentRequest.is_highlighted.desc(), ShipmentRequest.updated_at.desc())
+		.offset((page - 1) * per_page)
+		.limit(per_page)
 	)
 	return result.scalars().all()
 
@@ -191,7 +255,6 @@ async def accept_request(request_id: int, db: async_db_dep, current_user: curren
 	await db.commit()
 	await db.refresh(shipment)
 	relations = CompanyRelationsRepository(db)
-	# Клиент: контрагенты + перевозчики; перевозчик: контрагенты
 	await relations.ensure_relation(request.client_company_id, carrier_company_id, CompanyRelationType.PARTNER)
 	await relations.ensure_relation(request.client_company_id, carrier_company_id, CompanyRelationType.CARRIER)
 	await relations.ensure_relation(carrier_company_id, request.client_company_id, CompanyRelationType.PARTNER)
@@ -205,18 +268,25 @@ async def accept_request(request_id: int, db: async_db_dep, current_user: curren
 			f"Перевозчик «{carrier.name}» принял заявку на перевозку груза №{shipment.number}.",
 		)
 	except Exception:
-		# Shipment acceptance must not fail because a company has no chat user.
 		pass
 	return shipment
 
 
 @router.get("/shipments", response_model=list[ShipmentResponse])
-async def list_shipments(db: async_db_dep, current_user: current_user_dep):
+async def list_shipments(
+	db: async_db_dep,
+	current_user: current_user_dep,
+	page: int = Query(1, ge=1),
+	per_page: int = Query(_LIST_DEFAULT, ge=1, le=_LIST_MAX),
+):
 	company_id = _company_id(current_user)
+	page, per_page = _page_clamp(page, per_page)
 	result = await db.execute(
 		select(Shipment).where(
 			(Shipment.client_company_id == company_id) | (Shipment.carrier_company_id == company_id)
 		).order_by(Shipment.created_at.desc())
+		.offset((page - 1) * per_page)
+		.limit(per_page)
 	)
 	return result.scalars().all()
 
@@ -291,14 +361,22 @@ async def update_deal(shipment_id: int, data: DealUpdate, db: async_db_dep, curr
 
 
 @router.get("/favorites/vehicles")
-async def list_vehicle_favorites(db: async_db_dep, current_user: current_user_dep):
+async def list_vehicle_favorites(
+	db: async_db_dep,
+	current_user: current_user_dep,
+	page: int = Query(1, ge=1),
+	per_page: int = Query(_LIST_DEFAULT, ge=1, le=_LIST_MAX),
+):
 	company_id = _company_id(current_user)
+	page, per_page = _page_clamp(page, per_page)
 	rows = (await db.execute(
 		select(CompanyVehicle, Company, VehicleFavorite)
 		.join(VehicleFavorite, VehicleFavorite.vehicle_id == CompanyVehicle.id)
 		.join(Company, Company.id == CompanyVehicle.company_id)
 		.where(VehicleFavorite.client_company_id == company_id)
 		.order_by(VehicleFavorite.created_at.desc())
+		.offset((page - 1) * per_page)
+		.limit(per_page)
 	)).all()
 	return [
 		{**_vehicle_response(vehicle, company), "favorite_id": favorite.id}
@@ -326,13 +404,21 @@ async def remove_vehicle_favorite(vehicle_id: int, db: async_db_dep, current_use
 
 
 @router.get("/favorites/requests", response_model=list[ShipmentRequestResponse])
-async def list_request_favorites(db: async_db_dep, current_user: current_user_dep):
+async def list_request_favorites(
+	db: async_db_dep,
+	current_user: current_user_dep,
+	page: int = Query(1, ge=1),
+	per_page: int = Query(_LIST_DEFAULT, ge=1, le=_LIST_MAX),
+):
 	company_id = _company_id(current_user)
+	page, per_page = _page_clamp(page, per_page)
 	return (await db.execute(
 		select(ShipmentRequest)
 		.join(RequestFavorite, RequestFavorite.request_id == ShipmentRequest.id)
 		.where(RequestFavorite.carrier_company_id == company_id)
 		.order_by(RequestFavorite.created_at.desc())
+		.offset((page - 1) * per_page)
+		.limit(per_page)
 	)).scalars().all()
 
 

@@ -192,13 +192,17 @@ async def get_chat_messages(
         chat_id: int,
         db: async_db_dep,
         token_data: token_data_dep,
+        limit: int = 100,
+        before_id: Optional[int] = None,
 ):
     chat = await check_user_in_chat(chat_id, token_data, db)
-    # Получаем сообщения чата
-    stmt = select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
+    limit = min(max(1, limit), 200)
+    stmt = select(Message).where(Message.chat_id == chat_id)
+    if before_id is not None:
+        stmt = stmt.where(Message.id < before_id)
+    stmt = stmt.order_by(Message.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
-    messages = result.scalars().all()
-    # Формируем ответ
+    messages = list(reversed(result.scalars().all()))
     return [
         {
             "id": m.id,
@@ -365,10 +369,9 @@ async def send_message(
     )
 
     try:
-        from app.api.chats.services.email_notify import notify_recipients_about_new_message
+        from app.api.chats.tasks import enqueue_message_email_notify
 
-        await notify_recipients_about_new_message(
-            db,
+        enqueue_message_email_notify(
             chat_id=chat_id,
             sender_user_id=current_user.id,
             sender_company_id=current_company.id,
@@ -376,7 +379,7 @@ async def send_message(
             file_name=file_name,
         )
     except Exception as exc:
-        logger.warning("Email notify failed for chat %s: %s", chat_id, exc)
+        logger.warning("Email notify enqueue failed for chat %s: %s", chat_id, exc)
 
     return message_data
 

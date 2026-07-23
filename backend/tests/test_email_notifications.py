@@ -2,6 +2,7 @@
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
+import asyncio
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -205,11 +206,23 @@ async def test_notify_skips_when_disabled(email_notify_context):
 @pytest.mark.asyncio
 async def test_chat_service_send_message_triggers_email(email_notify_context):
     ctx = email_notify_context
+
+    def _run_notify(**kwargs):
+        async def _inner():
+            from app.api.chats.services.email_notify import notify_recipients_about_new_message
+            async with AsyncSessionLocal() as session:
+                await notify_recipients_about_new_message(session, **kwargs)
+
+        asyncio.run(_inner())
+
     with patch(
         "app.api.chats.services.email_notify.send_new_message_notification_email",
         new_callable=AsyncMock,
         return_value=True,
-    ) as mock_send:
+    ) as mock_send, patch(
+        "app.api.chats.tasks.enqueue_message_email_notify",
+        side_effect=lambda **kw: _run_notify(**kw),
+    ):
         async with AsyncSessionLocal() as session:
             service = ChatService(session)
             await service.send_message(

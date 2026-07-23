@@ -54,8 +54,20 @@ class ChatService:
     async def get_user_chats(self, user_id: int, company_id: Optional[int] = None) -> List[ChatListResponse]:
         """Получает все чаты пользователя (по user_id и company_id)."""
         chats = await self.repository.get_user_chats(user_id, company_id)
+        chat_ids = [chat.id for chat in chats]
+        last_by_chat = await self.repository.get_last_messages_for_chats(chat_ids)
+        unread_by_chat = (
+            await self.repository.count_unread_for_chats(chat_ids, company_id)
+            if company_id is not None
+            else {}
+        )
         return [
-            await self._format_chat_list_response(chat, company_id)
+            await self._format_chat_list_response(
+                chat,
+                company_id,
+                last_message=last_by_chat.get(chat.id),
+                unread_count=unread_by_chat.get(chat.id, 0),
+            )
             for chat in chats
         ]
 
@@ -144,7 +156,12 @@ class ChatService:
         )
 
     async def _format_chat_list_response(
-        self, chat: Chat, company_id: Optional[int] = None
+        self,
+        chat: Chat,
+        company_id: Optional[int] = None,
+        *,
+        last_message=None,
+        unread_count: Optional[int] = None,
     ) -> ChatListResponse:
         """Форматирует чат для списка чатов"""
         participants = []
@@ -161,26 +178,32 @@ class ChatService:
                 joined_at=participant.joined_at
             ))
 
-        # Получаем последнее сообщение
-        last_message = None
-        if chat.messages:
+        last_message_payload = None
+        if last_message is not None:
+            last_message_payload = {
+                "id": last_message.id,
+                "content": last_message.content,
+                "created_at": last_message.created_at.isoformat()
+            }
+        elif getattr(chat, "messages", None):
             last_msg = max(chat.messages, key=lambda x: x.created_at)
-            last_message = {
+            last_message_payload = {
                 "id": last_msg.id,
                 "content": last_msg.content,
                 "created_at": last_msg.created_at.isoformat()
             }
 
-        unread_count = 0
-        if company_id is not None:
-            unread_count = await self.repository.count_unread_for_chat(chat.id, company_id)
+        if unread_count is None:
+            unread_count = 0
+            if company_id is not None:
+                unread_count = await self.repository.count_unread_for_chat(chat.id, company_id)
 
         return ChatListResponse(
             id=chat.id,
             title=chat.title,
             is_group=chat.is_group,
             participants=participants,
-            last_message=last_message,
+            last_message=last_message_payload,
             unread_count=unread_count,
             created_at=chat.created_at,
             updated_at=chat.updated_at
@@ -243,10 +266,9 @@ class ChatService:
             logger.warning("WebSocket broadcast failed for chat %s: %s", chat_id, exc)
 
         try:
-            from app.api.chats.services.email_notify import notify_recipients_about_new_message
+            from app.api.chats.tasks import enqueue_message_email_notify
 
-            await notify_recipients_about_new_message(
-                self.db,
+            enqueue_message_email_notify(
                 chat_id=chat_id,
                 sender_user_id=sender_user_id,
                 sender_company_id=sender_company_id,
@@ -255,6 +277,6 @@ class ChatService:
         except Exception as exc:
             from app_logging.logger import logger
 
-            logger.warning("Email notify failed for chat %s: %s", chat_id, exc)
+            logger.warning("Email notify enqueue failed for chat %s: %s", chat_id, exc)
 
         return message

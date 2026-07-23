@@ -9,6 +9,7 @@ celery_app = Celery(
     backend=os.getenv("CELERY_RESULT_BACKEND", "rpc://"),
     include=[
         "app.api.shipments.tasks",
+        "app.api.chats.tasks",
     ]
 )
 

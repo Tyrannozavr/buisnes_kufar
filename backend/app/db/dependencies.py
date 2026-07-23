@@ -3,19 +3,18 @@ from typing import AsyncGenerator, Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import AsyncSessionLocal
+from app.db import base as db_base
 
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """Корректный генератор сессии"""
-    async with AsyncSessionLocal() as session:
+    async with db_base.AsyncSessionLocal() as session:
         try:
             yield session
             await session.commit()
         except Exception:
             await session.rollback()
             raise
-
 
 
 # Правильная аннотация зависимости

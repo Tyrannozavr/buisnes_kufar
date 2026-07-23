@@ -1,34 +1,51 @@
 """
 Общие фикстуры для тестов backend.
-Один event loop на всю сессию — иначе async engine/пул приложения привязан к другому loop и тесты падают с "attached to a different loop".
-Таблицы создаём до тестов через create_db_and_tables, т.к. в тестовом окружении lifespan приложения может не успеть выполниться до первого запроса.
+Engine пересоздаётся на loop сессии — иначе asyncpg «attached to a different loop».
 """
-import asyncio
+import sys
+
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Один loop на все async-тесты, чтобы app и engine не переключались между loop."""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest.fixture(scope="session", autouse=True)
-def ensure_tables(event_loop):
-    """Создать таблицы в тестовой БД до запуска тестов (engine из app.db.base, URL из env)."""
-    from app.db.base import create_db_and_tables
-    event_loop.run_until_complete(create_db_and_tables())
+async def ensure_tables():
+	"""Пересоздать async engine на текущем loop и создать таблицы."""
+	from app.core.config import settings
+	from app.db import base as db_base
+
+	await db_base.engine.dispose()
+	db_base.engine = create_async_engine(
+		settings.ASYNC_DATABASE_URL,
+		echo=False,
+		future=True,
+		pool_size=5,
+		max_overflow=10,
+		pool_pre_ping=True,
+	)
+	db_base.AsyncSessionLocal = sessionmaker(
+		db_base.engine, class_=AsyncSession, expire_on_commit=False
+	)
+	# Обновить все модули, которые импортировали AsyncSessionLocal по имени
+	for module in sys.modules.values():
+		if module is None or module is db_base:
+			continue
+		if getattr(module, "AsyncSessionLocal", None) is not None:
+			try:
+				setattr(module, "AsyncSessionLocal", db_base.AsyncSessionLocal)
+			except Exception:
+				pass
+	async with db_base.engine.begin() as conn:
+		await conn.run_sync(db_base.Base.metadata.create_all)
 
 
 @pytest.fixture
 async def async_client():
-    """Асинхронный HTTP-клиент для тестов API (без аутентификации)."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        yield client
+	"""Асинхронный HTTP-клиент для тестов API (без аутентификации)."""
+	transport = ASGITransport(app=app)
+	async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+		yield client

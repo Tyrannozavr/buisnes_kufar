@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class FilterItem(BaseModel):
@@ -28,7 +28,7 @@ class CompanyFiltersResponse(BaseModel):
 
 class ProductFilterRequest(BaseModel):
     search: Optional[str] = None
-    cities: Optional[List[int]] = None  # Добавляем массив ID городов
+    cities: Optional[List[int]] = None
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
@@ -36,13 +36,13 @@ class ProductFilterRequest(BaseModel):
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     in_stock: Optional[bool] = None
-    skip: int = 0
-    limit: int = 100
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
 
 
 class ServiceFilterRequest(BaseModel):
     search: Optional[str] = None
-    cities: Optional[List[int]] = None  # Добавляем массив ID городов
+    cities: Optional[List[int]] = None
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
@@ -50,18 +50,18 @@ class ServiceFilterRequest(BaseModel):
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     in_stock: Optional[bool] = None
-    skip: int = 0
-    limit: int = 100
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
 
 
 class CompanyFilterRequest(BaseModel):
     search: Optional[str] = None
-    cities: Optional[List[int]] = None  # ID городов
-    business_type: Optional[str] = None  # goods, services, both
-    trade_activity: Optional[str] = None  # buyer, seller, both
+    cities: Optional[List[int]] = None
+    business_type: Optional[str] = None
+    trade_activity: Optional[str] = None
     country: Optional[str] = None
     federal_district: Optional[str] = None
     region: Optional[str] = None
     city: Optional[str] = None
-    skip: int = 0
-    limit: int = 100
+    skip: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)

@@ -1,4 +1,5 @@
 from typing import Annotated, List, Literal, Optional
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -251,7 +252,7 @@ async def get_buyer_deals(
     current_user: Annotated[User, Depends(get_current_user)],
     deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(50, ge=1, le=100)
 ):
     """
     Получение заказов покупателя
@@ -293,7 +294,7 @@ async def get_seller_deals(
     current_user: Annotated[User, Depends(get_current_user)],
     deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(50, ge=1, le=100)
 ):
     """
     Получение заказов продавца
@@ -792,11 +793,12 @@ async def upload_document(
     from app.core.s3 import upload_document as s3_upload_document
 
     try:
-        file_path = s3_upload_document(
-            deal_id=deal_id,
-            filename=file.filename or "document",
-            content=content,
-            content_type=file.content_type,
+        file_path = await asyncio.to_thread(
+            s3_upload_document,
+            deal_id,
+            file.filename or "document",
+            content,
+            file.content_type,
         )
     except Exception as e:
         raise HTTPException(
@@ -883,7 +885,7 @@ async def _serve_deal_docx(
 	context = build_deal_docx_context(deal)
 	template_path = resolve_docx_template_path(template_filename)
 	try:
-		content = render_docx_bytes(template_path, context)
+		content = await asyncio.to_thread(render_docx_bytes, template_path, context)
 	except FileNotFoundError:
 		logger.exception("Missing DOCX template: %s", template_path)
 		raise HTTPException(
@@ -1047,7 +1049,7 @@ async def _serve_deal_pdf(
 	context = build_deal_docx_context(deal)
 	template_path = resolve_docx_template_path(template_filename)
 	try:
-		docx_bytes = render_docx_bytes(template_path, context)
+		docx_bytes = await asyncio.to_thread(render_docx_bytes, template_path, context)
 	except FileNotFoundError:
 		logger.exception("Missing DOCX template: %s", template_path)
 		raise HTTPException(

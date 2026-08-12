@@ -10,12 +10,7 @@ git fetch origin
 git checkout "${BRANCH}"
 git reset --hard "origin/${BRANCH}"
 
-echo "🔄 Миграции (alembic из каталога на хосте)"
-docker compose run --rm --no-deps --entrypoint "" \
-  -v "$(pwd)/backend/alembic:/app/alembic:ro" \
-  backend alembic -c /app/alembic.ini upgrade head
-
-echo "🔨 Сборка frontend, backend, nginx, celery"
+echo "🔨 Сборка frontend, backend, nginx, celery (до миграций — нужен актуальный код app.*)"
 if ! docker compose build frontend backend nginx celery-worker celery-beat; then
   echo "⚠️  Сборка не удалась (часто сеть Docker Hub). Обновляем код в работающих контейнерах..."
   for svc in backend celery-worker celery-beat; do
@@ -26,6 +21,10 @@ if ! docker compose build frontend backend nginx celery-worker celery-beat; then
     docker cp backend/alembic.ini "${cid}:/app/alembic.ini"
   done
 fi
+
+echo "🔄 Миграции"
+docker compose run --rm --no-deps --entrypoint "" \
+  backend alembic -c /app/alembic.ini upgrade head
 
 echo "🚀 docker compose up -d"
 docker compose up -d frontend backend nginx celery-worker celery-beat

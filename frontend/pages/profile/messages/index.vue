@@ -5,6 +5,8 @@ import { useChatsApi } from '~/api/chats'
 import { useUserStore } from '~/stores/user'
 import { onChatPresenceMessage } from '~/composables/useChatPresence'
 import { useChatUnreadStore } from '~/stores/chatUnread'
+import { companyAvatarUrl, onCompanyAvatarError } from '~/utils/companyAvatar'
+import { chatLastMessagePreview } from '~/utils/chatPreview'
 
 definePageMeta({
   layout: 'profile'
@@ -28,6 +30,8 @@ onMounted(() => {
         content?: string
         created_at?: string
         id?: number
+        file_name?: string
+        file_type?: string
       } | undefined
       const senderId = Number(payload?.sender_company_id)
       const targetChatId = Number(message.chat_id)
@@ -43,12 +47,17 @@ onMounted(() => {
         const item = chats.value.find((c) => c.id === targetChatId)
         if (item) {
           item.unread_count = (item.unread_count ?? 0) + 1
-          if (payload?.content) {
-            item.last_message = {
-              id: payload.id ?? 0,
-              content: payload.content,
-              created_at: payload.created_at ?? new Date().toISOString(),
-            }
+          item.last_message = {
+            id: payload?.id ?? 0,
+            chat_id: targetChatId,
+            sender_company_id: senderId,
+            sender_user_id: 0,
+            content: payload?.content ?? '',
+            file_name: payload?.file_name,
+            file_type: payload?.file_type,
+            is_read: false,
+            created_at: payload?.created_at ?? new Date().toISOString(),
+            updated_at: payload?.created_at ?? new Date().toISOString(),
           }
         }
       }
@@ -63,16 +72,7 @@ onMounted(() => {
     }
 
     if (message.type === 'new_message' || message.type === 'messages_read') {
-      const savedUnread = new Map(
-        (chats.value ?? []).map((c) => [c.id, c.unread_count ?? 0]),
-      )
-      void refreshChats().then(() => {
-        if (message.type !== 'new_message' || !chats.value) return
-        for (const item of chats.value) {
-          const localCount = savedUnread.get(item.id) ?? 0
-          item.unread_count = Math.max(item.unread_count ?? 0, localCount)
-        }
-      })
+      void refreshChats()
       void chatUnreadStore.refresh()
     }
   })
@@ -84,8 +84,9 @@ const handleChatSelect = (chatId: number) => {
 }
 
 // Функция для получения собеседника (не текущая компания)
-const getOtherParticipant = (chat: any) => {
-  return chat.participants.find((p: any) => p.company_id !== currentCompanyId)
+const getOtherParticipant = (chat: Chat) => {
+  const myId = Number(currentCompanyId)
+  return chat.participants.find((p) => Number(p.company_id) !== myId)
 }
 
 const formatDate = (dateString: string) => formatMoscowDate(dateString)
@@ -149,10 +150,11 @@ const formatDate = (dateString: string) => formatMoscowDate(dateString)
         >
           <div class="flex items-start space-x-3">
             <div class="flex-shrink-0">
-              <LazyNuxtImg
-                :src="getOtherParticipant(chat)?.company_logo_url || '/images/default-company-logo.png'"
-                :alt="getOtherParticipant(chat)?.company_name"
-                class="w-12 h-12 rounded-full object-cover border border-gray-200"
+              <img
+                :src="companyAvatarUrl(getOtherParticipant(chat)?.company_logo_url)"
+                :alt="getOtherParticipant(chat)?.company_name || 'Компания'"
+                class="w-12 h-12 rounded-full object-cover border border-gray-200 bg-gray-100"
+                @error="onCompanyAvatarError"
               />
             </div>
             <div class="flex-1 min-w-0">
@@ -165,7 +167,7 @@ const formatDate = (dateString: string) => formatMoscowDate(dateString)
                 </span>
               </div>
               <p class="text-sm text-gray-500 truncate leading-relaxed">
-                {{ chat.last_message?.content || 'Нет сообщений' }}
+                {{ chatLastMessagePreview(chat.last_message) }}
               </p>
             </div>
             <div v-if="(chat.unread_count ?? 0) > 0" class="flex-shrink-0">

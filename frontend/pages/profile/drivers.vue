@@ -19,6 +19,9 @@ const { listDrivers, createDriver, updateDriver, deleteDriver } = useFleetApi()
 const toast = useToast()
 const items = ref<CompanyDriver[]>([])
 const loading = ref(false)
+const formOpen = ref(false)
+const viewOpen = ref(false)
+const viewing = ref<CompanyDriver | null>(null)
 const editingId = ref<number | null>(null)
 const draft = ref(emptyDraft())
 
@@ -30,6 +33,10 @@ const load = async () => {
 	loading.value = true
 	try {
 		items.value = await listDrivers()
+		if (viewing.value) {
+			viewing.value = items.value.find(d => d.id === viewing.value!.id) || null
+			if (!viewing.value) viewOpen.value = false
+		}
 	} catch (e: any) {
 		toast.add({ title: 'Ошибка загрузки водителей', description: e?.message, color: 'error' })
 	} finally {
@@ -44,7 +51,22 @@ const resetForm = () => {
 	draft.value = emptyDraft()
 }
 
-const startEdit = (row: CompanyDriver) => {
+const closeForm = () => {
+	formOpen.value = false
+	resetForm()
+}
+
+const openCreate = () => {
+	resetForm()
+	formOpen.value = true
+}
+
+const openView = (row: CompanyDriver) => {
+	viewing.value = row
+	viewOpen.value = true
+}
+
+const fillDraftFromRow = (row: CompanyDriver) => {
 	editingId.value = row.id
 	draft.value = {
 		full_name: row.full_name || '',
@@ -53,6 +75,13 @@ const startEdit = (row: CompanyDriver) => {
 		inn: row.inn || '',
 		notes: row.notes || '',
 	}
+}
+
+const startEditFromView = () => {
+	if (!viewing.value) return
+	fillDraftFromRow(viewing.value)
+	viewOpen.value = false
+	formOpen.value = true
 }
 
 const submit = async () => {
@@ -76,7 +105,7 @@ const submit = async () => {
 			await createDriver({ ...payload, is_active: true })
 			toast.add({ title: 'Водитель добавлен', color: 'success' })
 		}
-		resetForm()
+		closeForm()
 		await load()
 	} catch (e: any) {
 		toast.add({
@@ -89,68 +118,69 @@ const submit = async () => {
 	}
 }
 
-const toggleActive = async (row: CompanyDriver) => {
-	await updateDriver(row.id, { is_active: !row.is_active })
+const setActive = async (row: CompanyDriver, isActive: boolean) => {
+	if (row.is_active === isActive) return
+	await updateDriver(row.id, { is_active: isActive })
 	await load()
 }
 
-const remove = async (id: number) => {
-	await deleteDriver(id)
-	if (editingId.value === id) resetForm()
-	await load()
-	toast.add({ title: 'Водитель удалён', color: 'success' })
+const {
+	deleteOpen,
+	deleteLoading,
+	deleteTitle,
+	deleteMessage,
+	askDelete,
+	confirmDelete,
+} = useConfirmDelete()
+
+const remove = (id: number) => {
+	const row = items.value.find(d => d.id === id)
+	askDelete({
+		message: row
+			? `Точно хотите удалить водителя «${row.full_name}»?\nЭто действие нельзя отменить.`
+			: 'Точно хотите удалить водителя?\nЭто действие нельзя отменить.',
+		onConfirm: async () => {
+			await deleteDriver(id)
+			if (editingId.value === id) closeForm()
+			if (viewing.value?.id === id) {
+				viewOpen.value = false
+				viewing.value = null
+			}
+			await load()
+			toast.add({ title: 'Водитель удалён', color: 'success' })
+		},
+	})
 }
 </script>
 
 <template>
 	<div class="space-y-6">
-		<div>
-			<h1 class="text-xl font-semibold text-gray-900">Водители</h1>
-			<p class="text-sm text-gray-500 mt-1">Список водителей вашей компании.</p>
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<div>
+				<h1 class="text-xl font-semibold text-gray-900">Водители</h1>
+				<p class="text-sm text-gray-500 mt-1">Список водителей вашей компании.</p>
+			</div>
+			<UButton
+				color="primary"
+				icon="i-lucide-plus"
+				label="Добавить водителя"
+				@click="openCreate"
+			/>
 		</div>
-
-		<UCard>
-			<template #header>
-				<span class="font-medium">{{ formTitle }}</span>
-			</template>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-				<UFormField label="ФИО">
-					<UInput v-model="draft.full_name" placeholder="Иванов Иван Иванович" />
-				</UFormField>
-				<UFormField label="Телефон">
-					<UInput v-model="draft.phone" placeholder="+7…" />
-				</UFormField>
-				<UFormField label="ВУ / номер удостоверения">
-					<UInput v-model="draft.license_number" />
-				</UFormField>
-				<UFormField label="ИНН">
-					<UInput v-model="draft.inn" inputmode="numeric" />
-				</UFormField>
-				<UFormField label="Комментарий">
-					<UInput v-model="draft.notes" />
-				</UFormField>
-			</div>
-			<div class="mt-4 flex flex-wrap gap-2">
-				<UButton :label="submitLabel" color="primary" :loading="loading" @click="submit" />
-				<UButton
-					v-if="isEditing"
-					label="Отмена"
-					color="neutral"
-					variant="soft"
-					:disabled="loading"
-					@click="resetForm"
-				/>
-			</div>
-		</UCard>
 
 		<ul v-if="items.length" class="space-y-2">
 			<li
 				v-for="row in items"
 				:key="row.id"
-				class="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-				:class="editingId === row.id ? 'border-primary-300 bg-primary-50/40' : ''"
+				class="border border-gray-200 rounded-lg p-3 flex items-center justify-between gap-3 hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
 			>
-				<div>
+				<div
+					class="min-w-0 flex-1 cursor-pointer"
+					role="button"
+					tabindex="0"
+					@click="openView(row)"
+					@keydown.enter.prevent="openView(row)"
+				>
 					<p class="font-medium">{{ row.full_name }}</p>
 					<p class="text-sm text-gray-500">
 						<span v-if="row.phone">{{ row.phone }}</span>
@@ -160,14 +190,114 @@ const remove = async (id: number) => {
 							· {{ row.is_active ? 'активен' : 'неактивен' }}
 						</span>
 					</p>
+					<p v-if="row.notes" class="text-sm text-gray-500 truncate">
+						{{ row.notes }}
+					</p>
 				</div>
-				<div class="flex flex-wrap gap-2">
-					<UButton size="sm" color="primary" variant="soft" label="Редактировать" @click="startEdit(row)" />
-					<UButton size="sm" color="neutral" variant="soft" :label="row.is_active ? 'Выключить' : 'Включить'" @click="toggleActive(row)" />
-					<UButton size="sm" color="error" variant="ghost" label="Удалить" @click="remove(row.id)" />
+				<div class="flex flex-col items-center gap-2 shrink-0 relative z-10">
+					<USwitch
+						:model-value="row.is_active"
+						color="success"
+						size="md"
+						:aria-label="row.is_active ? 'Выключить водителя' : 'Включить водителя'"
+						@update:model-value="(v: boolean) => setActive(row, v)"
+					/>
+					<UButton
+						size="sm"
+						color="error"
+						variant="outline"
+						label="Удалить"
+						class="cursor-pointer"
+						@click.stop.prevent="remove(row.id)"
+					/>
 				</div>
 			</li>
 		</ul>
 		<p v-else class="text-sm text-gray-500">Пока нет водителей — добавьте первого.</p>
+
+		<UModal
+			v-model:open="viewOpen"
+			:title="viewing?.full_name || 'Водитель'"
+			@update:open="(open) => { if (!open) viewing = null }"
+		>
+			<template #body>
+				<div v-if="viewing" class="space-y-4 p-1 sm:p-2">
+					<div class="flex flex-wrap justify-between gap-2">
+						<UButton
+							color="primary"
+							icon="i-lucide-pencil"
+							label="Редактировать"
+							@click="startEditFromView"
+						/>
+						<span
+							class="self-center text-sm"
+							:class="viewing.is_active ? 'text-green-600' : 'text-gray-400'"
+						>
+							{{ viewing.is_active ? 'активен' : 'неактивен' }}
+						</span>
+					</div>
+					<dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
+						<div>
+							<dt class="text-gray-500">Телефон</dt>
+							<dd class="font-medium text-gray-900">{{ viewing.phone || '—' }}</dd>
+						</div>
+						<div>
+							<dt class="text-gray-500">ВУ</dt>
+							<dd class="font-medium text-gray-900">{{ viewing.license_number || '—' }}</dd>
+						</div>
+						<div>
+							<dt class="text-gray-500">ИНН</dt>
+							<dd class="font-medium text-gray-900">{{ viewing.inn || '—' }}</dd>
+						</div>
+						<div v-if="viewing.notes" class="sm:col-span-2">
+							<dt class="text-gray-500">Комментарий</dt>
+							<dd class="font-medium text-gray-900">{{ viewing.notes }}</dd>
+						</div>
+					</dl>
+				</div>
+			</template>
+		</UModal>
+
+		<UModal v-model:open="formOpen" :title="formTitle" @update:open="(open) => { if (!open) resetForm() }">
+			<template #body>
+				<div class="space-y-4 p-1 sm:p-2">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<UFormField label="ФИО" class="sm:col-span-2">
+							<UInput v-model="draft.full_name" placeholder="Иванов Иван Иванович" />
+						</UFormField>
+						<UFormField label="Телефон">
+							<UInput v-model="draft.phone" placeholder="+7…" />
+						</UFormField>
+						<UFormField label="ВУ / номер удостоверения">
+							<UInput v-model="draft.license_number" />
+						</UFormField>
+						<UFormField label="ИНН">
+							<UInput v-model="draft.inn" inputmode="numeric" />
+						</UFormField>
+						<UFormField label="Комментарий" class="sm:col-span-2">
+							<UInput v-model="draft.notes" />
+						</UFormField>
+					</div>
+					<div class="flex flex-wrap justify-end gap-2 pt-2">
+						<UButton
+							label="Отмена"
+							color="neutral"
+							variant="outline"
+							:disabled="loading"
+							@click="closeForm"
+						/>
+						<UButton :label="submitLabel" color="primary" :loading="loading" @click="submit" />
+					</div>
+				</div>
+			</template>
+		</UModal>
 	</div>
+
+	<ConfirmDeleteModal
+		v-model:open="deleteOpen"
+		:title="deleteTitle"
+		:message="deleteMessage"
+		:loading="deleteLoading"
+		@confirm="confirmDelete"
+	/>
 </template>

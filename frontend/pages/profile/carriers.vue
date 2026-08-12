@@ -17,9 +17,23 @@ const {
   refresh: refreshCarriers,
 } = await getCarriers(page.value, perPage.value)
 
-const handleRemove = async (company: PartnerCompany) => {
-  await removeCompanyRelation(company.id, CompanyRelationType.CARRIER)
-  await refreshCarriers()
+const {
+  deleteOpen,
+  deleteLoading,
+  deleteTitle,
+  deleteMessage,
+  askDelete,
+  confirmDelete,
+} = useConfirmDelete()
+
+const handleRemove = (company: PartnerCompany) => {
+  askDelete({
+    message: `Точно хотите удалить перевозчика «${company.fullName}»?\nЭто действие нельзя отменить.`,
+    onConfirm: async () => {
+      await removeCompanyRelation(company.id, CompanyRelationType.CARRIER)
+      await refreshCarriers()
+    },
+  })
 }
 </script>
 
@@ -36,5 +50,13 @@ const handleRemove = async (company: PartnerCompany) => {
         @refresh="refreshCarriers"
       />
     </div>
+
+    <ConfirmDeleteModal
+      v-model:open="deleteOpen"
+      :title="deleteTitle"
+      :message="deleteMessage"
+      :loading="deleteLoading"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

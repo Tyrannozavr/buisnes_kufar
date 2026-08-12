@@ -76,23 +76,37 @@ const hideProduct = async (product: Product) => {
   }
 }
 
-const deleteProduct = async (product: Product) => {
-  try {
-    await deleteProductApi(product.id)
-    useToast().add({
-      title: 'Успешно',
-      description: 'Продукт удален',
-      color: 'success'
-    })
-    // Emit event to refresh products
-    emit('refresh')
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: 'Не удалось удалить продукт',
-      color: 'error'
-    })
-  }
+const {
+  deleteOpen,
+  deleteLoading,
+  deleteTitle,
+  deleteMessage,
+  askDelete,
+  confirmDelete,
+} = useConfirmDelete()
+
+const deleteProduct = (product: Product) => {
+  askDelete({
+    message: `Точно хотите удалить продукт «${product.name}»?\nЭто действие нельзя отменить.`,
+    onConfirm: async () => {
+      try {
+        await deleteProductApi(product.id)
+        useToast().add({
+          title: 'Успешно',
+          description: 'Продукт удален',
+          color: 'success'
+        })
+        emit('refresh')
+      } catch (error) {
+        useToast().add({
+          title: 'Ошибка',
+          description: 'Не удалось удалить продукт',
+          color: 'error'
+        })
+        throw error
+      }
+    },
+  })
 }
 
 const restoreProduct = async (product: Product) => {
@@ -241,6 +255,14 @@ const saveProduct = async (productData: ProductCreate | ProductUpdate | (Product
         :product="selectedProduct"
         @save="saveProduct"
         @done="closeProductForm"
+      />
+
+      <ConfirmDeleteModal
+        v-model:open="deleteOpen"
+        :title="deleteTitle"
+        :message="deleteMessage"
+        :loading="deleteLoading"
+        @confirm="confirmDelete"
       />
     </template>
   </div>

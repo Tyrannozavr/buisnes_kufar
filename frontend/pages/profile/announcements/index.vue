@@ -37,38 +37,37 @@ const handlePageChange = (page: number) => {
   refreshAnnouncements()
 }
 
-const showDeleteConfirm = ref(false)
-const selectedAnnouncement = ref<Announcement | null>(null)
-const processingDelete = ref(false)
+const {
+  deleteOpen,
+  deleteLoading,
+  deleteTitle,
+  deleteMessage,
+  askDelete,
+  confirmDelete,
+} = useConfirmDelete()
 
 const handleDeleteAnnouncement = (announcement: Announcement) => {
-  selectedAnnouncement.value = announcement
-  showDeleteConfirm.value = true
-}
-
-const confirmDelete = async () => {
-  if (!selectedAnnouncement.value) return
-  
-  processingDelete.value = true
-  try {
-    await deleteAnnouncement(selectedAnnouncement.value.id)
-    await refreshAnnouncements()
-    useToast().add({
-      title: 'Успешно',
-      description: 'Объявление удалено',
-      color: 'primary'
-    })
-  } catch (e) {
-    useToast().add({
-      title: 'Ошибка',
-      description: e instanceof Error ? e.message : 'Не удалось удалить объявление',
-      color: 'error'
-    })
-  } finally {
-    processingDelete.value = false
-    showDeleteConfirm.value = false
-    selectedAnnouncement.value = null
-  }
+  askDelete({
+    message: `Точно хотите удалить объявление «${announcement.title}»?\nЭто действие нельзя отменить.`,
+    onConfirm: async () => {
+      try {
+        await deleteAnnouncement(announcement.id)
+        await refreshAnnouncements()
+        useToast().add({
+          title: 'Успешно',
+          description: 'Объявление удалено',
+          color: 'primary'
+        })
+      } catch (e) {
+        useToast().add({
+          title: 'Ошибка',
+          description: e instanceof Error ? e.message : 'Не удалось удалить объявление',
+          color: 'error'
+        })
+        throw e
+      }
+    },
+  })
 }
 
 const handlePublishAnnouncement = async (announcementId: string) => {
@@ -88,11 +87,6 @@ const handlePublishAnnouncement = async (announcementId: string) => {
     })
   }
 }
-
-const cancelDelete = () => {
-  showDeleteConfirm.value = false
-  selectedAnnouncement.value = null
-}
 </script>
 
 <template>
@@ -107,31 +101,12 @@ const cancelDelete = () => {
       />
     </div>
 
-    <UModal v-model:open="showDeleteConfirm" title="Подтверждение удаления">
-      <template #body>
-        <div class="p-4">
-          <p class="text-gray-600 mb-4">
-            Вы действительно хотите удалить объявление "{{ selectedAnnouncement?.title }}"?
-            Это действие нельзя будет отменить.
-          </p>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="outline"
-              @click="cancelDelete"
-            >
-              Отмена
-            </UButton>
-            <UButton
-              color="error"
-              :loading="processingDelete"
-              @click="confirmDelete"
-            >
-              Удалить
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <ConfirmDeleteModal
+      v-model:open="deleteOpen"
+      :title="deleteTitle"
+      :message="deleteMessage"
+      :loading="deleteLoading"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

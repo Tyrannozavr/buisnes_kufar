@@ -47,15 +47,10 @@ export const useChatUnreadStore = defineStore('chatUnread', {
 				return
 			}
 
-			const optimistic = this.chatsWithUnread
-
 			try {
 				const { $api } = useNuxtApp()
 				const chats = await $api.get<Chat[]>('/v1/chats')
 				this.setFromChats(chats)
-				if (this.chatsWithUnread === 0 && optimistic > 0) {
-					this.chatsWithUnread = optimistic
-				}
 			} catch {
 				// оставляем предыдущее значение
 			}

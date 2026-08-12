@@ -11,6 +11,12 @@ export default defineNuxtConfig({
     '@nuxt/icon',
     '@pinia/colada-nuxt'
   ],
+  // IPX/sharp в docker-dev падает (IPX_ERROR / sharp-linux-x64), из‑за этого
+  // NuxtImg → /_ipx/_/images/... отдаёт 500 (заглушки и локальные картинки «невидимы»).
+  // provider: 'none' — отдаём исходный src как обычный <img> без оптимизации.
+  image: {
+    provider: 'none',
+  },
   css: ['~/assets/css/main.css'],
   future: {
     compatibilityVersion: 4

@@ -20,6 +20,16 @@ const isLogistics = ref(false)
 const requests = ref<ShipmentRequest[]>([])
 const vehicles = ref<TransportVehicleResult[]>([])
 
+const {
+	deleteOpen,
+	deleteLoading,
+	deleteTitle,
+	deleteMessage,
+	deleteConfirmLabel,
+	askDelete,
+	confirmDelete,
+} = useConfirmDelete()
+
 const load = async () => {
 	try {
 		const company = await $api.get('/v1/company/me') as { trade_activity?: string }
@@ -37,6 +47,28 @@ const load = async () => {
 onMounted(load)
 
 const loc = (items?: { name?: string }[]) => (items || []).map(x => x.name).filter(Boolean).join(', ') || '—'
+
+const removeRequest = (id: number) => {
+	askDelete({
+		message: `Точно хотите убрать заявку № ${id} из избранного?`,
+		confirmLabel: 'Убрать',
+		onConfirm: async () => {
+			await removeRequestFavorite(id)
+			await load()
+		},
+	})
+}
+
+const removeVehicle = (vehicle: TransportVehicleResult) => {
+	askDelete({
+		message: `Точно хотите убрать «${vehicle.name}» из избранного?`,
+		confirmLabel: 'Убрать',
+		onConfirm: async () => {
+			await removeVehicleFavorite(vehicle.id)
+			await load()
+		},
+	})
+}
 </script>
 
 <template>
@@ -64,7 +96,7 @@ const loc = (items?: { name?: string }[]) => (items || []).map(x => x.name).filt
 						variant="ghost"
 						color="error"
 						label="Убрать"
-						@click="removeRequestFavorite(request.id).then(load)"
+						@click="removeRequest(request.id)"
 					/>
 				</div>
 			</UCard>
@@ -73,27 +105,47 @@ const loc = (items?: { name?: string }[]) => (items || []).map(x => x.name).filt
 		<div v-else>
 			<p v-if="!vehicles.length" class="text-sm text-gray-500">Нет избранного транспорта.</p>
 			<UCard v-for="vehicle in vehicles" :key="vehicle.id" class="mb-3">
-				<div class="flex justify-between gap-3">
-					<div>
+				<div class="flex flex-col sm:flex-row justify-between gap-3">
+					<div class="space-y-1 min-w-0">
 						<p class="font-medium">
 							{{ vehicle.name }}
 							<span v-if="vehicle.plate_number" class="text-gray-500 font-normal"> · {{ vehicle.plate_number }}</span>
+							<span v-if="vehicle.trailer_plate_number" class="text-gray-500 font-normal"> · п/п {{ vehicle.trailer_plate_number }}</span>
+						</p>
+						<p class="text-sm text-gray-600">
+							{{ vehicle.company?.type || 'Перевозчик' }} «{{ vehicle.company?.name }}»
+						</p>
+						<p class="text-sm text-gray-600">
+							{{ loc(vehicle.from_locations) }} → {{ loc(vehicle.to_locations) }}
 						</p>
 						<p class="text-sm text-gray-500">
-							{{ vehicle.company?.type }} «{{ vehicle.company?.name }}»
-							· {{ loc(vehicle.from_locations) }} → {{ loc(vehicle.to_locations) }}
-							<span v-if="vehicle.capacity_tons != null"> · {{ vehicle.capacity_tons }} т</span>
-							<span v-if="vehicle.body_type"> · {{ vehicle.body_type }}</span>
+							<span v-if="vehicle.capacity_tons != null">{{ vehicle.capacity_tons }} т</span>
+							<span v-if="vehicle.body_type">{{ vehicle.capacity_tons != null ? ', ' : '' }}{{ vehicle.body_type }}</span>
+							<span v-if="vehicle.volume_m3 != null"> · {{ vehicle.volume_m3 }} м³</span>
+							<span v-if="vehicle.loading_methods?.length">, {{ vehicle.loading_methods.join(', ') }}</span>
 						</p>
+						<p v-if="vehicle.adr_classes?.length" class="text-sm text-gray-500">
+							ADR: {{ vehicle.adr_classes.join(', ') }}
+						</p>
+						<p v-if="vehicle.partial_load" class="text-sm text-amber-700">Догруз</p>
 					</div>
 					<UButton
 						variant="ghost"
 						color="error"
 						label="Убрать"
-						@click="removeVehicleFavorite(vehicle.id).then(load)"
+						@click="removeVehicle(vehicle)"
 					/>
 				</div>
 			</UCard>
 		</div>
+
+		<ConfirmDeleteModal
+			v-model:open="deleteOpen"
+			:title="deleteTitle"
+			:message="deleteMessage"
+			:loading="deleteLoading"
+			:confirm-label="deleteConfirmLabel"
+			@confirm="confirmDelete"
+		/>
 	</div>
 </template>

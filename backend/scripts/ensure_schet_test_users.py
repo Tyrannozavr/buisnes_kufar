@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,6 +28,7 @@ from app.api.authentication.models.roles_positions import UserRole
 from app.api.authentication.models.user import User
 from app.api.authentication.permissions import PermissionManager
 from app.api.company.models.company import BusinessType, Company, TradeActivity, CompanyRelationType
+from app.api.company.models.fleet import CompanyDriver, CompanyVehicle
 from app.api.company.models.official import CompanyOfficial
 from app.api.company.models.fill_address import CompanyFillAddress, FillAddressKind
 from app.api.company.repositories.company_relations_repository import CompanyRelationsRepository
@@ -677,6 +678,89 @@ async def ensure_company_contracts(
     print(f"  company contracts: {len(contracts)} шт. seller={seller_company_id} buyer={buyer_company_id}")
 
 
+async def ensure_carrier_fleet(session, carrier_company_id: int) -> None:
+    """Демо ТС + водитель для приёмки ТЗ_Перевозчик (поиск / заявки / перевозки)."""
+    vehicle = (
+        await session.execute(
+            select(CompanyVehicle).where(
+                CompanyVehicle.company_id == carrier_company_id,
+                CompanyVehicle.plate_number == "А123ВС 77",
+            )
+        )
+    ).scalar_one_or_none()
+    if vehicle:
+        vehicle.name = "Volvo FH"
+        vehicle.body_type = "Тентованный"
+        vehicle.capacity_tons = 20.0
+        vehicle.volume_m3 = 82.0
+        vehicle.from_locations = [{"name": "Москва"}]
+        vehicle.to_locations = [{"name": "Санкт-Петербург"}, {"name": "Казань"}]
+        vehicle.loading_methods = ["Задняя"]
+        vehicle.adr_classes = []
+        vehicle.partial_load = True
+        vehicle.partial_load_weight_kg = 3000.0
+        vehicle.partial_load_volume_m3 = 10.0
+        vehicle.load_date = date.today()
+        vehicle.is_active = True
+        print(f"  vehicle UPDATED: {vehicle.name} · {vehicle.plate_number}")
+    else:
+        session.add(
+            CompanyVehicle(
+                company_id=carrier_company_id,
+                name="Volvo FH",
+                plate_number="А123ВС 77",
+                trailer_plate_number="АА1234 77",
+                trailer_length_m=13.6,
+                trailer_width_m=2.45,
+                trailer_height_m=2.7,
+                load_date=date.today(),
+                body_type="Тентованный",
+                loading_methods=["Задняя"],
+                adr_classes=[],
+                from_locations=[{"name": "Москва"}],
+                to_locations=[{"name": "Санкт-Петербург"}, {"name": "Казань"}],
+                partial_load=True,
+                partial_load_weight_kg=3000.0,
+                partial_load_volume_m3=10.0,
+                capacity_tons=20.0,
+                volume_m3=82.0,
+                notes="Seed ТЗ_Перевозчик",
+                is_active=True,
+            )
+        )
+        print("  vehicle CREATED: Volvo FH · А123ВС 77")
+
+    driver = (
+        await session.execute(
+            select(CompanyDriver).where(
+                CompanyDriver.company_id == carrier_company_id,
+                CompanyDriver.full_name == "Иванов Пётр Сергеевич",
+            )
+        )
+    ).scalar_one_or_none()
+    if driver:
+        driver.phone = "+79001112233"
+        driver.license_number = "77 АА 123456"
+        driver.inn = "770123456789"
+        driver.is_active = True
+        print(f"  driver UPDATED: {driver.full_name}")
+    else:
+        session.add(
+            CompanyDriver(
+                company_id=carrier_company_id,
+                full_name="Иванов Пётр Сергеевич",
+                phone="+79001112233",
+                license_number="77 АА 123456",
+                inn="770123456789",
+                notes="Seed ТЗ_Перевозчик",
+                is_active=True,
+            )
+        )
+        print("  driver CREATED: Иванов Пётр Сергеевич")
+
+    await session.flush()
+
+
 async def main() -> None:
     print("=== Тестовые данные: этап 2 (ОКЕИ, seller/buyer) ===\n")
 
@@ -708,6 +792,8 @@ async def main() -> None:
         print("\nПеревозчик (ТЗ_15 §5.6):")
         carrier_company = await upsert_company(session, CARRIER_COMPANY)
         await upsert_user(session, CARRIER_USER, carrier_company.id)
+        print("\nФлот перевозчика (ТЗ_Перевозчик):")
+        await ensure_carrier_fleet(session, carrier_company.id)
 
         print("\nЭкспедитор (ТЗ_15 §5.6):")
         forwarder_company = await upsert_company(session, FORWARDER_COMPANY)
@@ -829,6 +915,10 @@ async def main() -> None:
     print(f"Покупатель: {BUYER_USER['email']}  ({BUYER_COMPANY['name']})")
     print(f"Перевозчик: {CARRIER_USER['email']}  ({CARRIER_COMPANY['name']})")
     print(f"Экспедитор: {FORWARDER_USER['email']}  ({FORWARDER_COMPANY['name']})")
+    print("\nТЗ_Перевозчик seed:")
+    print("  ТС: Volvo FH · А123ВС 77 (Москва → СПб/Казань, тентованный, догруз)")
+    print("  Водитель: Иванов Пётр Сергеевич")
+    print("  Приёмка: docs/carrier/manual-step-by-step-acceptance.md")
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
     print(f"Сделка 2 (§3.1 договоры): id={order_stage31_contracts.id}, заказ {order_stage31_contracts.seller_order_number}")
     print(f"Сделка 3 (§3.1 без договоров): id={order_no_contract.id}, заказ {order_no_contract.seller_order_number}")

@@ -7,6 +7,9 @@ import { useWebSocket } from '~/composables/useWebSocket'
 import { onChatPresenceMessage } from '~/composables/useChatPresence'
 import { useChatUnreadStore } from '~/stores/chatUnread'
 import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
+import { companyAvatarUrl, onCompanyAvatarError } from '~/utils/companyAvatar'
+import { chatLastMessagePreview } from '~/utils/chatPreview'
+import { publicFileUrl } from '~/utils/publicFileUrl'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -65,6 +68,13 @@ const scrollToBottom = () => {
 const isOwnMessage = (message: { sender_company_id?: number }) =>
 	message.sender_company_id?.toString() === userStore.companyId?.toString()
 
+const myCompanyId = computed(() => Number(userStore.companyId))
+
+const otherParticipantOf = (participants?: ChatParticipant[] | null) => {
+	if (!participants?.length || !Number.isFinite(myCompanyId.value)) return null
+	return participants.find(p => Number(p.company_id) !== myCompanyId.value) || null
+}
+
 const applyReadStatusToMessages = (messageIds: number[]) => {
 	if (!messages.value?.length || !messageIds.length) return
 	const idSet = new Set(messageIds)
@@ -109,6 +119,7 @@ const markCurrentChatAsRead = async (): Promise<void> => {
 		}
 		markIncomingMessagesAsReadLocally()
 		updateChatUnreadInList(chatId, 0)
+		chatUnreadStore.setFromChats(chats.value ?? [])
 		await chatUnreadStore.refresh()
 	} catch (error) {
 		console.error('Failed to mark chat as read:', error)
@@ -260,7 +271,7 @@ watch(messages, () => {
 
 const otherParticipant = computed(() => {
   if (!chat.value) return null
-  return chat.value.participants.find((p: ChatParticipant) => p.company_id !== userStore.companyId)
+  return otherParticipantOf(chat.value.participants)
 })
 
 // Проверяем, подключен ли другой участник чата
@@ -382,6 +393,13 @@ const getFileIcon = (mimeType: string) => {
   return 'i-heroicons-document'
 }
 
+const isImageAttachment = (message: { file_type?: string | null, file_name?: string | null }) => {
+  const type = (message.file_type || '').toLowerCase()
+  if (type.startsWith('image/')) return true
+  const name = (message.file_name || '').toLowerCase()
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name)
+}
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -463,16 +481,17 @@ const formatMessageContent = (content: string, isMine: boolean) => {
         >
           <div class="flex items-center space-x-3">
             <img
-              :src="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+              :src="companyAvatarUrl(otherParticipantOf(chatItem.participants)?.company_logo_url)"
+              :alt="otherParticipantOf(chatItem.participants)?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1 min-w-0">
               <p class="font-medium text-sm truncate">
-                {{ chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name }}
+                {{ otherParticipantOf(chatItem.participants)?.company_name }}
               </p>
-              <p v-if="chatItem.last_message" class="text-xs text-gray-500 truncate">
-                {{ chatItem.last_message.content }}
+              <p class="text-xs text-gray-500 truncate">
+                {{ chatLastMessagePreview(chatItem.last_message) }}
               </p>
             </div>
             <div v-if="(chatItem.unread_count ?? 0) > 0" class="flex-shrink-0">
@@ -508,10 +527,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
             class="flex items-center space-x-3 flex-1"
             :class="{ 'opacity-50 pointer-events-none': chatPending }"
           >
-            <NuxtImg
-              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="otherParticipant?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+            <img
+              :src="companyAvatarUrl(otherParticipant?.company_logo_url)"
+              :alt="otherParticipant?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1">
               <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
@@ -537,10 +557,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
             class="flex items-center space-x-3 flex-1"
             :class="{ 'opacity-50 pointer-events-none': chatPending }"
           >
-            <NuxtImg
-              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="otherParticipant?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+            <img
+              :src="companyAvatarUrl(otherParticipant?.company_logo_url)"
+              :alt="otherParticipant?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1">
               <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
@@ -587,7 +608,29 @@ const formatMessageContent = (content: string, isMine: boolean) => {
               </div>
               <div v-if="message.file_path" class="mt-2">
                 <a
-                    :href="message.file_path"
+                    v-if="isImageAttachment(message)"
+                    :href="publicFileUrl(message.file_path)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="block overflow-hidden rounded-md"
+                >
+                  <img
+                    :src="publicFileUrl(message.file_path)"
+                    :alt="message.file_name || 'Изображение'"
+                    class="max-h-64 w-full object-cover rounded-md bg-black/10"
+                    loading="lazy"
+                  />
+                  <p
+                    class="mt-1 text-xs truncate opacity-80"
+                    :class="isOwnMessage(message) ? 'text-blue-100' : 'text-gray-500'"
+                  >
+                    {{ message.file_name }}
+                    <span v-if="message.file_size"> · {{ formatFileSize(message.file_size) }}</span>
+                  </p>
+                </a>
+                <a
+                    v-else
+                    :href="publicFileUrl(message.file_path)"
                     target="_blank"
                     class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
                     :class="isOwnMessage(message) ? 'text-blue-100' : 'text-blue-600'"

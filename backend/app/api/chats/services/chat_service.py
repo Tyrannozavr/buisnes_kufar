@@ -182,14 +182,18 @@ class ChatService:
         if last_message is not None:
             last_message_payload = {
                 "id": last_message.id,
-                "content": last_message.content,
+                "content": last_message.content or "",
+                "file_name": getattr(last_message, "file_name", None),
+                "file_type": getattr(last_message, "file_type", None),
                 "created_at": last_message.created_at.isoformat()
             }
         elif getattr(chat, "messages", None):
             last_msg = max(chat.messages, key=lambda x: x.created_at)
             last_message_payload = {
                 "id": last_msg.id,
-                "content": last_msg.content,
+                "content": last_msg.content or "",
+                "file_name": last_msg.file_name,
+                "file_type": last_msg.file_type,
                 "created_at": last_msg.created_at.isoformat()
             }
 

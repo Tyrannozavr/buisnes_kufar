@@ -79,6 +79,14 @@
 				</div>
 			</template>
 		</UModal>
+
+		<ConfirmDeleteModal
+			v-model:open="deleteOpen"
+			:title="deleteTitle"
+			:message="deleteMessage"
+			:loading="deleteLoading"
+			@confirm="confirmDelete"
+		/>
 	</div>
 </template>
 
@@ -312,16 +320,30 @@ const saveContract = async () => {
 	}
 }
 
-const removeContract = async (contract: CompanyContractItem) => {
-	if (!confirm(`Удалить договор № ${contract.number}?`)) return
-	try {
-		await purchasesApi.deleteCompanyContract(contract.id)
-		toast.add({ title: "Договор удалён", color: "success" })
-		await invalidateContracts()
-	} catch {
-		toast.add({ title: "Не удалось удалить договор", color: "error" })
-	}
+const removeContract = (contract: CompanyContractItem) => {
+	askDelete({
+		message: `Точно хотите удалить договор № ${contract.number}?\nЭто действие нельзя отменить.`,
+		onConfirm: async () => {
+			try {
+				await purchasesApi.deleteCompanyContract(contract.id)
+				toast.add({ title: "Договор удалён", color: "success" })
+				await invalidateContracts()
+			} catch {
+				toast.add({ title: "Не удалось удалить договор", color: "error" })
+				throw new Error("delete failed")
+			}
+		},
+	})
 }
+
+const {
+	deleteOpen,
+	deleteLoading,
+	deleteTitle,
+	deleteMessage,
+	askDelete,
+	confirmDelete,
+} = useConfirmDelete()
 
 const columns: TableColumn<CompanyContractItem>[] = [
 	{ accessorKey: "number", header: "Номер" },

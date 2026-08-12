@@ -142,6 +142,14 @@
 			@update:is-modal-open="viewerOpen = $event"
 			@close="viewerOpen = false"
 		/>
+
+		<ConfirmDeleteModal
+			v-model:open="deleteOpen"
+			:title="deleteTitle"
+			:message="deleteMessage"
+			:loading="deleteLoading"
+			@confirm="confirmDelete"
+		/>
 	</div>
 </template>
 
@@ -178,6 +186,15 @@ const pendingPreviewUrl = ref<string | null>(null)
 const uploading = ref(false)
 const deletingId = ref<number | null>(null)
 const sendingId = ref<number | null>(null)
+
+const {
+	deleteOpen,
+	deleteLoading,
+	deleteTitle,
+	deleteMessage,
+	askDelete,
+	confirmDelete,
+} = useConfirmDelete()
 
 const viewerOpen = ref(false)
 const viewerDealId = ref(0)
@@ -345,18 +362,24 @@ const downloadScan = async (scan: DocumentApiItem): Promise<void> => {
 	}
 }
 
-const removeScan = async (scan: DocumentApiItem): Promise<void> => {
-	deletingId.value = scan.document_id
-	try {
-		await deleteDocumentAsync(scan.deal_id, scan.document_id)
-		await refreshDocuments()
-		toast.add({ title: "Скан удалён", color: "success" })
-	} catch (error) {
-		toast.add({ title: "Не удалось удалить скан", color: "error" })
-		if (import.meta.dev) console.error("delete scan:", error)
-	} finally {
-		deletingId.value = null
-	}
+const removeScan = (scan: DocumentApiItem): void => {
+	askDelete({
+		message: `Точно хотите удалить скан «${scanLabel(scan)}»?\nЭто действие нельзя отменить.`,
+		onConfirm: async () => {
+			deletingId.value = scan.document_id
+			try {
+				await deleteDocumentAsync(scan.deal_id, scan.document_id)
+				await refreshDocuments()
+				toast.add({ title: "Скан удалён", color: "success" })
+			} catch (error) {
+				toast.add({ title: "Не удалось удалить скан", color: "error" })
+				if (import.meta.dev) console.error("delete scan:", error)
+				throw error
+			} finally {
+				deletingId.value = null
+			}
+		},
+	})
 }
 
 const notifyCounterpart = async (scan: DocumentApiItem): Promise<void> => {

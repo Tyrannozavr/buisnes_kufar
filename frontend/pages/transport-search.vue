@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import type { TransportDictionaries, TransportSearchFilters, TransportVehicleResult } from '~/types/transport'
 import { useTransportApi } from '~/api/transport'
+import { navigateToChatById } from '~/composables/chat'
 
 useHead({ title: 'Поиск транспорта — TradeSynergy' })
 
 const toast = useToast()
 const { search, getDictionaries, addVehicleFavorite, sendVehicleRequest } = useTransportApi()
 const pending = ref(false)
+const searched = ref(false)
+const messagePending = ref(false)
 const dictionaries = ref<TransportDictionaries>({ body_types: [], loading_methods: [], adr_classes: [] })
 const vehicles = ref<TransportVehicleResult[]>([])
 const contacts = ref<TransportVehicleResult | null>(null)
@@ -28,6 +31,7 @@ const onSearch = async () => {
 			to_locations: locations.value.to.split(',').map(name => name.trim()).filter(Boolean).map(name => ({ name })),
 		}
 		vehicles.value = (await search(payload)).vehicles
+		searched.value = true
 	} catch (e: any) {
 		toast.add({ title: 'Не удалось выполнить поиск', description: e?.data?.detail || e?.message, color: 'error' })
 	} finally { pending.value = false }
@@ -48,6 +52,48 @@ const sendRequest = async (vehicle: TransportVehicleResult) => {
 		toast.add({ title: 'Не удалось отправить заявку', description: e?.data?.detail || e?.message, color: 'error' })
 	}
 }
+
+const writeMessage = async (vehicle: TransportVehicleResult) => {
+	if (!vehicle.company?.id) {
+		toast.add({ title: 'Не удалось открыть чат', description: 'Нет id компании перевозчика', color: 'error' })
+		return
+	}
+	messagePending.value = true
+	try {
+		await navigateToChatById(vehicle.company.id)
+		contactsOpen.value = false
+	} catch (e: any) {
+		toast.add({
+			title: 'Не удалось открыть чат',
+			description: e?.data?.detail || e?.message || 'Попробуйте позже',
+			color: 'error',
+		})
+	} finally {
+		messagePending.value = false
+	}
+}
+
+const loc = (items?: { name?: string }[]) => (items || []).map(x => x.name).filter(Boolean).join(', ') || '—'
+
+const formatDate = (value?: string | null) => {
+	if (!value) return null
+	const d = new Date(value)
+	return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString('ru-RU')
+}
+
+const trailerSize = (vehicle: TransportVehicleResult) => {
+	const parts = [vehicle.trailer_length_m, vehicle.trailer_width_m, vehicle.trailer_height_m]
+		.filter((v): v is number => v != null)
+	if (!parts.length) return null
+	return `${parts.join('×')} (Д×Ш×В)`
+}
+
+const companyTitle = (vehicle: TransportVehicleResult) => {
+	const type = vehicle.company.type?.trim()
+	const name = vehicle.company.name?.trim() || 'Перевозчик'
+	if (type && !name.startsWith(type)) return `${type} «${name}»`
+	return name
+}
 </script>
 
 <template>
@@ -58,35 +104,97 @@ const sendRequest = async (vehicle: TransportVehicleResult) => {
 		</div>
 		<UCard class="mb-6">
 			<form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" @submit.prevent="onSearch">
-				<UFormField label="Откуда"><UInput v-model="locations.from" placeholder="Города через запятую" /></UFormField>
-				<UFormField label="Куда"><UInput v-model="locations.to" placeholder="Города через запятую" /></UFormField>
-				<UFormField label="Тип кузова"><USelectMenu v-model="filters.body_types" :items="dictionaries.body_types" multiple /></UFormField>
-				<UFormField label="Способы загрузки"><USelectMenu v-model="filters.loading_methods" :items="dictionaries.loading_methods" multiple /></UFormField>
-				<UFormField label="Классы ADR"><USelectMenu v-model="filters.adr_classes" :items="dictionaries.adr_classes" multiple /></UFormField>
-				<UFormField label="Дата загрузки"><UInput v-model="filters.load_date" type="date" /></UFormField>
-				<UFormField :label="filters.partial_load ? 'Вес догруза, кг' : 'Вес груза, кг'"><UInput v-model.number="filters.cargo_weight_kg" type="number" /></UFormField>
-				<UFormField :label="filters.partial_load ? 'Объём догруза, м³' : 'Объём груза, м³'"><UInput v-model.number="filters.cargo_volume_m3" type="number" step="0.1" /></UFormField>
-				<div class="flex items-end gap-3"><UCheckbox v-model="filters.partial_load" label="Частичная загрузка" /><UButton type="submit" :loading="pending" label="Найти транспорт" /></div>
+				<UFormField label="Откуда">
+					<UInput v-model="locations.from" placeholder="Города через запятую" class="w-full" />
+				</UFormField>
+				<UFormField label="Куда">
+					<UInput v-model="locations.to" placeholder="Города через запятую" class="w-full" />
+				</UFormField>
+				<UFormField label="Тип кузова">
+					<USelectMenu
+						v-model="filters.body_types"
+						:items="dictionaries.body_types"
+						multiple
+						placeholder="Выберите тип"
+					/>
+				</UFormField>
+				<UFormField label="Способы загрузки">
+					<USelectMenu
+						v-model="filters.loading_methods"
+						:items="dictionaries.loading_methods"
+						multiple
+						placeholder="Выберите способы"
+					/>
+				</UFormField>
+				<UFormField label="Классы ADR">
+					<USelectMenu
+						v-model="filters.adr_classes"
+						:items="dictionaries.adr_classes"
+						multiple
+						placeholder="Выберите классы"
+					/>
+				</UFormField>
+				<UFormField label="Дата загрузки">
+					<UInput v-model="filters.load_date" type="date" class="w-full" />
+				</UFormField>
+				<UFormField :label="filters.partial_load ? 'Вес догруза, кг' : 'Вес груза, кг'">
+					<UInput v-model.number="filters.cargo_weight_kg" type="number" class="w-full" />
+				</UFormField>
+				<UFormField :label="filters.partial_load ? 'Объём догруза, м³' : 'Объём груза, м³'">
+					<UInput v-model.number="filters.cargo_volume_m3" type="number" step="0.1" class="w-full" />
+				</UFormField>
+				<div class="flex flex-wrap items-end gap-3">
+					<UCheckbox v-model="filters.partial_load" label="Частичная загрузка" />
+					<UButton type="submit" :loading="pending" label="Найти транспорт" class="cursor-pointer" />
+				</div>
 			</form>
 		</UCard>
-		<UAlert v-if="vehicles.length" class="mb-4" color="primary" :title="`Найдено транспортных средств: ${vehicles.length}`" />
+		<p v-if="searched && !pending" class="mb-3 text-sm text-green-600">
+			Найдено ТС: {{ vehicles.length }}
+		</p>
 		<div v-if="pending" class="text-sm text-gray-500 py-8">Загрузка…</div>
-		<div v-else-if="!vehicles.length" class="text-sm text-gray-500 py-8">Заполните параметры и начните поиск.</div>
+		<div v-else-if="!searched" class="text-sm text-gray-500 py-8">Заполните параметры и начните поиск.</div>
+		<div v-else-if="!vehicles.length" class="text-sm text-gray-500 py-8">
+			По заданным параметрам транспорт не найден (свой парк в выдаче не показывается).
+		</div>
 		<ul v-else class="space-y-3">
 			<li
 				v-for="vehicle in vehicles"
 				:key="vehicle.id"
-				class="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+				class="border border-gray-200 rounded-lg p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
 			>
-				<div>
-					<p class="font-medium text-gray-900">{{ vehicle.name }} <span v-if="vehicle.plate_number">· {{ vehicle.plate_number }}</span></p>
+				<div class="min-w-0 space-y-1">
+					<p class="font-medium text-gray-900">
+						{{ vehicle.name }}
+						<span v-if="vehicle.plate_number" class="text-gray-500 font-normal"> · {{ vehicle.plate_number }}</span>
+						<span v-if="vehicle.trailer_plate_number" class="text-gray-500 font-normal"> · п/п {{ vehicle.trailer_plate_number }}</span>
+					</p>
+					<p class="text-sm text-gray-600">
+						{{ companyTitle(vehicle) }}
+					</p>
+					<p class="text-sm text-gray-600">
+						{{ loc(vehicle.from_locations) }} → {{ loc(vehicle.to_locations) }}
+						<span v-if="formatDate(vehicle.load_date)"> · {{ formatDate(vehicle.load_date) }}</span>
+					</p>
 					<p class="text-sm text-gray-500">
-						{{ vehicle.company.name }} · {{ vehicle.body_type || 'тип не указан' }}
-						<span v-if="vehicle.capacity_tons"> · {{ vehicle.capacity_tons }} т</span>
-						<span v-if="vehicle.volume_m3"> · {{ vehicle.volume_m3 }} м³</span>
+						<span v-if="vehicle.capacity_tons != null">{{ vehicle.capacity_tons }} т</span>
+						<span v-if="vehicle.body_type">{{ vehicle.capacity_tons != null ? ', ' : '' }}{{ vehicle.body_type }}</span>
+						<span v-if="vehicle.volume_m3 != null"> · {{ vehicle.volume_m3 }} м³</span>
+						<span v-if="vehicle.loading_methods?.length">, {{ vehicle.loading_methods.join(', ') }}</span>
+					</p>
+					<p v-if="trailerSize(vehicle)" class="text-sm text-gray-500">
+						{{ trailerSize(vehicle) }}
+					</p>
+					<p v-if="vehicle.adr_classes?.length" class="text-sm text-gray-500">
+						ADR: {{ vehicle.adr_classes.join(', ') }}
+					</p>
+					<p v-if="vehicle.partial_load" class="text-sm text-amber-700">
+						Догруз
+						<span v-if="vehicle.partial_load_weight_kg != null"> · {{ vehicle.partial_load_weight_kg }} кг</span>
+						<span v-if="vehicle.partial_load_volume_m3 != null"> · {{ vehicle.partial_load_volume_m3 }} м³</span>
 					</p>
 				</div>
-				<div class="flex gap-2 shrink-0">
+				<div class="flex flex-wrap gap-2 shrink-0">
 					<UButton
 						color="neutral"
 						variant="soft"
@@ -106,10 +214,22 @@ const sendRequest = async (vehicle: TransportVehicleResult) => {
 		<UModal v-model:open="contactsOpen">
 			<template #content>
 				<UCard v-if="contacts">
-					<template #header><span class="font-medium">{{ contacts.company.name }}</span></template>
-					<p>{{ contacts.company.type || 'Перевозчик' }}</p><p>ИНН: {{ contacts.company.inn || '—' }}</p>
-					<p>Адрес: {{ contacts.company.legal_address || '—' }}</p><p>Телефон: {{ contacts.company.phone || '—' }}</p><p>Email: {{ contacts.company.email || '—' }}</p>
-					<div class="mt-4 flex gap-2"><UButton label="Отправить заявку" @click="sendRequest(contacts)" /><UButton to="/profile/messages" variant="soft" label="Написать сообщение" /></div>
+					<template #header>
+						<span class="font-medium">{{ companyTitle(contacts) }}</span>
+					</template>
+					<p>ИНН: {{ contacts.company.inn || '—' }}</p>
+					<p>Адрес: {{ contacts.company.legal_address || '—' }}</p>
+					<p>Телефон: {{ contacts.company.phone || '—' }}</p>
+					<p>Email: {{ contacts.company.email || '—' }}</p>
+					<div class="mt-4 flex flex-wrap gap-2">
+						<UButton label="Отправить заявку" @click="sendRequest(contacts)" />
+						<UButton
+							variant="soft"
+							label="Написать сообщение"
+							:loading="messagePending"
+							@click="writeMessage(contacts)"
+						/>
+					</div>
 				</UCard>
 			</template>
 		</UModal>

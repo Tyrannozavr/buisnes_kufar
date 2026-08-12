@@ -34,8 +34,10 @@ export interface TransportCompany {
 
 export interface TransportVehicleResult extends Pick<CompanyVehicle,
 	'id' | 'company_id' | 'name' | 'plate_number' | 'trailer_plate_number' |
+	'trailer_length_m' | 'trailer_width_m' | 'trailer_height_m' | 'load_date' |
 	'body_type' | 'capacity_tons' | 'volume_m3' | 'loading_methods' |
-	'adr_classes' | 'from_locations' | 'to_locations' | 'partial_load'> {
+	'adr_classes' | 'from_locations' | 'to_locations' | 'partial_load' |
+	'partial_load_weight_kg' | 'partial_load_volume_m3'> {
 	company: TransportCompany
 }
 

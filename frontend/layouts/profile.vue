@@ -27,6 +27,11 @@ onMounted(async () => {
 
 const isLogistics = computed(() => isLogisticsTradeActivity(tradeActivity.value))
 
+/** В открытом диалоге (/profile/messages/:id) боковое меню ЛК скрываем — место под чат. */
+const hideProfileSidebar = computed(() =>
+	/^\/profile\/messages\/[^/]+$/.test(route.path) && route.path !== '/profile/messages/new',
+)
+
 const navigationItems = computed((): NavigationMenuItem[][] => {
   const companyBlock: NavigationMenuItem[] = [
     {
@@ -227,6 +232,26 @@ const FORBIDDEN_FOR_LOGISTICS = [
   '/profile/purchases',
 ]
 
+const mobileNavOpen = ref(false)
+
+const currentNavLabel = computed(() => {
+	for (const group of navigationItems.value) {
+		for (const item of group) {
+			if (item.type === 'label' || !item.to) continue
+			if (item.active) return item.label
+		}
+	}
+	const title = pageTitle.value
+	return typeof title === 'string' && title ? title : 'Разделы'
+})
+
+watch(
+	() => route.fullPath,
+	() => {
+		mobileNavOpen.value = false
+	},
+)
+
 watch(
   [isLogistics, companyLoaded, () => route.path],
   ([logistics, loaded, path]) => {
@@ -242,19 +267,102 @@ watch(
 <template>
 	<AppLayout>
 		<div class="container mx-auto px-2 py-6 md:px-0">
-			<div class="mb-6">
+			<div class="mb-4 md:mb-6">
 				<Breadcrumbs :current-page-title="pageTitle" />
 			</div>
 
+			<!-- Mobile: sticky bar разделов (сайдбар снизу скрыт) -->
+			<div
+				v-if="!hideProfileSidebar"
+				class="md:hidden sticky top-[72px] z-40 -mx-2 px-2 mb-4"
+			>
+				<button
+					type="button"
+					class="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white/95 backdrop-blur px-3 py-2.5 text-left shadow-sm cursor-pointer"
+					@click="mobileNavOpen = true"
+				>
+					<span class="min-w-0">
+						<span class="block text-xs text-gray-500">Раздел ЛК</span>
+						<span class="block truncate font-medium text-gray-900">{{ currentNavLabel }}</span>
+					</span>
+					<span class="relative shrink-0 inline-flex items-center gap-1.5 text-sm text-primary-600 font-medium">
+						<ChatUnreadBadge v-if="badgeText" :count="badgeText" />
+						<span>Сменить</span>
+						<UIcon name="i-heroicons-chevron-down" class="size-4" />
+					</span>
+				</button>
+			</div>
+
+			<UModal
+				v-model:open="mobileNavOpen"
+				title="Разделы личного кабинета"
+				description="Выберите раздел для перехода"
+				:ui="{ content: 'sm:max-w-md w-[calc(100%-1.5rem)]' }"
+			>
+				<template #body>
+					<nav class="max-h-[min(70vh,32rem)] overflow-y-auto -mx-1 px-1 space-y-4">
+						<div
+							v-for="(group, groupIndex) in navigationItems"
+							:key="groupIndex"
+							class="space-y-1"
+						>
+							<p
+								v-if="group.find(item => item.type === 'label')"
+								class="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-gray-400"
+							>
+								{{ group.find(item => item.type === 'label')?.label }}
+							</p>
+							<NuxtLink
+								v-for="item in group.filter(entry => entry.type !== 'label' && entry.to)"
+								:key="item.to"
+								:to="item.to!"
+								class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors cursor-pointer"
+								:class="item.active
+									? 'bg-primary-50 text-primary-700 font-medium ring-1 ring-primary-100'
+									: 'text-gray-700 hover:bg-gray-50'"
+								@click="mobileNavOpen = false"
+							>
+								<UIcon
+									v-if="item.icon"
+									:name="item.icon"
+									class="size-5 shrink-0 opacity-80"
+								/>
+								<span class="flex-1 min-w-0 truncate">{{ item.label }}</span>
+								<ChatUnreadBadge
+									v-if="item.slot === 'messages' && badgeText"
+									:count="badgeText"
+								/>
+								<UIcon
+									v-if="item.active"
+									name="i-heroicons-check"
+									class="size-4 shrink-0 text-primary-600"
+								/>
+							</NuxtLink>
+						</div>
+					</nav>
+				</template>
+				<template #footer>
+					<div class="flex justify-end">
+						<UButton
+							label="Закрыть"
+							color="neutral"
+							variant="outline"
+							class="cursor-pointer"
+							@click="mobileNavOpen = false"
+						/>
+					</div>
+				</template>
+			</UModal>
+
 			<!-- Альтернативное меню навигации ??? -->
 			<div v-if="alternativeLayout()" class="flex flex-col md:flex-col gap-6 md:gap-8">
-				<div class="flex justify-end px-2">
+				<div class="hidden md:flex justify-end px-2">
 					<UButton
 						to="/profile/messages"
 						color="neutral"
 						variant="soft"
 						icon="i-heroicons-chat-bubble-left-right"
-						class="relative"
+						class="relative cursor-pointer"
 					>
 						Сообщения
 						<ChatUnreadBadge
@@ -265,22 +373,24 @@ watch(
 					</UButton>
 				</div>
 				<!-- Main Content -->
-				<div class="w-full md:max-w-full order-2">
+				<div class="w-full md:max-w-full">
 					<slot />
-				</div>
-				<!-- Navigation Sidebar -->
-				<div class="w-lg md:w-full shrink-0 order-1">
-					<!-- <UNavigationMenu arrow orientation="horizontal" content-orientation="vertical" :items="alternativeNavigationItems" /> -->
 				</div>
 			</div>
 
 			<div v-else class="flex flex-col md:flex-row gap-6 md:gap-8">
 				<!-- Main Content -->
-				<div class="w-full md:max-w-3xl md:pr-6">
+				<div
+					class="w-full md:pr-6"
+					:class="hideProfileSidebar ? 'md:max-w-full' : 'md:max-w-3xl'"
+				>
 					<slot />
 				</div>
-				<!-- Navigation Sidebar -->
-				<div class="w-full md:w-64 shrink-0 md:pl-0 md:pr-4">
+				<!-- Desktop sidebar — на мобилке скрыт, вместо него sticky bar -->
+				<div
+					v-if="!hideProfileSidebar"
+					class="hidden md:block w-full md:w-64 shrink-0 md:pl-0 md:pr-4"
+				>
 					<UCard class="sticky top-8 md:w-64 w-full">
 						<UNavigationMenu orientation="vertical" :items="navigationItems"
 							class="data-[orientation=vertical]:w-full">

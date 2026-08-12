@@ -45,6 +45,7 @@ const {data: onlineStatus, pending: onlineStatusPending, refresh: refreshOnlineS
 const newMessage = ref('')
 const showFilesModal = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const messageInput = ref<HTMLTextAreaElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const isTyping = ref(false)
 const typingTimeout = ref<NodeJS.Timeout | null>(null)
@@ -120,7 +121,8 @@ const markCurrentChatAsRead = async (): Promise<void> => {
 		markIncomingMessagesAsReadLocally()
 		updateChatUnreadInList(chatId, 0)
 		chatUnreadStore.setFromChats(chats.value ?? [])
-		await chatUnreadStore.refresh()
+		await refreshChats()
+		chatUnreadStore.setFromChats(chats.value ?? [])
 	} catch (error) {
 		console.error('Failed to mark chat as read:', error)
 	}
@@ -138,13 +140,7 @@ const handleIncomingChatMessage = (message: Record<string, unknown>) => {
 
 	const current = chats.value?.find((item) => item.id === chatId)
 	updateChatUnreadInList(chatId, (current?.unread_count ?? 0) + 1)
-	chatUnreadStore.noteIncomingMessage({
-		chatId,
-		senderCompanyId: Number((message as { sender_company_id?: number }).sender_company_id),
-		viewerCompanyId: userStore.companyId ? Number(userStore.companyId) : null,
-		activeChatId: getActiveChatIdFromRoute(route),
-		pageVisible: import.meta.client && document.visibilityState === 'visible',
-	})
+	chatUnreadStore.setFromChats(chats.value ?? [])
 	void chatUnreadStore.refresh()
 	void refreshChats()
 }
@@ -308,6 +304,25 @@ const handleTyping = () => {
   }, 2000)
 }
 
+const resizeMessageInput = () => {
+  const el = messageInput.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+}
+
+const onMessageInput = () => {
+  handleTyping()
+  nextTick(resizeMessageInput)
+}
+
+const onMessageKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    void handleSendMessage()
+  }
+}
+
 const handleSendMessage = async () => {
   if (!newMessage.value.trim() && !selectedFile.value) return
 
@@ -346,6 +361,11 @@ const handleSendMessage = async () => {
     if (fileInput.value) {
       fileInput.value.value = ''
     }
+    nextTick(() => {
+      if (messageInput.value) {
+        messageInput.value.style.height = 'auto'
+      }
+    })
 
     // Отправляем сообщение на сервер
     const messageResponse = await sendMessage(chatId, {
@@ -460,9 +480,9 @@ const formatMessageContent = (content: string, isMine: boolean) => {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-16rem)]">
+  <div class="flex h-[calc(100vh-16rem)] min-h-[24rem] min-w-0">
     <!-- Боковая панель с чатами - скрыта на мобильных устройствах -->
-    <div class="hidden lg:flex w-80 border-r border-gray-200 flex-col">
+    <div class="hidden lg:flex w-80 shrink-0 border-r border-gray-200 flex-col min-h-0">
       <div class="p-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold">Сообщения</h2>
       </div>
@@ -505,7 +525,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
     </div>
 
     <!-- Основная область чата -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col min-w-0 min-h-0">
       <!-- Заголовок чата -->
       <div v-if="chat" class="p-4 border-b border-gray-200 bg-white">
         <div class="flex items-center space-x-3">
@@ -589,7 +609,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
       </div>
 
       <template v-else-if="chat">
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-200px)]">
+        <div ref="messagesContainer" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           <div
               v-for="message in messages"
               :key="message.id"
@@ -597,27 +617,27 @@ const formatMessageContent = (content: string, isMine: boolean) => {
               :class="{ 'justify-end': isOwnMessage(message) }"
           >
             <div
-                class="max-w-[70%] p-4 rounded-lg"
+                class="w-fit max-w-[min(85%,22rem)] sm:max-w-[min(70%,28rem)] p-3 rounded-2xl"
                 :class="isOwnMessage(message) ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
               <div
                 v-if="message.content"
-                class="mb-2 break-words"
+                class="mb-1 text-sm break-words [overflow-wrap:anywhere]"
                 v-html="formatMessageContent(message.content, isOwnMessage(message))"
               >
               </div>
-              <div v-if="message.file_path" class="mt-2">
+              <div v-if="message.file_path" class="mt-1">
                 <a
                     v-if="isImageAttachment(message)"
                     :href="publicFileUrl(message.file_path)"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="block overflow-hidden rounded-md"
+                    class="block overflow-hidden rounded-lg max-w-[16rem]"
                 >
                   <img
                     :src="publicFileUrl(message.file_path)"
                     :alt="message.file_name || 'Изображение'"
-                    class="max-h-64 w-full object-cover rounded-md bg-black/10"
+                    class="max-h-52 w-auto max-w-full object-contain rounded-lg bg-black/10"
                     loading="lazy"
                   />
                   <p
@@ -632,7 +652,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                     v-else
                     :href="publicFileUrl(message.file_path)"
                     target="_blank"
-                    class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
+                    class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors max-w-full"
                     :class="isOwnMessage(message) ? 'text-blue-100' : 'text-blue-600'"
                 >
                   <UIcon
@@ -649,7 +669,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                 </a>
               </div>
               <div
-                class="flex items-center gap-1 mt-2"
+                class="flex items-center gap-1 mt-1.5"
                 :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"
               >
                 <span
@@ -676,46 +696,49 @@ const formatMessageContent = (content: string, isMine: boolean) => {
           </div>
         </div>
 
-        <div class="border-t border-gray-200 p-4">
-          <form class="flex gap-4" @submit.prevent="handleSendMessage">
-            <div class="flex-1 flex items-center gap-2">
-              <button
-                  type="button"
-                  class="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  @click="fileInput?.click()"
-              >
-                <UIcon name="i-heroicons-paper-clip" class="w-6 h-6"/>
-              </button>
-              <input
-                  ref="fileInput"
-                  type="file"
-                  class="hidden"
-                  @change="handleFileSelect"
-              />
-              <input
-                  v-model="newMessage"
-                  type="text"
-                  placeholder="Введите сообщение..."
-                  class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @input="handleTyping"
-              >
-            </div>
+        <div class="border-t border-gray-200 p-3 sm:p-4 bg-white shrink-0">
+          <form class="flex items-end gap-2" @submit.prevent="handleSendMessage">
+            <button
+                type="button"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none shrink-0 cursor-pointer"
+                title="Прикрепить файл"
+                @click="fileInput?.click()"
+            >
+              <UIcon name="i-heroicons-paper-clip" class="size-5"/>
+            </button>
+            <input
+                ref="fileInput"
+                type="file"
+                class="hidden"
+                @change="handleFileSelect"
+            />
+            <textarea
+                ref="messageInput"
+                v-model="newMessage"
+                rows="1"
+                placeholder="Введите сообщение..."
+                class="flex-1 min-h-10 max-h-40 resize-none overflow-y-auto px-3 py-2.5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 leading-5 text-sm"
+                @input="onMessageInput"
+                @keydown="onMessageKeydown"
+            />
             <button
                 type="submit"
-                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Отправить"
+                :disabled="!newMessage.trim() && !selectedFile"
             >
-              Отправить
+              <UIcon name="i-lucide-send" class="size-5 translate-x-px -translate-y-px"/>
             </button>
           </form>
-          <div v-if="selectedFile" class="mt-2 flex items-center gap-2 text-sm text-gray-600">
-            <UIcon name="i-heroicons-paper-clip" class="w-4 h-4"/>
+          <div v-if="selectedFile" class="mt-2 flex items-center gap-2 text-sm text-gray-600 pl-12">
+            <UIcon name="i-heroicons-paper-clip" class="size-4"/>
             {{ selectedFile.name }}
             <button
                 type="button"
-                class="text-red-500 hover:text-red-700"
+                class="text-red-500 hover:text-red-700 cursor-pointer"
                 @click="selectedFile = null"
             >
-              <UIcon name="i-heroicons-x-mark" class="w-4 h-4"/>
+              <UIcon name="i-heroicons-x-mark" class="size-4"/>
             </button>
           </div>
         </div>

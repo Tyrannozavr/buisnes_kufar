@@ -86,9 +86,20 @@
         </div>
 
         <!-- Copyright -->
-        <div class="mt-8 pt-8 border-t">
+        <div class="mt-8 pt-8 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p class="text-sm text-gray-600">
             © {{ new Date().getFullYear() }} Строительный портал. Все права защищены.
+          </p>
+          <p class="text-sm text-gray-600">
+            Разработчик:
+            <a
+              href="https://tyrannozavr.ru/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-gray-800 hover:text-primary-600 underline-offset-2 hover:underline"
+            >
+              tyrannozavr.ru
+            </a>
           </p>
         </div>
       </div>

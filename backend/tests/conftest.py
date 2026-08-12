@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 async def ensure_tables():
 	"""Пересоздать async engine на текущем loop и создать таблицы."""
 	from app.core.config import settings

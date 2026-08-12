@@ -2,11 +2,12 @@
 import type { TransportDictionaries, TransportSearchFilters, TransportVehicleResult } from '~/types/transport'
 import { useTransportApi } from '~/api/transport'
 import { navigateToChatById } from '~/composables/chat'
+import { useFavoriteToggle } from '~/composables/useFavoriteToggle'
 
 useHead({ title: 'Поиск транспорта — TradeSynergy' })
 
 const toast = useToast()
-const { search, getDictionaries, addVehicleFavorite, sendVehicleRequest } = useTransportApi()
+const { search, getDictionaries, addVehicleFavorite, removeVehicleFavorite, listVehicleFavoriteIds, sendVehicleRequest } = useTransportApi()
 const pending = ref(false)
 const searched = ref(false)
 const messagePending = ref(false)
@@ -20,7 +21,18 @@ const filters = ref<TransportSearchFilters>({
 })
 const locations = ref({ from: '', to: '' })
 
-onMounted(async () => { dictionaries.value = await getDictionaries() })
+const {
+	pendingId: favoritePendingId,
+	isFavorite,
+	loadFavoriteIds,
+	toggleFavorite,
+} = useFavoriteToggle({
+	list: listVehicleFavoriteIds,
+	add: addVehicleFavorite,
+	remove: removeVehicleFavorite,
+	addedTitle: 'Транспорт добавлен в избранное',
+	removedTitle: 'Транспорт убран из избранного',
+})
 
 const onSearch = async () => {
 	pending.value = true
@@ -30,16 +42,34 @@ const onSearch = async () => {
 			from_locations: locations.value.from.split(',').map(name => name.trim()).filter(Boolean).map(name => ({ name })),
 			to_locations: locations.value.to.split(',').map(name => name.trim()).filter(Boolean).map(name => ({ name })),
 		}
-		vehicles.value = (await search(payload)).vehicles
+		const result = await search(payload)
+		vehicles.value = result.vehicles
 		searched.value = true
+		await loadFavoriteIds()
+		const created = result.requests_created ?? 0
+		if (created > 0) {
+			toast.add({
+				title: 'Заявка отправлена перевозчикам',
+				description: created === 1
+					? 'Пассивная заявка создана у перевозчика. Ожидайте отклика или выберите ТС ниже.'
+					: `Пассивные заявки созданы у ${created} перевозчиков. Ожидайте отклика или выберите ТС ниже.`,
+				color: 'success',
+			})
+		}
 	} catch (e: any) {
 		toast.add({ title: 'Не удалось выполнить поиск', description: e?.data?.detail || e?.message, color: 'error' })
 	} finally { pending.value = false }
 }
-const favorite = async (vehicle: TransportVehicleResult) => {
-	await addVehicleFavorite(vehicle.id)
-	toast.add({ title: 'Транспорт добавлен в избранное', color: 'success' })
-}
+
+onMounted(async () => {
+	try {
+		dictionaries.value = await getDictionaries()
+	} catch {
+		// словари необязательны для выдачи списка
+	}
+	await onSearch()
+})
+
 const showContacts = (vehicle: TransportVehicleResult) => {
 	contacts.value = vehicle
 	contactsOpen.value = true
@@ -102,7 +132,7 @@ const companyTitle = (vehicle: TransportVehicleResult) => {
 			<h1 class="text-2xl font-semibold text-gray-900">Поиск транспорта</h1>
 			<p class="mt-1 text-sm text-gray-600">Подберите транспорт по маршруту, типу кузова и параметрам груза.</p>
 		</div>
-		<UCard class="mb-6">
+		<UCard class="mb-6" :ui="{ body: 'p-4 pb-3 sm:p-4 sm:pb-3' }">
 			<form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" @submit.prevent="onSearch">
 				<UFormField label="Откуда">
 					<UInput v-model="locations.from" placeholder="Города через запятую" class="w-full" />
@@ -143,7 +173,7 @@ const companyTitle = (vehicle: TransportVehicleResult) => {
 				<UFormField :label="filters.partial_load ? 'Объём догруза, м³' : 'Объём груза, м³'">
 					<UInput v-model.number="filters.cargo_volume_m3" type="number" step="0.1" class="w-full" />
 				</UFormField>
-				<div class="flex flex-wrap items-end gap-3">
+				<div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 lg:col-span-3">
 					<UCheckbox v-model="filters.partial_load" label="Частичная загрузка" />
 					<UButton type="submit" :loading="pending" label="Найти транспорт" class="cursor-pointer" />
 				</div>
@@ -153,7 +183,7 @@ const companyTitle = (vehicle: TransportVehicleResult) => {
 			Найдено ТС: {{ vehicles.length }}
 		</p>
 		<div v-if="pending" class="text-sm text-gray-500 py-8">Загрузка…</div>
-		<div v-else-if="!searched" class="text-sm text-gray-500 py-8">Заполните параметры и начните поиск.</div>
+		<div v-else-if="!searched" class="text-sm text-gray-500 py-8">Загрузка списка транспорта…</div>
 		<div v-else-if="!vehicles.length" class="text-sm text-gray-500 py-8">
 			По заданным параметрам транспорт не найден (свой парк в выдаче не показывается).
 		</div>
@@ -199,14 +229,21 @@ const companyTitle = (vehicle: TransportVehicleResult) => {
 						color="neutral"
 						variant="soft"
 						label="Показать контакты"
+						class="cursor-pointer"
 						@click="showContacts(vehicle)"
+					/>
+					<FavoriteToggleButton
+						:active="isFavorite(vehicle.id)"
+						:loading="favoritePendingId === vehicle.id"
+						@click="toggleFavorite(vehicle.id)"
 					/>
 					<UButton
 						color="primary"
-						label="В избранное"
-						@click="favorite(vehicle)"
+						variant="soft"
+						label="Отправить заявку"
+						class="cursor-pointer"
+						@click="sendRequest(vehicle)"
 					/>
-					<UButton color="primary" variant="soft" label="Отправить заявку" @click="sendRequest(vehicle)" />
 				</div>
 			</li>
 		</ul>

@@ -50,8 +50,8 @@ const loc = (items?: { name?: string }[]) => (items || []).map(x => x.name).filt
 
 const removeRequest = (id: number) => {
 	askDelete({
-		message: `Точно хотите убрать заявку № ${id} из избранного?`,
-		confirmLabel: 'Убрать',
+		message: `Точно хотите удалить заявку № ${id} из избранного?`,
+		confirmLabel: 'Удалить',
 		onConfirm: async () => {
 			await removeRequestFavorite(id)
 			await load()
@@ -61,8 +61,8 @@ const removeRequest = (id: number) => {
 
 const removeVehicle = (vehicle: TransportVehicleResult) => {
 	askDelete({
-		message: `Точно хотите убрать «${vehicle.name}» из избранного?`,
-		confirmLabel: 'Убрать',
+		message: `Точно хотите удалить «${vehicle.name}» из избранного?`,
+		confirmLabel: 'Удалить',
 		onConfirm: async () => {
 			await removeVehicleFavorite(vehicle.id)
 			await load()
@@ -83,8 +83,8 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 		<div v-if="isLogistics">
 			<p v-if="!requests.length" class="text-sm text-gray-500">Нет избранных заявок.</p>
 			<UCard v-for="request in requests" :key="request.id" class="mb-3">
-				<div class="flex justify-between gap-3">
-					<div>
+				<div class="flex items-start justify-between gap-3">
+					<div class="min-w-0">
 						<p class="font-medium">Заявка № {{ request.id }} · {{ request.status }}</p>
 						<p class="text-sm">
 							{{ loc(request.search_filters?.from_locations) }}
@@ -93,9 +93,12 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 						</p>
 					</div>
 					<UButton
-						variant="ghost"
+						icon="i-heroicons-trash"
+						size="sm"
+						variant="soft"
 						color="error"
-						label="Убрать"
+						label="Удалить"
+						class="cursor-pointer shrink-0 self-start"
 						@click="removeRequest(request.id)"
 					/>
 				</div>
@@ -105,7 +108,7 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 		<div v-else>
 			<p v-if="!vehicles.length" class="text-sm text-gray-500">Нет избранного транспорта.</p>
 			<UCard v-for="vehicle in vehicles" :key="vehicle.id" class="mb-3">
-				<div class="flex flex-col sm:flex-row justify-between gap-3">
+				<div class="flex items-start justify-between gap-3">
 					<div class="space-y-1 min-w-0">
 						<p class="font-medium">
 							{{ vehicle.name }}
@@ -130,9 +133,12 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 						<p v-if="vehicle.partial_load" class="text-sm text-amber-700">Догруз</p>
 					</div>
 					<UButton
-						variant="ghost"
+						icon="i-heroicons-trash"
+						size="sm"
+						variant="soft"
 						color="error"
-						label="Убрать"
+						label="Удалить"
+						class="cursor-pointer shrink-0 self-start"
 						@click="removeVehicle(vehicle)"
 					/>
 				</div>

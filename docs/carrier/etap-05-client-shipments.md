@@ -1,6 +1,6 @@
 # Этап 5 — E. Перевозки клиента
 
-**Статус:** ✅  
+**Статус:** ✅ код · ✅ приёмка 2026-08-12  
 **Ветка:** `feature/carrier-tz`  
 **ТЗ:** [tz-requirements.md](tz-requirements.md) §E  
 **Ручной чек-лист:** [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md) §E

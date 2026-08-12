@@ -80,15 +80,15 @@
 
 **Ветка:** `feature/carrier-tz` (от актуального `master` = sync с `preprod`)  
 **Статус реализации:** A–G ✅ (без деплоя на сервер)  
-**Ручная приёмка:** **§A–§B принято** (2026-08-12) · §C+ — в процессе / ожидает
+**Ручная приёмка:** **§A–§E принято** (2026-08-12) · §F+ — ещё не принято
 
 | Этап | Документ | Код | Приёмка |
 |------|----------|-----|---------|
 | A Транспорт | [etap-01-transport.md](etap-01-transport.md) | ✅ | ✅ |
 | B Водители | [etap-02-drivers.md](etap-02-drivers.md) | ✅ | ✅ |
-| C Поиск | [etap-03-transport-search.md](etap-03-transport-search.md) | ✅ | ⏳ |
-| D Заявки | [etap-04-requests.md](etap-04-requests.md) | ✅ | ⏳ |
-| E Перевозки клиента | [etap-05-client-shipments.md](etap-05-client-shipments.md) | ✅ | ⏳ |
+| C Поиск | [etap-03-transport-search.md](etap-03-transport-search.md) | ✅ | ✅ |
+| D Заявки | [etap-04-requests.md](etap-04-requests.md) | ✅ | ✅ |
+| E Перевозки клиента | [etap-05-client-shipments.md](etap-05-client-shipments.md) | ✅ | ✅ |
 | F Перевозки перевозчика | [etap-06-carrier-shipments.md](etap-06-carrier-shipments.md) | ✅ | ⏳ |
 | G Избранное | [etap-07-favorites.md](etap-07-favorites.md) | ✅ | ⏳ |
 

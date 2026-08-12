@@ -1,6 +1,6 @@
 # Этап 4 — D. Заявки перевозчика
 
-**Статус:** ✅  
+**Статус:** ✅ код · ✅ приёмка 2026-08-12  
 **Ветка:** `feature/carrier-tz`  
 **ТЗ:** [tz-requirements.md](tz-requirements.md) §D  
 **Ручной чек-лист:** [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md) §D

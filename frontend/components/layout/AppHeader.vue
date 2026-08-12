@@ -92,22 +92,31 @@ const toggleSidebar = () => {
           </UButton>
 
           <template v-else>
-            <div class="relative inline-flex">
+            <div class="relative inline-flex min-w-0">
               <UButton
                   to="/profile"
                   color="neutral"
                   variant="ghost"
-                  class="flex items-center space-x-2"
+                  class="flex items-center gap-2 max-w-[46vw] sm:max-w-none cursor-pointer"
               >
-                <div v-if="userStore.companyLogo" class="h-8 w-8 overflow-hidden rounded-full hidden sm:block">
+                <div
+                  v-if="userStore.companyLogo"
+                  class="h-8 w-8 overflow-hidden rounded-full shrink-0"
+                >
                   <NuxtImg
                       :src="userStore.companyLogo"
                       :alt="userStore.companyName"
                       class="h-full w-full object-cover"
                   />
                 </div>
-                <UIcon name="i-heroicons-user-circle" class="sm:hidden h-8 w-8"/>
-                <span class="hidden sm:inline">{{ userStore.companyName || 'Профиль' }}</span>
+                <UIcon
+                  v-else
+                  name="i-heroicons-user-circle"
+                  class="h-8 w-8 shrink-0"
+                />
+                <span class="truncate text-sm sm:text-base">
+                  {{ userStore.companyName || 'Профиль' }}
+                </span>
               </UButton>
               <ChatUnreadBadge
                   v-if="unreadChatsBadge"
@@ -121,7 +130,7 @@ const toggleSidebar = () => {
                   color="neutral"
                   variant="ghost"
                   icon="i-heroicons-arrow-right-on-rectangle"
-                  class="h-10 w-10 cursor-pointer"
+                  class="h-10 w-10 shrink-0 cursor-pointer"
                   @click="handleLogout"
               />
             </UTooltip>

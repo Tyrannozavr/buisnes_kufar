@@ -260,7 +260,7 @@ const remove = (id: number) => {
 
 		<UModal v-model:open="formOpen" :title="formTitle" @update:open="(open) => { if (!open) resetForm() }">
 			<template #body>
-				<div class="space-y-4 p-1 sm:p-2">
+				<form class="space-y-4 p-1 sm:p-2" @submit.prevent="submit">
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<UFormField label="ФИО" class="sm:col-span-2">
 							<UInput v-model="draft.full_name" placeholder="Иванов Иван Иванович" />
@@ -280,15 +280,24 @@ const remove = (id: number) => {
 					</div>
 					<div class="flex flex-wrap justify-end gap-2 pt-2">
 						<UButton
+							type="button"
 							label="Отмена"
 							color="neutral"
 							variant="outline"
 							:disabled="loading"
+							class="cursor-pointer"
 							@click="closeForm"
 						/>
-						<UButton :label="submitLabel" color="primary" :loading="loading" @click="submit" />
+						<UButton
+							type="submit"
+							data-form-primary
+							:label="submitLabel"
+							color="primary"
+							:loading="loading"
+							class="cursor-pointer"
+						/>
 					</div>
-				</div>
+				</form>
 			</template>
 		</UModal>
 	</div>

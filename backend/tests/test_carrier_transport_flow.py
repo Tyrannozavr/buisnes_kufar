@@ -14,7 +14,7 @@ from app.api.company.models.fleet import CompanyDriver, CompanyVehicle
 from app.api.messages.models.message import Message
 from app.api.shipments.models import RequestFavorite, Shipment, ShipmentRequest, VehicleFavorite
 from app.api.shipments.tasks import purge_expired_requests
-from app.db.base import AsyncSessionLocal
+from app.db import base as db_base
 from app.main import app
 
 
@@ -51,7 +51,7 @@ def _company(suffix: str, carrier: bool) -> Company:
 @pytest.mark.asyncio
 async def test_carrier_transport_flow():
 	suffix = uuid4().hex[:8]
-	async with AsyncSessionLocal() as session:
+	async with db_base.AsyncSessionLocal() as session:
 		client_company, carrier_company = _company(suffix, False), _company(suffix, True)
 		session.add_all([client_company, carrier_company])
 		await session.flush()
@@ -68,7 +68,7 @@ async def test_carrier_transport_flow():
 	current_user_id = client_user_id
 
 	async def _override_current_user():
-		async with AsyncSessionLocal() as session:
+		async with db_base.AsyncSessionLocal() as session:
 			return await session.get(User, current_user_id)
 
 	app.dependency_overrides[get_current_user] = _override_current_user
@@ -79,25 +79,76 @@ async def test_carrier_transport_flow():
 				json={
 					"body_types": ["Тентованный"],
 					"cargo_weight_kg": 500,
+					"from_locations": [],
+					"to_locations": [],
+				},
+			)
+			assert search.status_code == 200, search.text
+			body = search.json()
+			matched_ids = [item["id"] for item in body["vehicles"]]
+			assert vehicle_id in matched_ids
+			# Без Откуда/Куда — только список, заявок нет
+			assert body.get("requests_created") == 0
+			async with db_base.AsyncSessionLocal() as session:
+				assert (await session.execute(
+					select(ShipmentRequest).where(
+						ShipmentRequest.client_company_id == client_company_id,
+						ShipmentRequest.carrier_company_id == carrier_company_id,
+					)
+				)).scalars().first() is None
+
+			# С маршрутом — пассивная заявка один раз
+			search_route = await api.post(
+				"/api/v1/transport/search",
+				json={
+					"body_types": ["Тентованный"],
+					"cargo_weight_kg": 500,
 					"from_locations": [{"name": "Москва"}],
 					"to_locations": [{"name": "Тула"}],
 				},
 			)
-			assert search.status_code == 200, search.text
-			matched_ids = [item["id"] for item in search.json()["vehicles"]]
-			assert vehicle_id in matched_ids
-			async with AsyncSessionLocal() as session:
+			assert search_route.status_code == 200, search_route.text
+			assert search_route.json().get("requests_created") == 1
+			async with db_base.AsyncSessionLocal() as session:
 				request = (await session.execute(
 					select(ShipmentRequest).where(
 						ShipmentRequest.client_company_id == client_company_id,
 						ShipmentRequest.carrier_company_id == carrier_company_id,
 					).order_by(ShipmentRequest.id.desc())
 				)).scalars().first()
-				assert request is None, "search must not create shipment requests"
+				assert request is not None
+				assert request.status == "passive"
+				assert request.is_highlighted is False
+				passive_id = request.id
+
+			# Повторный поиск по маршруту не создаёт вторую заявку
+			search2 = await api.post(
+				"/api/v1/transport/search",
+				json={
+					"body_types": ["Тентованный"],
+					"cargo_weight_kg": 500,
+					"from_locations": [{"name": "Москва"}],
+					"to_locations": [{"name": "Тула"}],
+				},
+			)
+			assert search2.status_code == 200, search2.text
+			assert search2.json().get("requests_created") == 0
+			assert search2.json().get("requests_updated") == 1
+			async with db_base.AsyncSessionLocal() as session:
+				count = (await session.execute(
+					select(ShipmentRequest).where(
+						ShipmentRequest.client_company_id == client_company_id,
+						ShipmentRequest.carrier_company_id == carrier_company_id,
+						ShipmentRequest.status.in_(["passive", "active"]),
+					)
+				)).scalars().all()
+				assert len(count) == 1
+				assert count[0].id == passive_id
 
 			send = await api.post(f"/api/v1/transport/vehicles/{vehicle_id}/send-request")
 			assert send.status_code == 200, send.text
 			assert send.json()["is_highlighted"] is True
+			assert send.json()["id"] == passive_id
 			request_id = send.json()["id"]
 			assert (await api.post(f"/api/v1/transport/favorites/vehicles/{vehicle_id}")).status_code == 201
 
@@ -115,13 +166,23 @@ async def test_carrier_transport_flow():
 			cargo = await api.patch(f"/api/v1/transport/shipments/{shipment_id}/cargo", json={"cargo_name": "Тестовый груз", "gross_weight": 500})
 			assert cargo.status_code == 200 and cargo.json()["cargo_data"]["cargo_name"] == "Тестовый груз"
 
-			async with AsyncSessionLocal() as session:
+			listed = await api.get("/api/v1/transport/shipments")
+			assert listed.status_code == 200
+			row = next(s for s in listed.json() if s["id"] == shipment_id)
+			assert "cargo_data" not in row and "transport_snapshot" not in row
+			cargo_get = await api.get(f"/api/v1/transport/shipments/{shipment_id}/cargo")
+			assert cargo_get.status_code == 200 and cargo_get.json()["cargo_data"]["cargo_name"] == "Тестовый груз"
+			transport_get = await api.get(f"/api/v1/transport/shipments/{shipment_id}/transport")
+			assert transport_get.status_code == 200
+			assert transport_get.json()["transport_snapshot"]["driver"]["id"] == driver_id
+
+			async with db_base.AsyncSessionLocal() as session:
 				session.add(ShipmentRequest(client_company_id=client_company_id, carrier_company_id=carrier_company_id, search_filters={}, matched_vehicle_ids=[], expires_at=datetime.utcnow() - timedelta(seconds=1)))
 				await session.commit()
 			assert await purge_expired_requests() >= 1
 	finally:
 		app.dependency_overrides.pop(get_current_user, None)
-		async with AsyncSessionLocal() as session:
+		async with db_base.AsyncSessionLocal() as session:
 			await session.execute(delete(RequestFavorite).where(RequestFavorite.carrier_company_id == carrier_company_id))
 			await session.execute(delete(VehicleFavorite).where(VehicleFavorite.client_company_id == client_company_id))
 			await session.execute(delete(Shipment).where(Shipment.client_company_id == client_company_id))

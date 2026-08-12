@@ -1,6 +1,6 @@
 # Этап 3 — C. Поиск транспорта
 
-**Статус:** ✅  
+**Статус:** ✅ код · ✅ приёмка 2026-08-12  
 **Ветка:** `feature/carrier-tz`  
 **ТЗ:** [tz-requirements.md](tz-requirements.md) §C  
 **Ручной чек-лист:** [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md) §C

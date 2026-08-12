@@ -7,11 +7,13 @@ import { onChatPresenceMessage } from '~/composables/useChatPresence'
 import { useChatUnreadStore } from '~/stores/chatUnread'
 import { companyAvatarUrl, onCompanyAvatarError } from '~/utils/companyAvatar'
 import { chatLastMessagePreview } from '~/utils/chatPreview'
+import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
 
 definePageMeta({
   layout: 'profile'
 })
 
+const route = useRoute()
 const router = useRouter()
 const { getChats } = useChatsApi()
 const userStore = useUserStore()
@@ -22,7 +24,15 @@ const currentCompanyId = userStore.companyId
 
 const { data: chats, pending, error, refresh: refreshChats } = await getChats()
 
+const syncUnreadBadges = () => {
+  if (chats.value) chatUnreadStore.setFromChats(chats.value)
+}
+
+watch(chats, syncUnreadBadges, { deep: true, immediate: true })
+
 onMounted(() => {
+  void refreshChats().then(syncUnreadBadges)
+
   const unsubscribe = onChatPresenceMessage((message) => {
     if (message.type === 'new_message') {
       const payload = message.message as {
@@ -36,13 +46,19 @@ onMounted(() => {
       const senderId = Number(payload?.sender_company_id)
       const targetChatId = Number(message.chat_id)
       const viewerId = Number(currentCompanyId)
+      const activeChatId = getActiveChatIdFromRoute(route)
+      const viewingThisChat =
+        document.visibilityState === 'visible' &&
+        activeChatId != null &&
+        activeChatId === targetChatId
 
       if (
         targetChatId &&
         senderId &&
         viewerId &&
         senderId !== viewerId &&
-        chats.value
+        chats.value &&
+        !viewingThisChat
       ) {
         const item = chats.value.find((c) => c.id === targetChatId)
         if (item) {
@@ -59,21 +75,13 @@ onMounted(() => {
             created_at: payload?.created_at ?? new Date().toISOString(),
             updated_at: payload?.created_at ?? new Date().toISOString(),
           }
+          syncUnreadBadges()
         }
       }
-
-      chatUnreadStore.noteIncomingMessage({
-        chatId: targetChatId,
-        senderCompanyId: senderId || null,
-        viewerCompanyId: viewerId || null,
-        activeChatId: null,
-        pageVisible: document.visibilityState === 'visible',
-      })
     }
 
     if (message.type === 'new_message' || message.type === 'messages_read') {
-      void refreshChats()
-      void chatUnreadStore.refresh()
+      void refreshChats().then(syncUnreadBadges)
     }
   })
   onUnmounted(unsubscribe)

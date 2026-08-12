@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,6 +57,14 @@ class DealUpdate(BaseModel):
 	deal_id: int
 
 
+class CompanyBrief(BaseModel):
+	id: int
+	name: str
+	slug: str
+	type: Optional[str] = None
+	model_config = ConfigDict(from_attributes=True)
+
+
 class ShipmentRequestResponse(BaseModel):
 	id: int
 	client_company_id: int
@@ -86,4 +94,34 @@ class ShipmentResponse(BaseModel):
 	transport_snapshot: dict[str, Any]
 	created_at: datetime
 	updated_at: datetime
+	client_company: Optional[CompanyBrief] = None
+	carrier_company: Optional[CompanyBrief] = None
 	model_config = ConfigDict(from_attributes=True)
+
+
+class ShipmentListItem(BaseModel):
+	"""Лента перевозок без тяжёлых cargo/transport — их грузим отдельными GET."""
+	id: int
+	number: str
+	year: int
+	client_company_id: int
+	carrier_company_id: int
+	request_id: int
+	deal_id: Optional[int] = None
+	created_at: datetime
+	updated_at: datetime
+	client_company: Optional[CompanyBrief] = None
+	carrier_company: Optional[CompanyBrief] = None
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CargoDetailResponse(BaseModel):
+	shipment_id: int
+	cargo_data: dict[str, Any]
+
+
+class TransportDetailResponse(BaseModel):
+	shipment_id: int
+	vehicle_id: Optional[int] = None
+	driver_id: Optional[int] = None
+	transport_snapshot: dict[str, Any]

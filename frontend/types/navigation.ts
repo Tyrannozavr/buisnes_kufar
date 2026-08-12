@@ -11,4 +11,5 @@ export interface NavigationMenuItem {
   target?: string;
   badge?: string;
   description?: string;
+  slot?: string;
 }

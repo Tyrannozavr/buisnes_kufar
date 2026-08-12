@@ -25,6 +25,7 @@ export interface TransportSearchFilters {
 export interface TransportCompany {
 	id: number
 	name: string
+	slug?: string | null
 	type?: string | null
 	inn?: string | null
 	legal_address?: string | null
@@ -39,6 +40,13 @@ export interface TransportVehicleResult extends Pick<CompanyVehicle,
 	'adr_classes' | 'from_locations' | 'to_locations' | 'partial_load' |
 	'partial_load_weight_kg' | 'partial_load_volume_m3'> {
 	company: TransportCompany
+}
+
+export interface ShipmentCompanyBrief {
+	id: number
+	name: string
+	slug: string
+	type?: string | null
 }
 
 export interface ShipmentRequest {
@@ -63,12 +71,27 @@ export interface Shipment {
 	carrier_company_id: number
 	request_id: number
 	deal_id?: number | null
+	/** Есть только после GET/PATCH cargo|transport, в списке нет. */
+	cargo_data?: CargoData
+	vehicle_id?: number | null
+	driver_id?: number | null
+	transport_snapshot?: Record<string, unknown>
+	created_at: string
+	updated_at: string
+	client_company?: ShipmentCompanyBrief | null
+	carrier_company?: ShipmentCompanyBrief | null
+}
+
+export interface CargoDetail {
+	shipment_id: number
 	cargo_data: CargoData
+}
+
+export interface TransportDetail {
+	shipment_id: number
 	vehicle_id?: number | null
 	driver_id?: number | null
 	transport_snapshot: Record<string, unknown>
-	created_at: string
-	updated_at: string
 }
 
 export interface CargoData {

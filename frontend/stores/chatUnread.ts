@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import type { Chat } from '~/types/chat'
 
+/**
+ * Единый источник бейджей: только unread_count из списка чатов API / локального списка.
+ * Не держим отдельный «оптимистичный» счётчик — иначе шапка/меню и список расходятся.
+ */
 export const useChatUnreadStore = defineStore('chatUnread', {
 	state: () => ({
 		chatsWithUnread: 0,
@@ -19,40 +23,20 @@ export const useChatUnreadStore = defineStore('chatUnread', {
 			this.chatsWithUnread = chats.filter((chat) => (chat.unread_count ?? 0) > 0).length
 		},
 
-		/** Оптимистично зажечь badge до refresh API (входящее сообщение не в открытом чате). */
-		noteIncomingMessage(options: {
-			chatId: number
-			senderCompanyId?: number | null
-			viewerCompanyId?: number | null
-			activeChatId?: number | null
-			pageVisible?: boolean
-		}) {
-			const senderId = options.senderCompanyId ?? null
-			const viewerId = options.viewerCompanyId ?? null
-			if (!senderId || !viewerId || senderId === viewerId) return
-
-			const viewingThisChat =
-				(options.pageVisible ?? true) &&
-				options.activeChatId != null &&
-				options.activeChatId === options.chatId
-			if (viewingThisChat) return
-
-			this.chatsWithUnread = Math.max(this.chatsWithUnread, 1)
-		},
-
 		async refresh() {
 			const token = useCookie('access_token')
 			if (!token.value) {
 				this.chatsWithUnread = 0
-				return
+				return [] as Chat[]
 			}
 
 			try {
 				const { $api } = useNuxtApp()
 				const chats = await $api.get<Chat[]>('/v1/chats')
 				this.setFromChats(chats)
+				return chats
 			} catch {
-				// оставляем предыдущее значение
+				return [] as Chat[]
 			}
 		},
 

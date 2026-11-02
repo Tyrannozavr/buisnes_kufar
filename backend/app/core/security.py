@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 from typing import Any, Optional, Dict
 from uuid import UUID
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -34,7 +35,7 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except JWTError:
+    except PyJWTError:
         return None
 
 
@@ -43,7 +44,7 @@ def decode_token(token: str) -> Dict[str, Any]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except JWTError:
+    except PyJWTError:
         raise ValueError("Token is invalid")
 
 
@@ -54,7 +55,7 @@ def get_current_user_id_from_token(token: str) -> UUID:
         if user_id is None:
             raise ValueError("Token is invalid")
         return UUID(user_id)
-    except (JWTError, ValueError):
+    except (PyJWTError, ValueError):
         raise ValueError("Token is invalid")
 
 
@@ -84,5 +85,5 @@ def verify_email_unsubscribe_token(token: str) -> Optional[int]:
         if user_id is None:
             return None
         return int(user_id)
-    except (JWTError, ValueError, TypeError):
+    except (PyJWTError, ValueError, TypeError):
         return None

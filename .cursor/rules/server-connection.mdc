@@ -14,7 +14,9 @@ ssh root@77.222.47.33
 
 - **Хост:** 77.222.47.33  
 - **Пользователь:** root  
-- **Домен:** tradesynergy.ru  
+- **Публичный домен (заглушка):** tradesynergy.ru / www.tradesynergy.ru  
+- **Рабочий (скрытый) домен:** https://devxyz.ridewise.ru — edge на `ridewise-avito` (83.222.11.99 / Tailscale `100.107.13.114`), proxy → этот сервер с `Host: devxyz.ridewise.ru`.  
+- **SSH к edge:** публичный :22 может быть закрыт — `ssh root@100.107.13.114` (Tailscale) или Host `ridewise-avito` через Tailscale.
 
 ## Расположение на сервере
 

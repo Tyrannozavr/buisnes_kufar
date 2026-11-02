@@ -211,8 +211,8 @@ onMounted(() => {
 })
 </script>
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold text-gray-900 mb-4">Профиль компании</h1>
+  <div class="bg-white shadow rounded-lg p-4">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Данные компании</h2>
 
     <UTabs
       v-model="activeTab"

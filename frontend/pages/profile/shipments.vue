@@ -310,10 +310,10 @@ const saveDeal = async () => {
 </script>
 
 <template>
-	<div class="space-y-5">
+	<div class="bg-white shadow rounded-lg p-4 space-y-5">
 		<div>
-			<h1 class="text-xl font-semibold">Перевозки</h1>
-			<p class="text-sm text-gray-500">Данные груза редактирует клиент, транспорт назначает перевозчик.</p>
+			<h2 class="text-lg font-medium text-gray-900">Перевозки</h2>
+			<p class="text-sm text-gray-500 mt-1">Данные груза редактирует клиент, транспорт назначает перевозчик.</p>
 		</div>
 
 		<div v-if="loading" class="flex items-center justify-center py-16">

@@ -122,8 +122,8 @@ const handleDelete = (announcement: Announcement) => {
 
 <template>
   <div>
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold">Объявления компании</h2>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-medium text-gray-900">Объявления компании</h2>
       <UButton
         icon="i-heroicons-plus"
         color="primary"

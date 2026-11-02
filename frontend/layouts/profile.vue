@@ -32,9 +32,10 @@ const hideProfileSidebar = computed(() =>
 	/^\/profile\/messages\/[^/]+$/.test(route.path) && route.path !== '/profile/messages/new',
 )
 
-/** Широкие таблицы перевозок: без max-w-3xl и с меньшим отступом справа. */
+/** Широкие страницы: без max-w-3xl и с меньшим отступом справа. */
 const wideProfileContent = computed(() =>
-	/^\/profile\/(shipments|shipment-requests|shipment-favorites)(\/|$)/.test(route.path),
+	/^\/profile\/(shipments|shipment-requests|shipment-favorites|messages)(\/|$)/.test(route.path)
+	&& !/^\/profile\/messages\/[^/]+$/.test(route.path),
 )
 
 const navigationItems = computed((): NavigationMenuItem[][] => {

@@ -74,10 +74,11 @@ const accept = async (request: ShipmentRequest) => {
 </script>
 
 <template>
-	<div class="space-y-5">
+	<div class="max-w-3xl mx-auto">
+	<div class="bg-white shadow rounded-lg p-4 space-y-5">
 		<div>
-			<h1 class="text-xl font-semibold">Заявки на перевозку</h1>
-			<p class="text-sm text-gray-500">Новые заявки отсортированы первыми.</p>
+			<h2 class="text-lg font-medium text-gray-900">Заявки на перевозку</h2>
+			<p class="text-sm text-gray-500 mt-1">Новые заявки отсортированы первыми.</p>
 		</div>
 		<div v-if="loading" class="text-sm text-gray-500">Загрузка…</div>
 		<p v-else-if="!requests.length" class="text-sm text-gray-500">Заявок пока нет.</p>
@@ -117,5 +118,6 @@ const accept = async (request: ShipmentRequest) => {
 				</div>
 			</UCard>
 		</template>
+	</div>
 	</div>
 </template>

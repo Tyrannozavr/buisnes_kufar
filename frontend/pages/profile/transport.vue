@@ -220,10 +220,11 @@ const remove = (id: number) => {
 </script>
 
 <template>
-	<div class="space-y-6">
+	<div class="max-w-3xl mx-auto">
+	<div class="bg-white shadow rounded-lg p-4 space-y-6">
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h1 class="text-xl font-semibold text-gray-900">Транспорт</h1>
+				<h2 class="text-lg font-medium text-gray-900">Транспорт</h2>
 				<p class="text-sm text-gray-500 mt-1">Парк транспортных средств вашей компании.</p>
 			</div>
 			<UButton
@@ -490,6 +491,8 @@ const remove = (id: number) => {
 				</form>
 			</template>
 		</UModal>
+
+	</div>
 
 		<ConfirmDeleteModal
 			v-model:open="deleteOpen"

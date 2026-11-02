@@ -22,23 +22,28 @@
           <UFormField label="Пароль" class="w-full">
             <UInput
               v-model="form.password"
-              type="password"
+              :type="showPassword ? 'text' : 'password'"
               placeholder="Введите пароль"
               :rules="[rules.required, rules.password]"
               :color="passwordError ? 'error' : undefined"
               class="w-full"
-            />
+            >
+              <template #trailing>
+                <button
+                  type="button"
+                  class="cursor-pointer text-gray-400 hover:text-gray-600"
+                  :aria-label="showPassword ? 'Скрыть пароль' : 'Показать пароль'"
+                  @click="showPassword = !showPassword"
+                >
+                  <UIcon
+                    :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                    class="h-5 w-5"
+                  />
+                </button>
+              </template>
+            </UInput>
             <p v-if="passwordError && form.password" class="mt-1 text-sm text-red-500">{{ passwordError }}</p>
           </UFormField>
-        </div>
-
-        <div class="text-center">
-          <NuxtLink
-            to="/auth/recover-password"
-            class="text-sm text-primary-600 hover:text-primary-500"
-          >
-            Восстановить пароль
-          </NuxtLink>
         </div>
 
         <UButton
@@ -51,13 +56,18 @@
           Продолжить
         </UButton>
 
-        <div class="text-center text-sm text-gray-600">
-          Для создания аккаунта
+        <div class="flex items-center justify-between text-sm">
+          <NuxtLink
+            to="/auth/recover-password"
+            class="text-primary-600 hover:text-primary-500"
+          >
+            Восстановить пароль
+          </NuxtLink>
           <NuxtLink
             to="/auth/register"
             class="text-primary-600 hover:text-primary-500"
           >
-            зарегистрируйтесь
+            Регистрация
           </NuxtLink>
         </div>
       </form>
@@ -76,6 +86,7 @@ const form = ref({
 })
 
 const isLoading = ref(false)
+const showPassword = ref(false)
 const userStore = useUserStore()
 
 const rules = {

@@ -29,5 +29,13 @@ docker compose run --rm --no-deps --entrypoint "" \
 echo "🚀 docker compose up -d"
 docker compose up -d frontend backend nginx celery-worker celery-beat
 
+# Nginx резолвит upstream при старте/reload. После recreate backend/frontend без reload
+# остаются старые IP → 502 на /api (логин) и «пустые» страницы у клиента.
+echo "🔁 nginx reload (обновить DNS upstream)"
+docker compose exec -T nginx nginx -s reload || true
+
 echo "✅ Готово. Проверка:"
 docker compose ps --format 'table {{.Name}}\t{{.Status}}' | head -12
+curl -sS -o /dev/null -w "login_api:%{http_code}\n" -X POST http://127.0.0.1/api/v1/auth/login \
+  -H 'Host: devxyz.ridewise.ru' -H 'Content-Type: application/json' \
+  -d '{"login":"seller@gmail.com","password":"123456"}' || true

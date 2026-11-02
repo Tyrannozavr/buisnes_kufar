@@ -613,6 +613,11 @@ async def create_new_deal_version(
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except BuyerOrderUpdateForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.exception("Error creating deal version %s", deal_id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
     if not new_version_deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return new_version_deal
@@ -1508,11 +1513,17 @@ async def create_order_from_checkout(
         "comments": checkout_data.comments
     }
 
-    deals = await deal_service.create_deals_from_checkout(
-        checkout_dict,
-        company.id,
-        buyer_user_id=current_user.id,
-    )
+    try:
+        deals = await deal_service.create_deals_from_checkout(
+            checkout_dict,
+            company.id,
+            buyer_user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Checkout failed for company %s", company.id)
+        raise HTTPException(status_code=500, detail="Failed to create order from checkout") from e
     if not deals:
         raise HTTPException(status_code=400, detail="Failed to create order from checkout")
 

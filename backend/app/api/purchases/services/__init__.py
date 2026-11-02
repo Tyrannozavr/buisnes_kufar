@@ -244,7 +244,7 @@ class DealService:
 					order = updated_order
 
 			return await self._order_to_deal_response(order, company_id)
-		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError):
+		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError, ValueError):
 			raise
 		except Exception as e:
 			await self.session.rollback()
@@ -732,7 +732,8 @@ class DealService:
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error creating deal from checkout: %s", e)
-			return []
+			# Не маскируем ошибку пустым успехом — иначе клиент думает, что заказ создан.
+			raise
 
 	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
 		"""Обратная совместимость: первый заказ из checkout."""

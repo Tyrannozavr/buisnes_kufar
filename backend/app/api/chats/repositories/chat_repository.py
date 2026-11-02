@@ -28,6 +28,8 @@ class ChatRepository:
         self, chat_id: int, company_id: int, user_id: int, is_admin: bool = False
     ) -> ChatParticipant:
         """Участник чата для компании: добавить или обновить user_id (актуальный сотрудник)."""
+        from sqlalchemy.exc import IntegrityError
+
         stmt = select(ChatParticipant).where(
             ChatParticipant.chat_id == chat_id,
             ChatParticipant.company_id == company_id,
@@ -42,11 +44,31 @@ class ChatRepository:
                 await self.db.refresh(participant)
             return participant
 
-        return await self.add_participant(chat_id, company_id, user_id, is_admin)
+        try:
+            return await self.add_participant(chat_id, company_id, user_id, is_admin)
+        except IntegrityError:
+            await self.db.rollback()
+            existing = (
+                await self.db.execute(
+                    select(ChatParticipant).where(
+                        ChatParticipant.chat_id == chat_id,
+                        ChatParticipant.company_id == company_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing:
+                if existing.user_id != user_id:
+                    existing.user_id = user_id
+                    await self.db.commit()
+                    await self.db.refresh(existing)
+                return existing
+            raise
 
     async def add_participant(self, chat_id: int, company_id: int, user_id: int,
                               is_admin: bool = False) -> ChatParticipant:
         """Добавляет участника в чат"""
+        from sqlalchemy.exc import IntegrityError
+
         participant = ChatParticipant(
             chat_id=chat_id,
             company_id=company_id,
@@ -54,7 +76,21 @@ class ChatRepository:
             is_admin=is_admin
         )
         self.db.add(participant)
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            existing = (
+                await self.db.execute(
+                    select(ChatParticipant).where(
+                        ChatParticipant.chat_id == chat_id,
+                        ChatParticipant.company_id == company_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing:
+                return existing
+            raise
         await self.db.refresh(participant)
         return participant
 

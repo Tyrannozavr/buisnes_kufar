@@ -154,10 +154,11 @@ const remove = (id: number) => {
 </script>
 
 <template>
-	<div class="space-y-6">
+	<div class="max-w-3xl mx-auto">
+	<div class="bg-white shadow rounded-lg p-4 space-y-6">
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h1 class="text-xl font-semibold text-gray-900">Водители</h1>
+				<h2 class="text-lg font-medium text-gray-900">Водители</h2>
 				<p class="text-sm text-gray-500 mt-1">Список водителей вашей компании.</p>
 			</div>
 			<UButton
@@ -309,4 +310,5 @@ const remove = (id: number) => {
 		:loading="deleteLoading"
 		@confirm="confirmDelete"
 	/>
+	</div>
 </template>

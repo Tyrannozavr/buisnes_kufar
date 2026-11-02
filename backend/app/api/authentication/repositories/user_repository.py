@@ -391,4 +391,11 @@ class UserRepository:
             .values(is_active=False, updated_at=datetime.utcnow())
         )
         await self.session.commit()
+        if result.rowcount > 0:
+            from app.core.ttl_cache import cache_delete, cache_delete_local, user_cache_key
+            cache_delete_local(user_cache_key(user_id))
+            try:
+                await cache_delete(user_cache_key(user_id))
+            except Exception:
+                pass
         return result.rowcount > 0

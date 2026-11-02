@@ -202,9 +202,9 @@ class DealService:
 		return await self.repository.get_seller_orders(company_id, skip, limit)
 
 	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
-		"""Обновление сделки"""
+		"""Обновление сделки (in-place). По ТЗ §2.3 — только продавец."""
 		try:
-			order = await self._ensure_order_participant(deal_id, company_id)
+			order = await self._ensure_seller_on_deal(deal_id, company_id)
 			if not order:
 				return None
 			if deal_data is not None:
@@ -244,7 +244,7 @@ class DealService:
 					order = updated_order
 
 			return await self._order_to_deal_response(order, company_id)
-		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError):
+		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError, ValueError):
 			raise
 		except Exception as e:
 			await self.session.rollback()
@@ -732,7 +732,8 @@ class DealService:
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error creating deal from checkout: %s", e)
-			return []
+			# Не маскируем ошибку пустым успехом — иначе клиент думает, что заказ создан.
+			raise
 
 	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
 		"""Обратная совместимость: первый заказ из checkout."""

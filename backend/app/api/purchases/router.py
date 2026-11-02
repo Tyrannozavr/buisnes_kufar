@@ -243,8 +243,11 @@ async def create_deal(
         return deal
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.exception("Failed to create deal for company %s", company.id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/buyer/deals", response_model=List[BuyerDealResponse], tags=["buyer", "orders", "list"])
@@ -452,14 +455,14 @@ async def update_deal(
     try:
         deal = await deal_service.update_deal(deal_id, deal_data, company.id)
     except OnlySellerCanModifyDealError:
-        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+        raise HTTPException(status_code=403, detail="Only seller can modify deal")
     except BuyerOrderUpdateForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("Error updating deal %s: %s", deal_id, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error updating deal %s", deal_id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
     if not deal:
         raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this deal")
@@ -610,6 +613,11 @@ async def create_new_deal_version(
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except BuyerOrderUpdateForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.exception("Error creating deal version %s", deal_id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
     if not new_version_deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return new_version_deal
@@ -801,9 +809,10 @@ async def upload_document(
             file.content_type,
         )
     except Exception as e:
+        logger.exception("S3 upload failed for deal %s", deal_id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to upload file to storage: {e!s}",
+            detail="Failed to upload file to storage",
         ) from e
 
     from app.api.purchases.schemas import DocumentUpload
@@ -820,10 +829,10 @@ async def upload_document(
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except Exception as e:
-        logger.exception("Failed to add document to deal %s: %s", deal_id, e)
+        logger.exception("Failed to add document to deal %s", deal_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add document: {e!s}",
+            detail="Failed to add document",
         ) from e
     if not document:
         raise HTTPException(status_code=400, detail="Failed to add document")
@@ -1504,11 +1513,17 @@ async def create_order_from_checkout(
         "comments": checkout_data.comments
     }
 
-    deals = await deal_service.create_deals_from_checkout(
-        checkout_dict,
-        company.id,
-        buyer_user_id=current_user.id,
-    )
+    try:
+        deals = await deal_service.create_deals_from_checkout(
+            checkout_dict,
+            company.id,
+            buyer_user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Checkout failed for company %s", company.id)
+        raise HTTPException(status_code=500, detail="Failed to create order from checkout") from e
     if not deals:
         raise HTTPException(status_code=400, detail="Failed to create order from checkout")
 

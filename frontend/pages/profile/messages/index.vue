@@ -10,7 +10,8 @@ import { chatLastMessagePreview } from '~/utils/chatPreview'
 import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
 
 definePageMeta({
-  layout: 'profile'
+  layout: 'profile',
+  title: 'Сообщения',
 })
 
 const route = useRoute()
@@ -19,7 +20,6 @@ const { getChats } = useChatsApi()
 const userStore = useUserStore()
 const chatUnreadStore = useChatUnreadStore()
 
-// Получаем ID текущей компании из store
 const currentCompanyId = userStore.companyId
 
 const { data: chats, pending, error, refresh: refreshChats } = await getChats()
@@ -91,65 +91,45 @@ const handleChatSelect = (chatId: number) => {
   router.push(`/profile/messages/${chatId}`)
 }
 
-// Функция для получения собеседника (не текущая компания)
 const getOtherParticipant = (chat: Chat) => {
   const myId = Number(currentCompanyId)
   return chat.participants.find((p) => Number(p.company_id) !== myId)
 }
 
 const formatDate = (dateString: string) => formatMoscowDate(dateString)
+
+const hasChats = computed(() => (chats.value?.length ?? 0) > 0)
 </script>
 
 <template>
-  <div class="h-[calc(100vh-16rem)] flex flex-col lg:flex-row">
-    <!-- Chat list sidebar -->
-    <div class="w-full lg:w-1/3 border-r border-gray-200 overflow-y-auto bg-white">
-      <!-- Mobile header -->
-      <div class="lg:hidden p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div class="flex items-center justify-between">
-          <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
-          <NuxtLink
-            to="/profile/messages/new"
-            class="p-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200"
-          >
-            <UIcon name="i-heroicons-plus" class="w-6 h-6" />
-          </NuxtLink>
-        </div>
+  <div class="bg-white shadow rounded-lg overflow-hidden h-[calc(100vh-16rem)] flex flex-col lg:flex-row">
+    <!-- Список чатов -->
+    <div class="w-full lg:w-1/3 border-r border-gray-200 overflow-y-auto flex flex-col min-h-0">
+      <div class="p-4 border-b border-gray-200 sticky top-0 z-10 bg-white flex items-center justify-between gap-3">
+        <h2 class="text-lg font-medium text-gray-900">Сообщения</h2>
+        <UButton
+          to="/profile/messages/new"
+          color="primary"
+          size="sm"
+          icon="i-heroicons-plus"
+          label="Написать"
+          class="cursor-pointer"
+        />
       </div>
 
-      <!-- Desktop header -->
-      <div class="hidden lg:flex p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div class="flex items-center justify-between w-full">
-          <h1 class="text-lg font-semibold text-gray-900">Сообщения</h1>
-          <NuxtLink
-            to="/profile/messages/new"
-            class="p-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors duration-200"
-            title="Новое сообщение"
-          >
-            <UIcon name="i-heroicons-plus" class="w-5 h-5" />
-          </NuxtLink>
-        </div>
-      </div>
-
-      <div v-if="pending" class="flex items-center justify-center h-full p-4">
+      <div v-if="pending" class="flex flex-1 items-center justify-center p-4">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
       </div>
 
-      <div v-else-if="error" class="flex items-center justify-center h-full p-4">
-        <div class="text-center text-red-500">
-          <UIcon name="i-heroicons-exclamation-circle" class="h-12 w-12 mx-auto mb-2" />
-          <p>Произошла ошибка при загрузке чатов</p>
-        </div>
+      <div v-else-if="error" class="p-4">
+        <p class="text-sm text-red-600">Не удалось загрузить чаты</p>
       </div>
 
-      <div v-else-if="!chats?.length" class="flex items-center justify-center h-full p-4">
-        <div class="text-center text-gray-500">
-          <UIcon name="i-heroicons-chat-bubble-left-right" class="h-12 w-12 mx-auto mb-2" />
-          <p>У вас пока нет сообщений</p>
-        </div>
+      <div v-else-if="!hasChats" class="p-4">
+        <p class="text-sm text-gray-500">Нет чатов</p>
       </div>
 
-      <div v-else class="space-y-1">
+      <div v-else class="space-y-0">
         <div
           v-for="chat in chats"
           :key="chat.id"
@@ -161,7 +141,7 @@ const formatDate = (dateString: string) => formatMoscowDate(dateString)
               <img
                 :src="companyAvatarUrl(getOtherParticipant(chat)?.company_logo_url)"
                 :alt="getOtherParticipant(chat)?.company_name || 'Компания'"
-                class="w-12 h-12 rounded-full object-cover border border-gray-200 bg-gray-100"
+                class="w-10 h-10 rounded-full object-cover border border-gray-200 bg-gray-100"
                 @error="onCompanyAvatarError"
               />
             </div>
@@ -188,13 +168,12 @@ const formatDate = (dateString: string) => formatMoscowDate(dateString)
       </div>
     </div>
 
-    <!-- Welcome message - только на десктопе -->
+    <!-- Правая панель: пусто без чатов; подсказка — если чаты есть -->
     <div class="hidden lg:flex flex-1 items-center justify-center bg-gray-50">
-      <div class="text-center text-gray-500 max-w-md px-4">
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="h-16 w-16 mx-auto mb-4" />
-        <h2 class="text-xl font-semibold mb-2">Добро пожаловать в чат</h2>
-        <p class="text-gray-600">
-          Выберите чат из списка слева, чтобы начать общение или создать новый диалог
+      <div v-if="hasChats" class="text-center text-gray-500 max-w-sm px-4">
+        <h2 class="text-lg font-medium text-gray-900 mb-1">Выберите чат</h2>
+        <p class="text-sm text-gray-500">
+          Откройте диалог слева или нажмите «Написать»
         </p>
       </div>
     </div>

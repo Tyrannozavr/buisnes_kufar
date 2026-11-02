@@ -31,13 +31,30 @@ def enqueue_message_email_notify(
 
     try:
         loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
         loop.create_task(
             _notify_async(chat_id, sender_user_id, sender_company_id, content, file_name)
         )
+        return
+
+    asyncio.run(
+        _notify_async(chat_id, sender_user_id, sender_company_id, content, file_name)
+    )
+
+
+def _run_coro_sync(coro):
+    """Run async notify from a sync Celery worker without nested-loop crashes."""
+    try:
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        asyncio.run(
-            _notify_async(chat_id, sender_user_id, sender_company_id, content, file_name)
-        )
+        loop = None
+    if loop and loop.is_running():
+        # Should not happen in a normal Celery prefork worker; best-effort.
+        return asyncio.ensure_future(coro, loop=loop)
+    return asyncio.run(coro)
 
 
 @celery_app.task(name="chats.notify_message_email")
@@ -48,7 +65,7 @@ def notify_message_email(
     content: Optional[str] = None,
     file_name: Optional[str] = None,
 ) -> None:
-    asyncio.run(
+    _run_coro_sync(
         _notify_async(chat_id, sender_user_id, sender_company_id, content, file_name)
     )
 

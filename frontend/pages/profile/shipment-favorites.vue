@@ -72,10 +72,11 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 </script>
 
 <template>
-	<div class="space-y-5">
+	<div class="max-w-3xl mx-auto">
+	<div class="bg-white shadow rounded-lg p-4 space-y-5">
 		<div>
-			<h1 class="text-xl font-semibold">Избранное</h1>
-			<p class="text-sm text-gray-500">
+			<h2 class="text-lg font-medium text-gray-900">Избранное</h2>
+			<p class="text-sm text-gray-500 mt-1">
 				{{ isLogistics ? 'Сохранённые заявки на перевозку.' : 'Сохранённый транспорт.' }}
 			</p>
 		</div>
@@ -144,6 +145,8 @@ const removeVehicle = (vehicle: TransportVehicleResult) => {
 				</div>
 			</UCard>
 		</div>
+
+	</div>
 
 		<ConfirmDeleteModal
 			v-model:open="deleteOpen"

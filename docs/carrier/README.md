@@ -48,7 +48,7 @@
 
 ### Вне scope (явно в ТЗ)
 
-- **Договор перевозки грузов** — «Позже реализуем» (отдельный пакет / этап).
+- **Договор перевозки грузов** — вынесен в отдельный пакет: [../contract-transport/README.md](../contract-transport/README.md) (scope зафиксирован 22.08.2026, цена ещё не согласована).
 
 ### Уточнения к клиенту (если ещё не закрыты)
 
@@ -80,7 +80,7 @@
 
 **Ветка:** `feature/carrier-tz` (от актуального `master` = sync с `preprod`)  
 **Статус реализации:** A–G ✅ (без деплоя на сервер)  
-**Ручная приёмка:** **§A–§E принято** (2026-08-12) · §F+ — ещё не принято
+**Ручная приёмка:** **§A–§G + экспедитор принято** (2026-11-02; A–E — 2026-08-12)
 
 | Этап | Документ | Код | Приёмка |
 |------|----------|-----|---------|
@@ -89,7 +89,7 @@
 | C Поиск | [etap-03-transport-search.md](etap-03-transport-search.md) | ✅ | ✅ |
 | D Заявки | [etap-04-requests.md](etap-04-requests.md) | ✅ | ✅ |
 | E Перевозки клиента | [etap-05-client-shipments.md](etap-05-client-shipments.md) | ✅ | ✅ |
-| F Перевозки перевозчика | [etap-06-carrier-shipments.md](etap-06-carrier-shipments.md) | ✅ | ⏳ |
-| G Избранное | [etap-07-favorites.md](etap-07-favorites.md) | ✅ | ⏳ |
+| F Перевозки перевозчика | [etap-06-carrier-shipments.md](etap-06-carrier-shipments.md) | ✅ | ✅ |
+| G Избранное | [etap-07-favorites.md](etap-07-favorites.md) | ✅ | ✅ |
 
 Ручная приёмка: [manual-step-by-step-acceptance.md](manual-step-by-step-acceptance.md) · аккаунты: [test-users.md](test-users.md) · оплата: [payment-and-schedule.md](payment-and-schedule.md)

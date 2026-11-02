@@ -63,31 +63,30 @@ class ProductService:
             # Создаем директорию для загрузки, если она не существует
             os.makedirs(self.upload_dir, exist_ok=True)
 
+            from app.core.uploads import IMAGE_EXTENSIONS, read_upload_limited, unique_filename
+
             for file in files:
-                # Проверяем тип файла
-                if not file.content_type.startswith('image/'):
+                if not file.content_type or not file.content_type.startswith('image/'):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"File {file.filename} must be an image"
                     )
 
-                # Генерируем уникальное имя файла
-                file_ext = os.path.splitext(file.filename)[1]
-                filename = f"{uuid.uuid4()}{file_ext}"
+                filename, _ = unique_filename(file.filename, allowed=IMAGE_EXTENSIONS)
                 filepath = os.path.join(self.upload_dir, filename)
 
-                # Сохраняем файл
                 try:
+                    content = await read_upload_limited(file, max_bytes=8 * 1024 * 1024)
                     async with aiofiles.open(filepath, 'wb') as out_file:
-                        content = await file.read()
                         await out_file.write(content)
+                except HTTPException:
+                    raise
                 except Exception as e:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Failed to save file {file.filename}: {str(e)}"
-                    )
+                        detail="Failed to save product image",
+                    ) from e
 
-                # Добавляем путь к изображению в список
                 image_url = f"/uploads/product_images/{filename}"
                 uploaded_images.append(image_url)
 
@@ -207,31 +206,30 @@ class ProductService:
 
         uploaded_images = []
 
+        from app.core.uploads import IMAGE_EXTENSIONS, read_upload_limited, unique_filename
+
         for file in files:
-            # Проверяем тип файла
-            if not file.content_type.startswith('image/'):
+            if not file.content_type or not file.content_type.startswith('image/'):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"File {file.filename} must be an image"
                 )
 
-            # Генерируем уникальное имя файла
-            file_ext = os.path.splitext(file.filename)[1]
-            filename = f"{uuid.uuid4()}{file_ext}"
+            filename, _ = unique_filename(file.filename, allowed=IMAGE_EXTENSIONS)
             filepath = os.path.join(self.upload_dir, filename)
 
-            # Сохраняем файл
             try:
+                content = await read_upload_limited(file, max_bytes=8 * 1024 * 1024)
                 async with aiofiles.open(filepath, 'wb') as out_file:
-                    content = await file.read()
                     await out_file.write(content)
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to save file {file.filename}: {str(e)}"
-                )
+                    detail="Failed to save product image",
+                ) from e
 
-            # Добавляем путь к изображению в список
             image_url = f"/uploads/product_images/{filename}"
             uploaded_images.append(image_url)
 

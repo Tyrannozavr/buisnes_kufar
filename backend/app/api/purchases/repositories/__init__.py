@@ -1,6 +1,7 @@
 from typing import Optional, List, Tuple, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, extract
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from datetime import date, datetime, timezone
 import enum
@@ -630,7 +631,12 @@ class DealRepository:
             {"version": new_version},
         )
 
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            # Параллельное создание той же версии (uq_orders_id_version).
+            raise ValueError("Concurrent deal version create, please retry")
         return await self.get_order_by_id_and_version(order_id, new_version, company_id)
 
     async def update_order(

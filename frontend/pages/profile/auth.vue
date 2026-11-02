@@ -2,13 +2,13 @@
 import { ref, onMounted } from 'vue'
 
 definePageMeta({
-  layout: 'profile'
+  layout: 'profile',
+  title: 'Авторизация',
 })
 
 const { $api } = useNuxtApp()
 const toast = useToast()
 
-// Email change form state
 const newEmail = ref('')
 const emailPassword = ref('')
 const emailCode = ref('')
@@ -16,13 +16,11 @@ const isEmailCodeSent = ref(false)
 const isEmailCodeVerified = ref(false)
 const isEmailLoading = ref(false)
 
-// Password change form state
 const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const isPasswordLoading = ref(false)
 
-// Email notifications
 const emailNotificationsEnabled = ref(false)
 const isNotificationsLoading = ref(false)
 const isNotificationsSaving = ref(false)
@@ -32,7 +30,7 @@ const showSuccessToast = (message: string) => {
     title: 'Успешно',
     description: message,
     icon: 'i-lucide-check-circle',
-    color: 'success'
+    color: 'success',
   })
 }
 
@@ -41,11 +39,10 @@ const showErrorToast = (message: string) => {
     title: 'Ошибка',
     description: message,
     icon: 'i-lucide-alert-circle',
-    color: 'error'
+    color: 'error',
   })
 }
 
-// Email change handlers
 const sendEmailCode = async () => {
   if (!newEmail.value || !emailPassword.value) {
     showErrorToast('Введите новый email и пароль')
@@ -56,9 +53,9 @@ const sendEmailCode = async () => {
     isEmailLoading.value = true
     const response = await $api.post('/v1/auth/request-email-change', {
       new_email: newEmail.value,
-      password: emailPassword.value
+      password: emailPassword.value,
     })
-    
+
     if (response.message) {
       isEmailCodeSent.value = true
       showSuccessToast('Код подтверждения отправлен на новый email')
@@ -80,13 +77,12 @@ const verifyEmailCode = async () => {
   try {
     isEmailLoading.value = true
     const response = await $api.post('/v1/auth/confirm-email-change', {
-      token: emailCode.value
+      token: emailCode.value,
     })
-    
+
     if (response.message) {
       isEmailCodeVerified.value = true
       showSuccessToast('Email успешно изменен')
-      // Очищаем поля после успешной смены
       newEmail.value = ''
       emailPassword.value = ''
       emailCode.value = ''
@@ -124,7 +120,7 @@ const saveNotificationSettings = async () => {
     showSuccessToast(
       emailNotificationsEnabled.value
         ? 'Уведомления на почту включены'
-        : 'Уведомления на почту отключены'
+        : 'Уведомления на почту отключены',
     )
   } catch (error: any) {
     const errorMessage = error.response?._data?.detail || 'Не удалось сохранить настройку'
@@ -139,7 +135,6 @@ onMounted(() => {
   loadNotificationSettings()
 })
 
-// Password change handler
 const changePassword = async () => {
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
     showErrorToast('Заполните все поля')
@@ -155,12 +150,11 @@ const changePassword = async () => {
     isPasswordLoading.value = true
     const response = await $api.post('/v1/auth/change-password', {
       current_password: oldPassword.value,
-      new_password: newPassword.value
+      new_password: newPassword.value,
     })
-    
+
     if (response.message) {
       showSuccessToast('Пароль успешно изменен')
-      // Очищаем поля после успешной смены
       oldPassword.value = ''
       newPassword.value = ''
       confirmPassword.value = ''
@@ -175,13 +169,14 @@ const changePassword = async () => {
 </script>
 
 <template>
-  <div class="profile-auth">
-    <h1>Настройки безопасности</h1>
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow rounded-lg p-4 space-y-6">
+      <h2 class="text-lg font-medium text-gray-900">Авторизация</h2>
 
-    <div class="forms-container">
-      <div class="form-section notifications-section">
-        <h2>Уведомления на email</h2>
-        <p class="help-text">
+      <!-- Уведомления -->
+      <section class="space-y-3 border-t border-gray-100 pt-4">
+        <h3 class="text-sm font-medium text-gray-900">Уведомления на email</h3>
+        <p class="text-sm text-gray-500">
           Дублировать новые сообщения на почту, указанную при регистрации.
           Отключить можно здесь или по ссылке в письме.
         </p>
@@ -191,238 +186,108 @@ const changePassword = async () => {
           :disabled="isNotificationsLoading || isNotificationsSaving"
           @update:model-value="saveNotificationSettings"
         />
-      </div>
+      </section>
 
-      <!-- Email change form -->
-      <div class="form-section">
-        <h2>Изменение email</h2>
-        <form @submit.prevent class="form">
-          <div class="form-group">
-            <label for="newEmail">Новый email</label>
-            <input
-              id="newEmail"
+      <!-- Email -->
+      <section class="space-y-3 border-t border-gray-100 pt-4">
+        <h3 class="text-sm font-medium text-gray-900">Изменение email</h3>
+        <form class="space-y-3" @submit.prevent>
+          <UFormField label="Новый email">
+            <UInput
               v-model="newEmail"
               type="email"
-              required
-              :disabled="isEmailCodeSent"
+              class="w-full"
               placeholder="Введите новый email"
+              :disabled="isEmailCodeSent"
             />
-          </div>
+          </UFormField>
 
-          <div class="form-group">
-            <label for="emailPassword">Текущий пароль</label>
-            <input
-              id="emailPassword"
+          <UFormField label="Текущий пароль">
+            <UInput
               v-model="emailPassword"
               type="password"
-              required
-              :disabled="isEmailCodeSent"
+              class="w-full"
               placeholder="Введите текущий пароль"
+              :disabled="isEmailCodeSent"
             />
-          </div>
+          </UFormField>
 
-          <div class="form-group">
-            <button
-              v-if="!isEmailCodeSent"
-              type="button"
-              @click="sendEmailCode"
-              :disabled="isEmailLoading"
-              class="btn btn-primary"
-            >
-              {{ isEmailLoading ? 'Отправка...' : 'Отправить код подтверждения' }}
-            </button>
-          </div>
+          <UButton
+            v-if="!isEmailCodeSent"
+            color="primary"
+            size="sm"
+            class="cursor-pointer"
+            :loading="isEmailLoading"
+            @click="sendEmailCode"
+          >
+            Отправить код подтверждения
+          </UButton>
 
-          <div v-if="isEmailCodeSent && !isEmailCodeVerified" class="form-group">
-            <label for="emailCode">Код подтверждения</label>
-            <p class="help-text">Введите 6-значный код, отправленный на новый email</p>
-            <input
-              id="emailCode"
-              v-model="emailCode"
-              type="text"
-              required
-              maxlength="6"
-              placeholder="Введите код из письма"
-            />
-            <button
-              type="button"
+          <template v-if="isEmailCodeSent && !isEmailCodeVerified">
+            <UFormField label="Код подтверждения" hint="6-значный код из письма на новый email">
+              <UInput
+                v-model="emailCode"
+                type="text"
+                class="w-full"
+                maxlength="6"
+                placeholder="Введите код из письма"
+              />
+            </UFormField>
+            <UButton
+              color="primary"
+              size="sm"
+              class="cursor-pointer"
+              :loading="isEmailLoading"
               @click="verifyEmailCode"
-              :disabled="isEmailLoading"
-              class="btn btn-primary"
             >
-              {{ isEmailLoading ? 'Проверка...' : 'Подтвердить код' }}
-            </button>
-          </div>
-
-          <div v-if="isEmailCodeVerified" class="success-message">
-            <p>✅ Email успешно изменен!</p>
-          </div>
+              Подтвердить код
+            </UButton>
+          </template>
         </form>
-      </div>
+      </section>
 
-      <!-- Password change form -->
-      <div class="form-section">
-        <h2>Изменение пароля</h2>
-        <form @submit.prevent class="form">
-          <div class="form-group">
-            <label for="oldPassword">Текущий пароль</label>
-            <input
-              id="oldPassword"
+      <!-- Пароль -->
+      <section class="space-y-3 border-t border-gray-100 pt-4">
+        <h3 class="text-sm font-medium text-gray-900">Изменение пароля</h3>
+        <form class="space-y-3" @submit.prevent="changePassword">
+          <UFormField label="Текущий пароль">
+            <UInput
               v-model="oldPassword"
               type="password"
-              required
+              class="w-full"
               placeholder="Введите текущий пароль"
             />
-          </div>
+          </UFormField>
 
-          <div class="form-group">
-            <label for="newPassword">Новый пароль</label>
-            <input
-              id="newPassword"
+          <UFormField label="Новый пароль">
+            <UInput
               v-model="newPassword"
               type="password"
-              required
+              class="w-full"
               placeholder="Введите новый пароль"
             />
-          </div>
+          </UFormField>
 
-          <div class="form-group">
-            <label for="confirmPassword">Повторите пароль</label>
-            <input
-              id="confirmPassword"
+          <UFormField label="Повторите пароль">
+            <UInput
               v-model="confirmPassword"
               type="password"
-              required
+              class="w-full"
               placeholder="Повторите новый пароль"
             />
-          </div>
+          </UFormField>
 
-          <button
-            type="button"
-            @click="changePassword"
-            :disabled="isPasswordLoading"
-            class="btn btn-primary"
+          <UButton
+            type="submit"
+            color="primary"
+            size="sm"
+            class="cursor-pointer"
+            :loading="isPasswordLoading"
           >
-            {{ isPasswordLoading ? 'Изменение...' : 'Изменить пароль' }}
-          </button>
+            Изменить пароль
+          </UButton>
         </form>
-      </div>
+      </section>
     </div>
   </div>
 </template>
-
-<style scoped>
-.profile-auth {
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 1rem;
-}
-
-.forms-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.form-section {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.form-section h2 {
-  margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  color: #333;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-label {
-  font-weight: 500;
-  color: #333;
-}
-
-input {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  transition: border-color 0.2s;
-}
-
-input:focus {
-  border-color: #4CAF50;
-  outline: none;
-}
-
-input:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-h1 {
-  margin-bottom: 2rem;
-  color: #333;
-  font-size: 1.75rem;
-}
-
-.help-text {
-  font-size: 0.875rem;
-  color: #666;
-  margin-bottom: 0.5rem;
-}
-
-.success-message {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 1rem;
-  border-radius: 4px;
-  border: 1px solid #c3e6cb;
-  margin-top: 1rem;
-}
-
-.success-message p {
-  margin: 0;
-  font-weight: 500;
-}
-
-.notifications-section {
-  border: 1px solid #c8e6c9;
-  background: #f7fcf7;
-}
-</style> 

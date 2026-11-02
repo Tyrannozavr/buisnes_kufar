@@ -40,6 +40,7 @@ const { getSellerDeals } = usePurchasesApi()
 const toast = useToast()
 const myCompanyId = ref<number | null>(null)
 const shipments = ref<Shipment[]>([])
+const loading = ref(true)
 const vehicles = ref<CompanyVehicle[]>([])
 const drivers = ref<CompanyDriver[]>([])
 const fleetLoaded = ref(false)
@@ -195,12 +196,15 @@ const fetchTransport = async (shipmentId: number) => {
 }
 
 const load = async () => {
+	loading.value = true
 	try {
 		const company = await $api.get('/v1/company/me') as { id: number }
 		myCompanyId.value = Number(company.id)
 		shipments.value = await listShipments()
 	} catch (e: any) {
 		toast.add({ title: 'Не удалось загрузить перевозки', description: e?.message, color: 'error' })
+	} finally {
+		loading.value = false
 	}
 }
 onMounted(load)
@@ -306,92 +310,98 @@ const saveDeal = async () => {
 </script>
 
 <template>
-	<div class="space-y-5">
+	<div class="bg-white shadow rounded-lg p-4 space-y-5">
 		<div>
-			<h1 class="text-xl font-semibold">Перевозки</h1>
-			<p class="text-sm text-gray-500">Данные груза редактирует клиент, транспорт назначает перевозчик.</p>
+			<h2 class="text-lg font-medium text-gray-900">Перевозки</h2>
+			<p class="text-sm text-gray-500 mt-1">Данные груза редактирует клиент, транспорт назначает перевозчик.</p>
 		</div>
 
-		<!-- Mobile: карточки, клик → 2 запроса (груз + транспорт) -->
-		<ul v-if="shipments.length" class="md:hidden space-y-3">
-			<li
-				v-for="shipment in shipments"
-				:key="shipment.id"
-				role="button"
-				tabindex="0"
-				class="border border-gray-200 rounded-lg p-4 cursor-pointer active:bg-gray-50"
-				@click="openDetails(shipment)"
-				@keydown.enter.prevent="openDetails(shipment)"
-			>
-				<div class="flex items-start justify-between gap-3">
-					<div class="min-w-0">
-						<p class="font-medium text-gray-900">№ {{ shipment.number }}/{{ shipment.year }}</p>
-						<p class="mt-0.5 text-sm text-gray-500">{{ formatDate(shipment.created_at) }}</p>
-						<p class="mt-2 text-sm text-primary-700 truncate">
-							{{ counterparty(shipment) ? companyTitle(counterparty(shipment)!) : '—' }}
-						</p>
+		<div v-if="loading" class="flex items-center justify-center py-16">
+			<UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-500" />
+		</div>
+
+		<template v-else>
+			<!-- Mobile: карточки, клик → 2 запроса (груз + транспорт) -->
+			<ul v-if="shipments.length" class="md:hidden space-y-3">
+				<li
+					v-for="shipment in shipments"
+					:key="shipment.id"
+					role="button"
+					tabindex="0"
+					class="border border-gray-200 rounded-lg p-4 cursor-pointer active:bg-gray-50"
+					@click="openDetails(shipment)"
+					@keydown.enter.prevent="openDetails(shipment)"
+				>
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="font-medium text-gray-900">№ {{ shipment.number }}/{{ shipment.year }}</p>
+							<p class="mt-0.5 text-sm text-gray-500">{{ formatDate(shipment.created_at) }}</p>
+							<p class="mt-2 text-sm text-primary-700 truncate">
+								{{ counterparty(shipment) ? companyTitle(counterparty(shipment)!) : '—' }}
+							</p>
+						</div>
+						<UIcon name="i-heroicons-chevron-right" class="size-5 text-gray-400 shrink-0 mt-0.5" />
 					</div>
-					<UIcon name="i-heroicons-chevron-right" class="size-5 text-gray-400 shrink-0 mt-0.5" />
-				</div>
-			</li>
-		</ul>
-		<p v-else class="md:hidden text-sm text-gray-500 py-4">Перевозок пока нет.</p>
+				</li>
+			</ul>
+			<p v-else class="md:hidden text-sm text-gray-500 py-4">Перевозок пока нет.</p>
 
-		<!-- Desktop: таблица -->
-		<div class="hidden md:block overflow-x-auto border rounded-lg">
-			<table class="min-w-full text-sm">
-				<thead class="bg-gray-50">
-					<tr>
-						<th class="p-3 text-left">Заказ</th>
-						<th class="p-3 text-left">Дата</th>
-						<th class="p-3 text-left">Контрагент</th>
-						<th class="p-3 text-left">Договор</th>
-						<th class="p-3 text-left">Груз</th>
-						<th class="p-3 text-left">Транспорт</th>
-						<th class="p-3 text-left">К заказу клиента</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-for="shipment in shipments" :key="shipment.id" class="border-t">
-						<td class="p-3">№ {{ shipment.number }}/{{ shipment.year }}</td>
-						<td class="p-3">{{ formatDate(shipment.created_at) }}</td>
-						<td class="p-3">
-							<NuxtLink
-								v-if="counterparty(shipment)?.slug"
-								:to="`/companies/${counterparty(shipment)!.slug}`"
-								class="text-primary-600 hover:underline cursor-pointer"
-							>
-								{{ companyTitle(counterparty(shipment)!) }}
-							</NuxtLink>
-							<span v-else-if="counterparty(shipment)">
-								{{ companyTitle(counterparty(shipment)!) }}
-							</span>
-							<span v-else class="text-gray-500">—</span>
-						</td>
-						<td class="p-3">Позже</td>
-						<td class="p-3">
-							<UButton size="xs" variant="soft" label="Данные" class="cursor-pointer" @click="openCargo(shipment)" />
-						</td>
-						<td class="p-3">
-							<UButton size="xs" variant="soft" label="Данные" class="cursor-pointer" @click="openTransport(shipment)" />
-						</td>
-						<td class="p-3">
-							<UButton
-								v-if="sameCompany(shipment.client_company_id, myCompanyId)"
-								size="xs"
-								variant="soft"
-								:label="shipment.deal_id ? `Заказ #${shipment.deal_id}` : 'Привязать'"
-								class="cursor-pointer"
-								@click="openLinkDeal(shipment)"
-							/>
-						</td>
-					</tr>
-					<tr v-if="!shipments.length">
-						<td colspan="7" class="p-5 text-gray-500">Перевозок пока нет.</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+			<!-- Desktop: таблица -->
+			<div class="hidden md:block overflow-x-auto border rounded-lg">
+				<table class="min-w-full text-sm">
+					<thead class="bg-gray-50">
+						<tr>
+							<th class="p-3 text-left">Заказ</th>
+							<th class="p-3 text-left">Дата</th>
+							<th class="p-3 text-left">Контрагент</th>
+							<th class="p-3 text-left">Договор</th>
+							<th class="p-3 text-left">Груз</th>
+							<th class="p-3 text-left">Транспорт</th>
+							<th class="p-2 text-left whitespace-normal leading-tight min-w-[5.5rem]">К заказу<br>клиента</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr v-for="shipment in shipments" :key="shipment.id" class="border-t">
+							<td class="p-3 whitespace-nowrap">№&nbsp;{{ shipment.number }}/{{ shipment.year }}</td>
+							<td class="p-3">{{ formatDate(shipment.created_at) }}</td>
+							<td class="p-3">
+								<NuxtLink
+									v-if="counterparty(shipment)?.slug"
+									:to="`/companies/${counterparty(shipment)!.slug}`"
+									class="text-primary-600 hover:underline cursor-pointer"
+								>
+									{{ companyTitle(counterparty(shipment)!) }}
+								</NuxtLink>
+								<span v-else-if="counterparty(shipment)">
+									{{ companyTitle(counterparty(shipment)!) }}
+								</span>
+								<span v-else class="text-gray-500">—</span>
+							</td>
+							<td class="p-3">Позже</td>
+							<td class="p-3">
+								<UButton size="xs" variant="soft" label="Просмотр" class="cursor-pointer" @click="openCargo(shipment)" />
+							</td>
+							<td class="p-3">
+								<UButton size="xs" variant="soft" label="Просмотр" class="cursor-pointer" @click="openTransport(shipment)" />
+							</td>
+							<td class="p-2">
+								<UButton
+									v-if="sameCompany(shipment.client_company_id, myCompanyId)"
+									size="xs"
+									variant="soft"
+									:label="shipment.deal_id ? `Заказ #${shipment.deal_id}` : 'Привязать'"
+									class="cursor-pointer"
+									@click="openLinkDeal(shipment)"
+								/>
+							</td>
+						</tr>
+						<tr v-if="!shipments.length">
+							<td colspan="7" class="p-5 text-gray-500">Перевозок пока нет.</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</template>
 
 		<!-- Mobile detail -->
 		<UModal

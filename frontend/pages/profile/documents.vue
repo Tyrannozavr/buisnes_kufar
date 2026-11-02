@@ -1,6 +1,7 @@
 <template>
 	<div class="max-w-full space-y-4">
 		<div class="bg-white shadow rounded-lg p-4 space-y-4">
+			<h2 class="text-lg font-medium text-gray-900">Документы</h2>
 			<div class="space-y-3">
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 					<div class="min-w-0 flex-1">

@@ -43,7 +43,7 @@ const handleRefresh = async () => {
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
+    <div class="bg-white shadow rounded-lg p-4">
       <h2 class="text-lg font-medium text-gray-900 mb-4">Покупатели</h2>
       <ProfileCompanyList
         :companies="buyers || []"

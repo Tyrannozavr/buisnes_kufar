@@ -484,7 +484,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
     <!-- Боковая панель с чатами - скрыта на мобильных устройствах -->
     <div class="hidden lg:flex w-80 shrink-0 border-r border-gray-200 flex-col min-h-0">
       <div class="p-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold">Сообщения</h2>
+        <h2 class="text-lg font-medium text-gray-900">Сообщения</h2>
       </div>
       
       <div v-if="chatsPending" class="flex-1 flex items-center justify-center">

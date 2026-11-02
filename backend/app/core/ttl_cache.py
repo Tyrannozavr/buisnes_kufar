@@ -62,5 +62,10 @@ async def cache_delete(key: str) -> None:
 		pass
 
 
+def cache_delete_local(key: str) -> None:
+	"""Sync drop of process-local auth cache (Redis TTL will expire separately)."""
+	_mem_delete(key)
+
+
 def user_cache_key(user_id: int) -> str:
 	return f"auth:user:{user_id}"

@@ -43,7 +43,7 @@ await fetchProducts()
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
+    <div class="bg-white shadow rounded-lg p-4">
       <h2 class="text-lg font-medium text-gray-900 mb-4">Продукция</h2>
       <div v-if="loading" class="flex justify-center py-8">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />

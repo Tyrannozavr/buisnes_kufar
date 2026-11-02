@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy import delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
 from app.api.authentication.dependencies import current_user_dep
@@ -22,6 +23,7 @@ from app.api.shipments.schemas import (
 from app.core.ttl_cache import cache_get, cache_set
 from app.db.base import AsyncSessionLocal
 from app.db.dependencies import async_db_dep
+from app_logging.logger import logger
 
 router = APIRouter(tags=["transport"])
 
@@ -202,7 +204,30 @@ async def _accept_side_effects(
 				f"Перевозчик «{carrier_name}» принял заявку на перевозку груза №{shipment_number}.",
 			)
 		except Exception:
+			logger.exception(
+				"Accept side-effects failed client=%s carrier=%s shipment=%s",
+				client_company_id, carrier_company_id, shipment_number,
+			)
 			await db.rollback()
+
+
+async def _load_shipment_with_companies(db, shipment: Shipment) -> ShipmentResponse:
+	client = await db.get(Company, shipment.client_company_id)
+	carrier = await db.get(Company, shipment.carrier_company_id)
+	return _shipment_response(shipment, client, carrier)
+
+
+async def _next_shipment_number(db, year: int) -> str:
+	last_number = (
+		await db.execute(select(func.max(Shipment.number)).where(Shipment.year == year))
+	).scalar()
+	try:
+		next_number = int(last_number or "0") + 1
+	except (TypeError, ValueError):
+		next_number = 1
+	if next_number > 99999:
+		raise HTTPException(status_code=409, detail="Shipment number sequence exhausted for year")
+	return str(next_number).zfill(5)
 
 
 @router.post("/search")
@@ -252,8 +277,16 @@ async def search_transport(
 			stmt = stmt.where(
 				or_(CompanyVehicle.load_date.is_(None), CompanyVehicle.load_date == filters.load_date)
 			)
+		# Push JSON array filters into SQL so LIMIT does not drop valid matches.
+		if filters.loading_methods:
+			stmt = stmt.where(
+				or_(*[CompanyVehicle.loading_methods.contains([method]) for method in filters.loading_methods])
+			)
+		if filters.adr_classes:
+			for adr in filters.adr_classes:
+				stmt = stmt.where(CompanyVehicle.adr_classes.contains([adr]))
 
-		# Cap candidate set before Python JSON/location matching
+		# Cap candidate set before Python location matching
 		stmt = stmt.limit(_SEARCH_LIMIT * 3)
 		rows = (await db.execute(stmt)).all()
 		matched = [(vehicle, company) for vehicle, company in rows if _matches(vehicle, filters)]
@@ -275,14 +308,22 @@ async def search_transport(
 			by_carrier.setdefault(int(carrier_id), []).append(int(vehicle_id))
 
 		now = datetime.utcnow()
+		carrier_ids = list(by_carrier.keys())
+		existing_rows = (await db.execute(
+			select(ShipmentRequest).where(
+				ShipmentRequest.client_company_id == client_company_id,
+				ShipmentRequest.carrier_company_id.in_(carrier_ids),
+				ShipmentRequest.status.in_(["passive", "active"]),
+			)
+		)).scalars().all() if carrier_ids else []
+		existing_by_carrier: dict[int, ShipmentRequest] = {}
+		for req in existing_rows:
+			prev = existing_by_carrier.get(req.carrier_company_id)
+			if not prev or (req.updated_at or req.created_at) >= (prev.updated_at or prev.created_at):
+				existing_by_carrier[req.carrier_company_id] = req
+
 		for carrier_company_id, vehicle_ids in by_carrier.items():
-			existing = (await db.execute(
-				select(ShipmentRequest).where(
-					ShipmentRequest.client_company_id == client_company_id,
-					ShipmentRequest.carrier_company_id == carrier_company_id,
-					ShipmentRequest.status.in_(["passive", "active"]),
-				).order_by(ShipmentRequest.updated_at.desc())
-			)).scalars().first()
+			existing = existing_by_carrier.get(carrier_company_id)
 			if existing:
 				merged = list(dict.fromkeys([*(existing.matched_vehicle_ids or []), *vehicle_ids]))
 				existing.matched_vehicle_ids = merged
@@ -303,7 +344,12 @@ async def search_transport(
 				))
 				requests_created += 1
 		if by_carrier:
-			await db.commit()
+			try:
+				await db.commit()
+			except IntegrityError:
+				# Concurrent search created the same open pair — safe to ignore duplicates.
+				await db.rollback()
+				requests_created = 0
 
 	return {
 		"vehicles": vehicles_payload,
@@ -319,7 +365,14 @@ async def activate_request(request_id: int, db: async_db_dep, current_user: curr
 		raise HTTPException(status_code=404, detail="Shipment request not found")
 	if request.status in {"accepted", "expired"}:
 		raise HTTPException(status_code=409, detail="Shipment request cannot be activated")
-	request.status, request.is_highlighted, request.activated_at, request.updated_at = "active", True, datetime.utcnow(), datetime.utcnow()
+	now = datetime.utcnow()
+	if request.expires_at and request.expires_at < now:
+		request.status = "expired"
+		await db.commit()
+		raise HTTPException(status_code=409, detail="Shipment request expired")
+	request.status, request.is_highlighted, request.activated_at, request.updated_at = "active", True, now, now
+	if request.expires_at is None or request.expires_at < now + timedelta(days=1):
+		request.expires_at = now + timedelta(days=14)
 	await db.commit()
 	await db.refresh(request)
 	return request
@@ -365,7 +418,26 @@ async def send_vehicle_request(vehicle_id: int, db: async_db_dep, current_user: 
 		expires_at=now + timedelta(days=14),
 	)
 	db.add(request)
-	await db.commit()
+	try:
+		await db.commit()
+	except IntegrityError:
+		await db.rollback()
+		existing = (await db.execute(
+			select(ShipmentRequest).where(
+				ShipmentRequest.client_company_id == company_id,
+				ShipmentRequest.carrier_company_id == carrier_company_id,
+				ShipmentRequest.status.in_(["passive", "active"]),
+			).order_by(ShipmentRequest.updated_at.desc())
+		)).scalars().first()
+		if not existing:
+			raise HTTPException(status_code=409, detail="Could not create shipment request")
+		ids = list(existing.matched_vehicle_ids or [])
+		if vehicle_id not in ids:
+			ids.append(vehicle_id)
+			existing.matched_vehicle_ids = ids
+			existing.updated_at = now
+			await db.commit()
+		return await activate_request(existing.id, db, current_user)
 	await db.refresh(request)
 	return request
 
@@ -379,8 +451,13 @@ async def list_requests(
 ):
 	company_id = _company_id(current_user)
 	page, per_page = _page_clamp(page, per_page)
+	now = datetime.utcnow()
 	result = await db.execute(
-		select(ShipmentRequest).where(ShipmentRequest.carrier_company_id == company_id)
+		select(ShipmentRequest).where(
+			ShipmentRequest.carrier_company_id == company_id,
+			ShipmentRequest.status.in_(["passive", "active"]),
+			ShipmentRequest.expires_at >= now,
+		)
 		.order_by(ShipmentRequest.is_highlighted.desc(), ShipmentRequest.updated_at.desc())
 		.offset((page - 1) * per_page)
 		.limit(per_page)
@@ -396,27 +473,49 @@ async def accept_request(
 	background_tasks: BackgroundTasks,
 ):
 	carrier_company_id = _company_id(current_user)
-	request = await db.get(ShipmentRequest, request_id)
+	request = (
+		await db.execute(
+			select(ShipmentRequest).where(ShipmentRequest.id == request_id).with_for_update()
+		)
+	).scalar_one_or_none()
 	if not request or request.carrier_company_id != carrier_company_id:
 		raise HTTPException(status_code=404, detail="Shipment request not found")
 	if request.status == "accepted":
-		shipment = (await db.execute(select(Shipment).where(Shipment.request_id == request.id))).scalar_one()
-		client = await db.get(Company, shipment.client_company_id)
-		carrier = await db.get(Company, shipment.carrier_company_id)
-		return _shipment_response(shipment, client, carrier)
-	if request.status == "expired":
+		shipment = (
+			await db.execute(select(Shipment).where(Shipment.request_id == request.id))
+		).scalar_one_or_none()
+		if not shipment:
+			raise HTTPException(status_code=409, detail="Accepted request has no shipment")
+		return await _load_shipment_with_companies(db, shipment)
+	if request.status == "expired" or (request.expires_at and request.expires_at < datetime.utcnow()):
+		request.status = "expired"
+		await db.commit()
 		raise HTTPException(status_code=409, detail="Shipment request expired")
+
 	year = datetime.utcnow().year
-	last_number = (await db.execute(select(func.max(Shipment.number)).where(Shipment.year == year))).scalar()
-	next_number = int(last_number or "0") + 1
+	matched_ids = request.matched_vehicle_ids or []
+	vehicle_id = matched_ids[0] if matched_ids else None
 	shipment = Shipment(
-		number=str(next_number).zfill(5), year=year, client_company_id=request.client_company_id,
-		carrier_company_id=carrier_company_id, request_id=request.id,
-		vehicle_id=(request.matched_vehicle_ids or [None])[0],
+		number=await _next_shipment_number(db, year),
+		year=year,
+		client_company_id=request.client_company_id,
+		carrier_company_id=carrier_company_id,
+		request_id=request.id,
+		vehicle_id=vehicle_id,
 	)
 	request.status, request.updated_at = "accepted", datetime.utcnow()
 	db.add(shipment)
-	await db.commit()
+	try:
+		await db.commit()
+	except IntegrityError:
+		await db.rollback()
+		# Concurrent accept: return the winner's shipment if present.
+		existing = (
+			await db.execute(select(Shipment).where(Shipment.request_id == request_id))
+		).scalar_one_or_none()
+		if existing:
+			return await _load_shipment_with_companies(db, existing)
+		raise HTTPException(status_code=409, detail="Could not accept shipment request")
 	await db.refresh(shipment)
 	client = await db.get(Company, shipment.client_company_id)
 	carrier = await db.get(Company, carrier_company_id)
@@ -487,11 +586,17 @@ async def update_cargo(shipment_id: int, data: CargoUpdate, db: async_db_dep, cu
 	shipment = await _shipment_for_company(shipment_id, company_id, db)
 	if shipment.client_company_id != company_id:
 		raise HTTPException(status_code=403, detail="Only client can edit cargo")
-	shipment.cargo_data = {**(shipment.cargo_data or {}), **data.model_dump(exclude_unset=True, mode="json")}
+	payload = data.model_dump(exclude_unset=True, mode="json")
+	# Bound free-form contact dicts to avoid oversized JSON blobs.
+	for key in ("contact_loading", "contact_unloading"):
+		contact = payload.get(key)
+		if isinstance(contact, dict) and len(json.dumps(contact, default=str)) > 4000:
+			raise HTTPException(status_code=422, detail=f"{key} is too large")
+	shipment.cargo_data = {**(shipment.cargo_data or {}), **payload}
 	shipment.updated_at = datetime.utcnow()
 	await db.commit()
 	await db.refresh(shipment)
-	return shipment
+	return await _load_shipment_with_companies(db, shipment)
 
 
 @router.patch("/shipments/{shipment_id}/transport", response_model=ShipmentResponse)
@@ -502,6 +607,10 @@ async def update_transport(shipment_id: int, data: TransportUpdate, db: async_db
 		raise HTTPException(status_code=403, detail="Only carrier can edit transport")
 	vehicle = await db.get(CompanyVehicle, data.vehicle_id) if data.vehicle_id else None
 	driver = await db.get(CompanyDriver, data.driver_id) if data.driver_id else None
+	if data.vehicle_id and not vehicle:
+		raise HTTPException(status_code=404, detail="Vehicle not found")
+	if data.driver_id and not driver:
+		raise HTTPException(status_code=404, detail="Driver not found")
 	if vehicle and vehicle.company_id != company_id:
 		raise HTTPException(status_code=403, detail="Vehicle does not belong to carrier")
 	if driver and driver.company_id != company_id:
@@ -516,7 +625,7 @@ async def update_transport(shipment_id: int, data: TransportUpdate, db: async_db
 	shipment.updated_at = datetime.utcnow()
 	await db.commit()
 	await db.refresh(shipment)
-	return shipment
+	return await _load_shipment_with_companies(db, shipment)
 
 
 @router.patch("/shipments/{shipment_id}/deal", response_model=ShipmentResponse)
@@ -538,9 +647,13 @@ async def update_deal(shipment_id: int, data: DealUpdate, db: async_db_dep, curr
 	if existing:
 		raise HTTPException(status_code=409, detail="Deal is already linked to another shipment")
 	shipment.deal_id, shipment.updated_at = data.deal_id, datetime.utcnow()
-	await db.commit()
+	try:
+		await db.commit()
+	except IntegrityError:
+		await db.rollback()
+		raise HTTPException(status_code=409, detail="Deal is already linked to another shipment")
 	await db.refresh(shipment)
-	return shipment
+	return await _load_shipment_with_companies(db, shipment)
 
 
 @router.get("/favorites/vehicles/ids")
@@ -586,7 +699,10 @@ async def add_vehicle_favorite(vehicle_id: int, db: async_db_dep, current_user: 
 	existing = (await db.execute(select(VehicleFavorite).where(VehicleFavorite.client_company_id == company_id, VehicleFavorite.vehicle_id == vehicle_id))).scalar_one_or_none()
 	if not existing:
 		db.add(VehicleFavorite(client_company_id=company_id, vehicle_id=vehicle_id))
-		await db.commit()
+		try:
+			await db.commit()
+		except IntegrityError:
+			await db.rollback()
 	return {"vehicle_id": vehicle_id}
 
 
@@ -636,7 +752,10 @@ async def add_request_favorite(request_id: int, db: async_db_dep, current_user: 
 	existing = (await db.execute(select(RequestFavorite).where(RequestFavorite.carrier_company_id == company_id, RequestFavorite.request_id == request_id))).scalar_one_or_none()
 	if not existing:
 		db.add(RequestFavorite(carrier_company_id=company_id, request_id=request_id))
-		await db.commit()
+		try:
+			await db.commit()
+		except IntegrityError:
+			await db.rollback()
 	return {"request_id": request_id}
 
 

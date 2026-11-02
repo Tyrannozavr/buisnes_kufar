@@ -91,7 +91,7 @@ const handlePublishAnnouncement = async (announcementId: string) => {
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
+    <div class="bg-white shadow rounded-lg p-4">
       <AnnouncementList
         :announcements="formattedAnnouncements"
         :loading="loadingAnnouncements"

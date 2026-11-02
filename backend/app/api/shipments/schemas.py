@@ -22,30 +22,30 @@ class TransportSearchFilters(BaseModel):
 
 class CargoUpdate(BaseModel):
 	loading_date: Optional[date] = None
-	loading_time: Optional[str] = None
-	loading_address: Optional[str] = None
+	loading_time: Optional[str] = Field(default=None, max_length=32)
+	loading_address: Optional[str] = Field(default=None, max_length=500)
 	unloading_date: Optional[date] = None
-	unloading_time: Optional[str] = None
-	unloading_address: Optional[str] = None
-	route: Optional[str] = None
+	unloading_time: Optional[str] = Field(default=None, max_length=32)
+	unloading_address: Optional[str] = Field(default=None, max_length=500)
+	route: Optional[str] = Field(default=None, max_length=500)
 	contact_loading: Optional[dict[str, Any]] = None
 	contact_unloading: Optional[dict[str, Any]] = None
-	cargo_name: Optional[str] = None
-	transport_conditions: Optional[str] = None
+	cargo_name: Optional[str] = Field(default=None, max_length=300)
+	transport_conditions: Optional[str] = Field(default=None, max_length=1000)
 	net_weight: Optional[float] = None
 	gross_weight: Optional[float] = None
-	places_count: Optional[int] = None
+	places_count: Optional[int] = Field(default=None, ge=0, le=1_000_000)
 	volume: Optional[float] = None
-	marking: Optional[str] = None
-	packaging_type: Optional[str] = None
-	packaging: Optional[str] = None
-	seal: Optional[str] = None
+	marking: Optional[str] = Field(default=None, max_length=300)
+	packaging_type: Optional[str] = Field(default=None, max_length=200)
+	packaging: Optional[str] = Field(default=None, max_length=300)
+	seal: Optional[str] = Field(default=None, max_length=200)
 	rate: Optional[float] = None
-	payment_terms: Optional[str] = None
+	payment_terms: Optional[str] = Field(default=None, max_length=500)
 	declared_value: Optional[float] = None
-	dangerous_goods: Optional[list[str]] = None
-	attached_documents: Optional[list[Any]] = None
-	identity_document_requisites: Optional[str] = None
+	dangerous_goods: Optional[list[str]] = Field(default=None, max_length=50)
+	attached_documents: Optional[list[Any]] = Field(default=None, max_length=30)
+	identity_document_requisites: Optional[str] = Field(default=None, max_length=1000)
 
 
 class TransportUpdate(BaseModel):

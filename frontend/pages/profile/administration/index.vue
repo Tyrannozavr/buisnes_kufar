@@ -268,9 +268,9 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="text-2xl font-bold text-gray-900">Администрирование</h1>
+  <div class="bg-white shadow rounded-lg p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-medium text-gray-900">Администрирование</h2>
       <UButton @click="openAddEmployeeModal" color="primary">
         <UIcon name="i-heroicons-plus" class="mr-2" />
         Добавить сотрудника

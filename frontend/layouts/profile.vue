@@ -32,6 +32,12 @@ const hideProfileSidebar = computed(() =>
 	/^\/profile\/messages\/[^/]+$/.test(route.path) && route.path !== '/profile/messages/new',
 )
 
+/** Широкие страницы: без max-w-3xl и с меньшим отступом справа. */
+const wideProfileContent = computed(() =>
+	/^\/profile\/(shipments|shipment-requests|shipment-favorites|messages)(\/|$)/.test(route.path)
+	&& !/^\/profile\/messages\/[^/]+$/.test(route.path),
+)
+
 const navigationItems = computed((): NavigationMenuItem[][] => {
   const companyBlock: NavigationMenuItem[] = [
     {
@@ -378,11 +384,14 @@ watch(
 				</div>
 			</div>
 
-			<div v-else class="flex flex-col md:flex-row gap-6 md:gap-8">
+			<div v-else class="flex flex-col md:flex-row gap-6" :class="wideProfileContent ? 'md:gap-4' : 'md:gap-8'">
 				<!-- Main Content -->
 				<div
-					class="w-full md:pr-6"
-					:class="hideProfileSidebar ? 'md:max-w-full' : 'md:max-w-3xl'"
+					class="w-full"
+					:class="[
+						(hideProfileSidebar || wideProfileContent) ? 'md:max-w-full' : 'md:max-w-3xl',
+						hideProfileSidebar ? 'md:pr-0' : wideProfileContent ? 'md:pr-1' : 'md:pr-6',
+					]"
 				>
 					<slot />
 				</div>

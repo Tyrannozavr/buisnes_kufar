@@ -107,15 +107,16 @@ class ChatRepository:
 
     async def find_existing_chat(self, company1_id: int, company2_id: int) -> Optional[Chat]:
         """Находит существующий чат между двумя компаниями"""
-        subquery = select(ChatParticipant.chat_id).where(
-            ChatParticipant.company_id.in_([company1_id, company2_id])
-        ).group_by(ChatParticipant.chat_id).having(
-            func.count(ChatParticipant.chat_id) == 2
-        ).subquery()
+        pair_chats = (
+            select(ChatParticipant.chat_id)
+            .where(ChatParticipant.company_id.in_([company1_id, company2_id]))
+            .group_by(ChatParticipant.chat_id)
+            .having(func.count(ChatParticipant.chat_id) == 2)
+        )
 
         stmt = select(Chat).where(
             and_(
-                Chat.id.in_(subquery),
+                Chat.id.in_(pair_chats),
                 Chat.is_group == False  # Только личные чаты
             )
         ).options(*self._participant_options())

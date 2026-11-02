@@ -47,17 +47,24 @@ class AnnouncementService:
 
             # Декодируем и сохраняем файл
             image_data = base64.b64decode(data)
+            if len(image_data) > 8 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Image too large (max 8 MB)",
+                )
             async with aiofiles.open(filepath, 'wb') as f:
                 await f.write(image_data)
 
             # Возвращаем относительный путь
             return f"/uploads/announcement_images/{filename}"
 
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save image: {str(e)}"
-            )
+                detail="Failed to save image",
+            ) from e
 
     async def _process_images(self, images: List[str], announcement_id: int) -> List[str]:
         """Обрабатывает список base64 изображений и возвращает относительные пути"""
@@ -262,7 +269,7 @@ class AnnouncementService:
             )
 
         # Проверяем тип файла
-        if not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith('image/'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File must be an image"
@@ -271,21 +278,23 @@ class AnnouncementService:
         # Создаем директорию если не существует
         os.makedirs(self.upload_dir, exist_ok=True)
 
-        # Генерируем уникальное имя файла
-        file_ext = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_ext}"
+        from app.core.uploads import IMAGE_EXTENSIONS, read_upload_limited, unique_filename
+
+        filename, _ = unique_filename(file.filename, allowed=IMAGE_EXTENSIONS)
         filepath = os.path.join(self.upload_dir, filename)
 
         # Сохраняем файл
         try:
+            content = await read_upload_limited(file, max_bytes=8 * 1024 * 1024)
             async with aiofiles.open(filepath, 'wb') as out_file:
-                content = await file.read()
                 await out_file.write(content)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save file: {str(e)}"
-            )
+                detail="Failed to save file",
+            ) from e
 
         # Добавляем изображение к объявлению
         new_image_path = f"/uploads/announcement_images/{filename}"

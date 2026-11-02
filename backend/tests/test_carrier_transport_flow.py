@@ -177,9 +177,24 @@ async def test_carrier_transport_flow():
 			assert transport_get.json()["transport_snapshot"]["driver"]["id"] == driver_id
 
 			async with db_base.AsyncSessionLocal() as session:
-				session.add(ShipmentRequest(client_company_id=client_company_id, carrier_company_id=carrier_company_id, search_filters={}, matched_vehicle_ids=[], expires_at=datetime.utcnow() - timedelta(seconds=1)))
+				# Accepted request with past expires_at must NOT be purged (shipments FK RESTRICT).
+				accepted_req = (await session.execute(
+					select(ShipmentRequest).where(ShipmentRequest.id == request_id)
+				)).scalar_one()
+				accepted_req.expires_at = datetime.utcnow() - timedelta(days=1)
+				session.add(ShipmentRequest(
+					client_company_id=client_company_id,
+					carrier_company_id=carrier_company_id,
+					search_filters={},
+					matched_vehicle_ids=[],
+					status="passive",
+					expires_at=datetime.utcnow() - timedelta(seconds=1),
+				))
 				await session.commit()
 			assert await purge_expired_requests() >= 1
+			async with db_base.AsyncSessionLocal() as session:
+				assert (await session.get(ShipmentRequest, request_id)) is not None
+				assert (await session.get(Shipment, shipment_id)) is not None
 	finally:
 		app.dependency_overrides.pop(get_current_user, None)
 		async with db_base.AsyncSessionLocal() as session:

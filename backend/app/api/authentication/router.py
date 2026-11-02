@@ -395,7 +395,8 @@ async def update_my_profile(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+        from app.core.ttl_cache import cache_delete, user_cache_key
+        await cache_delete(user_cache_key(user.id))
         return updated_user
         
     except ValueError as e:
@@ -405,10 +406,12 @@ async def update_my_profile(
             detail=str(e)
         )
     except Exception as e:
+        from app_logging.logger import logger
+        logger.exception("Failed to update profile for user %s", user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update profile: {str(e)}"
-        )
+            detail="Failed to update profile",
+        ) from e
 
 
 @router.get("/email-notifications/unsubscribe")

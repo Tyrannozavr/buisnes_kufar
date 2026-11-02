@@ -24,12 +24,14 @@ class ShipmentRequest(Base):
 
 class Shipment(Base):
 	__tablename__ = "shipments"
+	__table_args__ = (UniqueConstraint("year", "number", name="uq_shipments_year_number"),)
 
 	number: Mapped[str] = mapped_column(String(5), nullable=False)
 	year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 	client_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
 	carrier_company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
-	request_id: Mapped[int] = mapped_column(ForeignKey("shipment_requests.id", ondelete="CASCADE"), unique=True, index=True)
+	# RESTRICT: purge/manual delete of request must not wipe an accepted shipment.
+	request_id: Mapped[int] = mapped_column(ForeignKey("shipment_requests.id", ondelete="RESTRICT"), unique=True, index=True)
 	deal_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, unique=True)
 	cargo_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 	vehicle_id: Mapped[Optional[int]] = mapped_column(ForeignKey("company_vehicles.id", ondelete="SET NULL"), nullable=True)

@@ -202,9 +202,9 @@ class DealService:
 		return await self.repository.get_seller_orders(company_id, skip, limit)
 
 	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
-		"""Обновление сделки"""
+		"""Обновление сделки (in-place). По ТЗ §2.3 — только продавец."""
 		try:
-			order = await self._ensure_order_participant(deal_id, company_id)
+			order = await self._ensure_seller_on_deal(deal_id, company_id)
 			if not order:
 				return None
 			if deal_data is not None:

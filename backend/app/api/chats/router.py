@@ -17,10 +17,14 @@ from app.api.company.models.company import Company
 from app.api.messages.models.message import Message
 from app.core.config import settings
 from app.core.security import decode_token
+from app.core.uploads import CHAT_EXTENSIONS, read_upload_limited, unique_filename
 from app.db.dependencies import async_db_dep, get_async_db
 from app_logging.logger import logger
 
 router = APIRouter()
+
+_MAX_CHAT_FILE_BYTES = 20 * 1024 * 1024
+_MAX_CHAT_CONTENT_LEN = 10_000
 
 
 @router.post("", response_model=ChatResponse)
@@ -115,15 +119,11 @@ async def get_chat_by_id(
 
 ):
     """Получает чат по ID"""
+    await check_user_in_chat(chat_id, token_data, db)
     chat_service = ChatService(db)
     chat = await chat_service.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-
-    # Проверяем, что пользователь является участником чата
-    if not any(p.user_id == token_data.user_id for p in chat.participants):
-        raise HTTPException(status_code=403, detail="Access denied: not a chat participant")
-
     return chat
 
 
@@ -238,7 +238,7 @@ async def get_chat_files(
         {
             "message_id": m.id,
             "name": m.file_name,
-            "url": m.file_path,
+            "url": settings.public_file_url(m.file_path),
             "type": m.file_type,
             "size": m.file_size,
             "created_at": m.created_at,
@@ -303,6 +303,11 @@ async def send_message(
     if not current_company:
         raise HTTPException(status_code=404, detail="Company not found for current user")
 
+    if content is None or not str(content).strip():
+        raise HTTPException(status_code=422, detail="Message content is required")
+    if len(content) > _MAX_CHAT_CONTENT_LEN:
+        raise HTTPException(status_code=422, detail="Message content is too long")
+
     # Обрабатываем файл, если он есть
     file_path = None
     file_name = None
@@ -310,22 +315,17 @@ async def send_message(
     file_type = None
 
     if file:
-        # Создаем директорию для файлов, если её нет
         upload_dir = "uploads/chat_files"
         os.makedirs(upload_dir, exist_ok=True)
-
-        # Генерируем уникальное имя файла
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
-        file_name = f"{timestamp}_{file.filename}" if file.filename else f"{timestamp}_file"
-        file_path = os.path.join(upload_dir, file_name)
-
-        # Сохраняем файл
+        stored_name, file_name = unique_filename(file.filename, allowed=CHAT_EXTENSIONS)
+        file_path = os.path.join(upload_dir, stored_name)
+        # Ensure resolved path stays inside upload_dir (defense in depth).
+        if os.path.commonpath([os.path.abspath(upload_dir), os.path.abspath(file_path)]) != os.path.abspath(upload_dir):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        content_file = await read_upload_limited(file, max_bytes=_MAX_CHAT_FILE_BYTES)
         with open(file_path, "wb") as buffer:
-            content_file = await file.read()
             buffer.write(content_file)
             file_size = len(content_file)
-
         file_type = file.content_type or "application/octet-stream"
 
     # Создаем сообщение

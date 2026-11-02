@@ -38,6 +38,8 @@ from app.api.purchases.models import (
     Order,
     UnitOfMeasurement,
     ContractConditionTemplateType,
+    TransportDocument,
+    TransportDocumentType,
 )
 from app.api.purchases.repositories import DealRepository
 from app.api.purchases.repositories.company_contract import CompanyContractRepository
@@ -196,7 +198,19 @@ CARRIER_COMPANY = {
     "production_address": "109020, г. Москва, ул. Транспортная, д. 1",
     "phone": "+79001234011",
     "email": "carrier@gmail.com",
+    "current_account_number": "40702810900000005678",
+    "bic": "044525225",
+    "correspondent_bank_account": "30101810400000000225",
+    "bank_name": "ПАО Сбербанк",
     "vat_rate": 20,
+}
+
+CARRIER_OFFICIAL = {
+    "position": "Генеральный директор",
+    "full_name": "Перевозчиков Иван Алексеевич",
+    "is_base": True,
+    "base_document": "Устав",
+    "base_document_name": "",
 }
 
 FORWARDER_COMPANY = {
@@ -228,7 +242,8 @@ SELLER_OFFICIAL = {
     "full_name": "Поставщик Сергей Петрович",
     "is_base": True,
     "base_document": "Устав",
-    "base_document_name": "Устав",
+    # название пустое: в преамбуле «на основании Устава», без второго «Устав»
+    "base_document_name": "",
 }
 
 UNITS_DATA = [
@@ -264,6 +279,7 @@ DEAL_NO_BILL_COMMENTS = "Этап 2 — сделка без счёта (createBi
 DEAL_STAGE31_CONTRACTS_COMMENTS = "Этап 3.1 — без счёта, диалог выбора договора"
 DEAL_NO_CONTRACT_COMMENTS = "Этап 3.1 — сделка без счёта, контрагент без договоров"
 DEAL_SERVICES_COMMENTS = "Этап 4.6 — услуговая сделка без счёта"
+DEAL_TRANSPORT_EMPTY_COMMENTS = "Договор перевозки — сделка без договора (приёмка заявки)"
 
 TEMPLATE_NAME_SUPPLIER = "Стандартный, доставка Поставщика"
 TEMPLATE_NAME_BUYER = "Стандартный, доставка Покупателя"
@@ -471,24 +487,30 @@ async def ensure_catalog_products(session, company_id: int) -> list[Product]:
     return products
 
 
-async def ensure_seller_official(session, company_id: int) -> None:
+async def ensure_company_official(
+    session, company_id: int, payload: dict, *, label: str
+) -> None:
     existing = (
         await session.execute(
             select(CompanyOfficial).where(
                 CompanyOfficial.company_id == company_id,
-                CompanyOfficial.full_name == SELLER_OFFICIAL["full_name"],
+                CompanyOfficial.full_name == payload["full_name"],
             )
         )
     ).scalar_one_or_none()
 
     if existing:
-        for key, value in SELLER_OFFICIAL.items():
+        for key, value in payload.items():
             setattr(existing, key, value)
-        print("  official UPDATED")
+        print(f"  official UPDATED ({label})")
         return
 
-    session.add(CompanyOfficial(company_id=company_id, **SELLER_OFFICIAL))
-    print("  official CREATED")
+    session.add(CompanyOfficial(company_id=company_id, **payload))
+    print(f"  official CREATED ({label})")
+
+
+async def ensure_seller_official(session, company_id: int) -> None:
+    await ensure_company_official(session, company_id, SELLER_OFFICIAL, label="seller")
 
 
 async def ensure_fill_addresses(session, company_id: int) -> None:
@@ -657,6 +679,39 @@ async def ensure_company_relations(
     )
 
 
+async def ensure_transport_documents(
+    session,
+    *,
+    owner_company_id: int,
+    carrier_company_id: int,
+) -> None:
+    """§1.2 — демо рамочный договор перевозки №999 для пикера / приёмки API."""
+    existing = (
+        await session.execute(
+            select(TransportDocument).where(
+                TransportDocument.owner_company_id == owner_company_id,
+                TransportDocument.carrier_company_id == carrier_company_id,
+                TransportDocument.doc_type == TransportDocumentType.CARRIAGE_CONTRACT,
+                TransportDocument.number == "999",
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        print(f"  transport_document carriage_contract №999 already exists id={existing.id}")
+        return
+    doc = TransportDocument(
+        owner_company_id=owner_company_id,
+        carrier_company_id=carrier_company_id,
+        doc_type=TransportDocumentType.CARRIAGE_CONTRACT,
+        number="999",
+        date=datetime(2025, 4, 8),
+    )
+    session.add(doc)
+    await session.commit()
+    await session.refresh(doc)
+    print(f"  transport_document CREATED: carriage_contract №999 id={doc.id}")
+
+
 async def ensure_company_contracts(
     session,
     seller_company_id: int,
@@ -792,6 +847,9 @@ async def main() -> None:
         print("\nПеревозчик (ТЗ_15 §5.6):")
         carrier_company = await upsert_company(session, CARRIER_COMPANY)
         await upsert_user(session, CARRIER_USER, carrier_company.id)
+        await ensure_company_official(
+            session, carrier_company.id, CARRIER_OFFICIAL, label="carrier"
+        )
         print("\nФлот перевозчика (ТЗ_Перевозчик):")
         await ensure_carrier_fleet(session, carrier_company.id)
 
@@ -812,6 +870,11 @@ async def main() -> None:
 
         print("\nДоговоры ЛК (seller ↔ основной покупатель):")
         await ensure_company_contracts(session, seller_company.id, buyer_company.id)
+        await ensure_transport_documents(
+            session,
+            owner_company_id=seller_company.id,
+            carrier_company_id=carrier_company.id,
+        )
 
         print("\nШаблоны условий (§4.4):")
         await ensure_contract_condition_templates(session, seller_company.id)
@@ -894,11 +957,47 @@ async def main() -> None:
             ],
         )
 
+        print("\nСделка 5 (без договора перевозки — приёмка заявки §1.3):")
+        order_transport_empty = await ensure_deal(
+            session,
+            buyer_no_contract.id,
+            seller_company.id,
+            comments=DEAL_TRANSPORT_EMPTY_COMMENTS,
+            items=[
+                OrderItemCreate(
+                    product_name="Шпилька M10 (без перевозки)",
+                    product_article="STUD-M10-TR",
+                    quantity=40,
+                    unit_of_measurement="шт",
+                    price=8.50,
+                ),
+            ],
+        )
+        # Гарантированно пустая ячейка «Договор перевозки»
+        latest_empty = (
+            await session.execute(
+                select(Order)
+                .where(Order.id == order_transport_empty.id)
+                .order_by(Order.version.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if latest_empty and latest_empty.transport_contract is not None:
+            latest_empty.transport_contract = None
+            await session.commit()
+            print(f"  cleared transport_contract on deal id={latest_empty.id}")
+
     good = next(p for p in catalog if p.type == ProductType.GOOD)
     service = next(p for p in catalog if p.type == ProductType.SERVICE)
 
     async with AsyncSessionLocal() as session:
-        for order_ref in (order_main, order_stage31_contracts, order_no_contract, order_services):
+        for order_ref in (
+            order_main,
+            order_stage31_contracts,
+            order_no_contract,
+            order_services,
+            order_transport_empty,
+        ):
             latest = (
                 await session.execute(
                     select(Order)
@@ -919,10 +1018,17 @@ async def main() -> None:
     print("  ТС: Volvo FH · А123ВС 77 (Москва → СПб/Казань, тентованный, догруз)")
     print("  Водитель: Иванов Пётр Сергеевич")
     print("  Приёмка: docs/carrier/manual-step-by-step-acceptance.md")
+    print("\n§1.2 Договор перевозки (API):")
+    print("  Рамочный carriage_contract №999 (seller ↔ carrier)")
+    print("  Приёмка: docs/contract-transport/etap-01-karkas-dialog.md")
     print(f"\nСделка 1: id={order_main.id}, заказ {order_main.seller_order_number}")
     print(f"Сделка 2 (§3.1 договоры): id={order_stage31_contracts.id}, заказ {order_stage31_contracts.seller_order_number}")
     print(f"Сделка 3 (§3.1 без договоров): id={order_no_contract.id}, заказ {order_no_contract.seller_order_number}")
     print(f"Сделка 4 (§4.6 услуги): id={order_services.id}, заказ {order_services.seller_order_number}")
+    print(
+        f"Сделка 5 (без договора перевозки): id={order_transport_empty.id}, "
+        f"заказ {order_transport_empty.seller_order_number}"
+    )
     print("\n§3.1 «Создать счет» — seller@gmail.com → Продажи → Товары")
     print("  A) Сделка 2 → «Создать счет» → список договоров + «Без договора»")
     print("  B) Сделка 3 → «Создать счет» → «Создать без основания?» Да/Нет")

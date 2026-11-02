@@ -16,6 +16,7 @@ from app.api.purchases.dependencies import (
 	supply_contract_template_service_dep_annotated,
 	company_contract_service_dep_annotated,
 	contract_condition_template_service_dep_annotated,
+	transport_document_service_dep_annotated,
 )
 from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError, BuyerOrderUpdateForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
@@ -27,6 +28,9 @@ from app.api.purchases.schemas import (
     CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
     TransportContractAssignRequest, TransportContractResponse,
+    TransportDocumentCreate, TransportDocumentBindRequest, TransportDocumentUpdate,
+    TransportDocumentResponse, TransportDocumentListResponse,
+    TransportDocumentNextNumberResponse,
     ClosingDocumentAssignRequest, ClosingDocumentResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     CompanyContractCreate,
@@ -1378,6 +1382,197 @@ async def create_transport_contract(
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return TransportContractResponse(number=result[0], date=result[1])
+
+
+@router.get(
+	"/transport-documents",
+	response_model=TransportDocumentListResponse,
+	tags=["transport"],
+	summary="Список рамочных договоров перевозки/экспедиции по организации (§1.2)",
+)
+async def list_transport_documents(
+	carrier_company_id: int = Query(..., gt=0),
+	doc_type: str = Query(
+		...,
+		description="carriage_contract | expedition_contract",
+	),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentValidationError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.list_for_picker(
+			company.id,
+			carrier_company_id=carrier_company_id,
+			doc_type=doc_type,
+		)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+
+
+@router.get(
+	"/transport-documents/next-number",
+	response_model=TransportDocumentNextNumberResponse,
+	tags=["transport"],
+	summary="Следующий номер документа перевозки (§1.2)",
+)
+async def get_transport_document_next_number(
+	doc_type: str = Query(...),
+	carrier_company_id: int = Query(..., gt=0),
+	parent_id: Optional[int] = Query(None, gt=0),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentValidationError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.get_next_number(
+			company.id,
+			doc_type=doc_type,
+			carrier_company_id=carrier_company_id,
+			parent_id=parent_id,
+		)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+
+
+@router.post(
+	"/transport-documents",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Создать документ перевозки / экспедиции (§1.2)",
+)
+async def create_transport_document(
+	body: TransportDocumentCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import (
+		TransportDocumentDuplicateError,
+		TransportDocumentValidationError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.create(company.id, body)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+	except TransportDocumentDuplicateError as exc:
+		raise HTTPException(status_code=409, detail=exc.message) from exc
+
+
+@router.get(
+	"/transport-documents/{document_id}",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Документ перевозки по id (§1.2)",
+)
+async def get_transport_document(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.get(document_id, company.id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+@router.patch(
+	"/transport-documents/{document_id}",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Обновить бланк документа перевозки (§2)",
+)
+async def update_transport_document(
+	document_id: int,
+	body: TransportDocumentUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import (
+		TransportDocumentAccessError,
+		TransportDocumentDuplicateError,
+		TransportDocumentValidationError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.update(document_id, company.id, body)
+	except TransportDocumentAccessError as e:
+		raise HTTPException(status_code=404, detail=e.message) from e
+	except TransportDocumentValidationError as e:
+		raise HTTPException(status_code=400, detail=e.message) from e
+	except TransportDocumentDuplicateError as e:
+		raise HTTPException(status_code=409, detail=e.message) from e
+
+
+@router.post(
+	"/deals/{deal_id}/transport-documents/bind",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Привязать документ перевозки к сделке (§1.2)",
+)
+async def bind_transport_document_to_deal(
+	deal_id: int,
+	body: TransportDocumentBindRequest,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.bind_to_deal(company.id, deal_id, body)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=403, detail=exc.message) from exc
+
+
+@router.get(
+	"/deals/{deal_id}/transport-documents",
+	response_model=TransportDocumentListResponse,
+	tags=["transport"],
+	summary="Документы перевозки, привязанные к сделке (§1.2)",
+)
+async def list_deal_transport_documents(
+	deal_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.list_for_deal(company.id, deal_id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
 
 
 @router.post(

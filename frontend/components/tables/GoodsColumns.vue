@@ -100,50 +100,9 @@
 		</template>
 	</UModal>
 
-	<UModal v-model:open="isTransportContractModalOpen" title="Договор транспортной экспедиции">
-		<template #body>
-			<div class="flex flex-col gap-3">
-				<p class="text-sm text-gray-600">
-					Выберите существующий договор транспортной экспедиции или создайте новый.
-				</p>
-				<USelect
-					v-if="transportContractSelectionItems.length"
-					:items="transportContractSelectionItems"
-					:model-value="selectedTransportContractValue"
-					placeholder="Выберите договор"
-					@update:model-value="handleTransportSelectionChange"
-				/>
-				<p v-else class="text-sm text-amber-700">
-					Ранее созданных договоров экспедиции нет — нажмите «Создать новый».
-				</p>
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<UButton
-						label="Выбор"
-						color="primary"
-						class="w-full justify-center"
-						:loading="isTransportActionBusy"
-						:disabled="!selectedTransportContractValue"
-						@click="handleBindTransportContract"
-					/>
-					<UButton
-						label="Создать новый"
-						color="neutral"
-						variant="subtle"
-						class="w-full justify-center"
-						:loading="isTransportActionBusy"
-						@click="handleCreateNewTransportContract"
-					/>
-					<UButton
-						label="Отмена"
-						color="neutral"
-						variant="ghost"
-						class="w-full justify-center"
-						@click="isTransportContractModalOpen = false"
-					/>
-				</div>
-			</div>
-		</template>
-	</UModal>
+	<ClientOnly>
+		<CreateTransportDocumentDialogs />
+	</ClientOnly>
 </template>
 
 <script setup lang="ts">
@@ -161,6 +120,13 @@ import { Editor } from "~/constants/keys";
 import { useBillFillState } from "~/composables/useBillFillState";
 import { useCreateBillFromSales } from "~/composables/useCreateBillFromSales";
 import CreateBillFromSalesDialogs from "~/components/EditorMenu/CreateBillFromSalesDialogs.vue";
+import CreateTransportDocumentDialogs from "~/components/EditorMenu/CreateTransportDocumentDialogs.vue";
+import { useCreateTransportDocumentFromSales } from "~/composables/useCreateTransportDocumentFromSales";
+import {
+	buildTransportCellLines,
+	buildTransportCellTooltip,
+} from "~/utils/transportDocumentLabels";
+import { HASH_TO_TAB } from "~/utils/editorNavigation";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
 
 const { type, dealFilter = 'all' } = defineProps<{
@@ -187,30 +153,7 @@ const supplyDocTypeItems = [
 	{ label: 'Договор поставки товара', value: 'supplyContract' },
 	{ label: 'Спецификация к договору поставки', value: 'specification' },
 ]
-const isTransportContractModalOpen = ref(false)
-const isTransportActionBusy = ref(false)
-const selectedTransportDealNumber = ref('')
-const selectedTransportContractValue = ref<string | undefined>()
-const transportContractSelectionItems = ref<{ label: string; value: string }[]>([])
 const selectedSupplyContractEntityId = ref<number | undefined>(undefined)
-
-const rebuildTransportContractOptions = () => {
-	const seen = new Set<string>()
-	const items: { label: string; value: string }[] = []
-	for (const deal of deals.value ?? []) {
-		const tc = deal.transportContract
-		if (!tc?.number) continue
-		const key = String(tc.number)
-		if (seen.has(key)) continue
-		seen.add(key)
-		const dateStr = tc.date ? normalizeDate(String(tc.date).slice(0, 10)) : ''
-		const label = dateStr
-			? `Договор транспортной экспедиции № ${key} от ${dateStr} г.`
-			: `Договор транспортной экспедиции № ${key}`
-		items.push({ label, value: key })
-	}
-	transportContractSelectionItems.value = items
-}
 const {
 	contractEntity: checkedSupplyContractEntity,
 	refreshStatus: refreshSupplyContractStatus,
@@ -225,6 +168,7 @@ const { clearBillAwaitingFill } = useBillFillState()
 const {
 	startCreateBill,
 } = useCreateBillFromSales()
+const { openTypeSelect: openTransportDocumentTypeSelect } = useCreateTransportDocumentFromSales()
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
 const PAGE_SIZE = 10
@@ -280,10 +224,46 @@ const getDealIdByDealNumber = (dealNumber: string, role: 'buyer' | 'seller'): nu
 
 const openEditor = (dealId: number | undefined, role: 'buyer' | 'seller', hash: string) => {
 	if (!dealId) return
+	const tab = HASH_TO_TAB[hash]
+	if (tab) activeTab.value = tab
 	router.push({
 		path: '/profile/editor',
 		query: { dealId: String(dealId), role },
 		hash,
+	})
+}
+
+const openTransportEditor = (dealId: number | undefined, role: 'buyer' | 'seller') => {
+	if (!dealId) return
+	const deal = findDeal(dealId)
+	const snapshot = deal?.transportContract ?? null
+	const docs = snapshot?.documents ?? []
+	const primary =
+		docs.find((d) => d.type === 'carriage_contract' && d.id) ||
+		docs.find((d) => d.id) ||
+		null
+	activeTab.value = '5'
+	router.push({
+		path: '/profile/editor',
+		query: {
+			dealId: String(dealId),
+			role,
+			...(primary?.type ? { transportDocType: String(primary.type) } : { transportDocType: 'carriage_contract' }),
+			...(primary?.id ? { transportDocId: String(primary.id) } : {}),
+		},
+		hash: '#contract',
+	})
+}
+
+/** Поиск ТС из Продаж/Закупок: returnTo, чтобы вернуться в таблицу (не в /profile). */
+const openTransportSearch = (dealId: number | undefined) => {
+	const returnTo = type === 'sales' ? '/profile/sales' : '/profile/purchases'
+	router.push({
+		path: '/transport-search',
+		query: {
+			...(dealId ? { deal: String(dealId) } : {}),
+			returnTo,
+		},
 	})
 }
 
@@ -299,14 +279,15 @@ const formatBillDocLabel = (deal: Deal): string | null => {
 }
 
 const formatTransportDocLabel = (deal: Deal): string | null => {
-	const tc = deal.transportContract
-	if (!tc?.number) return null
-	// formatDocumentLinkLabel сам вызывает normalizeDate — передаём ISO YYYY-MM-DD, не DD.MM.YYYY
-	const rawDate = tc.date ? String(tc.date).slice(0, 10) : ''
-	const core = formatDocumentLinkLabel(String(tc.number), rawDate)
-	if (!core) return null
-	return `Договор транспортной экспедиции № ${core}`
+	const lines = buildTransportCellLines(deal.transportContract ?? null)
+	return lines[0] ?? null
 }
+
+const formatTransportDocLabels = (deal: Deal): string[] =>
+	buildTransportCellLines(deal.transportContract ?? null)
+
+const formatTransportDocTitle = (deal: Deal): string =>
+	buildTransportCellTooltip(deal.transportContract ?? null)
 
 const formatClosingDocLabel = (deal: Deal): string | null => {
 	const docs = (deal.closingDocuments ?? []) as { name?: string; number?: string; date?: string; type?: string }[]
@@ -659,22 +640,30 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
     accessorKey: 'transportContract',
     header: 'Договор перевозки',
     cell: ({ row }) => {
-      const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
-      const label = row.getValue('transportContract') as string | null
+      const dealNumber = String(row.getValue('dealNumber'))
+      const dealId = getDealIdByDealNumber(dealNumber, 'buyer')
+      const deal = dealId ? findDeal(dealId) : undefined
+      const labels = deal ? formatTransportDocLabels(deal) : []
+      const label = labels[0] ?? null
+      const title = deal ? formatTransportDocTitle(deal) : ''
       return renderTz15Cell(
         label,
-        () => openEditor(dealId, 'buyer', '#contract'),
+        () => openTransportEditor(dealId, 'buyer'),
         () => {},
-        [{ label: 'Найти транспорт', onClick: () => {
-					const dealId = getDealIdByDealNumber(String(row.getValue('dealNumber')), type === 'sales' ? 'seller' : 'buyer')
-					router.push(dealId ? `/transport-search?deal=${dealId}` : '/transport-search')
-				} }],
+        [{
+					label: 'Найти транспорт',
+					tone: 'muted',
+					onClick: () => openTransportSearch(dealId),
+				}],
+        labels,
+				undefined,
+				title,
       )
     }
   },
   {
     accessorKey: 'closingDocuments',
-    header: 'Закрывающие документы',
+    header: 'Закрыв. документы',
     cell: ({ row }) => {
       const dealId = getDealIdByDealNumber(row.getValue('dealNumber'), 'buyer')
       const label = row.getValue('closingDocuments') as string | null
@@ -1034,58 +1023,8 @@ const handleSupplyDocTypeConfirm = async () => {
 	handleOpenSupplyContractSelection()
 }
 
-const handleTransportSelectionChange = (value: unknown) => {
-	selectedTransportContractValue.value = value ? String(value) : undefined
-}
-
 const handleTransportDocumentCreateClick = (dealNumber: string) => {
-	selectedTransportDealNumber.value = dealNumber
-	rebuildTransportContractOptions()
-	selectedTransportContractValue.value = transportContractSelectionItems.value[0]?.value
-	isTransportContractModalOpen.value = true
-}
-
-const handleBindTransportContract = async () => {
-	const dealId = getDealIdByDealNumber(selectedTransportDealNumber.value, 'seller')
-	const number = selectedTransportContractValue.value
-	if (!dealId || !number) return
-	isTransportActionBusy.value = true
-	try {
-		await purchasesApi.createTransportContract(dealId, { number })
-		const deal = findDeal(dealId)
-		if (deal) {
-			deal.transportContract = { number, date: new Date().toISOString(), type: 'transport_expedition' }
-		}
-		isTransportContractModalOpen.value = false
-		toast.add({ title: 'Договор перевозки привязан', color: 'success' })
-	} catch {
-		toast.add({ title: 'Не удалось привязать договор перевозки', color: 'error' })
-	} finally {
-		isTransportActionBusy.value = false
-	}
-}
-
-const handleCreateNewTransportContract = async () => {
-	const dealId = getDealIdByDealNumber(selectedTransportDealNumber.value, 'seller')
-	if (!dealId) return
-	isTransportActionBusy.value = true
-	try {
-		await purchasesApi.createTransportContract(dealId)
-		const deal = findDeal(dealId)
-		if (deal) {
-			deal.transportContract = {
-				number: deal.sellerOrderNumber,
-				date: new Date().toISOString(),
-				type: 'transport_expedition',
-			}
-		}
-		isTransportContractModalOpen.value = false
-		openEditor(dealId, 'seller', '#contract')
-	} catch {
-		toast.add({ title: 'Не удалось создать договор перевозки', color: 'error' })
-	} finally {
-		isTransportActionBusy.value = false
-	}
+	openTransportDocumentTypeSelect(dealNumber)
 }
 
 const handleClosingDocumentCreateClick = async (dealNumber: string) => {
@@ -1113,13 +1052,19 @@ const renderTz15Cell = (
 	docLabel: string | null,
 	onView: () => void,
 	onCreate: () => void,
-	extraLines?: { label: string; onClick: () => void }[],
+	extraLines?: { label: string; onClick: () => void; tone?: 'muted' | 'default' }[],
+	docLabels?: string[],
+	createLabel?: string,
+	docTitle?: string | null,
 ) => renderTz15DocCell({
 	UButton,
 	docLabel,
+	docLabels,
+	docTitle,
 	onView,
 	onCreate,
 	showCreate: type === 'sales',
+	createLabel,
 	extraLines,
 })
 
@@ -1272,21 +1217,28 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
     cell: ({ row }) => {
       const dealNumber = String(row.getValue('dealNumber'))
       const dealId = getDealIdByDealNumber(dealNumber, 'seller')
-      const label = row.getValue('transportContract') as string | null
+      const deal = dealId ? findDeal(dealId) : undefined
+      const labels = deal ? formatTransportDocLabels(deal) : []
+      const label = labels[0] ?? null
+      const title = deal ? formatTransportDocTitle(deal) : ''
       return renderTz15Cell(
         label,
-        () => openEditor(dealId, 'seller', '#contract'),
-        () => { void handleTransportDocumentCreateClick(dealNumber) },
-        [{ label: 'Найти транспорт', onClick: () => {
-					const dealId = getDealIdByDealNumber(String(row.getValue('dealNumber')), type === 'sales' ? 'seller' : 'buyer')
-					router.push(dealId ? `/transport-search?deal=${dealId}` : '/transport-search')
-				} }],
+        () => openTransportEditor(dealId, 'seller'),
+        () => { handleTransportDocumentCreateClick(dealNumber) },
+        [{
+					label: 'Найти транспорт',
+					tone: 'muted',
+					onClick: () => openTransportSearch(dealId),
+				}],
+        labels,
+				'Создать док. перевозки',
+				title,
       )
     }
   },
   {
     accessorKey: 'closingDocuments',
-    header: 'Закрывающие документы',
+    header: 'Закрыв. документы',
     cell: ({ row }) => {
       const dealNumber = String(row.getValue('dealNumber'))
       const dealId = getDealIdByDealNumber(dealNumber, 'seller')

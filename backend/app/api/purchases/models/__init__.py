@@ -356,6 +356,76 @@ class SupplyContractTemplate(Base):
 	updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class TransportDocumentType(str, enum.Enum):
+	"""Семь типов документов ТЗ «Договор на перевозку грузов» (§1.2)."""
+
+	CARRIAGE_CONTRACT = "carriage_contract"
+	CARRIAGE_APPLICATION = "carriage_application"
+	CARRIAGE_ORDER = "carriage_order"
+	EXPEDITION_CONTRACT = "expedition_contract"
+	FORWARDER_ASSIGNMENT = "forwarder_assignment"
+	FORWARDER_RECEIPT = "forwarder_receipt"
+	WAREHOUSE_RECEIPT = "warehouse_receipt"
+
+
+# Рамочные типы — список в пикере организаций/договоров
+TRANSPORT_FRAMEWORK_TYPES = frozenset(
+	{
+		TransportDocumentType.CARRIAGE_CONTRACT,
+		TransportDocumentType.EXPEDITION_CONTRACT,
+	}
+)
+
+# Дочерние типы → обязательный родитель
+TRANSPORT_CHILD_PARENT: dict[TransportDocumentType, TransportDocumentType] = {
+	TransportDocumentType.CARRIAGE_APPLICATION: TransportDocumentType.CARRIAGE_CONTRACT,
+	TransportDocumentType.FORWARDER_ASSIGNMENT: TransportDocumentType.EXPEDITION_CONTRACT,
+	TransportDocumentType.FORWARDER_RECEIPT: TransportDocumentType.EXPEDITION_CONTRACT,
+	TransportDocumentType.WAREHOUSE_RECEIPT: TransportDocumentType.EXPEDITION_CONTRACT,
+}
+
+
+class TransportDocument(Base):
+	"""Реестр документов перевозки / экспедиции (не JSON на заказе).
+
+	Уникальность номеров — partial indexes в миграции:
+	- без родителя: (owner, carrier, type, number);
+	- с родителем: (parent_id, type, number).
+	"""
+
+	__tablename__ = "transport_document"
+
+	owner_company_id: Mapped[int] = mapped_column(
+		ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+	)
+	carrier_company_id: Mapped[int] = mapped_column(
+		ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+	)
+	doc_type: Mapped[TransportDocumentType] = mapped_column(
+		Enum(
+			TransportDocumentType,
+			name="transportdocumenttype",
+			values_callable=lambda enum_cls: [member.value for member in enum_cls],
+		),
+		nullable=False,
+		index=True,
+	)
+	number: Mapped[str] = mapped_column(String(32), nullable=False)
+	date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+	parent_id: Mapped[Optional[int]] = mapped_column(
+		ForeignKey("transport_document.id", ondelete="CASCADE"),
+		nullable=True,
+		index=True,
+	)
+	# Сделка (Order.id), к которой привязан документ; у рамочных обычно NULL (переиспользуются)
+	deal_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+	payload_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+	created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+	updated_at: Mapped[datetime] = mapped_column(
+		DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+	)
+
+
 class ContractConditionTemplateType(str, enum.Enum):
 	BILL_CONTRACT = "bill_contract"
 	BILL_OFFER = "bill_offer"

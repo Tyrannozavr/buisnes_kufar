@@ -1,8 +1,12 @@
 <template>
-	<div v-if="activeTab === '0' || activeTab === '1'" class="a4-background">
+	<!-- Заказ / Счёт / Договор перевозки (§2): живой бланк с жёлтыми input -->
+	<div
+		v-if="activeTab === '0' || activeTab === '1' || activeTab === '5'"
+		class="a4-background"
+	>
 		<div class="a4-pages">
 			<div class="a4-page_container">
-				<div class="a4-page_document">
+				<div ref="liveDocumentRef" class="a4-page_document">
 					<slot />
 				</div>
 			</div>
@@ -43,6 +47,7 @@ const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
 const htmlContent = ref([""])
 const slotContainerRef = ref<HTMLElement | null>(null)
 const previewDocumentRef = ref<HTMLElement | null>(null)
+const liveDocumentRef = ref<HTMLElement | null>(null)
 const { replaceTextareasAndInputs } = usePdfGenerator()
 
 //supply contract
@@ -55,6 +60,7 @@ const supplyContractType = useTypedState(Editor.SUPPLY_CONTRACT_TYPE)
 const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFICIALS_SELLER, () => ref([]))
 const supplyContractSlotRevision = useTypedState(Editor.SUPPLY_CONTRACT_SLOT_REVISION, () => ref(0))
 const supplyContractPreviewElement = useTypedState(Editor.SUPPLY_CONTRACT_PREVIEW_ELEMENT, () => ref(null))
+const carriageContractSlotRevision = useTypedState(Editor.CARRIAGE_CONTRACT_SLOT_REVISION, () => ref(0))
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const fillHtmlContentFromSlot = () => {
@@ -77,6 +83,7 @@ watch(
 		supplyContractType,
 		supplyContractOfficialsSeller,
 		supplyContractSlotRevision,
+		carriageContractSlotRevision,
 		isDisabled,
 	],
 	() => {
@@ -89,11 +96,18 @@ watch(
 )
 
 watch(
-	[activeTab, previewDocumentRef, htmlContent],
+	[activeTab, previewDocumentRef, liveDocumentRef, htmlContent],
 	() => {
-		supplyContractPreviewElement.value = activeTab.value === "2"
-			? previewDocumentRef.value
-			: null
+		if (activeTab.value === "2") {
+			supplyContractPreviewElement.value = previewDocumentRef.value
+			return
+		}
+		// Печать/поиск договора перевозки — с живого бланка
+		if (activeTab.value === "5") {
+			supplyContractPreviewElement.value = liveDocumentRef.value
+			return
+		}
+		supplyContractPreviewElement.value = null
 	},
 	{ immediate: true, flush: "post" }
 )

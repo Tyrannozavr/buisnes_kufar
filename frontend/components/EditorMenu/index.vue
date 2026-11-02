@@ -64,7 +64,7 @@
 				>
 					Изменения отправлены контрагенту. Ожидайте ответа.
 				</p>
-				<InsertButtons v-if="!isHiddenForBuyer" />
+				<InsertButtons v-if="!isHiddenForBuyer && activeTab !== '5'" />
 
 				<div v-if="activeTab === '0' && !isBuyerRole">
 					<OrderMenu :inDevelopment />
@@ -76,6 +76,10 @@
 
 				<div v-if="activeTab === '2' && !isHiddenForBuyer">
 					<SupplyContractMenu />
+				</div>
+
+				<div v-if="activeTab === '5' && !isHiddenForBuyer">
+					<CarriageContractMenu />
 				</div>
 
 				<div class="flex flex-row justify-between gap-1 w-full">
@@ -275,11 +279,11 @@
 
 			<!-- Сканы видны всегда (в т.ч. при согласовании изменений заказа у контрагента) -->
 			<DealDocumentScans
-				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2'"
+				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2' || activeTab === '5'"
 				:deal-id="dealIdForReview"
 				:document-type="scansDocumentType"
-				:read-only="isHiddenForBuyer"
-				:edit-enabled="!isDisabled && !canRespondToChanges"
+				:read-only="isBuyerRole || canRespondToChanges"
+				:edit-enabled="true"
 			/>
 			</div>
 		</UCard>
@@ -303,10 +307,12 @@
 
 <script setup lang="ts">
 import SupplyContractMenu from "./SupplyContractMenu.vue"
+import CarriageContractMenu from "./CarriageContractMenu.vue"
 import InsertButtons from "./InsertButtons.vue"
 import OrderMenu from "./OrderMenu.vue"
 import BillMenu from "./BillMenu.vue"
 import DealDocumentScans from "./DealDocumentScans.vue"
+import { useCarriageContractBlank } from "~/composables/useCarriageContractBlank"
 import { useDocxGenerator } from "~/composables/useDocxGenerator"
 import { usePdfGenerator } from "~/composables/usePdfGenerator"
 import { useSearch } from "~/composables/useSearch"
@@ -348,12 +354,18 @@ const { createNewDealVersion, refreshDealFromServer } = useDeals()
 const scansDocumentType = computed(() => {
 	if (activeTab.value === "0") return "order" as const
 	if (activeTab.value === "2") return "supply_contract" as const
+	if (activeTab.value === "5") return "contract" as const
 	const selected = billType.value as { value?: string } | null | undefined
 	const sub = selected?.value ?? "bill"
 	if (sub === "bill-contract") return "bill_contract" as const
 	if (sub === "bill-offer") return "bill_offer" as const
 	return "bill" as const
 })
+
+const {
+	saveDocument: saveCarriageContract,
+	resetBlank: resetCarriageContract,
+} = useCarriageContractBlank()
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -419,6 +431,14 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 		if (tab === "2") {
 			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedDocx(dealId, "supply-contract")
+			return
+		}
+		if (tab === "5") {
+			useToast().add({
+				title: "DOC договора перевозки",
+				description: "Пока используйте «Печать» → «Сохранить как PDF». Шаблон DOC — следующим этапом.",
+				color: "warning",
+			})
 		}
 	} catch (e) {
 		console.error(e)
@@ -459,6 +479,14 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 		if (tab === "2") {
 			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedPdf(dealId, "supply-contract")
+			return
+		}
+		if (tab === "5") {
+			useToast().add({
+				title: "PDF договора перевозки",
+				description: "Используйте «Печать» → «Сохранить как PDF». Серверный шаблон — следующим этапом.",
+				color: "warning",
+			})
 		}
 	} catch (e) {
 		console.error(e)
@@ -474,22 +502,34 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 // Print: innerHTML не содержит .value у input/textarea — без replaceTextareasAndInputs в печати пустые поля и placeholder
 const { printDocument, replaceTextareasAndInputs } = usePdfGenerator()
 
-const printCurrentDocument = (activeTab: string) => {
-	const root =
-		activeTab === "0"
-			? orderElement.value
-			: activeTab === "1"
-				? billElement.value
-				: activeTab === "2"
-					? supplyContractPreviewElement.value
-					: null
+const resolvePrintRoot = (tab: string): HTMLElement | null => {
+	if (tab === "0") return orderElement.value
+	if (tab === "1") return billElement.value
+	if (tab === "2") return supplyContractPreviewElement.value
+	if (tab === "5") {
+		// Живой бланк §2 — не через useState(HTMLElement), а напрямую из DOM
+		return (
+			(document.getElementById("carriageContract") as HTMLElement | null) ||
+			supplyContractPreviewElement.value
+		)
+	}
+	return null
+}
+
+const printCurrentDocument = (tab: string) => {
+	const root = resolvePrintRoot(String(tab ?? ""))
 	if (!root) {
+		useToast().add({
+			title: "Нечего печатать",
+			description: "Бланк договора ещё не загружен",
+			color: "warning",
+		})
 		return
 	}
 	const cloneWithText = replaceTextareasAndInputs(root)
-	const isA4Document = activeTab === "0" || activeTab === "1"
+	const isA4Document = tab === "0" || tab === "1" || tab === "5"
 	printDocument(cloneWithText, {
-		hidePageChrome: activeTab === "2",
+		hidePageChrome: tab === "2" || tab === "5",
 		pageMargins: isA4Document ? "10mm" : undefined,
 	})
 }
@@ -509,15 +549,8 @@ const clearInput = () => {
 	inputValue.value = ""
 }
 
-const searchInCurrentDocument = (activeTab: string) => {
-	const root =
-		activeTab === "0"
-			? orderElement.value
-			: activeTab === "1"
-				? billElement.value
-				: activeTab === "2"
-					? supplyContractPreviewElement.value
-					: null
+const searchInCurrentDocument = (tab: string) => {
+	const root = resolvePrintRoot(String(tab ?? ""))
 	if (!root) {
 		return
 	}
@@ -542,7 +575,11 @@ const editButton = () => {
 //Button clearForm
 const { applyClearState } = useClearState()
 
-const clearCurrentForm = (activeTab: string) => {
+const clearCurrentForm = (tab: string) => {
+	if (tab === "5") {
+		resetCarriageContract()
+		return
+	}
 	applyClearState()
 }
 
@@ -606,6 +643,12 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 	const role = route.query.role as "buyer" | "seller"
 
 	try {
+		if (activeTab.value === "5") {
+			const ok = await saveCarriageContract()
+			if (!ok) return
+			isDisabled.value = true
+			return
+		}
 		await saveDealVersion()
 	} catch (err) {
 		console.error("Ошибка при сохранении версии сделки:", err)

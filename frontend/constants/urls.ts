@@ -12,8 +12,18 @@ export const API_URLS = {
 	CREATE_BILL: (deal_id: number) => `/api/v1/purchases/deals/${deal_id}/bill`,
 	CREATE_TRANSPORT_CONTRACT: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/transport-contract`,
+	/** §1.2 реестр документов перевозки */
+	GET_TRANSPORT_DOCUMENTS: "/api/v1/purchases/transport-documents",
+	CREATE_TRANSPORT_DOCUMENT: "/api/v1/purchases/transport-documents",
+	GET_TRANSPORT_DOCUMENT: (document_id: number) =>
+		`/api/v1/purchases/transport-documents/${document_id}`,
+	BIND_TRANSPORT_DOCUMENT: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/transport-documents/bind`,
+	GET_DEAL_TRANSPORT_DOCUMENTS: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/transport-documents`,
 	CREATE_CLOSING_DOCUMENT: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/closing-document`,
+	GET_MY_CARRIERS: "/api/v1/company/me/carriers",
 
 	/** GET — договоры (ЛК «Договоры»); query counterparty_company_id опционален */
 	GET_COMPANY_CONTRACTS: "/api/v1/purchases/company-contracts",

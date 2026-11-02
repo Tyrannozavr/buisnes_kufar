@@ -6,6 +6,7 @@ import { useFavoriteToggle } from '~/composables/useFavoriteToggle'
 
 useHead({ title: 'Поиск транспорта — TradeSynergy' })
 
+const route = useRoute()
 const toast = useToast()
 const { search, getDictionaries, addVehicleFavorite, removeVehicleFavorite, listVehicleFavoriteIds, sendVehicleRequest } = useTransportApi()
 const pending = ref(false)
@@ -20,6 +21,20 @@ const filters = ref<TransportSearchFilters>({
 	from_locations: [], to_locations: [],
 })
 const locations = ref({ from: '', to: '' })
+
+/** Безопасный returnTo из Продаж/Закупок (без open redirect). */
+const returnToPath = computed(() => {
+	const raw = route.query.returnTo
+	const value = Array.isArray(raw) ? raw[0] : raw
+	if (typeof value !== 'string' || !value.startsWith('/profile/')) return null
+	if (value.startsWith('//') || value.includes('://')) return null
+	return value
+})
+const returnToLabel = computed(() => {
+	if (returnToPath.value === '/profile/sales') return 'К продажам'
+	if (returnToPath.value === '/profile/purchases') return 'К закупкам'
+	return 'Назад в ЛК'
+})
 
 const {
 	pendingId: favoritePendingId,
@@ -129,6 +144,15 @@ const companyTitle = (vehicle: TransportVehicleResult) => {
 <template>
 	<div class="container mx-auto px-4 py-8 max-w-5xl">
 		<div class="mb-6">
+			<UButton
+				v-if="returnToPath"
+				:to="returnToPath"
+				color="neutral"
+				variant="ghost"
+				icon="i-heroicons-arrow-left"
+				:label="returnToLabel"
+				class="cursor-pointer -ml-2.5 mb-3"
+			/>
 			<h1 class="text-2xl font-semibold text-gray-900">Поиск транспорта</h1>
 			<p class="mt-1 text-sm text-gray-600">Подберите транспорт по маршруту, типу кузова и параметрам груза.</p>
 		</div>

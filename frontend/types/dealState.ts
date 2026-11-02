@@ -114,5 +114,20 @@ export interface Deal {
   supplyContractDate: string
 	closingDocuments: unknown[]
 	othersDocuments: unknown[]
-	transportContract?: { number?: string; date?: string; type?: string } | null
+	transportContract?: {
+		number?: string
+		date?: string
+		type?: string
+		carrier_company_id?: number
+		carrier_name?: string
+		documents?: {
+			id?: number
+			type?: string
+			number?: string
+			date?: string
+			carrier_company_id?: number
+			carrier_name?: string
+			parent_id?: number | null
+		}[]
+	} | null
 }

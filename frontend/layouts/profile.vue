@@ -263,7 +263,8 @@ watch(
   ([logistics, loaded, path]) => {
     if (!loaded || !logistics) return
     if (FORBIDDEN_FOR_LOGISTICS.some((p) => path === p || path.startsWith(`${p}/`))) {
-      navigateTo('/profile')
+      // replace — иначе «Назад» с публичных страниц прыгает на /profile вместо Продаж
+      navigateTo('/profile', { replace: true })
     }
   },
   { immediate: true },

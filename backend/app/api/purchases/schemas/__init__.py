@@ -728,6 +728,64 @@ class TransportContractResponse(BaseModel):
         from_attributes = True
 
 
+class TransportDocumentCreate(BaseModel):
+	"""Создание документа перевозки / экспедиции (§1.2)."""
+
+	model_config = ConfigDict(extra="ignore")
+
+	doc_type: str = Field(
+		...,
+		description=(
+			"carriage_contract | carriage_application | carriage_order | "
+			"expedition_contract | forwarder_assignment | forwarder_receipt | warehouse_receipt"
+		),
+	)
+	carrier_company_id: int = Field(..., gt=0, description="Организация из «Перевозчики»")
+	number: Optional[str] = Field(None, max_length=32, description="Пусто → автонумерация")
+	date: Optional[datetime] = Field(None, description="По умолчанию сейчас")
+	parent_id: Optional[int] = Field(None, gt=0, description="Родитель для заявки / поручения / расписок")
+	deal_id: Optional[int] = Field(None, gt=0, description="Опционально сразу привязать к сделке")
+
+
+class TransportDocumentBindRequest(BaseModel):
+	document_id: int = Field(..., gt=0)
+
+
+class TransportDocumentUpdate(BaseModel):
+	"""Обновление бланка договора перевозки (§2.x): номер/дата/payload."""
+
+	model_config = ConfigDict(extra="ignore")
+
+	number: Optional[str] = Field(None, max_length=32)
+	date: Optional[datetime] = None
+	payload_json: Optional[Dict[str, Any]] = None
+
+
+class TransportDocumentResponse(BaseModel):
+	model_config = ConfigDict(from_attributes=True)
+
+	id: int
+	owner_company_id: int
+	carrier_company_id: int
+	carrier_name: str = ""
+	doc_type: str
+	number: str
+	date: datetime
+	parent_id: Optional[int] = None
+	deal_id: Optional[int] = None
+	payload_json: Optional[Dict[str, Any]] = None
+
+
+class TransportDocumentListResponse(BaseModel):
+	documents: list[TransportDocumentResponse] = Field(default_factory=list)
+
+
+class TransportDocumentNextNumberResponse(BaseModel):
+	number: str
+	date: datetime
+	doc_type: str
+
+
 class ClosingDocumentAssignRequest(BaseModel):
     """Создание записи закрывающего документа (MVP §8.6)."""
     doc_type: str = Field(default="UPD", description="Тип документа (UPD и т.п.)")

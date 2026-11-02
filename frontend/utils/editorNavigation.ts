@@ -41,19 +41,17 @@ export const tabFromQuery = (
 }
 
 /**
- * Вкладка из URL. Если hash и ?tab= временно расходятся (router.replace
- * обновляет их не атомарно) — возвращаем null, чтобы не откатить activeTab.
+ * Вкладка из URL. Hash — источник правды (всегда есть у #contract/#act/…).
+ * ?tab= только для order/bill и только если hash пустой/неизвестный.
+ * Раньше при конфликте hash↔tab возвращали null → stale useState перетирал URL.
  */
 export const tabFromRoute = (
 	hash: string,
 	tabQuery?: string | string[] | null,
 ): EditorTabId | null => {
 	const fromHash = HASH_TO_TAB[hash] ?? null
-	const fromQuery = tabFromQuery(tabQuery)
-	if (fromHash && fromQuery && fromHash !== fromQuery) {
-		return null
-	}
-	return fromHash ?? fromQuery
+	if (fromHash) return fromHash
+	return tabFromQuery(tabQuery)
 }
 
 export const buildEditorDealUrl = (

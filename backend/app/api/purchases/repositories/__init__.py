@@ -250,6 +250,39 @@ class DealRepository:
         order = result.scalar_one_or_none()
         return order
 
+    async def get_order_transport_context(
+        self, order_id: int, company_id: int
+    ) -> Optional[Order]:
+        """Лёгкая latest-версия заказа для bind/list документов перевозки (без items/history/companies)."""
+        from sqlalchemy.orm import load_only
+
+        query = (
+            select(Order)
+            .options(
+                load_only(
+                    Order.row_id,
+                    Order.id,
+                    Order.version,
+                    Order.seller_company_id,
+                    Order.buyer_company_id,
+                    Order.transport_contract,
+                )
+            )
+            .where(
+                and_(
+                    Order.id == order_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
+            )
+            .order_by(desc(Order.version))
+            .limit(1)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_orders_by_ids(self, order_ids: List[int], company_id: int) -> List[Order]:
         """Latest-версии заказов по списку ID — один запрос вместо N."""
         if not order_ids:

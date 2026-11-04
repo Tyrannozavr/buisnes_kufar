@@ -9,11 +9,13 @@ RUN apt-get update && \
 
 # Копируем скрипты и даем права на выполнение
 COPY generate-certificate.sh /usr/local/bin/
+COPY renew.sh /usr/local/bin/
 COPY update-certificate-links.sh /usr/local/bin/
 COPY fix-certificate-links.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/generate-certificate.sh
-RUN chmod +x /usr/local/bin/update-certificate-links.sh
-RUN chmod +x /usr/local/bin/fix-certificate-links.sh
+RUN chmod +x /usr/local/bin/generate-certificate.sh \
+    /usr/local/bin/renew.sh \
+    /usr/local/bin/update-certificate-links.sh \
+    /usr/local/bin/fix-certificate-links.sh
 
 # Рабочая директория
 WORKDIR /certbot

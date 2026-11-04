@@ -211,10 +211,16 @@
 				</p>
 
 				<div v-if="!isHiddenForBuyer" class="flex flex-col gap-2">
-					<UTooltip :text="tooltipEdit" :disabled="!tooltipEdit">
-						<span class="block w-full" :class="{ 'cursor-not-allowed': tooltipEdit }">
+					<UTooltip
+						:text="tooltipEdit"
+						:disabled="!tooltipEdit || isStrictExpeditionTab"
+					>
+						<span
+							class="block w-full"
+							:class="{ 'cursor-not-allowed': tooltipEdit && !isStrictExpeditionTab }"
+						>
 							<UButton
-								:disabled="!isDisabled"
+								:disabled="isStrictExpeditionTab ? false : !isDisabled"
 								@click="editButton()"
 								label="Редактировать"
 								icon="i-lucide-file-pen"
@@ -453,6 +459,7 @@ const {
 const {
 	saveDocument: saveStrictExpedition,
 	resetBlank: resetStrictExpedition,
+	openDialog: openStrictExpeditionDialog,
 } = useStrictExpeditionBlank()
 
 const inDevelopment = () => {
@@ -468,6 +475,9 @@ const isBuyerRole = computed(() => route.query.role === "buyer")
 
 const tooltipEdit = computed(() => {
 	if (isBuyerRole.value && activeTab.value !== "0") return ""
+	if (isStrictExpeditionTab.value) {
+		return "Откроет форму полей бланка (строгий бланк без жёлтых полей на А4)"
+	}
 	if (!isDisabled.value) return "Режим редактирования уже включён — поля формы активны"
 	return ""
 })
@@ -681,6 +691,12 @@ watch(
 //Button edit
 const editButton = () => {
 	if (isHiddenForBuyer.value) return
+	// Строгие бланки: на А4 нет жёлтых input — правим через диалог полей
+	if (isStrictExpeditionTab.value) {
+		isDisabled.value = true
+		openStrictExpeditionDialog()
+		return
+	}
 	isDisabled.value = !isDisabled.value
 }
 

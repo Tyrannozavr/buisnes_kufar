@@ -48,7 +48,7 @@ const fillDisabled = computed(() => {
 	<div class="flex flex-col gap-3">
 		<p class="text-sm font-semibold text-center">{{ title }}</p>
 		<p class="text-xs text-neutral-500 text-center">
-			Строгий бланк: значения только через диалог / «Заполнить данными»
+			«Редактировать» или кнопка ниже — форма полей бланка
 		</p>
 
 		<UTooltip :text="fillDisabled" :disabled="!fillDisabled">

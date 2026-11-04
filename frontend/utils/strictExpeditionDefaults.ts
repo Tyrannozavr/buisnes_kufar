@@ -1,3 +1,5 @@
+import { formatLegalAddressForParty } from '~/utils/companyPartyLine'
+
 export const TRANSPORT_MODES = [
 	'Автомобильный',
 	'Железнодорожный',
@@ -31,7 +33,7 @@ export const emptyStrictParty = (): StrictPartyLine => ({
 export const formatStrictPartyBlock = (p: StrictPartyLine): string => {
 	const lines = [
 		p.fullName,
-		[p.index, p.legalAddress].filter(Boolean).join(', '),
+		formatLegalAddressForParty(p.index, p.legalAddress),
 		p.inn ? `ИНН ${p.inn}` : '',
 	].filter(Boolean)
 	return lines.join('\n')

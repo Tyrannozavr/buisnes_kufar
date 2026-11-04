@@ -168,10 +168,6 @@ watch([number, dateIso, parentNumber, parentDateIso, payload], () => bumpSlot(),
 					</tr>
 				</tbody>
 			</table>
-
-			<p class="mt-6 text-xs text-neutral-500 text-center pointer-events-auto">
-				Поля на бланке не редактируются. Используйте «Редактировать данные документа» справа.
-			</p>
 		</template>
 	</div>
 </template>

@@ -181,7 +181,7 @@ export function useCarriageContractBlank() {
 		carrierDetailsCheck: carrierDetailsCheck.value,
 	})
 
-	const saveDocument = async (): Promise<boolean> => {
+	const saveDocument = async (opts?: { silent?: boolean }): Promise<boolean> => {
 		if (!documentId.value) {
 			toast.add({ title: 'Документ перевозки не выбран', color: 'warning' })
 			return false
@@ -195,7 +195,9 @@ export function useCarriageContractBlank() {
 			})
 			number.value = updated.number
 			dateIso.value = updated.date ? String(updated.date).slice(0, 10) : dateIso.value
-			toast.add({ title: 'Договор перевозки сохранён', color: 'success' })
+			if (!opts?.silent) {
+				toast.add({ title: 'Договор перевозки сохранён', color: 'success' })
+			}
 			bumpSlot()
 			return true
 		} catch (e: any) {

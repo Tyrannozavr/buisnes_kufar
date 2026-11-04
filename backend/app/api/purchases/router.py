@@ -61,6 +61,9 @@ from app.api.purchases.services.gotenberg_pdf_service import (
 	PdfConversionNotConfiguredError,
 	convert_docx_bytes_to_pdf,
 )
+from app.api.purchases.services.transport_document_docx import (
+	build_transport_document_docx_bytes,
+)
 
 router = APIRouter(
 	tags=["purchases", "orders", "deals", "documents", "business"],
@@ -1081,6 +1084,11 @@ async def _serve_deal_pdf(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f"DOCX template render error ({template_filename}): {exc}",
 		) from None
+	# Gotenberg может идти десятки секунд — не держим DB-соединение (idle timeout).
+	session = deal_service.session
+	if session.is_active:
+		await session.commit()
+	await session.close()
 	try:
 		pdf_bytes = await convert_docx_bytes_to_pdf(
 			docx_bytes,
@@ -1500,6 +1508,149 @@ async def get_transport_document(
 		return await transport_document_service.get(document_id, company.id)
 	except TransportDocumentAccessError as exc:
 		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+async def _render_transport_document_docx(
+	document_id: int,
+	current_user: User,
+	deal_service: DealService,
+	transport_document_service,
+) -> tuple[bytes, str, str]:
+	"""Доступ как у GET; возвращает (docx_bytes, attachment_stem, doc_type)."""
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		doc = await transport_document_service.get(document_id, company.id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+	parent_number: Optional[str] = None
+	parent_date = None
+	if doc.parent_id:
+		try:
+			parent = await transport_document_service.get(doc.parent_id, company.id)
+			parent_number = parent.number
+			parent_date = parent.date
+		except TransportDocumentAccessError:
+			parent_number = None
+			parent_date = None
+
+	doc_type = str(doc.doc_type)
+	content = await asyncio.to_thread(
+		build_transport_document_docx_bytes,
+		doc_type=doc_type,
+		number=doc.number,
+		date=doc.date,
+		payload_json=doc.payload_json if isinstance(doc.payload_json, dict) else None,
+		parent_number=parent_number,
+		parent_date=parent_date,
+	)
+	stem = f"{doc_type}-{doc.id}"
+	return content, stem, doc_type
+
+
+@router.get(
+	"/transport-documents/{document_id}/document.docx",
+	tags=["transport", "documents", "docx", "generated"],
+	summary="Скачать бланк перевозки (.docx) из payload_json",
+	description=(
+		"Доступ как у GET /transport-documents/{id}. "
+		"DOCX собирается python-docx из payload_json (7 типов бланков)."
+	),
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		404: {"description": "Компания или документ не найдены / нет доступа"},
+	},
+)
+async def download_transport_document_docx(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	content, stem, _doc_type = await _render_transport_document_docx(
+		document_id,
+		current_user,
+		deal_service,
+		transport_document_service,
+	)
+	filename = f"{stem}.docx"
+	return Response(
+		content=content,
+		media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get(
+	"/transport-documents/{document_id}/document.pdf",
+	tags=["transport", "documents", "pdf", "generated"],
+	summary="Скачать бланк перевозки (.pdf) через Gotenberg",
+	description=(
+		"Тот же DOCX из payload_json, затем Gotenberg `/forms/libreoffice/convert`. "
+		"Нужен `GOTENBERG_URL`. Доступ как у GET документа."
+	),
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		404: {"description": "Компания или документ не найдены / нет доступа"},
+		413: {"description": "DOCX превышает GOTENBERG_MAX_DOCX_BYTES"},
+		502: {"description": "Gotenberg недоступен или ошибка конвертации"},
+		503: {"description": "Не задан GOTENBERG_URL — выдача PDF отключена"},
+	},
+)
+async def download_transport_document_pdf(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	if not (settings.GOTENBERG_URL and str(settings.GOTENBERG_URL).strip()):
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		)
+	docx_bytes, stem, _doc_type = await _render_transport_document_docx(
+		document_id,
+		current_user,
+		deal_service,
+		transport_document_service,
+	)
+	# Gotenberg может идти десятки секунд — не держим DB-соединение (idle timeout).
+	session = transport_document_service.session
+	if session.is_active:
+		await session.commit()
+	await session.close()
+	try:
+		pdf_bytes = await convert_docx_bytes_to_pdf(
+			docx_bytes,
+			source_filename=f"{stem}.docx",
+		)
+	except PdfConversionNotConfiguredError:
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		) from None
+	except PdfConversionFailedError:
+		logger.exception(
+			"Gotenberg PDF conversion failed for transport_document %s", document_id
+		)
+		raise HTTPException(
+			status_code=status.HTTP_502_BAD_GATEWAY,
+			detail="PDF conversion failed",
+		) from None
+	except ValueError as e:
+		raise HTTPException(
+			status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e)
+		) from e
+	filename = f"{stem}.pdf"
+	return Response(
+		content=pdf_bytes,
+		media_type="application/pdf",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
 
 
 @router.patch(

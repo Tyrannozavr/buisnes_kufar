@@ -496,20 +496,55 @@ const tooltipSave = computed(() => {
 	return ""
 })
 
-//DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
-const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
+//DOCX / PDF — сделка: docxtpl; бланки перевозки: payload_json → python-docx (+ Gotenberg)
+const {
+	downloadDealGeneratedDocx,
+	downloadDealGeneratedPdf,
+	downloadTransportDocumentDocx,
+	downloadTransportDocumentPdf,
+} = useDocxGenerator()
 const isDocxDownloading = ref(false)
 const isPdfDownloading = ref(false)
 
-const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
-	const dealId = Number(route.query.dealId)
-	if (!dealId || Number.isNaN(dealId)) {
-		useToast().add({ title: "Не выбрана сделка", color: "error" })
-		return
+/** Сохранить бланк перевозки перед DOC/PDF — экспорт читает payload с API. */
+const persistTransportBlankBeforeExport = async (): Promise<number | null> => {
+	const documentId = Number(route.query.transportDocId)
+	if (!documentId || Number.isNaN(documentId)) {
+		useToast().add({ title: "Документ перевозки не выбран", color: "error" })
+		return null
 	}
+	const silent = { silent: true as const }
+	const ok = isCarriageApplicationTab.value
+		? await saveCarriageApplication(silent)
+		: isCarriageOrderTab.value
+			? await saveCarriageOrder(silent)
+			: isExpeditionContractTab.value
+				? await saveExpeditionContract(silent)
+				: isStrictExpeditionTab.value
+					? await saveStrictExpedition(silent)
+					: await saveCarriageContract(silent)
+	return ok ? documentId : null
+}
+
+const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 	if (isDocxDownloading.value) return
 	isDocxDownloading.value = true
 	try {
+		if (tab === "5") {
+			const documentId = await persistTransportBlankBeforeExport()
+			if (!documentId) return
+			const type = String(route.query.transportDocType || "carriage_contract")
+			await downloadTransportDocumentDocx(
+				documentId,
+				`${type}-${documentId}.docx`,
+			)
+			return
+		}
+		const dealId = Number(route.query.dealId)
+		if (!dealId || Number.isNaN(dealId)) {
+			useToast().add({ title: "Не выбрана сделка", color: "error" })
+			return
+		}
 		if (tab === "0") {
 			await downloadDealGeneratedDocx(dealId, "order")
 			return
@@ -529,23 +564,6 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 		if (tab === "2") {
 			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedDocx(dealId, "supply-contract")
-			return
-		}
-		if (tab === "5") {
-			const title = isCarriageApplicationTab.value
-				? "DOC заявки к договору"
-				: isCarriageOrderTab.value
-					? "DOC договор-заявки"
-					: isExpeditionContractTab.value
-						? "DOC договора экспедиции"
-						: isStrictExpeditionTab.value
-							? "DOC бланка экспедиции"
-							: "DOC договора перевозки"
-			useToast().add({
-				title,
-				description: "Пока используйте «Печать» → «Сохранить как PDF». Шаблон DOC — следующим этапом.",
-				color: "warning",
-			})
 		}
 	} catch (e) {
 		console.error(e)
@@ -559,14 +577,24 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 }
 
 const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
-	const dealId = Number(route.query.dealId)
-	if (!dealId || Number.isNaN(dealId)) {
-		useToast().add({ title: "Не выбрана сделка", color: "error" })
-		return
-	}
 	if (isPdfDownloading.value) return
 	isPdfDownloading.value = true
 	try {
+		if (tab === "5") {
+			const documentId = await persistTransportBlankBeforeExport()
+			if (!documentId) return
+			const type = String(route.query.transportDocType || "carriage_contract")
+			await downloadTransportDocumentPdf(
+				documentId,
+				`${type}-${documentId}.pdf`,
+			)
+			return
+		}
+		const dealId = Number(route.query.dealId)
+		if (!dealId || Number.isNaN(dealId)) {
+			useToast().add({ title: "Не выбрана сделка", color: "error" })
+			return
+		}
 		if (tab === "0") {
 			await downloadDealGeneratedPdf(dealId, "order")
 			return
@@ -586,23 +614,6 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 		if (tab === "2") {
 			if (!(await persistDealBeforeExport())) return
 			await downloadDealGeneratedPdf(dealId, "supply-contract")
-			return
-		}
-		if (tab === "5") {
-			const title = isCarriageApplicationTab.value
-				? "PDF заявки к договору"
-				: isCarriageOrderTab.value
-					? "PDF договор-заявки"
-					: isExpeditionContractTab.value
-						? "PDF договора экспедиции"
-						: isStrictExpeditionTab.value
-							? "PDF бланка экспедиции"
-							: "PDF договора перевозки"
-			useToast().add({
-				title,
-				description: "Используйте «Печать» → «Сохранить как PDF». Серверный шаблон — следующим этапом.",
-				color: "warning",
-			})
 		}
 	} catch (e) {
 		console.error(e)

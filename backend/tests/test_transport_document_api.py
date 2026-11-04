@@ -225,6 +225,53 @@ async def test_transport_document_create_list_bind_application():
 			)
 			assert got.status_code == 200, got.text
 			assert got.json()["payload_json"]["bodyHtml"] == "<p>1. Предмет</p>"
+
+			# DOC/PDF из payload_json (python-docx + Gotenberg)
+			docx = await client.get(
+				f"/api/v1/purchases/transport-documents/{contract['id']}/document.docx"
+			)
+			assert docx.status_code == 200, docx.text
+			assert (
+				docx.headers.get("content-type", "").split(";")[0].strip()
+				== "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+			)
+			assert docx.content[:2] == b"PK"
+			assert f'carriage_contract-{contract["id"]}.docx' in (
+				docx.headers.get("content-disposition") or ""
+			)
+
+			from unittest.mock import AsyncMock, patch
+
+			from app.core.config import settings as app_settings
+
+			with patch.object(app_settings, "GOTENBERG_URL", None):
+				pdf_off = await client.get(
+					f"/api/v1/purchases/transport-documents/{contract['id']}/document.pdf"
+				)
+				assert pdf_off.status_code == 503
+
+			with (
+				patch.object(app_settings, "GOTENBERG_URL", "http://gotenberg:3000"),
+				patch(
+					"app.api.purchases.router.convert_docx_bytes_to_pdf",
+					new_callable=AsyncMock,
+					return_value=b"%PDF-1.4\n%\ntrailer<<>>\n%%EOF\n",
+				),
+			):
+				pdf = await client.get(
+					f"/api/v1/purchases/transport-documents/{contract['id']}/document.pdf"
+				)
+				assert pdf.status_code == 200, pdf.text
+				assert (
+					pdf.headers.get("content-type", "").split(";")[0].strip()
+					== "application/pdf"
+				)
+				assert pdf.content.startswith(b"%PDF")
+
+			missing = await client.get(
+				"/api/v1/purchases/transport-documents/999999999/document.docx"
+			)
+			assert missing.status_code == 404
 	finally:
 		app.dependency_overrides.pop(get_current_user, None)
 		async with AsyncSessionLocal() as session:

@@ -17,6 +17,11 @@ export const API_URLS = {
 	CREATE_TRANSPORT_DOCUMENT: "/api/v1/purchases/transport-documents",
 	GET_TRANSPORT_DOCUMENT: (document_id: number) =>
 		`/api/v1/purchases/transport-documents/${document_id}`,
+	/** DOC/PDF бланка перевозки из payload_json (python-docx + Gotenberg) */
+	DOWNLOAD_TRANSPORT_DOCUMENT_DOCX: (document_id: number) =>
+		`/api/v1/purchases/transport-documents/${document_id}/document.docx`,
+	DOWNLOAD_TRANSPORT_DOCUMENT_PDF: (document_id: number) =>
+		`/api/v1/purchases/transport-documents/${document_id}/document.pdf`,
 	BIND_TRANSPORT_DOCUMENT: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/transport-documents/bind`,
 	GET_DEAL_TRANSPORT_DOCUMENTS: (deal_id: number) =>

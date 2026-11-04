@@ -259,4 +259,5 @@ docker compose -f docker-compose.dev.yml exec backend poetry run python scripts/
 
 
 **Принято до §F (A–E):** ✅ 2026-08-12  
-**Принято целиком:** ✅ 2026-11-02
+**Принято целиком:** ✅ 2026-11-02 (пакет ТЗ_Перевозчик закрыт; остаток оплаты **55 000 ₽**)  
+**Далее:** [Договор на перевозку грузов](../contract-transport/README.md) — ✅ завершён 04.11.2026 · **80 000 ₽** · затем закрывающие / контрольная проработка (см. [payment-and-schedule.md](payment-and-schedule.md))

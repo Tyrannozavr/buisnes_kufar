@@ -1,4 +1,6 @@
 export const usePdfGenerator = () => {
+	const toast = useToast()
+
 	const ensureClient = () => {
 		if (import.meta.server) {
 			throw new Error("usePdfGenerator is client-only (SSR disabled for this feature)");
@@ -122,9 +124,14 @@ export const usePdfGenerator = () => {
 				return `${window.location.origin}/`;
 			}
 		})();
-		const printWindow = window.open("", "", "height=600, width=900");
+		const printWindow = window.open("about:blank", "_blank", "height=700,width=900");
 		if (!printWindow) {
 			element.remove();
+			toast.add({
+				title: "Печать заблокирована",
+				description: "Разрешите всплывающие окна для этого сайта",
+				color: "warning",
+			});
 			return;
 		}
 

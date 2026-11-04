@@ -55,6 +55,20 @@ class Settings(BaseSettings):
 
     BASE_FILES_URL: str = "http://localhost:8000"
 
+    def public_file_url(self, relative_path: str | None) -> str | None:
+        """URL файла для браузера. Через nginx раздаётся /uploads — относительный путь надёжнее, чем localhost:8000."""
+        if not relative_path:
+            return None
+        path = "/" + str(relative_path).lstrip("/")
+        base = (self.BASE_FILES_URL or "").rstrip("/")
+        # Dev/docker: backend порт снаружи недоступен/не тот — отдаём same-origin /uploads/...
+        if not base or any(
+            host in base
+            for host in ("localhost:8000", "127.0.0.1:8000", "backend:8000", "0.0.0.0:8000")
+        ):
+            return path
+        return f"{base}{path}"
+
     # CORS настройки
     BACKEND_CORS_ORIGINS: list[str] = [
         # Production домены

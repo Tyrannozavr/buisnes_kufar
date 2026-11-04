@@ -158,11 +158,28 @@ class DealService:
 		"""Проверка существования заказа по ID без проверки доступа."""
 		return await self.repository.get_order_by_id_only(deal_id)
 
+	async def _heal_transport_contract_if_needed(self, order: Order, company_id: int) -> None:
+		"""Если JSON transport_contract пуст, а документы с deal_id есть — восстановить снимок."""
+		payload = order.transport_contract if isinstance(order.transport_contract, dict) else None
+		if payload and (payload.get("documents") or payload.get("number")):
+			return
+		if order.seller_company_id != company_id:
+			return
+		from app.api.purchases.services.transport_document import TransportDocumentService
+
+		svc = TransportDocumentService(self.session)
+		docs = await svc.repository.list_by_deal(
+			owner_company_id=company_id,
+			deal_id=order.id,
+		)
+		await svc._heal_order_payload_if_empty(order, company_id, docs)
+
 	async def get_deal_by_id(self, deal_id: int, company_id: int) -> Optional[DealResponse]:
 		"""Получение сделки по ID"""
 		order = await self.repository.get_order_by_id(deal_id, company_id)
 		if not order:
 			return None
+		await self._heal_transport_contract_if_needed(order, company_id)
 		return await self._order_to_deal_response(order, company_id)
 
 	async def get_deals_by_ids(self, deal_ids: List[int], company_id: int) -> List[DealResponse]:
@@ -182,6 +199,7 @@ class DealService:
 
 		result: List[DealResponse] = []
 		for order in orders:
+			await self._heal_transport_contract_if_needed(order, company_id)
 			deal = await self._order_to_deal_response(
 				order, company_id, owner_names=owner_names,
 			)
@@ -202,9 +220,9 @@ class DealService:
 		return await self.repository.get_seller_orders(company_id, skip, limit)
 
 	async def update_deal(self, deal_id: int, deal_data: DealUpdate, company_id: int) -> Optional[DealResponse]:
-		"""Обновление сделки"""
+		"""Обновление сделки (in-place). По ТЗ §2.3 — только продавец."""
 		try:
-			order = await self._ensure_order_participant(deal_id, company_id)
+			order = await self._ensure_seller_on_deal(deal_id, company_id)
 			if not order:
 				return None
 			if deal_data is not None:
@@ -244,7 +262,7 @@ class DealService:
 					order = updated_order
 
 			return await self._order_to_deal_response(order, company_id)
-		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError):
+		except (OnlySellerCanModifyDealError, BuyerOrderUpdateForbiddenError, ValueError):
 			raise
 		except Exception as e:
 			await self.session.rollback()
@@ -561,29 +579,28 @@ class DealService:
 			logger.exception("Ошибка в _order_to_deal_response для заказа %s: %s (тип: %s)", order.id, e, type(e).__name__)
 			raise
 
-	async def _resolve_catalog_product_for_checkout(
+	def _resolve_catalog_product_from_maps(
 		self,
-		products_repo: CompanyProductsRepository,
 		seller_company_id: int,
 		item: dict,
+		products_by_article: dict[str, Product],
+		products_by_slug: dict[str, Product],
 	) -> Optional[Product]:
-		"""Каталожная позиция: сначала article, при промахе — slug внутри компании продавца (старые клиенты с Number(article))."""
+		"""Каталожная позиция из предзагруженных maps: article, затем slug продавца."""
 		raw_art = item.get("article")
 		if raw_art is not None and str(raw_art).strip() != "":
-			p = await products_repo.get_by_article(str(raw_art).strip())
+			p = products_by_article.get(str(raw_art).strip())
 			if p:
 				return p
 		slug = item.get("slug")
 		if slug and str(slug).strip() and seller_company_id:
-			return await products_repo.get_by_company_id_and_slug(
-				int(seller_company_id), str(slug).strip()
-			)
+			p = products_by_slug.get(str(slug).strip())
+			if p and p.company_id == int(seller_company_id):
+				return p
 		return None
 
-	async def _resolve_order_type_for_checkout_item(
+	def _resolve_order_type_for_checkout_item(
 		self,
-		products_repo: CompanyProductsRepository,
-		seller_company_id: int,
 		item: dict,
 		catalog_product: Optional[Product] = None,
 	) -> OrderType:
@@ -594,10 +611,6 @@ class DealService:
 				return OrderType.SERVICES
 			return OrderType.GOODS
 
-		if catalog_product is None:
-			catalog_product = await self._resolve_catalog_product_for_checkout(
-				products_repo, seller_company_id, item
-			)
 		if catalog_product and catalog_product.type:
 			from app.api.products.models.product import ProductType
 
@@ -605,10 +618,10 @@ class DealService:
 				return OrderType.SERVICES
 		return OrderType.GOODS
 
-	async def _resolve_seller_id_for_checkout_item(
+	def _resolve_seller_id_for_checkout_item(
 		self,
-		products_repo: CompanyProductsRepository,
 		item: dict,
+		products_by_slug: dict[str, Product],
 	) -> tuple[Optional[int], Optional[Product]]:
 		"""Продавец: из companyId в корзине или по slug товара в каталоге."""
 		seller_id = item.get("companyId")
@@ -616,7 +629,7 @@ class DealService:
 
 		slug = item.get("slug")
 		if slug and str(slug).strip():
-			catalog_product = await products_repo.get_by_slug(str(slug).strip())
+			catalog_product = products_by_slug.get(str(slug).strip())
 
 		if seller_id is None and catalog_product:
 			seller_id = catalog_product.company_id
@@ -628,15 +641,35 @@ class DealService:
 
 	async def create_deals_from_checkout(
 		self, checkout_data: dict, buyer_company_id: int, buyer_user_id: int | None = None
-	) -> List[DealResponse]:
-		"""Создание заказов из корзины: группировка по продавцу и типу (товары / услуги)."""
+	) -> tuple[List[DealResponse], List[dict]]:
+		"""Создание заказов из корзины: группировка по продавцу и типу (товары / услуги).
+
+		Возвращает (deals, pending_seller_notifies). Notify выполняется в BackgroundTasks
+		после ответа API — не блокирует checkout.
+		"""
 		try:
+			items = checkout_data.get("items", [])
+			products_repo = CompanyProductsRepository(self.session)
+			products_by_article = await products_repo.get_by_articles(
+				[
+					str(i.get("article")).strip()
+					for i in items
+					if i.get("article") is not None and str(i.get("article")).strip()
+				]
+			)
+			products_by_slug = await products_repo.get_by_slugs(
+				[
+					str(i.get("slug")).strip()
+					for i in items
+					if i.get("slug") and str(i.get("slug")).strip()
+				]
+			)
+
 			groups: dict[tuple[int, OrderType], dict] = {}
 
-			for item in checkout_data.get("items", []):
-				products_repo = CompanyProductsRepository(self.session)
-				seller_id, catalog_product = await self._resolve_seller_id_for_checkout_item(
-					products_repo, item
+			for item in items:
+				seller_id, catalog_product = self._resolve_seller_id_for_checkout_item(
+					item, products_by_slug
 				)
 				if seller_id is None:
 					logger.warning(
@@ -645,8 +678,13 @@ class DealService:
 					)
 					continue
 
-				order_type = await self._resolve_order_type_for_checkout_item(
-					products_repo, seller_id, item, catalog_product=catalog_product
+				if catalog_product is None:
+					catalog_product = self._resolve_catalog_product_from_maps(
+						seller_id, item, products_by_article, products_by_slug
+					)
+
+				order_type = self._resolve_order_type_for_checkout_item(
+					item, catalog_product=catalog_product
 				)
 				key = (seller_id, order_type)
 				if key not in groups:
@@ -658,15 +696,15 @@ class DealService:
 				groups[key]["items"].append(item)
 
 			created_deals: List[DealResponse] = []
+			pending_notifies: List[dict] = []
 			for group in groups.values():
-				products_repo = CompanyProductsRepository(self.session)
 				seller_id = group["seller_company_id"]
 				order_type: OrderType = group["order_type"]
 
 				deal_items = []
 				for i, item in enumerate(group["items"], 1):
-					catalog_product = await self._resolve_catalog_product_for_checkout(
-						products_repo, seller_id, item
+					catalog_product = self._resolve_catalog_product_from_maps(
+						seller_id, item, products_by_article, products_by_slug
 					)
 
 					deal_item: dict = {
@@ -704,37 +742,35 @@ class DealService:
 
 				order = await self.repository.create_order(deal_data, buyer_company_id)
 				if buyer_user_id:
-					from app.api.purchases.services.checkout_chat_notify import (
-						notify_seller_about_checkout_order,
-					)
-
 					product_names = [
 						str(item.get("productName") or "").strip()
 						for item in group["items"]
 						if str(item.get("productName") or "").strip()
 					]
-					await notify_seller_about_checkout_order(
-						self.session,
-						buyer_company_id=buyer_company_id,
-						buyer_user_id=buyer_user_id,
-						seller_company_id=seller_id,
-						deal_id=order.id,
-						seller_order_number=order.seller_order_number,
-						order_type=order_type,
-						product_names=product_names,
+					pending_notifies.append(
+						{
+							"buyer_company_id": buyer_company_id,
+							"buyer_user_id": buyer_user_id,
+							"seller_company_id": seller_id,
+							"deal_id": order.id,
+							"seller_order_number": order.seller_order_number,
+							"order_type": order_type.value,
+							"product_names": product_names,
+						}
 					)
 				created_deals.append(
 					await self._order_to_deal_response(order, buyer_company_id)
 				)
 
-			return created_deals
+			return created_deals, pending_notifies
 
 		except Exception as e:
 			await self.session.rollback()
 			logger.exception("Error creating deal from checkout: %s", e)
-			return []
+			# Не маскируем ошибку пустым успехом — иначе клиент думает, что заказ создан.
+			raise
 
 	async def create_deal_from_checkout(self, checkout_data: dict, buyer_company_id: int) -> Optional[DealResponse]:
 		"""Обратная совместимость: первый заказ из checkout."""
-		deals = await self.create_deals_from_checkout(checkout_data, buyer_company_id)
+		deals, _notifies = await self.create_deals_from_checkout(checkout_data, buyer_company_id)
 		return deals[0] if deals else None

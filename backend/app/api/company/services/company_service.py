@@ -234,7 +234,7 @@ class CompanyService:
             )
 
         # Validate file type
-        if not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith('image/'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File must be an image"
@@ -243,21 +243,23 @@ class CompanyService:
         # Create upload directory if it doesn't exist
         os.makedirs(self.upload_dir, exist_ok=True)
 
-        # Generate unique filename
-        file_ext = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_ext}"
+        from app.core.uploads import IMAGE_EXTENSIONS, read_upload_limited, unique_filename
+
+        filename, _ = unique_filename(file.filename, allowed=IMAGE_EXTENSIONS)
         filepath = os.path.join(self.upload_dir, filename)
 
         # Save file
         try:
+            content = await read_upload_limited(file, max_bytes=5 * 1024 * 1024)
             async with aiofiles.open(filepath, 'wb') as out_file:
-                content = await file.read()
                 await out_file.write(content)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save file: {str(e)}"
-            )
+                detail="Failed to save file",
+            ) from e
 
         # Update company logo URL
         logo_url = f"/uploads/company_logos/{filename}"

@@ -32,10 +32,26 @@ def officials_to_json(officials) -> list[dict]:
 	]
 
 
-def officials_from_json(stored: Optional[list]) -> list[CompanyOfficialInDealResponse]:
+def officials_from_json(
+	stored: Optional[list],
+	*,
+	default_company_id: Optional[int] = None,
+) -> list[CompanyOfficialInDealResponse]:
 	if not stored or not isinstance(stored, list):
 		return []
-	return [CompanyOfficialInDealResponse.model_validate(item) for item in stored]
+	result: list[CompanyOfficialInDealResponse] = []
+	for item in stored:
+		if not isinstance(item, dict):
+			continue
+		payload = dict(item)
+		if default_company_id is not None:
+			payload.setdefault("company_id", default_company_id)
+		try:
+			result.append(CompanyOfficialInDealResponse.model_validate(payload))
+		except Exception:
+			# Старые/битые JSON не должны ронять GET сделки 500.
+			continue
+	return result
 
 
 async def _load_entity_by_id(
@@ -59,6 +75,7 @@ async def find_entity_by_company_pair(
 	buyer_company_id: int,
 	seller_company_id: int,
 ) -> Optional[SupplyContractModel]:
+	# Пара компаний может иметь несколько договоров (unique = seller+buyer+number).
 	result = await session.execute(
 		select(SupplyContractModel)
 		.options(
@@ -72,8 +89,10 @@ async def find_entity_by_company_pair(
 				SupplyContractModel.seller_company_id == seller_company_id,
 			)
 		)
+		.order_by(SupplyContractModel.id.desc())
+		.limit(1)
 	)
-	return result.scalar_one_or_none()
+	return result.scalars().first()
 
 
 async def load_order_supply_contract_entity(
@@ -126,7 +145,10 @@ async def build_supply_contract_in_deal_response(
 			entity_id=entity.id,
 			specification_entity_id=spec.id if spec else None,
 			number=number,
-			officials=officials_from_json(entity.officials_json),
+			officials=officials_from_json(
+				entity.officials_json,
+				default_company_id=entity.seller_company_id,
+			),
 			specification_number=spec.spec_number if spec else "",
 			specification_date=spec.spec_date if spec else None,
 			template_supply_contract=str(order.supply_contract_template_id or ""),

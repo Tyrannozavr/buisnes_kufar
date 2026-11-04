@@ -75,7 +75,6 @@ async def verify_token(
         token: token_data_dep,
         company_service: company_service_dep,
 ) -> VerifyTokenResponse:
-    print("Token is ", token)
     company = await company_service.get_company_by_user_id(token.user_id)
     return VerifyTokenResponse(
         is_valid=token.user_id is not None,
@@ -313,43 +312,6 @@ async def reset_password_with_code(
     return {"success": True, "message": "Пароль успешно изменен"}
 
 
-# Тестовый эндпоинт для отладки (удалить в продакшене)
-@router.get("/debug/password-hash/{inn}")
-async def debug_password_hash(
-        inn: str,
-        password: str,
-        db: async_db_dep
-):
-    """
-    Debug endpoint to check password hashing (remove in production)
-    """
-    from app.core.security import get_password_hash, verify_password
-
-    user_repo = UserRepository(session=db)
-    user = await user_repo.get_user_by_inn(inn)
-
-    if not user:
-        return {"error": "User not found"}
-
-    if not user.hashed_password:
-        return {"error": "User has no password hash"}
-
-    # Проверяем текущий пароль
-    current_verify = verify_password(password, user.hashed_password)
-
-    # Создаем новый хеш для сравнения
-    new_hash = get_password_hash(password)
-
-    return {
-        "user_id": user.id,
-        "user_email": user.email,
-        "current_hash": user.hashed_password,
-        "new_hash": new_hash,
-        "current_verify": current_verify,
-        "new_verify": verify_password(password, new_hash)
-    }
-
-
 @router.get("/me", response_model=User)
 async def get_my_profile(
         request: Request,
@@ -395,7 +357,8 @@ async def update_my_profile(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+        from app.core.ttl_cache import cache_delete, user_cache_key
+        await cache_delete(user_cache_key(user.id))
         return updated_user
         
     except ValueError as e:
@@ -405,10 +368,12 @@ async def update_my_profile(
             detail=str(e)
         )
     except Exception as e:
+        from app_logging.logger import logger
+        logger.exception("Failed to update profile for user %s", user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update profile: {str(e)}"
-        )
+            detail="Failed to update profile",
+        ) from e
 
 
 @router.get("/email-notifications/unsubscribe")

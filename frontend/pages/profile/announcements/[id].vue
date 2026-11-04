@@ -21,9 +21,17 @@ const {
 } = await useAsyncData(`announcement-${id}`, () => getAnnouncementById(id));
 
 const processingAction = ref(false);
-const showDeleteConfirm = ref(false);
 const showPublishConfirm = ref(false);
 const processingPublish = ref(false);
+
+const {
+  deleteOpen,
+  deleteLoading,
+  deleteTitle,
+  deleteMessage,
+  askDelete,
+  confirmDelete,
+} = useConfirmDelete();
 
 // Состояние для опций уведомлений
 const notifyOptions = ref({
@@ -46,29 +54,31 @@ const formatDate = (dateString: string) => {
 };
 
 // Handle deleting announcement
-const handleDeleteAnnouncement = async () => {
-  processingAction.value = true;
-  try {
-    await deleteAnnouncement(id);
-
-    useToast().add({
-      title: 'Успешно',
-      description: 'Объявление удалено',
-      color: 'success'
-    });
-
-    // Redirect back to announcements list
-    router.push('/profile/announcements');
-  } catch (error) {
-    useToast().add({
-      title: 'Ошибка',
-      description: error instanceof Error ? error.message : 'Не удалось удалить объявление',
-      color: 'error'
-    });
-  } finally {
-    processingAction.value = false;
-    showDeleteConfirm.value = false;
-  }
+const openDeleteConfirm = () => {
+  askDelete({
+    message: `Точно хотите удалить объявление «${announcement.value?.title || ''}»?\nЭто действие нельзя отменить.`,
+    onConfirm: async () => {
+      processingAction.value = true;
+      try {
+        await deleteAnnouncement(id);
+        useToast().add({
+          title: 'Успешно',
+          description: 'Объявление удалено',
+          color: 'success'
+        });
+        router.push('/profile/announcements');
+      } catch (error) {
+        useToast().add({
+          title: 'Ошибка',
+          description: error instanceof Error ? error.message : 'Не удалось удалить объявление',
+          color: 'error'
+        });
+        throw error;
+      } finally {
+        processingAction.value = false;
+      }
+    },
+  });
 };
 
 // Navigate to edit page
@@ -262,9 +272,9 @@ const confirmPublish = async () => {
               <UButton
                   color="error"
                   icon="i-heroicons-trash"
-                  :loading="processingAction"
+                  :loading="processingAction || deleteLoading"
                   class="cursor-pointer"
-                  @click="showDeleteConfirm = true"
+                  @click="openDeleteConfirm"
               >
                 Удалить
               </UButton>
@@ -272,33 +282,13 @@ const confirmPublish = async () => {
           </div>
         </template>
       </UCard>
-      <!-- Delete confirmation modal -->
-      <UModal v-model:open="showDeleteConfirm" title="Подтверждение удаления">
-        <template #body>
-          <div class="p-4">
-            <p class="text-gray-600 mb-4">
-              Вы действительно хотите удалить объявление "{{ announcement.title }}"?
-              Это действие нельзя будет отменить.
-            </p>
-            <div class="flex justify-end gap-2 ">
-              <UButton
-                  color="neutral"
-                  variant="outline"
-                  @click="showDeleteConfirm = false"
-              >
-                Отмена
-              </UButton>
-              <UButton
-                  color="error"
-                  :loading="processingAction"
-                  @click="handleDeleteAnnouncement"
-              >
-                Удалить
-              </UButton>
-            </div>
-          </div>
-        </template>
-      </UModal>
+      <ConfirmDeleteModal
+        v-model:open="deleteOpen"
+        :title="deleteTitle"
+        :message="deleteMessage"
+        :loading="deleteLoading || processingAction"
+        @confirm="confirmDelete"
+      />
 
       <!-- Модальное окно подтверждения публикации -->
       <PublishConfirmModal

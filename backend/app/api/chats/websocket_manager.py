@@ -221,6 +221,24 @@ class ChatWebSocketManager:
             participant_user_ids=participant_user_ids,
         )
 
+    async def send_message_updated(
+        self,
+        chat_id: int,
+        message_data: dict,
+        participant_user_ids: Optional[Set[int]] = None,
+    ):
+        """Фоновое дописывание вложения — всем участникам, включая отправителя."""
+        payload = {
+            "type": "message_updated",
+            "chat_id": chat_id,
+            "message": message_data,
+        }
+        await self._broadcast_chat_event(
+            chat_id,
+            payload,
+            participant_user_ids=participant_user_ids,
+        )
+
     async def send_messages_read(
         self,
         chat_id: int,

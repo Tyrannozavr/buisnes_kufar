@@ -9,9 +9,8 @@ from app.api.authentication.schemas.user import UserCreateStep1, UserCreateStep2
     ChangeEmailRequest
 from app.api.authentication.models.user import User as UserModel, UserRole
 from app.api.company.repositories.company_repository import CompanyRepository
+from app.api.authentication.tasks.email import enqueue_auth_email
 from app.core.config import settings
-from app.core.email_utils import send_verification_email, send_password_reset_email, send_email_change_code, \
-    send_password_recovery_code
 from app.core.security import create_access_token, decode_token
 from app.core.security import verify_password
 from app_logging.logger import logger
@@ -51,26 +50,10 @@ class AuthService:
             expires_at=expires_at
         )
         logger.info(f"Created registration token for {user_data.email}")
-        # Формируем URL для верификации
         verification_url = f"{settings.FRONTEND_URL}/auth/register/complete?token={token}"
-        # Отправляем email с ссылкой для верификации
-        email_sent = await send_verification_email(user_data.email, verification_url)
-        if not email_sent:
-            # Если не удалось отправить email, выводим ссылку в консоль для разработки
-            logger.error(f"EMAIL SERVICE ERROR: Failed to send verification email to {user_data.email}")
-            logger.error(f"VERIFICATION LINK FOR DEVELOPMENT: {verification_url}")
-            logger.error("This is likely due to incorrect SMTP credentials or email service configuration.")
-            logger.error("For development purposes, you can use the verification link above.")
-            
-            # Возвращаем дружелюбное сообщение пользователю
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={
-                    "message": "Временные технические трудности с отправкой email. Пожалуйста, попробуйте позже.",
-                    "error_type": "email_service_unavailable",
-                    "verbose_error": "Email service configuration issue - check SMTP credentials"
-                }
-            )
+        # SMTP в фоне — ответ register не ждёт почтовый сервер
+        enqueue_auth_email("verification", user_data.email, url=verification_url)
+        logger.info("VERIFICATION LINK (dev fallback): %s", verification_url)
 
     async def register_step2(self, user_data: UserCreateStep2) -> User:
         # Проверяем токен
@@ -277,15 +260,8 @@ class AuthService:
                 detail="Failed to create password reset token"
             )
 
-        # Send reset email
         reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
-        email_sent = await send_password_reset_email(email, reset_url)
-        if not email_sent:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send password reset email"
-            )
-
+        enqueue_auth_email("password_reset", email, url=reset_url)
         logger.info(f"Password reset requested for {email}")
         return True
 
@@ -373,15 +349,8 @@ class AuthService:
                 detail="Failed to create email change token"
             )
 
-        # Send confirmation code
-        email_sent = await send_email_change_code(email_data.new_email, code)
-        if not email_sent:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send email change confirmation"
-            )
-
-        logger.info(f"Email change code sent for user {user_id} to {email_data.new_email}")
+        enqueue_auth_email("email_change_code", email_data.new_email, code=code)
+        logger.info(f"Email change code enqueued for user {user_id} to {email_data.new_email}")
         return True
 
     async def confirm_email_change(self, token: str) -> bool:
@@ -450,28 +419,10 @@ class AuthService:
                 detail="Failed to create password recovery code"
             )
 
-        # Send recovery code email
         recovery_url = f"{settings.FRONTEND_URL}/auth/recover-password?email={email}&code={code}"
-        email_sent = await send_password_recovery_code(email, code)
-        if not email_sent:
-            # Если не удалось отправить email, выводим код в консоль для разработки
-            logger.error(f"EMAIL SERVICE ERROR: Failed to send password recovery code to {email}")
-            logger.error(f"RECOVERY CODE FOR DEVELOPMENT: {code}")
-            logger.error(f"RECOVERY LINK FOR DEVELOPMENT: {recovery_url}")
-            logger.error("This is likely due to incorrect SMTP credentials or email service configuration.")
-            logger.error("For development purposes, you can use the recovery code or link above.")
-            
-            # Возвращаем дружелюбное сообщение пользователю
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail={
-                    "message": "Временные технические трудности с отправкой email. Пожалуйста, попробуйте позже.",
-                    "error_type": "email_service_unavailable",
-                    "verbose_error": "Email service configuration issue - check SMTP credentials"
-                }
-            )
-        
-        logger.info(f"Password recovery code sent to {email}")
+        enqueue_auth_email("password_recovery", email, code=code)
+        logger.info("RECOVERY CODE (dev fallback): %s link=%s", code, recovery_url)
+        logger.info(f"Password recovery code enqueued for {email}")
         return True
 
     async def verify_password_recovery_code(self, email: str, code: str) -> bool:
@@ -500,7 +451,7 @@ class AuthService:
         # Get recovery code
         recovery_code = await self.user_repository.get_password_recovery_code(email, code)
         if not recovery_code:
-            logger.error(f"Invalid recovery code for email: {email}, code: {code}")
+            logger.error("Invalid recovery code for email: %s", email)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid recovery code"

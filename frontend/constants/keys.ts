@@ -64,6 +64,17 @@ export const enum Editor {
 	/** Инкремент при изменении данных слота SupplyContract (товары, суммы и т.д.) */
 	SUPPLY_CONTRACT_SLOT_REVISION = 'supplyContractSlotRevision',
 	SUPPLY_CONTRACT_PREVIEW_ELEMENT = 'supplyContractPreviewElement',
+
+	/** Инкремент при правках бланка договора перевозки (§2) — обновление A4-превью */
+	CARRIAGE_CONTRACT_SLOT_REVISION = 'carriageContractSlotRevision',
+	/** Инкремент при правках бланка заявки к договору (§3) */
+	CARRIAGE_APPLICATION_SLOT_REVISION = 'carriageApplicationSlotRevision',
+	/** Инкремент при правках бланка договор-заявки (§4.1) */
+	CARRIAGE_ORDER_SLOT_REVISION = 'carriageOrderSlotRevision',
+	/** Инкремент при правках бланка договора экспедиции (§4.2) */
+	EXPEDITION_CONTRACT_SLOT_REVISION = 'expeditionContractSlotRevision',
+	/** Инкремент при правках строгих бланков экспедиции (§5) */
+	STRICT_EXPEDITION_SLOT_REVISION = 'strictExpeditionSlotRevision',
 }
 
 export const enum TemplateElement {

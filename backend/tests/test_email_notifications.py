@@ -205,11 +205,16 @@ async def test_notify_skips_when_disabled(email_notify_context):
 @pytest.mark.asyncio
 async def test_chat_service_send_message_triggers_email(email_notify_context):
     ctx = email_notify_context
+    captured: list[dict] = []
+
     with patch(
         "app.api.chats.services.email_notify.send_new_message_notification_email",
         new_callable=AsyncMock,
         return_value=True,
-    ) as mock_send:
+    ) as mock_send, patch(
+        "app.api.chats.tasks.enqueue_message_email_notify",
+        side_effect=lambda **kw: captured.append(kw),
+    ):
         async with AsyncSessionLocal() as session:
             service = ChatService(session)
             await service.send_message(
@@ -218,6 +223,10 @@ async def test_chat_service_send_message_triggers_email(email_notify_context):
                 sender_user_id=ctx["sender_user_id"],
                 content="Сообщение через сервис",
             )
+        assert len(captured) == 1
+        assert captured[0]["chat_id"] == ctx["chat_id"]
+        async with AsyncSessionLocal() as session:
+            await notify_recipients_about_new_message(session, **captured[0])
         mock_send.assert_awaited_once()
 
 

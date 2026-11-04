@@ -32,7 +32,6 @@ const props = defineProps({
 const emit = defineEmits(['save', 'cancel']);
 
 const saving = computed(() => props.loading);
-const formTouched = ref(false);
 const attemptedSubmit = ref(false);
 const showPublishConfirm = ref(false);
 const actionType = ref<'publish' | 'draft'>('publish');
@@ -50,8 +49,8 @@ const notifyOptions = ref({
   suppliers: false
 });
 
-// Track which fields have been touched
-const touchedFields = ref({
+/** Пользователь уже начал ввод в поле (пустое при открытии — не ошибка). */
+const dirtyFields = ref({
   title: false,
   content: false,
   images: false,
@@ -66,79 +65,46 @@ onBeforeUnmount(() => {
   objectUrls.value.forEach(url => URL.revokeObjectURL(url));
 });
 
-const titleError = ref('');
-const contentError = ref('');
-const imagesError = ref('');
-
-// Validate title with detailed feedback
-const validateTitle = () => {
-  touchedFields.value.title = true;
-  formTouched.value = true;
-
-  if (!form.value.title) {
-    titleError.value = 'Заголовок обязателен';
-    return false;
-  }
-  if (form.value.title.length < 5) {
-    titleError.value = 'Заголовок должен содержать не менее 5 символов';
-    return false;
-  }
-  if (form.value.title.length > 100) {
-    titleError.value = 'Заголовок не должен превышать 100 символов';
-    return false;
-  }
-  titleError.value = '';
-  return true;
+const getTitleError = (value: string) => {
+  if (!value) return 'Заголовок обязателен';
+  if (value.length < 5) return 'Заголовок должен содержать не менее 5 символов';
+  if (value.length > 100) return 'Заголовок не должен превышать 100 символов';
+  return '';
 };
 
-// Validate content with detailed feedback
-const validateContent = () => {
-  touchedFields.value.content = true;
-  formTouched.value = true;
-
-  if (!form.value.content) {
-    contentError.value = 'Содержание объявления обязательно';
-    return false;
-  }
-  if (form.value.content.length < 20) {
-    contentError.value = 'Содержание должно содержать не менее 20 символов';
-    return false;
-  }
-  if (form.value.content.length > 5000) {
-    contentError.value = 'Содержание не должно превышать 5000 символов';
-    return false;
-  }
-  contentError.value = '';
-  return true;
+const getContentError = (value: string) => {
+  if (!value) return 'Содержание объявления обязательно';
+  if (value.length < 20) return 'Содержание должно содержать не менее 20 символов';
+  if (value.length > 5000) return 'Содержание не должно превышать 5000 символов';
+  return '';
 };
 
-// Validate images
-const validateImages = () => {
-  touchedFields.value.images = true;
-
+const getImagesError = () => {
   const totalImages = form.value.images.length + form.value.image_urls.length;
-  if (totalImages > 10) {
-    imagesError.value = 'Максимальное количество изображений - 10';
-    return false;
-  }
-  imagesError.value = '';
-  return true;
+  if (totalImages > 10) return 'Максимальное количество изображений - 10';
+  return '';
 };
 
+const showTitleError = computed(() =>
+  (dirtyFields.value.title || attemptedSubmit.value) && !!getTitleError(form.value.title)
+);
+const showContentError = computed(() =>
+  (dirtyFields.value.content || attemptedSubmit.value) && !!getContentError(form.value.content)
+);
+const showImagesError = computed(() =>
+  (dirtyFields.value.images || attemptedSubmit.value) && !!getImagesError()
+);
 
-// Watch for changes to validate in real-time after first interaction
-watch(() => form.value.title, () => {
-  if (touchedFields.value.title) validateTitle();
-});
+const titleErrorText = computed(() => (showTitleError.value ? getTitleError(form.value.title) : undefined));
+const contentErrorText = computed(() => (showContentError.value ? getContentError(form.value.content) : undefined));
+const imagesErrorText = computed(() => (showImagesError.value ? getImagesError() : undefined));
 
-watch(() => form.value.content, () => {
-  if (touchedFields.value.content) validateContent();
-});
-
-watch([() => form.value.images, () => form.value.image_urls], () => {
-  if (touchedFields.value.images) validateImages();
-}, { deep: true });
-
+const markTitleDirty = () => {
+  dirtyFields.value.title = true;
+};
+const markContentDirty = () => {
+  dirtyFields.value.content = true;
+};
 
 // Reset notification options when main notify checkbox is unchecked
 watch(() => notifyOptions.value.notify, (newValue) => {
@@ -151,24 +117,20 @@ watch(() => notifyOptions.value.notify, (newValue) => {
 
 // Computed property to check if form is valid
 const isFormValid = computed(() => {
-  return !titleError.value && !contentError.value && !imagesError.value &&
-         form.value.title.length >= 5 && form.value.content.length >= 20;
+  return !getTitleError(form.value.title) && !getContentError(form.value.content) && !getImagesError();
 });
 
 // Computed property to show validation summary
 const validationSummary = computed(() => {
   if (!attemptedSubmit.value) return [];
 
-  const errors = [];
-  if (titleError.value) errors.push(titleError.value);
-  if (contentError.value) errors.push(contentError.value);
-  if (imagesError.value) errors.push(imagesError.value);
-
-  if (!form.value.title) errors.push('Заголовок обязателен');
-  else if (form.value.title.length < 5) errors.push('Заголовок должен содержать не менее 5 символов');
-
-  if (!form.value.content) errors.push('Содержание объявления обязательно');
-  else if (form.value.content.length < 20) errors.push('Содержание должно содержать не менее 20 символов');
+  const errors: string[] = [];
+  const titleErr = getTitleError(form.value.title);
+  const contentErr = getContentError(form.value.content);
+  const imagesErr = getImagesError();
+  if (titleErr) errors.push(titleErr);
+  if (contentErr) errors.push(contentErr);
+  if (imagesErr) errors.push(imagesErr);
   return errors;
 });
 
@@ -205,22 +167,14 @@ const confirmSaveDraft = () => {
 
 const handleSave = async (publish = false) => {
   attemptedSubmit.value = true;
-  formTouched.value = true;
-
-  // Mark all fields as touched
-  touchedFields.value = {
+  dirtyFields.value = {
     title: true,
     content: true,
     images: true,
     category: true
   };
 
-  // Validate all fields
-  const titleValid = validateTitle();
-  const contentValid = validateContent();
-  const imagesValid = validateImages();
-
-  if (!titleValid || !contentValid || !imagesValid) {
+  if (!isFormValid.value) {
     useToast().add({
       title: 'Ошибка валидации',
       description: 'Пожалуйста, исправьте ошибки в форме',
@@ -251,12 +205,11 @@ const handleImageUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (!target || !target.files || target.files.length === 0) return;
 
-  touchedFields.value.images = true;
+  dirtyFields.value.images = true;
 
   // Check if adding these files would exceed the limit
   const totalImages = form.value.images.length + form.value.image_urls.length;
   if (totalImages + target.files.length > 10) {
-    imagesError.value = 'Максимальное количество изображений - 10';
     useToast().add({
       title: 'Превышен лимит',
       description: 'Вы можете загрузить максимум 10 изображений',
@@ -301,7 +254,7 @@ const handleImageUpload = (event: Event) => {
 };
 
 const removeImage = (index: number, isExistingImage: boolean = false) => {
-  touchedFields.value.images = true;
+  dirtyFields.value.images = true;
   
   if (isExistingImage) {
     // Remove from existing image_urls
@@ -349,17 +302,19 @@ const removeImage = (index: number, isExistingImage: boolean = false) => {
         </ul>
       </UAlert>
 
-      <UFormField label="Заголовок объявления" required :error="touchedFields.title ? titleError : ''" class="font-medium">
+      <UFormField label="Заголовок объявления" required :error="titleErrorText" class="font-medium">
         <UInput
           v-model="form.title"
           placeholder="Введите заголовок объявления"
-          :color="touchedFields.title && titleError ? 'error' : undefined"
+          :color="showTitleError ? 'error' : undefined"
           class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
-          @blur="validateTitle"
+          @update:model-value="markTitleDirty"
         />
         <template #hint>
           <div class="flex justify-between gap-0.5">
-            <span>Минимум 5 символов</span>
+            <span :class="{ 'text-red-500': showTitleError && form.title.length > 0 && form.title.length < 5 }">
+              Минимум 5 символов
+            </span>
             <span :class="{ 'text-red-500': form.title.length > 100 }">
               {{ form.title.length }}/100
             </span>
@@ -367,25 +322,27 @@ const removeImage = (index: number, isExistingImage: boolean = false) => {
         </template>
       </UFormField>
 
-      <UFormField label="Содержание объявления" required :error="touchedFields.content ? contentError : ''" class="font-medium">
+      <UFormField label="Содержание объявления" required :error="contentErrorText" class="font-medium">
         <UTextarea
           v-model="form.content"
           placeholder="Опишите ваше объявление подробно"
           :rows="8"
-          :color="touchedFields.content && contentError ? 'error' : undefined"
+          :color="showContentError ? 'error' : undefined"
           class="focus:ring-2 focus:ring-primary-500 min-w-1/2"
-          @blur="validateContent"
+          @update:model-value="markContentDirty"
         />
         <template #hint>
           <div class="flex justify-between gap-0.5">
-            <span>Минимум 20 символов</span>
+            <span :class="{ 'text-red-500': showContentError && form.content.length > 0 && form.content.length < 20 }">
+              Минимум 20 символов
+            </span>
             <span :class="{ 'text-red-500': form.content.length > 5000 }">
               {{ form.content.length }}/5000
             </span>
           </div>
         </template>
       </UFormField>
-      <UFormField label="Изображения" class="font-medium" :error="touchedFields.images ? imagesError : ''">
+      <UFormField label="Изображения" class="font-medium" :error="imagesErrorText">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <!-- Existing images (image_urls) -->
           <div

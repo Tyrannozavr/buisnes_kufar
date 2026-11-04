@@ -1,6 +1,7 @@
 <template>
 	<div class="max-w-full space-y-4">
 		<div class="bg-white shadow rounded-lg p-4 space-y-4">
+			<h2 class="text-lg font-medium text-gray-900">Документы</h2>
 			<div class="space-y-3">
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 					<div class="min-w-0 flex-1">
@@ -170,6 +171,14 @@
 			@close="isFileViewerModalOpen = false"
 		/>
 	</div>
+
+	<ConfirmDeleteModal
+		v-model:open="deleteOpen"
+		:title="deleteTitle"
+		:message="deleteMessage"
+		:loading="deleteLoading"
+		@confirm="confirmDelete"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -206,6 +215,15 @@ definePageMeta({
 });
 
 const BILL_SYNTHETIC_ID_OFFSET = 1_000_000;
+
+const {
+	deleteOpen,
+	deleteLoading,
+	deleteTitle,
+	deleteMessage,
+	askDelete,
+	confirmDelete,
+} = useConfirmDelete();
 
 /** Счёт в таблице только если счёт реально создан в сделке (есть дата и номер). */
 const isBillCreatedInDeal = (deal: Deal): boolean => {
@@ -777,26 +795,32 @@ const handleDownloadDocument = async (row: DocumentTableRow): Promise<void> => {
 	}
 };
 
-const handleDeleteDocument = async (row: DocumentTableRow): Promise<void> => {
+const handleDeleteDocument = (row: DocumentTableRow): void => {
 	if (!row.dealId) return;
 
 	const dealId = row.dealId;
-	try {
-		await deleteDocumentAsync(dealId, row.id);
-		toast.add({
-			title: "Успешно",
-			description: "Документ удален",
-			color: "success",
-		});
-		invalidateDocumentsForDeal(dealId);
-	} catch (error) {
-		toast.add({
-			title: "Ошибка",
-			description: "Не удалось удалить документ",
-			color: "error",
-		});
-		if (import.meta.dev) console.error("delete document:", error);
-	}
+	askDelete({
+		message: `Точно хотите удалить документ «${row.documentType || row.documentNumber || row.id}»?\nЭто действие нельзя отменить.`,
+		onConfirm: async () => {
+			try {
+				await deleteDocumentAsync(dealId, row.id);
+				toast.add({
+					title: "Успешно",
+					description: "Документ удален",
+					color: "success",
+				});
+				invalidateDocumentsForDeal(dealId);
+			} catch (error) {
+				toast.add({
+					title: "Ошибка",
+					description: "Не удалось удалить документ",
+					color: "error",
+				});
+				if (import.meta.dev) console.error("delete document:", error);
+				throw error;
+			}
+		},
+	});
 };
 
 const handleDeleteDocumentWithBlob = (): void => {

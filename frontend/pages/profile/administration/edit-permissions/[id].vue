@@ -97,13 +97,13 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="bg-white shadow rounded-lg p-4">
     <!-- Заголовок -->
-    <div class="mb-8">
+    <div class="mb-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Редактирование прав доступа</h1>
-          <p class="text-gray-600 mt-2">
+          <h2 class="text-lg font-medium text-gray-900">Редактирование прав доступа</h2>
+          <p class="text-gray-600 mt-1 text-sm">
             {{ employee?.first_name }} {{ employee?.last_name }} ({{ employee?.email }})
           </p>
         </div>

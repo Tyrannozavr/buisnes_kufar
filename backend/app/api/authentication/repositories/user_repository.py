@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models.user import User, RegistrationToken as DBRegistrationToken, PasswordResetToken, \
@@ -130,10 +130,17 @@ class UserRepository:
         user = await self.get_user_by_id(user_id)
         if not user:
             return None
-        
-        # Обновляем поля (исключаем inn, так как он больше не хранится в пользователе)
+
+        allowed_fields = {
+            "first_name",
+            "last_name",
+            "patronymic",
+            "phone",
+            "position",
+            "email_notifications_enabled",
+        }
         for field, value in user_data.items():
-            if hasattr(user, field) and field != 'inn':
+            if field in allowed_fields and hasattr(user, field):
                 setattr(user, field, value)
         
         user.updated_at = datetime.utcnow()
@@ -334,9 +341,9 @@ class UserRepository:
         """Получить пользователей компании с пагинацией"""
         # Подсчет общего количества
         count_result = await self.session.execute(
-            select(User).where(User.company_id == company_id)
+            select(func.count()).select_from(User).where(User.company_id == company_id)
         )
-        total = len(count_result.scalars().all())
+        total = int(count_result.scalar() or 0)
         
         # Получение пользователей с пагинацией
         offset = (page - 1) * per_page
@@ -391,4 +398,11 @@ class UserRepository:
             .values(is_active=False, updated_at=datetime.utcnow())
         )
         await self.session.commit()
+        if result.rowcount > 0:
+            from app.core.ttl_cache import cache_delete, cache_delete_local, user_cache_key
+            cache_delete_local(user_cache_key(user_id))
+            try:
+                await cache_delete(user_cache_key(user_id))
+            except Exception:
+                pass
         return result.rowcount > 0

@@ -13,6 +13,7 @@ from app.api.chats.router import router as chats_router
 from app.api.purchases.router import router as purchases_router
 from app.api.products.router import owner_router as products_owner_router, public_router as public_products_router
 from app.api.common.routes.cities_filter import router as cities_filter_router
+from app.api.shipments.router import router as shipments_router
 
 # Include routers
 
@@ -25,6 +26,7 @@ api_router.include_router(location_create_router, prefix="/locations", tags=["lo
 api_router.include_router(auth_router, prefix="/auth", tags=["authentication"])
 api_router.include_router(employee_router, prefix="/auth", tags=["employees"])
 api_router.include_router(company_router, prefix="/company", tags=["company"])
+api_router.include_router(shipments_router, prefix="/transport", tags=["transport"])
 api_router.include_router(chats_router, prefix="/chats", tags=["chats"])
 api_router.include_router(products_owner_router, prefix="/me/products", tags=["products", "owner"])
 api_router.include_router(purchases_router, prefix="/purchases", tags=["purchases", "orders"])

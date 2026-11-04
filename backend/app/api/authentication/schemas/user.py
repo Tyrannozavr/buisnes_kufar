@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, Dict
 from uuid import uuid4
 
-from pydantic import BaseModel, EmailStr, ConfigDict, constr
+from pydantic import BaseModel, EmailStr, ConfigDict, constr, Field
 
 from app.api.company.schemas.company import CompanyLogoUrlMixin
 from app.api.authentication.models.user import UserRole
@@ -48,15 +48,15 @@ class UserInDB(UserBase):
     id: int
     is_active: bool
     email_notifications_enabled: bool = False
-    hashed_password: Optional[str] = None
-    created_at: datetime
+    # Never expose password hashes via API responses
+    hashed_password: Optional[str] = Field(default=None, exclude=True)
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     company_id: Optional[int] = None
     role: UserRole = UserRole.USER
     permissions: Optional[str] = None  # JSON строка с правами
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class User(UserInDB):

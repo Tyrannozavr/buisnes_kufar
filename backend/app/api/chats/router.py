@@ -17,10 +17,14 @@ from app.api.company.models.company import Company
 from app.api.messages.models.message import Message
 from app.core.config import settings
 from app.core.security import decode_token
+from app.core.uploads import CHAT_EXTENSIONS, read_upload_limited, unique_filename
 from app.db.dependencies import async_db_dep, get_async_db
 from app_logging.logger import logger
 
 router = APIRouter()
+
+_MAX_CHAT_FILE_BYTES = 20 * 1024 * 1024
+_MAX_CHAT_CONTENT_LEN = 10_000
 
 
 @router.post("", response_model=ChatResponse)
@@ -115,15 +119,11 @@ async def get_chat_by_id(
 
 ):
     """Получает чат по ID"""
+    await check_user_in_chat(chat_id, token_data, db)
     chat_service = ChatService(db)
     chat = await chat_service.get_chat_by_id(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-
-    # Проверяем, что пользователь является участником чата
-    if not any(p.user_id == token_data.user_id for p in chat.participants):
-        raise HTTPException(status_code=403, detail="Access denied: not a chat participant")
-
     return chat
 
 
@@ -192,13 +192,17 @@ async def get_chat_messages(
         chat_id: int,
         db: async_db_dep,
         token_data: token_data_dep,
+        limit: int = 100,
+        before_id: Optional[int] = None,
 ):
     chat = await check_user_in_chat(chat_id, token_data, db)
-    # Получаем сообщения чата
-    stmt = select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
+    limit = min(max(1, limit), 200)
+    stmt = select(Message).where(Message.chat_id == chat_id)
+    if before_id is not None:
+        stmt = stmt.where(Message.id < before_id)
+    stmt = stmt.order_by(Message.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
-    messages = result.scalars().all()
-    # Формируем ответ
+    messages = list(reversed(result.scalars().all()))
     return [
         {
             "id": m.id,
@@ -206,7 +210,7 @@ async def get_chat_messages(
             "sender_company_id": m.sender_company_id,
             "sender_user_id": m.sender_user_id,
             "content": m.content,
-            "file_path": f"{settings.BASE_FILES_URL}/{m.file_path}" if m.file_path else None,
+            "file_path": settings.public_file_url(m.file_path),
             "file_name": m.file_name,
             "file_size": m.file_size,
             "file_type": m.file_type,
@@ -234,7 +238,7 @@ async def get_chat_files(
         {
             "message_id": m.id,
             "name": m.file_name,
-            "url": m.file_path,
+            "url": settings.public_file_url(m.file_path),
             "type": m.file_type,
             "size": m.file_size,
             "created_at": m.created_at,
@@ -274,8 +278,16 @@ async def send_message(
         token_data: token_data_dep,
         content: str = Form(...),
         file: Optional[UploadFile] = File(None),
+        attach_deal_id: Optional[int] = Form(None),
+        attach_document_id: Optional[int] = Form(None),
+        attach_file_name: Optional[str] = Form(None),
 ):
-    """Отправляет сообщение в чат"""
+    """Отправляет сообщение в чат.
+
+    attach_deal_id + attach_document_id — скопировать скан сделки в chat_files
+    фоновой задачей (ответ не ждёт копирования).
+    attach_file_name — исходное имя файла для отображения/скачивания.
+    """
     # Проверяем, что пользователь участвует в чате
     chat = await check_user_in_chat(chat_id, token_data, db)
 
@@ -299,6 +311,50 @@ async def send_message(
     if not current_company:
         raise HTTPException(status_code=404, detail="Company not found for current user")
 
+    if content is None or not str(content).strip():
+        raise HTTPException(status_code=422, detail="Message content is required")
+    if len(content) > _MAX_CHAT_CONTENT_LEN:
+        raise HTTPException(status_code=422, detail="Message content is too long")
+
+    want_bg_attach = bool(attach_deal_id and attach_document_id)
+    if want_bg_attach and file is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot combine uploaded file with attach_deal_id/attach_document_id",
+        )
+    if (attach_deal_id is None) ^ (attach_document_id is None):
+        raise HTTPException(
+            status_code=422,
+            detail="attach_deal_id and attach_document_id must be sent together",
+        )
+
+    if want_bg_attach:
+        from app.api.purchases.repositories import DealRepository
+
+        deal_repo = DealRepository(db)
+        order = await deal_repo.get_order_by_id(int(attach_deal_id), current_company.id)
+        if not order:
+            raise HTTPException(
+                status_code=403,
+                detail="Нет доступа к сделке для вложения скана",
+            )
+        deal_party_ids = {order.buyer_company_id, order.seller_company_id}
+        other_companies = {
+            p.company_id
+            for p in chat.participants
+            if p.company_id is not None and p.company_id != current_company.id
+        }
+        if not other_companies or not other_companies.issubset(deal_party_ids):
+            raise HTTPException(
+                status_code=403,
+                detail="Скан сделки можно отправить только в чат с контрагентом по сделке",
+            )
+        doc = await deal_repo.get_document_by_id(
+            int(attach_deal_id), int(attach_document_id), current_company.id
+        )
+        if not doc or not doc.document_file_path:
+            raise HTTPException(status_code=404, detail="Документ сделки не найден")
+
     # Обрабатываем файл, если он есть
     file_path = None
     file_name = None
@@ -306,22 +362,17 @@ async def send_message(
     file_type = None
 
     if file:
-        # Создаем директорию для файлов, если её нет
         upload_dir = "uploads/chat_files"
         os.makedirs(upload_dir, exist_ok=True)
-
-        # Генерируем уникальное имя файла
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_extension = os.path.splitext(file.filename)[1] if file.filename else ""
-        file_name = f"{timestamp}_{file.filename}" if file.filename else f"{timestamp}_file"
-        file_path = os.path.join(upload_dir, file_name)
-
-        # Сохраняем файл
+        stored_name, file_name = unique_filename(file.filename, allowed=CHAT_EXTENSIONS)
+        file_path = os.path.join(upload_dir, stored_name)
+        # Ensure resolved path stays inside upload_dir (defense in depth).
+        if os.path.commonpath([os.path.abspath(upload_dir), os.path.abspath(file_path)]) != os.path.abspath(upload_dir):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        content_file = await read_upload_limited(file, max_bytes=_MAX_CHAT_FILE_BYTES)
         with open(file_path, "wb") as buffer:
-            content_file = await file.read()
             buffer.write(content_file)
             file_size = len(content_file)
-
         file_type = file.content_type or "application/octet-stream"
 
     # Создаем сообщение
@@ -348,7 +399,7 @@ async def send_message(
         "sender_company_id": message.sender_company_id,
         "sender_user_id": message.sender_user_id,
         "content": message.content,
-        "file_path": f"{settings.BASE_FILES_URL}/{message.file_path}" if message.file_path else None,
+        "file_path": settings.public_file_url(message.file_path),
         "file_name": message.file_name,
         "file_size": message.file_size,
         "file_type": message.file_type,
@@ -365,10 +416,9 @@ async def send_message(
     )
 
     try:
-        from app.api.chats.services.email_notify import notify_recipients_about_new_message
+        from app.api.chats.tasks import enqueue_message_email_notify
 
-        await notify_recipients_about_new_message(
-            db,
+        enqueue_message_email_notify(
             chat_id=chat_id,
             sender_user_id=current_user.id,
             sender_company_id=current_company.id,
@@ -376,7 +426,25 @@ async def send_message(
             file_name=file_name,
         )
     except Exception as exc:
-        logger.warning("Email notify failed for chat %s: %s", chat_id, exc)
+        logger.warning("Email notify enqueue failed for chat %s: %s", chat_id, exc)
+
+    if want_bg_attach:
+        try:
+            from app.api.chats.tasks import enqueue_attach_deal_document
+
+            enqueue_attach_deal_document(
+                message_id=message.id,
+                deal_id=int(attach_deal_id),
+                document_id=int(attach_document_id),
+                company_id=current_company.id,
+                original_filename=(attach_file_name or "").strip() or None,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Attach deal document enqueue failed for message %s: %s",
+                message.id,
+                exc,
+            )
 
     return message_data
 

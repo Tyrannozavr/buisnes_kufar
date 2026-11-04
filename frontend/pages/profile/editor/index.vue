@@ -20,32 +20,18 @@
 			class="mb-3 flex w-full flex-wrap gap-1 rounded-lg bg-elevated p-1"
 			aria-label="Документы сделки"
 		>
-			<UTooltip
+			<button
 				v-for="item in items"
 				:key="item.value"
-				:text="item.disabledReason || ''"
-				:disabled="!item.disabled || !item.disabledReason"
+				type="button"
+				:disabled="item.disabled"
+				:title="item.disabled && item.disabledReason ? item.disabledReason : undefined"
+				:aria-current="activeTab === item.value ? 'page' : undefined"
+				class="editor-doc-tab"
+				@click="onTabClick(item)"
 			>
-				<span
-					class="inline-flex"
-					:class="{ 'cursor-not-allowed': item.disabled && item.disabledReason }"
-				>
-					<button
-						type="button"
-						:disabled="item.disabled"
-						:aria-current="activeTab === item.value ? 'page' : undefined"
-						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-						:class="
-							activeTab === item.value
-								? 'bg-inverted text-inverted shadow-sm'
-								: 'text-muted hover:text-default'
-						"
-						@click="onTabClick(item)"
-					>
-						{{ item.label }}
-					</button>
-				</span>
-			</UTooltip>
+				{{ item.label }}
+			</button>
 		</nav>
 
 		<div class="flex gap-3">
@@ -110,10 +96,31 @@
 
 				<template v-if="activeTab === '5'">
 					<A4Page>
-						<div class="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center text-neutral-500">
-							<p>Договор услуг ещё не создан.</p>
-							<p class="text-sm">Раздел в разработке.</p>
-						</div>
+						<CarriageApplication
+							v-if="String(route.query.transportDocType || '') === 'carriage_application'"
+						/>
+						<CarriageOrder
+							v-else-if="String(route.query.transportDocType || '') === 'carriage_order'"
+						/>
+						<ExpeditionContract
+							v-else-if="
+								String(route.query.transportDocType || '') === 'expedition_contract' ||
+								String(route.query.transportDocType || '') === 'transport_expedition'
+							"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'forwarder_assignment'"
+							doc-type="forwarder_assignment"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'forwarder_receipt'"
+							doc-type="forwarder_receipt"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'warehouse_receipt'"
+							doc-type="warehouse_receipt"
+						/>
+						<CarriageContract v-else />
 					</A4Page>
 				</template>
 
@@ -148,6 +155,11 @@
 <script setup lang="ts">
 import Bill from '~/components/templates/Bill/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract/SupplyContract.vue'
+import CarriageContract from '~/components/templates/CarriageContract/CarriageContract.vue'
+import CarriageApplication from '~/components/templates/CarriageApplication/CarriageApplication.vue'
+import CarriageOrder from '~/components/templates/CarriageOrder/CarriageOrder.vue'
+import ExpeditionContract from '~/components/templates/ExpeditionContract/ExpeditionContract.vue'
+import StrictExpeditionBlank from '~/components/templates/StrictExpedition/StrictExpeditionBlank.vue'
 import Order from '~/components/templates/Order.vue'
 import AccompanyingDocuments from '~/components/templates/AccompanyingDocuments.vue'
 import EditorMenu from '~/components/EditorMenu/index.vue'
@@ -158,6 +170,7 @@ import { useDeals } from '~/composables/useDeals'
 import { useCreateBillFromSales } from '~/composables/useCreateBillFromSales'
 import { useRouter } from 'vue-router'
 import {
+	HASH_TO_TAB,
 	TAB_TO_HASH,
 	tabFromRoute,
 	type EditorTabId,
@@ -181,13 +194,31 @@ const dealLoadPending = ref(true)
 const dealLoadFailed = ref(false)
 const isDealReady = computed(() => !dealLoadPending.value && !dealLoadFailed.value)
 
-const activeTab = useTypedState(Editor.ACTIVE_TAB, () =>
-	ref(tabFromRoute(route.hash, route.query.tab) ?? '0'),
-)
+const resolveLocationTab = (): EditorTabId => {
+	// SPA: route.hash. Full reload: window.hash (на SSR hash пустой).
+	if (import.meta.client && typeof window !== 'undefined') {
+		const win = HASH_TO_TAB[window.location.hash]
+		if (win) return win
+	}
+	// Документ перевозки всегда на вкладке «Договор», даже если hash ещё не подхватился.
+	if (route.query.transportDocType || route.query.transportDocId) {
+		return '5'
+	}
+	return tabFromRoute(route.hash, route.query.tab) ?? '0'
+}
+
+const activeTab = useTypedState(Editor.ACTIVE_TAB, () => resolveLocationTab())
+// Клиентская гидрация: SSR не видит hash → useState мог прийти как «0».
+if (import.meta.client) {
+	activeTab.value = resolveLocationTab()
+}
+
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const { ensureDealLoaded, findDeal } = useDeals()
 const { startCreateBillByDealId, isBusy: isCreateBillBusy } = useCreateBillFromSales()
+
+const currentTabId = () => String(activeTab.value ?? '') as EditorTabId
 
 const loadEditorDeal = async (id: number): Promise<void> => {
 	dealLoadPending.value = true
@@ -242,10 +273,10 @@ const hasBill = computed(() =>
 )
 const isBuyerRole = computed(() => route.query.role === 'buyer')
 
-/** Пустая вкладка «Счет» без меню — только кнопка создания. */
+/** Пустая вкладка «Счет» без меню — только кнопка создания. Вкладка «Договор» (§2) — с меню. */
 const showEditorMenu = computed(() => {
 	if (activeTab.value === '1' && !hasBill.value) return false
-	if (['4', '5', '6', '7'].includes(activeTab.value)) return false
+	if (['4', '6', '7'].includes(activeTab.value)) return false
 	return true
 })
 
@@ -316,49 +347,105 @@ const onCreateBillFromTab = async () => {
 	await startCreateBillByDealId(dealId.value)
 }
 
-/** Пока обновляем URL из вкладки — не откатывать activeTab по старому ?tab= */
+/** Пока пишем URL — не реагировать на промежуточный hash. */
 const syncingTabToRoute = ref(false)
+const tabRouteSyncEnabled = ref(false)
 
 const routeTabQuery = (): string | undefined => {
 	const tab = route.query.tab
 	return Array.isArray(tab) ? tab[0] : tab
 }
 
+const applyTabFromLocation = () => {
+	const tab = resolveLocationTab()
+	if (String(activeTab.value) !== tab) {
+		activeTab.value = tab
+	}
+}
+
 watch(
-	() => [route.hash, route.query.tab] as const,
+	() =>
+		[
+			route.hash,
+			route.query.tab,
+			route.query.transportDocType,
+			route.query.transportDocId,
+		] as const,
 	() => {
 		if (syncingTabToRoute.value) return
-		const tab = tabFromRoute(route.hash, route.query.tab)
-		// null = hash и ?tab временно не совпадают — не трогаем activeTab
-		if (tab && activeTab.value !== tab) {
-			activeTab.value = tab
-		}
+		applyTabFromLocation()
 	},
 	{ immediate: true },
 )
 
+const writeTabToRoute = async (tab: EditorTabId) => {
+	const hash = TAB_TO_HASH[tab]
+	const tabQuery = tab === '0' ? 'order' : tab === '1' ? 'bill' : undefined
+	const nextQuery = { ...route.query } as Record<string, string>
+	if (tabQuery) {
+		nextQuery.tab = tabQuery
+	} else {
+		delete nextQuery.tab
+	}
+	const currentTabQuery = routeTabQuery()
+	const locHash =
+		import.meta.client && typeof window !== 'undefined'
+			? window.location.hash
+			: route.hash
+	if (!hash || (locHash === hash && currentTabQuery === nextQuery.tab)) {
+		return
+	}
+	syncingTabToRoute.value = true
+	try {
+		await router.replace({ query: nextQuery, hash })
+		await nextTick()
+	} finally {
+		syncingTabToRoute.value = false
+	}
+}
+
+/** До любой записи в URL — забрать вкладку из hash (побеждает stale useState). */
+onBeforeMount(() => {
+	activeTab.value = resolveLocationTab()
+})
+
+onMounted(async () => {
+	activeTab.value = resolveLocationTab()
+	tabRouteSyncEnabled.value = true
+	await writeTabToRoute(currentTabId())
+})
+
 watch(
 	() => activeTab.value,
 	async (tab: EditorTabId) => {
-		const hash = TAB_TO_HASH[tab]
-		const tabQuery = tab === '0' ? 'order' : tab === '1' ? 'bill' : undefined
-		const nextQuery = { ...route.query } as Record<string, string>
-		if (tabQuery) {
-			nextQuery.tab = tabQuery
-		} else {
-			delete nextQuery.tab
-		}
-		const currentTabQuery = routeTabQuery()
-		if (!hash || (route.hash === hash && currentTabQuery === nextQuery.tab)) {
-			return
-		}
-		syncingTabToRoute.value = true
-		try {
-			await router.replace({ query: nextQuery, hash })
-			await nextTick()
-		} finally {
-			syncingTabToRoute.value = false
-		}
+		if (!tabRouteSyncEnabled.value) return
+		await writeTabToRoute(tab)
 	},
 )
 </script>
+
+<style scoped>
+/* Active style via aria-current: Vue patches aria reliably, but full :class string
+   can desync from DOM (vnode correct, el.className stale) when switching tabs. */
+.editor-doc-tab {
+	border-radius: 0.375rem;
+	padding: 0.375rem 0.75rem;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	font-weight: 500;
+	color: var(--ui-text-muted);
+	transition: color 0.15s ease, background-color 0.15s ease;
+}
+.editor-doc-tab:hover:not(:disabled):not([aria-current='page']) {
+	color: var(--ui-text);
+}
+.editor-doc-tab:disabled {
+	cursor: not-allowed;
+	opacity: 0.4;
+}
+.editor-doc-tab[aria-current='page'] {
+	background-color: var(--ui-bg-inverted);
+	color: var(--ui-text-inverted);
+	box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+</style>

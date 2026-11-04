@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ru" xml:lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Приёмка ТЗ Перевозчик</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="/dev/null" />
+  <style>
+    body { font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #111; max-width: 900px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 20pt; margin-bottom: 8px; }
+    h2 { font-size: 14pt; margin-top: 22px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    h3 { font-size: 12pt; margin-top: 16px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; font-size: 10pt; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+    @page { margin: 16mm; }
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Приёмка ТЗ Перевозчик</h1>
+</header>
+<h1 id="приёмка-тз-перевозчик">Приёмка: ТЗ «Перевозчик»</h1>
+<p><strong>Сайт:</strong> https://tradesynergy.ru<br />
+<strong>Вход:</strong> https://tradesynergy.ru/auth/login<br />
+<strong>Дата подготовки данных:</strong> 02.11.2026<br />
+<strong>Пакет:</strong> 65 000 ₽ (оплачено 10 000 ₽, остаток 55 000
+₽)</p>
+<p>Документ для заказчика: куда зайти, какими учётками и что
+проверить.<br />
+Галочку ставьте в колонке «ОК» после проверки.</p>
+<hr />
+<h2 id="тестовые-учётки">1. Тестовые учётки</h2>
+<p>Пароль для всех: <strong><code>123456</code></strong></p>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 21%" />
+<col style="width: 30%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Роль</th>
+<th>Email</th>
+<th>Компания</th>
+<th>Для чего</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Клиент (продавец)</td>
+<td><code>seller@gmail.com</code></td>
+<td>ООО Поставщик Тест</td>
+<td>Поиск ТС, заявки, перевозки клиента, избранное ТС</td>
+</tr>
+<tr>
+<td>Перевозчик</td>
+<td><code>carrier@gmail.com</code></td>
+<td>ООО Перевозчик Тест</td>
+<td>Флот, водители, заявки, перевозки, избранное</td>
+</tr>
+<tr>
+<td>Экспедитор</td>
+<td><code>forwarder@gmail.com</code></td>
+<td>ООО Экспедитор Тест</td>
+<td>Smoke: те же экраны, что у перевозчика</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Уже подготовлено на сервере для перевозчика:</strong></p>
+<ul>
+<li>ТС: <strong>Volvo FH · А123ВС 77</strong> (маршрут Москва →
+СПб/Казань, тентованный, догруз)</li>
+<li>Водитель: <strong>Иванов Пётр Сергеевич</strong></li>
+<li>Демо-перевозка <strong>№ 00001/2026</strong> (клиент ↔︎ перевозчик) с
+заполненным грузом</li>
+<li>Volvo в избранном у клиента; заявка в избранном у перевозчика</li>
+</ul>
+<p>Перед сменой роли: меню профиля → <strong>Выход</strong>.</p>
+<hr />
+<h2 id="карта-экранов">2. Карта экранов</h2>
+<table>
+<thead>
+<tr>
+<th>Роль</th>
+<th>Раздел</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Перевозчик / экспедитор</td>
+<td>Транспорт</td>
+<td><code>/profile/transport</code></td>
+</tr>
+<tr>
+<td>Перевозчик / экспедитор</td>
+<td>Водители</td>
+<td><code>/profile/drivers</code></td>
+</tr>
+<tr>
+<td>Перевозчик / экспедитор</td>
+<td>Заявки</td>
+<td><code>/profile/shipment-requests</code></td>
+</tr>
+<tr>
+<td>Перевозчик / экспедитор</td>
+<td>Перевозки</td>
+<td><code>/profile/shipments</code></td>
+</tr>
+<tr>
+<td>Перевозчик / экспедитор</td>
+<td>Избранное</td>
+<td><code>/profile/shipment-favorites</code></td>
+</tr>
+<tr>
+<td>Клиент</td>
+<td>Поиск транспорта</td>
+<td><code>/transport-search</code></td>
+</tr>
+<tr>
+<td>Клиент</td>
+<td>Перевозки</td>
+<td><code>/profile/shipments</code></td>
+</tr>
+<tr>
+<td>Клиент</td>
+<td>Избранное</td>
+<td><code>/profile/shipment-favorites</code></td>
+</tr>
+</tbody>
+</table>
+<p>Полный адрес = <code>https://tradesynergy.ru</code> + путь из
+таблицы.</p>
+<hr />
+<h2 id="сценарии-проверки">3. Сценарии проверки</h2>
+<h3 id="a.-транспорт-перевозчик">A. Транспорт (перевозчик)</h3>
+<p><strong>Войти:</strong> <code>carrier@gmail.com</code> /
+<code>123456</code> → ЛК → <strong>Транспорт</strong></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td>Открыть список</td>
+<td>Есть Volvo FH · А123ВС 77, кнопка «Добавить ТС»</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>Добавить ТС (например Газель), сохранить</td>
+<td>Появилось в списке</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>Открыть карточку → Редактировать → сохранить</td>
+<td>После F5 изменения на месте</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>Выключить / удалить тестовое ТС</td>
+<td>Confirm, строка исчезла. <strong>Volvo не удалять</strong></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="b.-водители-перевозчик">B. Водители (перевозчик)</h3>
+<p><strong>Остаться под</strong> <code>carrier@gmail.com</code> →
+<strong>Водители</strong></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td>Открыть список</td>
+<td>Есть Иванов Пётр Сергеевич (телефон / ВУ / ИНН)</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>Добавить → править → удалить тестового</td>
+<td>CRUD работает. <strong>Иванова оставить</strong></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="c.-поиск-транспорта-клиент">C. Поиск транспорта (клиент)</h3>
+<p><strong>Войти:</strong> <code>seller@gmail.com</code> /
+<code>123456</code> → меню <strong>Поиск транспорта</strong></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>Откуда: Москва → Найти транспорт</td>
+<td>В результатах есть Volvo FH перевозчика</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>Показать контакты</td>
+<td>Модалка: компания, ИНН, телефон, email</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>В избранное</td>
+<td>Toast об добавлении</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>Отправить заявку</td>
+<td>Toast «Заявка отправлена»</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="d.-заявки-перевозчик">D. Заявки (перевозчик)</h3>
+<p><strong>Войти:</strong> <code>carrier@gmail.com</code> →
+<strong>Заявки</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>Открыть ленту</td>
+<td>Есть заявка(и); активная подсвечена</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>Принять заявку</td>
+<td>Toast + запись в Перевозках у обеих сторон</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="e.-перевозки-клиента">E. Перевозки клиента</h3>
+<p><strong>Войти:</strong> <code>seller@gmail.com</code> →
+<strong>Перевозки</strong></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E1</td>
+<td>Открыть таблицу</td>
+<td>Строка № …/2026, контрагент — перевозчик, договор «Позже»</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>E2</td>
+<td>Просмотр груза → править поля → Сохранить</td>
+<td>Данные сохраняются</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>E3</td>
+<td>Просмотр транспорта</td>
+<td>Только чтение (назначает перевозчик)</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>E4</td>
+<td>Привязать к заказу из Продаж (если есть активный)</td>
+<td>Кнопка показывает заказ</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="f.-перевозки-перевозчика">F. Перевозки перевозчика</h3>
+<p><strong>Войти:</strong> <code>carrier@gmail.com</code> →
+<strong>Перевозки</strong></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>Открыть таблицу</td>
+<td>Та же перевозка; контрагент — <strong>ООО Поставщик
+Тест</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>Просмотр груза</td>
+<td>Только чтение, без сохранения</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>Просмотр транспорта → Volvo + Иванов → Сохранить</td>
+<td>Выбор сохраняется</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="g.-избранное">G. Избранное</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 18%" />
+<col style="width: 30%" />
+<col style="width: 30%" />
+<col style="width: 12%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Роль</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td>seller</td>
+<td>Избранное → карточка Volvo → Удалить</td>
+<td>Карточка исчезла</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>G2</td>
+<td>carrier</td>
+<td>Избранное → сохранённые заявки → Удалить</td>
+<td>Карточка исчезла</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="h.-экспедитор-smoke">H. Экспедитор (smoke)</h3>
+<p><strong>Войти:</strong> <code>forwarder@gmail.com</code> /
+<code>123456</code></p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Действие</th>
+<th>Ожидание</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H1</td>
+<td>Меню ЛК</td>
+<td>Есть Транспорт, Водители, Заявки, Перевозки, Избранное</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>H2</td>
+<td>Открыть каждый пункт</td>
+<td>Страницы открываются без ошибки (пустой список — нормально)</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="вне-объёма-этого-пакета">4. Вне объёма этого пакета</h2>
+<p>Не считать ошибкой:</p>
+<ul>
+<li>колонка / бланк <strong>«Договор перевозки»</strong> — отдельное ТЗ
+(позже);</li>
+<li>полный матчинг «как ATI» сверх описанного в ТЗ_Перевозчик.</li>
+</ul>
+<hr />
+<h2 id="итог">5. Итог</h2>
+<table>
+<thead>
+<tr>
+<th>Блок</th>
+<th>ОК</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A Транспорт</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B Водители</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>C Поиск</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>D Заявки</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>E Перевозки клиента</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>F Перевозки перевозчика</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>G Избранное</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>H Экспедитор</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Принято целиком:</strong> ☐    Дата ________    Подпись
+________</p>
+<hr />
+<p><em>Подготовлено для приёмки пакета ТЗ_Перевозчик ·
+TradeSynergy</em></p>
+</body>
+</html>

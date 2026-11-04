@@ -10,12 +10,7 @@ git fetch origin
 git checkout "${BRANCH}"
 git reset --hard "origin/${BRANCH}"
 
-echo "🔄 Миграции (alembic из каталога на хосте)"
-docker compose run --rm --no-deps --entrypoint "" \
-  -v "$(pwd)/backend/alembic:/app/alembic:ro" \
-  backend alembic -c /app/alembic.ini upgrade head
-
-echo "🔨 Сборка frontend, backend, nginx, celery"
+echo "🔨 Сборка frontend, backend, nginx, celery (до миграций — нужен актуальный код app.*)"
 if ! docker compose build frontend backend nginx celery-worker celery-beat; then
   echo "⚠️  Сборка не удалась (часто сеть Docker Hub). Обновляем код в работающих контейнерах..."
   for svc in backend celery-worker celery-beat; do
@@ -27,8 +22,20 @@ if ! docker compose build frontend backend nginx celery-worker celery-beat; then
   done
 fi
 
+echo "🔄 Миграции"
+docker compose run --rm --no-deps --entrypoint "" \
+  backend alembic -c /app/alembic.ini upgrade head
+
 echo "🚀 docker compose up -d"
 docker compose up -d frontend backend nginx celery-worker celery-beat
 
+# Nginx резолвит upstream при старте/reload. После recreate backend/frontend без reload
+# остаются старые IP → 502 на /api (логин) и «пустые» страницы у клиента.
+echo "🔁 nginx reload (обновить DNS upstream)"
+docker compose exec -T nginx nginx -s reload || true
+
 echo "✅ Готово. Проверка:"
 docker compose ps --format 'table {{.Name}}\t{{.Status}}' | head -12
+curl -sS -o /dev/null -w "login_api:%{http_code}\n" -X POST http://127.0.0.1/api/v1/auth/login \
+  -H 'Host: devxyz.ridewise.ru' -H 'Content-Type: application/json' \
+  -d '{"login":"seller@gmail.com","password":"123456"}' || true

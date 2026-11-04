@@ -160,6 +160,7 @@ class SupplyContractRepository:
 		buyer_company_id: int,
 		seller_company_id: int,
 	) -> Optional[SupplyContractModel]:
+		# Несколько договоров на пару допустимы — берём последний.
 		result = await self.session.execute(
 			select(SupplyContractModel)
 			.options(*self._contract_load_options())
@@ -169,8 +170,10 @@ class SupplyContractRepository:
 					SupplyContractModel.seller_company_id == seller_company_id,
 				)
 			)
+			.order_by(SupplyContractModel.id.desc())
+			.limit(1)
 		)
-		return result.scalar_one_or_none()
+		return result.scalars().first()
 
 	async def update_contract(
 		self,

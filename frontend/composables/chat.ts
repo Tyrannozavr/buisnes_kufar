@@ -3,14 +3,18 @@ import {useChatsApi} from "~/api/chats";
 const { createChat } = useChatsApi()
 
 export async function navigateToChatById(companyId: number) {
-    if (!companyId) return
-    
-    const chatData = await createChat({
-        participantId: companyId,
-    })
-    if (chatData?.id) {
-        navigateTo(`/profile/messages/${chatData.id}`)
+    if (!companyId) {
+        throw new Error('Не указана компания собеседника')
     }
+
+    const chatData = await createChat({
+        participantId: Number(companyId),
+    })
+    if (!chatData?.id) {
+        throw new Error('Чат не создан')
+    }
+    await navigateTo(`/profile/messages/${chatData.id}`)
+    return chatData
 }
 
 export async function navigateToChatBySlug(companySlug: string) {

@@ -34,7 +34,7 @@ export function useCreateBillFromSales() {
 	} = useDeals()
 	const { markBillAwaitingFill } = useBillFillState()
 	const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
-	const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
+	const activeTab = useTypedState(Editor.ACTIVE_TAB, () => "0" as const)
 
 	const contractSelectItems = computed(() => [
 		...contractOptions.value.map((contract) => ({

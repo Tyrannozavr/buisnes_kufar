@@ -7,6 +7,15 @@ import { useWebSocket } from '~/composables/useWebSocket'
 import { onChatPresenceMessage } from '~/composables/useChatPresence'
 import { useChatUnreadStore } from '~/stores/chatUnread'
 import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
+import { companyAvatarUrl, onCompanyAvatarError } from '~/utils/companyAvatar'
+import { chatLastMessagePreview } from '~/utils/chatPreview'
+import {
+	extractChatScanRefs,
+	stripChatScanMarkers,
+} from '~/utils/chatScanMarker'
+import { chatAttachmentDisplayName } from '~/utils/chatAttachmentName'
+import ChatDealScanPreview from '~/components/chat/ChatDealScanPreview.vue'
+import ChatMessageAttachment from '~/components/chat/ChatMessageAttachment.vue'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -42,6 +51,7 @@ const {data: onlineStatus, pending: onlineStatusPending, refresh: refreshOnlineS
 const newMessage = ref('')
 const showFilesModal = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const messageInput = ref<HTMLTextAreaElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const isTyping = ref(false)
 const typingTimeout = ref<NodeJS.Timeout | null>(null)
@@ -64,6 +74,13 @@ const scrollToBottom = () => {
 // Функция для добавления нового сообщения
 const isOwnMessage = (message: { sender_company_id?: number }) =>
 	message.sender_company_id?.toString() === userStore.companyId?.toString()
+
+const myCompanyId = computed(() => Number(userStore.companyId))
+
+const otherParticipantOf = (participants?: ChatParticipant[] | null) => {
+	if (!participants?.length || !Number.isFinite(myCompanyId.value)) return null
+	return participants.find(p => Number(p.company_id) !== myCompanyId.value) || null
+}
 
 const applyReadStatusToMessages = (messageIds: number[]) => {
 	if (!messages.value?.length || !messageIds.length) return
@@ -109,7 +126,9 @@ const markCurrentChatAsRead = async (): Promise<void> => {
 		}
 		markIncomingMessagesAsReadLocally()
 		updateChatUnreadInList(chatId, 0)
-		await chatUnreadStore.refresh()
+		chatUnreadStore.setFromChats(chats.value ?? [])
+		await refreshChats()
+		chatUnreadStore.setFromChats(chats.value ?? [])
 	} catch (error) {
 		console.error('Failed to mark chat as read:', error)
 	}
@@ -127,13 +146,7 @@ const handleIncomingChatMessage = (message: Record<string, unknown>) => {
 
 	const current = chats.value?.find((item) => item.id === chatId)
 	updateChatUnreadInList(chatId, (current?.unread_count ?? 0) + 1)
-	chatUnreadStore.noteIncomingMessage({
-		chatId,
-		senderCompanyId: Number((message as { sender_company_id?: number }).sender_company_id),
-		viewerCompanyId: userStore.companyId ? Number(userStore.companyId) : null,
-		activeChatId: getActiveChatIdFromRoute(route),
-		pageVisible: import.meta.client && document.visibilityState === 'visible',
-	})
+	chatUnreadStore.setFromChats(chats.value ?? [])
 	void chatUnreadStore.refresh()
 	void refreshChats()
 }
@@ -148,6 +161,11 @@ const handleChatEvent = (message: Record<string, unknown>) => {
 
 	if (message.type === 'new_message' && message.message) {
 		handleIncomingChatMessage(message.message as Record<string, unknown>)
+		return
+	}
+
+	if (message.type === 'message_updated' && message.message) {
+		applyMessageUpdate(message.message as Record<string, unknown>)
 		return
 	}
 
@@ -167,6 +185,19 @@ const addNewMessage = (message: any) => {
   }
 }
 
+/** Фоновое дописывание file_path к уже показанному сообщению. */
+const applyMessageUpdate = (message: Record<string, unknown>) => {
+  if (!messages.value) return
+  const id = Number(message.id)
+  if (!Number.isFinite(id)) return
+  const idx = messages.value.findIndex((m) => m.id === id)
+  if (idx === -1) {
+    addNewMessage(message)
+    return
+  }
+  messages.value[idx] = { ...messages.value[idx], ...message }
+}
+
 const { 
   isConnected, 
   isConnecting, 
@@ -182,6 +213,8 @@ const {
       if (!message.message.is_temp) {
         handleIncomingChatMessage(message.message)
       }
+    } else if (message.type === 'message_updated' && message.message) {
+      applyMessageUpdate(message.message)
     } else if (message.type === 'typing_indicator') {
       // Обрабатываем индикатор печати
       if (message.user_id !== userStore.companyId) {
@@ -211,7 +244,11 @@ onMounted(() => {
   connectWs()
 
   const unsubscribePresence = onChatPresenceMessage((message) => {
-    if (message.type === 'new_message' || message.type === 'messages_read') {
+    if (
+      message.type === 'new_message'
+      || message.type === 'messages_read'
+      || message.type === 'message_updated'
+    ) {
       void refreshChats()
       void chatUnreadStore.refresh()
     }
@@ -260,7 +297,7 @@ watch(messages, () => {
 
 const otherParticipant = computed(() => {
   if (!chat.value) return null
-  return chat.value.participants.find((p: ChatParticipant) => p.company_id !== userStore.companyId)
+  return otherParticipantOf(chat.value.participants)
 })
 
 // Проверяем, подключен ли другой участник чата
@@ -295,6 +332,25 @@ const handleTyping = () => {
   typingTimeout.value = setTimeout(() => {
     sendTyping(false)
   }, 2000)
+}
+
+const resizeMessageInput = () => {
+  const el = messageInput.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+}
+
+const onMessageInput = () => {
+  handleTyping()
+  nextTick(resizeMessageInput)
+}
+
+const onMessageKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    void handleSendMessage()
+  }
 }
 
 const handleSendMessage = async () => {
@@ -335,6 +391,11 @@ const handleSendMessage = async () => {
     if (fileInput.value) {
       fileInput.value.value = ''
     }
+    nextTick(() => {
+      if (messageInput.value) {
+        messageInput.value.style.height = 'auto'
+      }
+    })
 
     // Отправляем сообщение на сервер
     const messageResponse = await sendMessage(chatId, {
@@ -370,25 +431,11 @@ const handleBackToChats = () => {
   router.push('/profile/messages')
 }
 
-const getFileIcon = (mimeType: string) => {
-  if (mimeType.startsWith('image/')) return 'i-heroicons-photo'
-  if (mimeType.startsWith('video/')) return 'i-heroicons-video-camera'
-  if (mimeType.startsWith('audio/')) return 'i-heroicons-musical-note'
-  if (mimeType.includes('pdf')) return 'i-heroicons-document-text'
-  if (mimeType.includes('word') || mimeType.includes('document')) return 'i-heroicons-document-text'
-  if (mimeType.includes('excel') || mimeType.includes('sheet')) return 'i-heroicons-table-cells'
-  if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'i-heroicons-presentation-chart-line'
-  if (mimeType.includes('zip') || mimeType.includes('archive')) return 'i-heroicons-archive-box'
-  return 'i-heroicons-document'
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
-}
+/** Скан отправлен, фоновая копия в chat_files ещё не дописала file_path. */
+const messageHasPendingScanCopy = (message: {
+	content?: string | null
+	file_path?: string | null
+}) => Boolean(!message.file_path && scanRefsFromMessage(message.content).length)
 
 const escapeHtml = (value: string) => {
   return value
@@ -398,6 +445,45 @@ const escapeHtml = (value: string) => {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
 }
+
+const messageTextWithoutScanMarkers = (content?: string | null) =>
+  stripChatScanMarkers(content || '')
+
+const scanRefsFromMessage = (content?: string | null) =>
+  extractChatScanRefs(content || '')
+
+/** Пока фоновая копия не дописала file_path — периодически обновляем сообщения. */
+const pendingCopyPollTimer = ref<ReturnType<typeof setInterval> | null>(null)
+
+const hasPendingScanCopies = computed(() =>
+  (messages.value || []).some((m) => messageHasPendingScanCopy(m)),
+)
+
+watch(hasPendingScanCopies, (pending) => {
+  if (pendingCopyPollTimer.value) {
+    clearInterval(pendingCopyPollTimer.value)
+    pendingCopyPollTimer.value = null
+  }
+  if (!pending) return
+  let ticks = 0
+  pendingCopyPollTimer.value = setInterval(() => {
+    ticks += 1
+    void refreshMessages()
+    if (ticks >= 15 || !hasPendingScanCopies.value) {
+      if (pendingCopyPollTimer.value) {
+        clearInterval(pendingCopyPollTimer.value)
+        pendingCopyPollTimer.value = null
+      }
+    }
+  }, 1500)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (pendingCopyPollTimer.value) {
+    clearInterval(pendingCopyPollTimer.value)
+    pendingCopyPollTimer.value = null
+  }
+})
 
 const formatMessageContent = (content: string, isMine: boolean) => {
   const escaped = escapeHtml(content)
@@ -442,11 +528,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-16rem)]">
+  <div class="flex h-[calc(100vh-16rem)] min-h-[24rem] min-w-0">
     <!-- Боковая панель с чатами - скрыта на мобильных устройствах -->
-    <div class="hidden lg:flex w-80 border-r border-gray-200 flex-col">
+    <div class="hidden lg:flex w-80 shrink-0 border-r border-gray-200 flex-col min-h-0">
       <div class="p-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold">Сообщения</h2>
+        <h2 class="text-lg font-medium text-gray-900">Сообщения</h2>
       </div>
       
       <div v-if="chatsPending" class="flex-1 flex items-center justify-center">
@@ -463,16 +549,17 @@ const formatMessageContent = (content: string, isMine: boolean) => {
         >
           <div class="flex items-center space-x-3">
             <img
-              :src="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+              :src="companyAvatarUrl(otherParticipantOf(chatItem.participants)?.company_logo_url)"
+              :alt="otherParticipantOf(chatItem.participants)?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1 min-w-0">
               <p class="font-medium text-sm truncate">
-                {{ chatItem.participants.find(p => p.company_id !== userStore.companyId)?.company_name }}
+                {{ otherParticipantOf(chatItem.participants)?.company_name }}
               </p>
-              <p v-if="chatItem.last_message" class="text-xs text-gray-500 truncate">
-                {{ chatItem.last_message.content }}
+              <p class="text-xs text-gray-500 truncate">
+                {{ chatLastMessagePreview(chatItem.last_message) }}
               </p>
             </div>
             <div v-if="(chatItem.unread_count ?? 0) > 0" class="flex-shrink-0">
@@ -486,7 +573,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
     </div>
 
     <!-- Основная область чата -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col min-w-0 min-h-0">
       <!-- Заголовок чата -->
       <div v-if="chat" class="p-4 border-b border-gray-200 bg-white">
         <div class="flex items-center space-x-3">
@@ -508,10 +595,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
             class="flex items-center space-x-3 flex-1"
             :class="{ 'opacity-50 pointer-events-none': chatPending }"
           >
-            <NuxtImg
-              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="otherParticipant?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+            <img
+              :src="companyAvatarUrl(otherParticipant?.company_logo_url)"
+              :alt="otherParticipant?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1">
               <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
@@ -537,10 +625,11 @@ const formatMessageContent = (content: string, isMine: boolean) => {
             class="flex items-center space-x-3 flex-1"
             :class="{ 'opacity-50 pointer-events-none': chatPending }"
           >
-            <NuxtImg
-              :src="otherParticipant?.company_logo_url || '/images/default-company-logo.png'"
-              :alt="otherParticipant?.company_name"
-              class="w-10 h-10 rounded-full object-cover"
+            <img
+              :src="companyAvatarUrl(otherParticipant?.company_logo_url)"
+              :alt="otherParticipant?.company_name || 'Компания'"
+              class="w-10 h-10 rounded-full object-cover bg-gray-100"
+              @error="onCompanyAvatarError"
             />
             <div class="flex-1">
               <h3 class="font-semibold">{{ otherParticipant?.company_name }}</h3>
@@ -568,7 +657,7 @@ const formatMessageContent = (content: string, isMine: boolean) => {
       </div>
 
       <template v-else-if="chat">
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-200px)]">
+        <div ref="messagesContainer" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           <div
               v-for="message in messages"
               :key="message.id"
@@ -576,37 +665,44 @@ const formatMessageContent = (content: string, isMine: boolean) => {
               :class="{ 'justify-end': isOwnMessage(message) }"
           >
             <div
-                class="max-w-[70%] p-4 rounded-lg"
+                class="w-fit max-w-[min(85%,22rem)] sm:max-w-[min(70%,28rem)] p-3 rounded-2xl"
                 :class="isOwnMessage(message) ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
               <div
-                v-if="message.content"
-                class="mb-2 break-words"
-                v-html="formatMessageContent(message.content, isOwnMessage(message))"
+                v-if="messageTextWithoutScanMarkers(message.content)"
+                class="mb-1 text-sm break-words [overflow-wrap:anywhere]"
+                v-html="formatMessageContent(messageTextWithoutScanMarkers(message.content), isOwnMessage(message))"
               >
               </div>
-              <div v-if="message.file_path" class="mt-2">
-                <a
-                    :href="message.file_path"
-                    target="_blank"
-                    class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors"
-                    :class="isOwnMessage(message) ? 'text-blue-100' : 'text-blue-600'"
-                >
-                  <UIcon
-                      :name="getFileIcon(message.file_type || '')"
-                      class="w-5 h-5 flex-shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate">{{ message.file_name }}</p>
-                    <p class="text-xs opacity-75">
-                      {{ formatFileSize(message.file_size || 0) }}
-                    </p>
-                  </div>
-                  <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0"/>
-                </a>
-              </div>
+              <ChatDealScanPreview
+                v-for="scanRef in scanRefsFromMessage(message.content)"
+                v-show="!message.file_path"
+                :key="`${message.id}-${scanRef.documentId}`"
+                :deal-id="scanRef.dealId"
+                :document-id="scanRef.documentId"
+                :filename="scanRef.filename"
+                :is-mine="isOwnMessage(message)"
+              />
+              <ChatMessageAttachment
+                v-if="message.file_path"
+                :file-path="message.file_path"
+                :file-name="message.file_name"
+                :display-name="chatAttachmentDisplayName(message)"
+                :file-size="message.file_size"
+                :file-type="message.file_type"
+                :is-mine="isOwnMessage(message)"
+              />
+              <p
+                v-else-if="messageHasPendingScanCopy(message)"
+                class="mt-1 flex items-center gap-1.5 text-xs opacity-80"
+                :class="isOwnMessage(message) ? 'text-blue-100' : 'text-gray-500'"
+                role="status"
+              >
+                <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 animate-spin" />
+                Копируем вложение в чат…
+              </p>
               <div
-                class="flex items-center gap-1 mt-2"
+                class="flex items-center gap-1 mt-1.5"
                 :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"
               >
                 <span
@@ -633,46 +729,49 @@ const formatMessageContent = (content: string, isMine: boolean) => {
           </div>
         </div>
 
-        <div class="border-t border-gray-200 p-4">
-          <form class="flex gap-4" @submit.prevent="handleSendMessage">
-            <div class="flex-1 flex items-center gap-2">
-              <button
-                  type="button"
-                  class="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  @click="fileInput?.click()"
-              >
-                <UIcon name="i-heroicons-paper-clip" class="w-6 h-6"/>
-              </button>
-              <input
-                  ref="fileInput"
-                  type="file"
-                  class="hidden"
-                  @change="handleFileSelect"
-              />
-              <input
-                  v-model="newMessage"
-                  type="text"
-                  placeholder="Введите сообщение..."
-                  class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @input="handleTyping"
-              >
-            </div>
+        <div class="border-t border-gray-200 p-3 sm:p-4 bg-white shrink-0">
+          <form class="flex items-end gap-2" @submit.prevent="handleSendMessage">
+            <button
+                type="button"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none shrink-0 cursor-pointer"
+                title="Прикрепить файл"
+                @click="fileInput?.click()"
+            >
+              <UIcon name="i-heroicons-paper-clip" class="size-5"/>
+            </button>
+            <input
+                ref="fileInput"
+                type="file"
+                class="hidden"
+                @change="handleFileSelect"
+            />
+            <textarea
+                ref="messageInput"
+                v-model="newMessage"
+                rows="1"
+                placeholder="Введите сообщение..."
+                class="flex-1 min-h-10 max-h-40 resize-none overflow-y-auto px-3 py-2.5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 leading-5 text-sm"
+                @input="onMessageInput"
+                @keydown="onMessageKeydown"
+            />
             <button
                 type="submit"
-                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Отправить"
+                :disabled="!newMessage.trim() && !selectedFile"
             >
-              Отправить
+              <UIcon name="i-lucide-send" class="size-5 translate-x-px -translate-y-px"/>
             </button>
           </form>
-          <div v-if="selectedFile" class="mt-2 flex items-center gap-2 text-sm text-gray-600">
-            <UIcon name="i-heroicons-paper-clip" class="w-4 h-4"/>
+          <div v-if="selectedFile" class="mt-2 flex items-center gap-2 text-sm text-gray-600 pl-12">
+            <UIcon name="i-heroicons-paper-clip" class="size-4"/>
             {{ selectedFile.name }}
             <button
                 type="button"
-                class="text-red-500 hover:text-red-700"
+                class="text-red-500 hover:text-red-700 cursor-pointer"
                 @click="selectedFile = null"
             >
-              <UIcon name="i-heroicons-x-mark" class="w-4 h-4"/>
+              <UIcon name="i-heroicons-x-mark" class="size-4"/>
             </button>
           </div>
         </div>

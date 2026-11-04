@@ -15,7 +15,14 @@ from app.api.company.models.fleet import CompanyVehicle, CompanyDriver  # noqa
 from app.api.messages.models.message import Message  # noqa
 from app.api.products.models.product import Product  # noqa
 from app.api.common.models import Country, FederalDistrict, Region, City  # noqa
-from app.api.purchases.models import Order, OrderItem, OrderHistory, OrderDocument, UnitOfMeasurement  # noqa
+from app.api.purchases.models import (  # noqa
+	Order,
+	OrderItem,
+	OrderHistory,
+	OrderDocument,
+	UnitOfMeasurement,
+	TransportDocument,
+)
 from app.core.config import settings
 from app.db.base_class import Base  # noqa
 from app_logging.logger import logger
@@ -24,8 +31,8 @@ engine = create_async_engine(
     settings.ASYNC_DATABASE_URL,
     echo=False,
     future=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=20,
+    max_overflow=40,
     pool_pre_ping=True,
     pool_recycle=3600
 )

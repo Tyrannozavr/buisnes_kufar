@@ -17,9 +17,23 @@ const {
   refresh: refreshBuyers
 } = await getBuyers(page.value, perPage.value)
 
-const handleRemoveBuyer = async (buyer: PartnerCompany) => {
-  await removeCompanyRelation(buyer.id, CompanyRelationType.BUYER)
-  await refreshBuyers()
+const {
+  deleteOpen,
+  deleteLoading,
+  deleteTitle,
+  deleteMessage,
+  askDelete,
+  confirmDelete,
+} = useConfirmDelete()
+
+const handleRemoveBuyer = (buyer: PartnerCompany) => {
+  askDelete({
+    message: `Точно хотите удалить покупателя «${buyer.fullName}»?\nЭто действие нельзя отменить.`,
+    onConfirm: async () => {
+      await removeCompanyRelation(buyer.id, CompanyRelationType.BUYER)
+      await refreshBuyers()
+    },
+  })
 }
 
 const handleRefresh = async () => {
@@ -29,7 +43,7 @@ const handleRefresh = async () => {
 
 <template>
   <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
+    <div class="bg-white shadow rounded-lg p-4">
       <h2 class="text-lg font-medium text-gray-900 mb-4">Покупатели</h2>
       <ProfileCompanyList
         :companies="buyers || []"
@@ -39,5 +53,13 @@ const handleRefresh = async () => {
         @refresh="handleRefresh"
       />
     </div>
+
+    <ConfirmDeleteModal
+      v-model:open="deleteOpen"
+      :title="deleteTitle"
+      :message="deleteMessage"
+      :loading="deleteLoading"
+      @confirm="confirmDelete"
+    />
   </div>
-</template> 
+</template>

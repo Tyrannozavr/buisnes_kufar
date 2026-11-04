@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy import select, delete, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,13 +14,39 @@ class CompanyRelationsRepository:
         self.session = session
 
     async def add_relation(self, company_id: int, data: CompanyRelationCreate) -> CompanyRelation:
+        existing = (
+            await self.session.execute(
+                select(CompanyRelation).where(
+                    CompanyRelation.company_id == company_id,
+                    CompanyRelation.related_company_id == data.related_company_id,
+                    CompanyRelation.relation_type == data.relation_type,
+                ).limit(1)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
         relation = CompanyRelation(
             company_id=company_id,
             related_company_id=data.related_company_id,
             relation_type=data.relation_type
         )
         self.session.add(relation)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            existing = (
+                await self.session.execute(
+                    select(CompanyRelation).where(
+                        CompanyRelation.company_id == company_id,
+                        CompanyRelation.related_company_id == data.related_company_id,
+                        CompanyRelation.relation_type == data.relation_type,
+                    ).limit(1)
+                )
+            ).scalar_one_or_none()
+            if existing:
+                return existing
+            raise
         await self.session.refresh(relation)
         return relation
 
@@ -133,10 +160,17 @@ class CompanyRelationsRepository:
         related_company_id: int,
         relation_type: CompanyRelationType,
     ) -> CompanyRelation:
-        existing = await self.get_relations(company_id, relation_type)
-        for rel in existing:
-            if rel.related_company_id == related_company_id:
-                return rel
+        existing = (
+            await self.session.execute(
+                select(CompanyRelation).where(
+                    CompanyRelation.company_id == company_id,
+                    CompanyRelation.related_company_id == related_company_id,
+                    CompanyRelation.relation_type == relation_type,
+                ).limit(1)
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
         return await self.add_relation(
             company_id,
             CompanyRelationCreate(

@@ -1,5 +1,6 @@
 from typing import Annotated, List, Literal, Optional
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
+import asyncio
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
@@ -15,6 +16,7 @@ from app.api.purchases.dependencies import (
 	supply_contract_template_service_dep_annotated,
 	company_contract_service_dep_annotated,
 	contract_condition_template_service_dep_annotated,
+	transport_document_service_dep_annotated,
 )
 from app.api.purchases.services import DealService, OnlySellerCanModifyDealError, DealChangeReviewForbiddenError, BuyerOrderUpdateForbiddenError
 from app.api.purchases.services.supply_contract import SupplyContractAlreadyExistsError
@@ -26,6 +28,9 @@ from app.api.purchases.schemas import (
     CheckoutRequest, CheckoutItem, CheckoutResponse,
     DocumentNumberDateRequest, BillResponse, ContractResponse, SupplyContractNumberResponse,
     TransportContractAssignRequest, TransportContractResponse,
+    TransportDocumentCreate, TransportDocumentBindRequest, TransportDocumentUpdate,
+    TransportDocumentResponse, TransportDocumentListResponse,
+    TransportDocumentNextNumberResponse,
     ClosingDocumentAssignRequest, ClosingDocumentResponse,
     SupplyContractCreate, SupplyContractUpdate, SupplyContractResponse, SupplyContractExistsResponse,
     CompanyContractCreate,
@@ -55,6 +60,9 @@ from app.api.purchases.services.gotenberg_pdf_service import (
 	PdfConversionFailedError,
 	PdfConversionNotConfiguredError,
 	convert_docx_bytes_to_pdf,
+)
+from app.api.purchases.services.transport_document_docx import (
+	build_transport_document_docx_bytes,
 )
 
 router = APIRouter(
@@ -242,8 +250,11 @@ async def create_deal(
         return deal
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.exception("Failed to create deal for company %s", company.id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/buyer/deals", response_model=List[BuyerDealResponse], tags=["buyer", "orders", "list"])
@@ -251,7 +262,7 @@ async def get_buyer_deals(
     current_user: Annotated[User, Depends(get_current_user)],
     deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(50, ge=1, le=100)
 ):
     """
     Получение заказов покупателя
@@ -293,7 +304,7 @@ async def get_seller_deals(
     current_user: Annotated[User, Depends(get_current_user)],
     deal_service: deal_service_dep_annotated,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(50, ge=1, le=100)
 ):
     """
     Получение заказов продавца
@@ -451,14 +462,14 @@ async def update_deal(
     try:
         deal = await deal_service.update_deal(deal_id, deal_data, company.id)
     except OnlySellerCanModifyDealError:
-        raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
+        raise HTTPException(status_code=403, detail="Only seller can modify deal")
     except BuyerOrderUpdateForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("Error updating deal %s: %s", deal_id, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error updating deal %s", deal_id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
     if not deal:
         raise HTTPException(status_code=403, detail="Access denied: your company is not buyer or seller of this deal")
@@ -609,6 +620,11 @@ async def create_new_deal_version(
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except BuyerOrderUpdateForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.exception("Error creating deal version %s", deal_id)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
     if not new_version_deal:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return new_version_deal
@@ -792,16 +808,18 @@ async def upload_document(
     from app.core.s3 import upload_document as s3_upload_document
 
     try:
-        file_path = s3_upload_document(
-            deal_id=deal_id,
-            filename=file.filename or "document",
-            content=content,
-            content_type=file.content_type,
+        file_path = await asyncio.to_thread(
+            s3_upload_document,
+            deal_id,
+            file.filename or "document",
+            content,
+            file.content_type,
         )
     except Exception as e:
+        logger.exception("S3 upload failed for deal %s", deal_id)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to upload file to storage: {e!s}",
+            detail="Failed to upload file to storage",
         ) from e
 
     from app.api.purchases.schemas import DocumentUpload
@@ -812,16 +830,17 @@ async def upload_document(
         document_number=document_number if document_number and str(document_number).strip() else None,
         document_date=datetime.fromisoformat(document_date) if document_date else None,
         description=description,
+        original_filename=(file.filename or "").strip() or None,
     )
     try:
         document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     except Exception as e:
-        logger.exception("Failed to add document to deal %s: %s", deal_id, e)
+        logger.exception("Failed to add document to deal %s", deal_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add document: {e!s}",
+            detail="Failed to add document",
         ) from e
     if not document:
         raise HTTPException(status_code=400, detail="Failed to add document")
@@ -858,6 +877,11 @@ async def get_documents(
             document_number=doc.document_number if doc.document_number != "-" else None,
             document_date=doc.document_date.isoformat() if doc.document_date else None,
             document_file_path=doc.document_file_path,
+            original_filename=(
+                (doc.document_content or {}).get("original_filename")
+                if isinstance(doc.document_content, dict)
+                else None
+            ),
             created_at=doc.created_at.isoformat() if doc.created_at else "",
             updated_at=doc.updated_at.isoformat() if doc.updated_at else "",
         )
@@ -883,7 +907,7 @@ async def _serve_deal_docx(
 	context = build_deal_docx_context(deal)
 	template_path = resolve_docx_template_path(template_filename)
 	try:
-		content = render_docx_bytes(template_path, context)
+		content = await asyncio.to_thread(render_docx_bytes, template_path, context)
 	except FileNotFoundError:
 		logger.exception("Missing DOCX template: %s", template_path)
 		raise HTTPException(
@@ -1047,7 +1071,7 @@ async def _serve_deal_pdf(
 	context = build_deal_docx_context(deal)
 	template_path = resolve_docx_template_path(template_filename)
 	try:
-		docx_bytes = render_docx_bytes(template_path, context)
+		docx_bytes = await asyncio.to_thread(render_docx_bytes, template_path, context)
 	except FileNotFoundError:
 		logger.exception("Missing DOCX template: %s", template_path)
 		raise HTTPException(
@@ -1060,6 +1084,11 @@ async def _serve_deal_pdf(
 			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 			detail=f"DOCX template render error ({template_filename}): {exc}",
 		) from None
+	# Gotenberg может идти десятки секунд — не держим DB-соединение (idle timeout).
+	session = deal_service.session
+	if session.is_active:
+		await session.commit()
+	await session.close()
 	try:
 		pdf_bytes = await convert_docx_bytes_to_pdf(
 			docx_bytes,
@@ -1258,7 +1287,7 @@ async def download_document(
 
     from app.core.s3 import get_presigned_download_url
 
-    url = get_presigned_download_url(doc.document_file_path)
+    url = await asyncio.to_thread(get_presigned_download_url, doc.document_file_path)
     if redirect:
         return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
     return {"url": url}
@@ -1274,6 +1303,7 @@ async def delete_document(
     document_id: int,
     current_user: Annotated[User, Depends(get_current_user)] = ...,
     deal_service: deal_service_dep_annotated = ...,
+    background_tasks: BackgroundTasks = ...,
 ):
     """Удалить документ (файл в S3 и запись в БД)."""
     company = await deal_service.get_company_by_user_id(current_user.id)
@@ -1287,19 +1317,23 @@ async def delete_document(
     doc = await deal_service.get_document(deal_id, document_id, company.id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if settings.S3_ENABLED and doc.document_file_path:
-        from app.core.s3 import delete_document as s3_delete_document
-
-        try:
-            s3_delete_document(doc.document_file_path)
-        except Exception:
-            pass
+    s3_key = doc.document_file_path if settings.S3_ENABLED else None
     try:
         deleted = await deal_service.delete_document(deal_id, document_id, company.id)
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not deleted:
         raise HTTPException(status_code=404, detail="Document not found")
+    if s3_key:
+        from app.core.s3 import delete_document as s3_delete_document
+
+        def _s3_delete_quiet(key: str) -> None:
+            try:
+                s3_delete_document(key)
+            except Exception:
+                logger.warning("S3 delete failed for key=%s", key, exc_info=True)
+
+        background_tasks.add_task(_s3_delete_quiet, s3_key)
 
 
 @router.post(
@@ -1367,6 +1401,381 @@ async def create_transport_contract(
     if not result:
         raise HTTPException(status_code=404, detail="Deal not found or access denied")
     return TransportContractResponse(number=result[0], date=result[1])
+
+
+@router.get(
+	"/transport-documents",
+	response_model=TransportDocumentListResponse,
+	tags=["transport"],
+	summary="Список рамочных договоров перевозки/экспедиции по организации (§1.2)",
+)
+async def list_transport_documents(
+	carrier_company_id: int = Query(..., gt=0),
+	doc_type: str = Query(
+		...,
+		description="carriage_contract | expedition_contract",
+	),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentValidationError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.list_for_picker(
+			company.id,
+			carrier_company_id=carrier_company_id,
+			doc_type=doc_type,
+		)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+
+
+@router.get(
+	"/transport-documents/next-number",
+	response_model=TransportDocumentNextNumberResponse,
+	tags=["transport"],
+	summary="Следующий номер документа перевозки (§1.2)",
+)
+async def get_transport_document_next_number(
+	doc_type: str = Query(...),
+	carrier_company_id: int = Query(..., gt=0),
+	parent_id: Optional[int] = Query(None, gt=0),
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentValidationError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.get_next_number(
+			company.id,
+			doc_type=doc_type,
+			carrier_company_id=carrier_company_id,
+			parent_id=parent_id,
+		)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+
+
+@router.post(
+	"/transport-documents",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Создать документ перевозки / экспедиции (§1.2)",
+)
+async def create_transport_document(
+	body: TransportDocumentCreate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import (
+		TransportDocumentDuplicateError,
+		TransportDocumentValidationError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.create(company.id, body)
+	except TransportDocumentValidationError as exc:
+		raise HTTPException(status_code=400, detail=exc.message) from exc
+	except TransportDocumentDuplicateError as exc:
+		raise HTTPException(status_code=409, detail=exc.message) from exc
+
+
+@router.get(
+	"/transport-documents/{document_id}",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Документ перевозки по id (§1.2)",
+)
+async def get_transport_document(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.get(document_id, company.id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+async def _render_transport_document_docx(
+	document_id: int,
+	current_user: User,
+	deal_service: DealService,
+	transport_document_service,
+) -> tuple[bytes, str, str]:
+	"""Доступ как у GET; возвращает (docx_bytes, attachment_stem, doc_type)."""
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		doc = await transport_document_service.get(document_id, company.id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+	parent_number: Optional[str] = None
+	parent_date = None
+	if doc.parent_id:
+		try:
+			parent = await transport_document_service.get(doc.parent_id, company.id)
+			parent_number = parent.number
+			parent_date = parent.date
+		except TransportDocumentAccessError:
+			parent_number = None
+			parent_date = None
+
+	doc_type = str(doc.doc_type)
+	content = await asyncio.to_thread(
+		build_transport_document_docx_bytes,
+		doc_type=doc_type,
+		number=doc.number,
+		date=doc.date,
+		payload_json=doc.payload_json if isinstance(doc.payload_json, dict) else None,
+		parent_number=parent_number,
+		parent_date=parent_date,
+	)
+	stem = f"{doc_type}-{doc.id}"
+	return content, stem, doc_type
+
+
+@router.get(
+	"/transport-documents/{document_id}/document.docx",
+	tags=["transport", "documents", "docx", "generated"],
+	summary="Скачать бланк перевозки (.docx) из payload_json",
+	description=(
+		"Доступ как у GET /transport-documents/{id}. "
+		"DOCX собирается python-docx из payload_json (7 типов бланков)."
+	),
+	responses={
+		200: _OPENAPI_DOCX_BINARY,
+		404: {"description": "Компания или документ не найдены / нет доступа"},
+	},
+)
+async def download_transport_document_docx(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	content, stem, _doc_type = await _render_transport_document_docx(
+		document_id,
+		current_user,
+		deal_service,
+		transport_document_service,
+	)
+	filename = f"{stem}.docx"
+	return Response(
+		content=content,
+		media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.get(
+	"/transport-documents/{document_id}/document.pdf",
+	tags=["transport", "documents", "pdf", "generated"],
+	summary="Скачать бланк перевозки (.pdf) через Gotenberg",
+	description=(
+		"Тот же DOCX из payload_json, затем Gotenberg `/forms/libreoffice/convert`. "
+		"Нужен `GOTENBERG_URL`. Доступ как у GET документа."
+	),
+	responses={
+		200: _OPENAPI_PDF_BINARY,
+		404: {"description": "Компания или документ не найдены / нет доступа"},
+		413: {"description": "DOCX превышает GOTENBERG_MAX_DOCX_BYTES"},
+		502: {"description": "Gotenberg недоступен или ошибка конвертации"},
+		503: {"description": "Не задан GOTENBERG_URL — выдача PDF отключена"},
+	},
+)
+async def download_transport_document_pdf(
+	document_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	if not (settings.GOTENBERG_URL and str(settings.GOTENBERG_URL).strip()):
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		)
+	docx_bytes, stem, _doc_type = await _render_transport_document_docx(
+		document_id,
+		current_user,
+		deal_service,
+		transport_document_service,
+	)
+	# Gotenberg может идти десятки секунд — не держим DB-соединение (idle timeout).
+	session = transport_document_service.session
+	if session.is_active:
+		await session.commit()
+	await session.close()
+	try:
+		pdf_bytes = await convert_docx_bytes_to_pdf(
+			docx_bytes,
+			source_filename=f"{stem}.docx",
+		)
+	except PdfConversionNotConfiguredError:
+		raise HTTPException(
+			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+			detail="PDF conversion is not configured (set GOTENBERG_URL)",
+		) from None
+	except PdfConversionFailedError:
+		logger.exception(
+			"Gotenberg PDF conversion failed for transport_document %s", document_id
+		)
+		raise HTTPException(
+			status_code=status.HTTP_502_BAD_GATEWAY,
+			detail="PDF conversion failed",
+		) from None
+	except ValueError as e:
+		raise HTTPException(
+			status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(e)
+		) from e
+	filename = f"{stem}.pdf"
+	return Response(
+		content=pdf_bytes,
+		media_type="application/pdf",
+		headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+	)
+
+
+@router.patch(
+	"/transport-documents/{document_id}",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Обновить бланк документа перевозки (§2)",
+)
+async def update_transport_document(
+	document_id: int,
+	body: TransportDocumentUpdate,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import (
+		TransportDocumentAccessError,
+		TransportDocumentDuplicateError,
+		TransportDocumentValidationError,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.update(document_id, company.id, body)
+	except TransportDocumentAccessError as e:
+		raise HTTPException(status_code=404, detail=e.message) from e
+	except TransportDocumentValidationError as e:
+		raise HTTPException(status_code=400, detail=e.message) from e
+	except TransportDocumentDuplicateError as e:
+		raise HTTPException(status_code=409, detail=e.message) from e
+
+
+@router.post(
+	"/deals/{deal_id}/transport-documents/bind",
+	response_model=TransportDocumentResponse,
+	tags=["transport"],
+	summary="Привязать документ перевозки к сделке (§1.2)",
+)
+async def bind_transport_document_to_deal(
+	deal_id: int,
+	body: TransportDocumentBindRequest,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.bind_to_deal(company.id, deal_id, body)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=403, detail=exc.message) from exc
+
+
+@router.get(
+	"/deals/{deal_id}/transport-documents",
+	response_model=TransportDocumentListResponse,
+	tags=["transport"],
+	summary="Документы перевозки, привязанные к сделке (§1.2)",
+)
+async def list_deal_transport_documents(
+	deal_id: int,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	transport_document_service: transport_document_service_dep_annotated = ...,
+):
+	from app.api.purchases.services.transport_document import TransportDocumentAccessError
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	try:
+		return await transport_document_service.list_for_deal(company.id, deal_id)
+	except TransportDocumentAccessError as exc:
+		raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+@router.get(
+	"/deals/{deal_id}/fill-addresses",
+	tags=["transport"],
+	summary="Адреса заполнения стороны сделки (§5.1 п.11 — места приёма покупателя)",
+)
+async def list_deal_fill_addresses(
+	deal_id: int,
+	db: async_db_dep,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	party: Literal["buyer", "seller"] = Query("buyer"),
+	kind: Literal["loading", "receiving"] = Query("receiving"),
+):
+	"""Доступно участникам сделки: адреса ЛК покупателя/продавца для строгих бланков."""
+	from app.api.company.models.fill_address import FillAddressKind
+	from app.api.company.repositories.fill_address_repository import (
+		CompanyFillAddressRepository,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	order = await deal_service.repository.get_order_by_id(deal_id, company.id)
+	if not order:
+		raise HTTPException(status_code=404, detail="Deal not found")
+	target_id = order.buyer_company_id if party == "buyer" else order.seller_company_id
+	kind_enum = FillAddressKind.RECEIVING if kind == "receiving" else FillAddressKind.LOADING
+	repo = CompanyFillAddressRepository(db)
+	rows = await repo.list_by_company(target_id, kind=kind_enum)
+	return [
+		{
+			"id": r.id,
+			"company_id": r.company_id,
+			"kind": r.kind.value if hasattr(r.kind, "value") else str(r.kind),
+			"address": r.address,
+			"is_default": bool(r.is_default),
+		}
+		for r in rows
+	]
 
 
 @router.post(
@@ -1485,13 +1894,15 @@ async def create_supply_contract(
 async def create_order_from_checkout(
     checkout_data: CheckoutRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: deal_service_dep_annotated
+    deal_service: deal_service_dep_annotated,
+    background_tasks: BackgroundTasks,
 ):
     """
     Создание заказов из корзины
 
     Группирует позиции по продавцам и типу (товары / услуги),
     создаёт отдельный заказ на каждую группу.
+    Уведомление продавца в чате — в BackgroundTasks (не блокирует ответ).
     """
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
@@ -1502,13 +1913,29 @@ async def create_order_from_checkout(
         "comments": checkout_data.comments
     }
 
-    deals = await deal_service.create_deals_from_checkout(
-        checkout_dict,
-        company.id,
-        buyer_user_id=current_user.id,
-    )
+    try:
+        deals, pending_notifies = await deal_service.create_deals_from_checkout(
+            checkout_dict,
+            company.id,
+            buyer_user_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Checkout failed for company %s", company.id)
+        raise HTTPException(status_code=500, detail="Failed to create order from checkout") from e
     if not deals:
         raise HTTPException(status_code=400, detail="Failed to create order from checkout")
+
+    # Коммитим заказы до фона: BackgroundTasks открывают свою сессию.
+    if deal_service.session.is_active:
+        await deal_service.session.commit()
+
+    if pending_notifies:
+        from app.api.purchases.tasks import run_checkout_seller_notify
+
+        for payload in pending_notifies:
+            background_tasks.add_task(run_checkout_seller_notify, **payload)
 
     return CheckoutResponse(deals=deals)
 

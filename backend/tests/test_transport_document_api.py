@@ -272,6 +272,32 @@ async def test_transport_document_create_list_bind_application():
 				"/api/v1/purchases/transport-documents/999999999/document.docx"
 			)
 			assert missing.status_code == 404
+
+			# create с deal_id сам пишет dual-write (без отдельного bind)
+			async with AsyncSessionLocal() as session:
+				order_row = await session.get(Order, order_row_id)
+				assert order_row is not None
+				order_row.transport_contract = None
+				await session.commit()
+
+			created_on_deal = await client.post(
+				"/api/v1/purchases/transport-documents",
+				json={
+					"doc_type": "carriage_order",
+					"carrier_company_id": carrier_id,
+					"deal_id": deal_id,
+					"number": "000002",
+				},
+			)
+			assert created_on_deal.status_code == 200, created_on_deal.text
+			deal_after_create = await client.get(f"/api/v1/purchases/deals/{deal_id}")
+			assert deal_after_create.status_code == 200, deal_after_create.text
+			tc_after = deal_after_create.json().get("transport_contract") or {}
+			assert tc_after.get("documents"), "create+deal_id должен заполнить transport_contract"
+			assert any(
+				d.get("id") == created_on_deal.json()["id"]
+				for d in (tc_after.get("documents") or [])
+			)
 	finally:
 		app.dependency_overrides.pop(get_current_user, None)
 		async with AsyncSessionLocal() as session:

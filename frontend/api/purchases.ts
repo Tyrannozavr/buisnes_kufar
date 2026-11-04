@@ -254,6 +254,21 @@ export const usePurchasesApi = () => {
 		)
 	}
 
+	const listDealFillAddresses = async (
+		dealId: number,
+		params?: { party?: 'buyer' | 'seller'; kind?: 'loading' | 'receiving' },
+	): Promise<Array<{ id: number; company_id: number; kind: string; address: string; is_default: boolean }>> => {
+		return await $api.get(
+			normalizeApiPath(API_URLS.GET_DEAL_FILL_ADDRESSES(dealId)),
+			{
+				query: {
+					party: params?.party || 'buyer',
+					kind: params?.kind || 'receiving',
+				},
+			},
+		)
+	}
+
 	const getTransportDocument = async (
 		documentId: number,
 	): Promise<TransportDocumentItem> => {
@@ -678,6 +693,7 @@ export const usePurchasesApi = () => {
 		createTransportDocument,
 		bindTransportDocument,
 		listDealTransportDocuments,
+		listDealFillAddresses,
 		getTransportDocument,
 		updateTransportDocument,
 		listMyCarriers,

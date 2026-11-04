@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { normalizeDate } from '~/utils/normalize'
 import { formatLegalAddressForParty } from '~/utils/companyPartyLine'
 import { useCarriageContractBlank } from '~/composables/useCarriageContractBlank'
 import { sanitizeRichHtml } from '~/utils/sanitizeRichHtml'
+import YellowDateField from '~/components/ui/YellowDateField.vue'
 
 /**
  * А4 бланк «Договор перевозки грузов» (§2).
@@ -80,15 +80,11 @@ watch(
 					/>
 				</span>
 				<span>
-					<input
+					<YellowDateField
 						v-model="dateIso"
-						type="date"
 						:disabled="isDisabled"
-						:class="yellowInputClass"
 						aria-label="Дата договора"
 					/>
-					<span v-if="dateIso" class="ml-1">г.</span>
-					<span v-else class="ml-1 text-neutral-400">«____» _______________ 20____г.</span>
 				</span>
 			</div>
 
@@ -254,7 +250,13 @@ watch(
 						<p>БИК {{ customer.bic }}</p>
 						<p class="mt-3">________________ / {{ customer.officialName || '____________' }} /</p>
 						<p>М.П.</p>
-						<p class="text-neutral-500 text-xs">{{ normalizeDate(dateIso) ? `${normalizeDate(dateIso)} г.` : '' }}</p>
+						<p class="text-xs mt-1">
+							<YellowDateField
+								v-model="dateIso"
+								:disabled="isDisabled"
+								aria-label="Дата договора (заказчик)"
+							/>
+						</p>
 					</td>
 					<td v-if="carrierDetailsCheck" class="pl-2">
 						<p class="font-bold">{{ carrier.fullName || '—' }}</p>
@@ -266,7 +268,13 @@ watch(
 						<p>БИК {{ carrier.bic }}</p>
 						<p class="mt-3">________________ / {{ carrier.officialName || '____________' }} /</p>
 						<p>М.П.</p>
-						<p class="text-neutral-500 text-xs">{{ normalizeDate(dateIso) ? `${normalizeDate(dateIso)} г.` : '' }}</p>
+						<p class="text-xs mt-1">
+							<YellowDateField
+								v-model="dateIso"
+								:disabled="isDisabled"
+								aria-label="Дата договора (перевозчик)"
+							/>
+						</p>
 					</td>
 				</tr>
 			</table>

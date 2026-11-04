@@ -65,6 +65,15 @@ const carriageApplicationSlotRevision = useTypedState(
 	Editor.CARRIAGE_APPLICATION_SLOT_REVISION,
 	() => ref(0),
 )
+const carriageOrderSlotRevision = useTypedState(Editor.CARRIAGE_ORDER_SLOT_REVISION, () => ref(0))
+const expeditionContractSlotRevision = useTypedState(
+	Editor.EXPEDITION_CONTRACT_SLOT_REVISION,
+	() => ref(0),
+)
+const strictExpeditionSlotRevision = useTypedState(
+	Editor.STRICT_EXPEDITION_SLOT_REVISION,
+	() => ref(0),
+)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const fillHtmlContentFromSlot = () => {
@@ -89,6 +98,9 @@ watch(
 		supplyContractSlotRevision,
 		carriageContractSlotRevision,
 		carriageApplicationSlotRevision,
+		carriageOrderSlotRevision,
+		expeditionContractSlotRevision,
+		strictExpeditionSlotRevision,
 		isDisabled,
 	],
 	() => {

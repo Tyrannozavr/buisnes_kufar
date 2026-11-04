@@ -98,6 +98,21 @@ async def test_numbering_framework_application_order():
 				doc_type=TransportDocumentType.CARRIAGE_ORDER,
 			)
 			assert order_n == "000001"
+			await repo.create(
+				owner_company_id=owner.id,
+				carrier_company_id=carrier.id,
+				doc_type=TransportDocumentType.CARRIAGE_ORDER,
+				number="000001",
+				date=datetime(2025, 5, 1),
+			)
+			await session.flush()
+			# Номер прошлого года тоже учитываем — иначе 409 с uq без года
+			order_n2 = await repo.generate_next_number(
+				owner_company_id=owner.id,
+				carrier_company_id=carrier.id,
+				doc_type=TransportDocumentType.CARRIAGE_ORDER,
+			)
+			assert order_n2 == "000002"
 			await session.commit()
 	finally:
 		if owner_id and carrier_id:

@@ -1581,6 +1581,47 @@ async def list_deal_transport_documents(
 		raise HTTPException(status_code=404, detail=exc.message) from exc
 
 
+@router.get(
+	"/deals/{deal_id}/fill-addresses",
+	tags=["transport"],
+	summary="Адреса заполнения стороны сделки (§5.1 п.11 — места приёма покупателя)",
+)
+async def list_deal_fill_addresses(
+	deal_id: int,
+	db: async_db_dep,
+	current_user: Annotated[User, Depends(get_current_user)] = ...,
+	deal_service: deal_service_dep_annotated = ...,
+	party: Literal["buyer", "seller"] = Query("buyer"),
+	kind: Literal["loading", "receiving"] = Query("receiving"),
+):
+	"""Доступно участникам сделки: адреса ЛК покупателя/продавца для строгих бланков."""
+	from app.api.company.models.fill_address import FillAddressKind
+	from app.api.company.repositories.fill_address_repository import (
+		CompanyFillAddressRepository,
+	)
+
+	company = await deal_service.get_company_by_user_id(current_user.id)
+	if not company:
+		raise HTTPException(status_code=404, detail="Company not found for this user")
+	order = await deal_service.repository.get_order_by_id(deal_id, company.id)
+	if not order:
+		raise HTTPException(status_code=404, detail="Deal not found")
+	target_id = order.buyer_company_id if party == "buyer" else order.seller_company_id
+	kind_enum = FillAddressKind.RECEIVING if kind == "receiving" else FillAddressKind.LOADING
+	repo = CompanyFillAddressRepository(db)
+	rows = await repo.list_by_company(target_id, kind=kind_enum)
+	return [
+		{
+			"id": r.id,
+			"company_id": r.company_id,
+			"kind": r.kind.value if hasattr(r.kind, "value") else str(r.kind),
+			"address": r.address,
+			"is_default": bool(r.is_default),
+		}
+		for r in rows
+	]
+
+
 @router.post(
     "/deals/{deal_id}/closing-document",
     response_model=ClosingDocumentResponse,

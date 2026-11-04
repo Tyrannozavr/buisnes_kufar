@@ -16,6 +16,11 @@ export type ScanDocumentType =
 	| "supply_contract"
 	| "contract"
 	| "carriage_application"
+	| "carriage_order"
+	| "expedition_contract"
+	| "forwarder_assignment"
+	| "forwarder_receipt"
+	| "warehouse_receipt"
 
 /**
  * Получает id компании и номер заказа контрагента
@@ -68,6 +73,16 @@ const scanDocLabel = (documentType: ScanDocumentType): string => {
 			return "договора перевозки"
 		case "carriage_application":
 			return "заявки к договору перевозки"
+		case "carriage_order":
+			return "договора-заявки"
+		case "expedition_contract":
+			return "договора транспортной экспедиции"
+		case "forwarder_assignment":
+			return "поручения экспедитору"
+		case "forwarder_receipt":
+			return "экспедиторской расписки"
+		case "warehouse_receipt":
+			return "складской расписки"
 		default:
 			return "документа"
 	}
@@ -76,7 +91,15 @@ const scanDocLabel = (documentType: ScanDocumentType): string => {
 const scanEditorTab = (documentType: ScanDocumentType): EditorDocumentTab => {
 	if (documentType === "order") return "order"
 	if (documentType === "supply_contract") return "supply_contract"
-	if (documentType === "contract" || documentType === "carriage_application") {
+	if (
+		documentType === "contract" ||
+		documentType === "carriage_application" ||
+		documentType === "carriage_order" ||
+		documentType === "expedition_contract" ||
+		documentType === "forwarder_assignment" ||
+		documentType === "forwarder_receipt" ||
+		documentType === "warehouse_receipt"
+	) {
 		return "contract"
 	}
 	return "bill"

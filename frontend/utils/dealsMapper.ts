@@ -162,6 +162,7 @@ export const responseToDeal = (dealResponse: DealResponse): Deal => {
 			productList: dealResponse.items.map((item: ProductItemResponse) => ({
 				name: item.product_name,
 				article: item.product_article ?? "",
+				slug: item.product_slug ?? "",
 				quantity: item.quantity,
 				units: item.unit_of_measurement ?? "",
 				price: item.price,

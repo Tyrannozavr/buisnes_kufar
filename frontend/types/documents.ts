@@ -6,6 +6,11 @@ export type DocumentTypeResponse =
 	| "supply_contract"
 	| "contract"
 	| "carriage_application"
+	| "carriage_order"
+	| "expedition_contract"
+	| "forwarder_assignment"
+	| "forwarder_receipt"
+	| "warehouse_receipt"
 	| "other"
 	| "act"
 

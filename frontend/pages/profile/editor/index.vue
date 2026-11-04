@@ -99,6 +99,27 @@
 						<CarriageApplication
 							v-if="String(route.query.transportDocType || '') === 'carriage_application'"
 						/>
+						<CarriageOrder
+							v-else-if="String(route.query.transportDocType || '') === 'carriage_order'"
+						/>
+						<ExpeditionContract
+							v-else-if="
+								String(route.query.transportDocType || '') === 'expedition_contract' ||
+								String(route.query.transportDocType || '') === 'transport_expedition'
+							"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'forwarder_assignment'"
+							doc-type="forwarder_assignment"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'forwarder_receipt'"
+							doc-type="forwarder_receipt"
+						/>
+						<StrictExpeditionBlank
+							v-else-if="String(route.query.transportDocType || '') === 'warehouse_receipt'"
+							doc-type="warehouse_receipt"
+						/>
 						<CarriageContract v-else />
 					</A4Page>
 				</template>
@@ -136,6 +157,9 @@ import Bill from '~/components/templates/Bill/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract/SupplyContract.vue'
 import CarriageContract from '~/components/templates/CarriageContract/CarriageContract.vue'
 import CarriageApplication from '~/components/templates/CarriageApplication/CarriageApplication.vue'
+import CarriageOrder from '~/components/templates/CarriageOrder/CarriageOrder.vue'
+import ExpeditionContract from '~/components/templates/ExpeditionContract/ExpeditionContract.vue'
+import StrictExpeditionBlank from '~/components/templates/StrictExpedition/StrictExpeditionBlank.vue'
 import Order from '~/components/templates/Order.vue'
 import AccompanyingDocuments from '~/components/templates/AccompanyingDocuments.vue'
 import EditorMenu from '~/components/EditorMenu/index.vue'

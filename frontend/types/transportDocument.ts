@@ -27,7 +27,7 @@ export const TRANSPORT_DOCUMENT_SHORT_LABELS: Record<TransportDocumentType, stri
 	carriage_contract: 'Договор перевозки',
 	carriage_application: 'Заявка',
 	carriage_order: 'Договор-заявка',
-	expedition_contract: 'Договор экспедиции',
+	expedition_contract: 'Договор транспортной экспедиции',
 	forwarder_assignment: 'Поручение',
 	forwarder_receipt: 'Эксп. расписка',
 	warehouse_receipt: 'Склад. расписка',

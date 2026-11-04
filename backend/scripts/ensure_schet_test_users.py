@@ -685,7 +685,7 @@ async def ensure_transport_documents(
     owner_company_id: int,
     carrier_company_id: int,
 ) -> None:
-    """§1.2 / §3 — демо договор №999 и заявка №1 к нему."""
+    """§1.2 / §3 / §4 — демо договор №999, заявка, договор-заявка, экспедиция."""
     existing = (
         await session.execute(
             select(TransportDocument).where(
@@ -725,19 +725,108 @@ async def ensure_transport_documents(
         print(
             f"  transport_document carriage_application №1 already exists id={app_existing.id}"
         )
-        return
-    app = TransportDocument(
-        owner_company_id=owner_company_id,
-        carrier_company_id=carrier_company_id,
-        doc_type=TransportDocumentType.CARRIAGE_APPLICATION,
-        number="1",
-        date=datetime(2025, 4, 9),
-        parent_id=parent.id,
-    )
-    session.add(app)
-    await session.commit()
-    await session.refresh(app)
-    print(f"  transport_document CREATED: carriage_application №1 id={app.id} parent={parent.id}")
+    else:
+        app = TransportDocument(
+            owner_company_id=owner_company_id,
+            carrier_company_id=carrier_company_id,
+            doc_type=TransportDocumentType.CARRIAGE_APPLICATION,
+            number="1",
+            date=datetime(2025, 4, 9),
+            parent_id=parent.id,
+        )
+        session.add(app)
+        await session.commit()
+        await session.refresh(app)
+        print(f"  transport_document CREATED: carriage_application №1 id={app.id} parent={parent.id}")
+
+    order_existing = (
+        await session.execute(
+            select(TransportDocument).where(
+                TransportDocument.owner_company_id == owner_company_id,
+                TransportDocument.carrier_company_id == carrier_company_id,
+                TransportDocument.doc_type == TransportDocumentType.CARRIAGE_ORDER,
+                TransportDocument.number == "000001",
+            )
+        )
+    ).scalar_one_or_none()
+    if order_existing:
+        print(
+            f"  transport_document carriage_order №000001 already exists id={order_existing.id}"
+        )
+    else:
+        order_doc = TransportDocument(
+            owner_company_id=owner_company_id,
+            carrier_company_id=carrier_company_id,
+            doc_type=TransportDocumentType.CARRIAGE_ORDER,
+            number="000001",
+            date=datetime(2025, 5, 1),
+        )
+        session.add(order_doc)
+        await session.commit()
+        await session.refresh(order_doc)
+        print(f"  transport_document CREATED: carriage_order №000001 id={order_doc.id}")
+
+    exp_existing = (
+        await session.execute(
+            select(TransportDocument).where(
+                TransportDocument.owner_company_id == owner_company_id,
+                TransportDocument.carrier_company_id == carrier_company_id,
+                TransportDocument.doc_type == TransportDocumentType.EXPEDITION_CONTRACT,
+                TransportDocument.number == "00001",
+            )
+        )
+    ).scalar_one_or_none()
+    if exp_existing:
+        print(
+            f"  transport_document expedition_contract №00001 already exists id={exp_existing.id}"
+        )
+        exp = exp_existing
+    else:
+        exp = TransportDocument(
+            owner_company_id=owner_company_id,
+            carrier_company_id=carrier_company_id,
+            doc_type=TransportDocumentType.EXPEDITION_CONTRACT,
+            number="00001",
+            date=datetime(2025, 5, 15),
+        )
+        session.add(exp)
+        await session.commit()
+        await session.refresh(exp)
+        print(f"  transport_document CREATED: expedition_contract №00001 id={exp.id}")
+
+    for child_type, child_number, child_date in (
+        (TransportDocumentType.FORWARDER_ASSIGNMENT, "1", datetime(2025, 5, 16)),
+        (TransportDocumentType.FORWARDER_RECEIPT, "1", datetime(2025, 5, 17)),
+        (TransportDocumentType.WAREHOUSE_RECEIPT, "1", datetime(2025, 5, 18)),
+    ):
+        child_existing = (
+            await session.execute(
+                select(TransportDocument).where(
+                    TransportDocument.parent_id == exp.id,
+                    TransportDocument.doc_type == child_type,
+                    TransportDocument.number == child_number,
+                )
+            )
+        ).scalar_one_or_none()
+        if child_existing:
+            print(
+                f"  transport_document {child_type.value} №{child_number} already exists id={child_existing.id}"
+            )
+            continue
+        child = TransportDocument(
+            owner_company_id=owner_company_id,
+            carrier_company_id=carrier_company_id,
+            doc_type=child_type,
+            number=child_number,
+            date=child_date,
+            parent_id=exp.id,
+        )
+        session.add(child)
+        await session.commit()
+        await session.refresh(child)
+        print(
+            f"  transport_document CREATED: {child_type.value} №{child_number} id={child.id} parent={exp.id}"
+        )
 
 
 async def ensure_company_contracts(

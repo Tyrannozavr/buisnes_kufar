@@ -21,6 +21,9 @@ export const API_URLS = {
 		`/api/v1/purchases/deals/${deal_id}/transport-documents/bind`,
 	GET_DEAL_TRANSPORT_DOCUMENTS: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/transport-documents`,
+	/** §5.1 — адреса ЛК стороны сделки (места приёма покупателя и т.п.) */
+	GET_DEAL_FILL_ADDRESSES: (deal_id: number) =>
+		`/api/v1/purchases/deals/${deal_id}/fill-addresses`,
 	CREATE_CLOSING_DOCUMENT: (deal_id: number) =>
 		`/api/v1/purchases/deals/${deal_id}/closing-document`,
 	GET_MY_CARRIERS: "/api/v1/company/me/carriers",

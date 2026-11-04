@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveTransportDocFlow } from '~/utils/transportDocumentFlow'
+import { resolveTransportDocFlow } from './transportDocumentFlow'
 
 describe('resolveTransportDocFlow §1.3', () => {
 	it('без перевозчиков → alert и закрытие', () => {

@@ -82,6 +82,27 @@
 					<CarriageApplicationMenu
 						v-if="String(route.query.transportDocType || '') === 'carriage_application'"
 					/>
+					<CarriageOrderMenu
+						v-else-if="String(route.query.transportDocType || '') === 'carriage_order'"
+					/>
+					<ExpeditionContractMenu
+						v-else-if="
+							String(route.query.transportDocType || '') === 'expedition_contract' ||
+							String(route.query.transportDocType || '') === 'transport_expedition'
+						"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'forwarder_assignment'"
+						doc-type="forwarder_assignment"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'forwarder_receipt'"
+						doc-type="forwarder_receipt"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'warehouse_receipt'"
+						doc-type="warehouse_receipt"
+					/>
 					<CarriageContractMenu v-else />
 				</div>
 
@@ -312,12 +333,19 @@
 import SupplyContractMenu from "./SupplyContractMenu.vue"
 import CarriageContractMenu from "./CarriageContractMenu.vue"
 import CarriageApplicationMenu from "./CarriageApplicationMenu.vue"
+import CarriageOrderMenu from "./CarriageOrderMenu.vue"
+import ExpeditionContractMenu from "./ExpeditionContractMenu.vue"
+import StrictExpeditionMenu from "./StrictExpeditionMenu.vue"
 import InsertButtons from "./InsertButtons.vue"
 import OrderMenu from "./OrderMenu.vue"
 import BillMenu from "./BillMenu.vue"
 import DealDocumentScans from "./DealDocumentScans.vue"
 import { useCarriageContractBlank } from "~/composables/useCarriageContractBlank"
 import { useCarriageApplicationBlank } from "~/composables/useCarriageApplicationBlank"
+import { useCarriageOrderBlank } from "~/composables/useCarriageOrderBlank"
+import { useExpeditionContractBlank } from "~/composables/useExpeditionContractBlank"
+import { useStrictExpeditionBlank } from "~/composables/useStrictExpeditionBlank"
+import { isStrictExpeditionType } from "~/utils/strictExpeditionDefaults"
 import { useDocxGenerator } from "~/composables/useDocxGenerator"
 import { usePdfGenerator } from "~/composables/usePdfGenerator"
 import { useSearch } from "~/composables/useSearch"
@@ -356,12 +384,26 @@ const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
 const { createNewDealVersion, refreshDealFromServer } = useDeals()
 
+const transportDocType = computed(() => String(route.query.transportDocType || ""))
+
 const scansDocumentType = computed(() => {
 	if (activeTab.value === "0") return "order" as const
 	if (activeTab.value === "2") return "supply_contract" as const
 	if (activeTab.value === "5") {
-		if (String(route.query.transportDocType || "") === "carriage_application") {
+		if (transportDocType.value === "carriage_application") {
 			return "carriage_application" as const
+		}
+		if (transportDocType.value === "carriage_order") {
+			return "carriage_order" as const
+		}
+		if (
+			transportDocType.value === "expedition_contract" ||
+			transportDocType.value === "transport_expedition"
+		) {
+			return "expedition_contract" as const
+		}
+		if (isStrictExpeditionType(transportDocType.value)) {
+			return transportDocType.value
 		}
 		return "contract" as const
 	}
@@ -373,9 +415,19 @@ const scansDocumentType = computed(() => {
 })
 
 const isCarriageApplicationTab = computed(
+	() => activeTab.value === "5" && transportDocType.value === "carriage_application",
+)
+const isCarriageOrderTab = computed(
+	() => activeTab.value === "5" && transportDocType.value === "carriage_order",
+)
+const isExpeditionContractTab = computed(
 	() =>
 		activeTab.value === "5" &&
-		String(route.query.transportDocType || "") === "carriage_application",
+		(transportDocType.value === "expedition_contract" ||
+			transportDocType.value === "transport_expedition"),
+)
+const isStrictExpeditionTab = computed(
+	() => activeTab.value === "5" && isStrictExpeditionType(transportDocType.value),
 )
 
 const {
@@ -387,6 +439,21 @@ const {
 	saveDocument: saveCarriageApplication,
 	resetBlank: resetCarriageApplication,
 } = useCarriageApplicationBlank()
+
+const {
+	saveDocument: saveCarriageOrder,
+	resetBlank: resetCarriageOrder,
+} = useCarriageOrderBlank()
+
+const {
+	saveDocument: saveExpeditionContract,
+	resetBlank: resetExpeditionContract,
+} = useExpeditionContractBlank()
+
+const {
+	saveDocument: saveStrictExpedition,
+	resetBlank: resetStrictExpedition,
+} = useStrictExpeditionBlank()
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -455,10 +522,17 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 			return
 		}
 		if (tab === "5") {
+			const title = isCarriageApplicationTab.value
+				? "DOC заявки к договору"
+				: isCarriageOrderTab.value
+					? "DOC договор-заявки"
+					: isExpeditionContractTab.value
+						? "DOC договора экспедиции"
+						: isStrictExpeditionTab.value
+							? "DOC бланка экспедиции"
+							: "DOC договора перевозки"
 			useToast().add({
-				title: isCarriageApplicationTab.value
-					? "DOC заявки к договору"
-					: "DOC договора перевозки",
+				title,
 				description: "Пока используйте «Печать» → «Сохранить как PDF». Шаблон DOC — следующим этапом.",
 				color: "warning",
 			})
@@ -505,10 +579,17 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 			return
 		}
 		if (tab === "5") {
+			const title = isCarriageApplicationTab.value
+				? "PDF заявки к договору"
+				: isCarriageOrderTab.value
+					? "PDF договор-заявки"
+					: isExpeditionContractTab.value
+						? "PDF договора экспедиции"
+						: isStrictExpeditionTab.value
+							? "PDF бланка экспедиции"
+							: "PDF договора перевозки"
 			useToast().add({
-				title: isCarriageApplicationTab.value
-					? "PDF заявки к договору"
-					: "PDF договора перевозки",
+				title,
 				description: "Используйте «Печать» → «Сохранить как PDF». Серверный шаблон — следующим этапом.",
 				color: "warning",
 			})
@@ -532,9 +613,14 @@ const resolvePrintRoot = (tab: string): HTMLElement | null => {
 	if (tab === "1") return billElement.value
 	if (tab === "2") return supplyContractPreviewElement.value
 	if (tab === "5") {
-		// Живой бланк §2 / §3 — не через useState(HTMLElement), а напрямую из DOM
+		// Живой бланк §2 / §3 / §4 — не через useState(HTMLElement), а напрямую из DOM
 		return (
 			(document.getElementById("carriageApplication") as HTMLElement | null) ||
+			(document.getElementById("carriageOrder") as HTMLElement | null) ||
+			(document.getElementById("expeditionContract") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-forwarder_assignment") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-forwarder_receipt") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-warehouse_receipt") as HTMLElement | null) ||
 			(document.getElementById("carriageContract") as HTMLElement | null) ||
 			supplyContractPreviewElement.value
 		)
@@ -604,6 +690,9 @@ const { applyClearState } = useClearState()
 const clearCurrentForm = (tab: string) => {
 	if (tab === "5") {
 		if (isCarriageApplicationTab.value) resetCarriageApplication()
+		else if (isCarriageOrderTab.value) resetCarriageOrder()
+		else if (isExpeditionContractTab.value) resetExpeditionContract()
+		else if (isStrictExpeditionTab.value) resetStrictExpedition()
 		else resetCarriageContract()
 		return
 	}
@@ -673,7 +762,13 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 		if (activeTab.value === "5") {
 			const ok = isCarriageApplicationTab.value
 				? await saveCarriageApplication()
-				: await saveCarriageContract()
+				: isCarriageOrderTab.value
+					? await saveCarriageOrder()
+					: isExpeditionContractTab.value
+						? await saveExpeditionContract()
+						: isStrictExpeditionTab.value
+							? await saveStrictExpedition()
+							: await saveCarriageContract()
 			if (!ok) return
 			isDisabled.value = true
 			return

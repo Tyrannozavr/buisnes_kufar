@@ -167,6 +167,17 @@ export function useCreateTransportDocumentFromSales() {
 		})
 	}
 
+	const apiErrorMessage = (err: unknown, fallback: string): string => {
+		const detail = (err as { data?: { detail?: unknown } })?.data?.detail
+		if (typeof detail === 'string' && detail.trim()) return detail.trim()
+		if (Array.isArray(detail) && detail.length) {
+			const first = detail[0] as { msg?: string }
+			if (first?.msg) return String(first.msg)
+		}
+		const msg = (err as { message?: string })?.message
+		return msg && msg !== 'FetchError' ? msg : fallback
+	}
+
 	const createChildOnDeal = async (
 		docType: TransportDocumentType,
 		parentId: number,
@@ -191,8 +202,12 @@ export function useCreateTransportDocumentFromSales() {
 				color: 'success',
 			})
 			await openEditorForTransport(dealId, docType, created.id)
-		} catch {
-			toast.add({ title: 'Не удалось создать документ', color: 'error' })
+		} catch (err) {
+			toast.add({
+				title: 'Не удалось создать документ',
+				description: apiErrorMessage(err, 'Попробуйте ещё раз'),
+				color: 'error',
+			})
 		} finally {
 			isBusy.value = false
 		}
@@ -284,15 +299,21 @@ export function useCreateTransportDocumentFromSales() {
 	const bindSelectedContract = async () => {
 		const dealId = pendingDealId.value
 		const contractId = selectedContractId.value
-		if (!dealId || !contractId) return
+		const docType = selectedDocType.value
+		if (!dealId || !contractId || !docType) return
 		isBusy.value = true
 		try {
 			await purchasesApi.bindTransportDocument(dealId, contractId)
 			await refreshDealLocal(dealId)
 			closeAll()
 			toast.add({ title: 'Договор привязан к заказу', color: 'success' })
-		} catch {
-			toast.add({ title: 'Не удалось привязать договор', color: 'error' })
+			await openEditorForTransport(dealId, docType, contractId)
+		} catch (err) {
+			toast.add({
+				title: 'Не удалось привязать договор',
+				description: apiErrorMessage(err, 'Попробуйте ещё раз'),
+				color: 'error',
+			})
 		} finally {
 			isBusy.value = false
 		}
@@ -319,8 +340,12 @@ export function useCreateTransportDocumentFromSales() {
 				color: 'success',
 			})
 			await openEditorForTransport(dealId, docType, created.id)
-		} catch {
-			toast.add({ title: 'Не удалось создать документ', color: 'error' })
+		} catch (err) {
+			toast.add({
+				title: 'Не удалось создать документ',
+				description: apiErrorMessage(err, 'Попробуйте ещё раз'),
+				color: 'error',
+			})
 		} finally {
 			isBusy.value = false
 		}

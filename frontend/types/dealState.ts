@@ -34,6 +34,7 @@ export interface Official {
 export interface ProductItem {
   name: string;
   article: string;
+  slug?: string;
   quantity: number;
   units: string;
   price: number;

@@ -126,49 +126,44 @@ class TransportDocumentRepository:
 		parent_id: Optional[int] = None,
 		year: Optional[int] = None,
 	) -> str:
-		"""Нумерация по ТЗ: рамочные 00001; договор-заявка 000001; дети 1,2,3… внутри родителя."""
+		"""Нумерация по ТЗ: рамочные 00001; договор-заявка 000001; дети 1,2,3… внутри родителя.
+
+		Без сброса по году: уникальный индекс uq_transport_doc_root_number
+		не включает год, иначе при seed прошлого года получаем 409 Conflict.
+		"""
+		_ = year  # API-совместимость; годовой сброс не используется
 		if doc_type in TRANSPORT_CHILD_PARENT:
 			if parent_id is None:
 				raise ValueError("parent_id is required for child document type")
 			result = await self.session.execute(
-				select(func.max(TransportDocument.number)).where(
+				select(TransportDocument.number).where(
 					TransportDocument.parent_id == parent_id,
 					TransportDocument.doc_type == doc_type,
 				)
 			)
-			max_number = result.scalar()
-			next_n = 1
-			if max_number:
-				digits = "".join(ch for ch in str(max_number) if ch.isdigit())
-				try:
-					next_n = int(digits) + 1 if digits else 1
-				except ValueError:
-					next_n = 1
-			return str(next_n)
+			max_n = 0
+			for (num,) in result.all():
+				digits = "".join(ch for ch in str(num or "") if ch.isdigit())
+				if digits:
+					max_n = max(max_n, int(digits))
+			return str(max_n + 1)
 
-		current_year = year or _utc_now_naive().year
-		year_start = datetime(current_year, 1, 1)
-		year_end = datetime(current_year + 1, 1, 1)
-		query = (
-			select(func.max(TransportDocument.number))
-			.where(
+		# Берём все root-номера пары owner+carrier+type (не только текущий год),
+		# иначе конфликт с uq_transport_doc_root_number.
+		result = await self.session.execute(
+			select(TransportDocument.number).where(
 				TransportDocument.owner_company_id == owner_company_id,
 				TransportDocument.carrier_company_id == carrier_company_id,
 				TransportDocument.doc_type == doc_type,
 				TransportDocument.parent_id.is_(None),
-				TransportDocument.date >= year_start,
-				TransportDocument.date < year_end,
 			)
 		)
-		result = await self.session.execute(query)
-		max_number = result.scalar()
-		next_n = 1
-		if max_number:
-			digits = "".join(ch for ch in str(max_number) if ch.isdigit())
-			try:
-				next_n = int(digits) + 1 if digits else 1
-			except ValueError:
-				next_n = 1
+		max_n = 0
+		for (num,) in result.all():
+			digits = "".join(ch for ch in str(num or "") if ch.isdigit())
+			if digits:
+				max_n = max(max_n, int(digits))
+		next_n = max_n + 1
 		if doc_type == TransportDocumentType.CARRIAGE_ORDER:
 			return f"{next_n:06d}"
 		return f"{next_n:05d}"

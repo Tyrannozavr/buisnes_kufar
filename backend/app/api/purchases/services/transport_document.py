@@ -283,32 +283,45 @@ class TransportDocumentService:
 					"Только продавец может привязывать документы перевозки к сделке"
 				)
 		doc_date = _normalize_datetime(body.date) if body.date else _utc_now_naive()
-		number = (body.number or "").strip()
-		if not number:
-			number = await self.repository.generate_next_number(
+		explicit_number = (body.number or "").strip()
+		# Автономер: при гонке/устаревшем max — несколько попыток со свежим next.
+		# Явный number от клиента — без ретрая, сразу 409.
+		max_attempts = 1 if explicit_number else 8
+		doc: TransportDocument | None = None
+		last_exc: BaseException | None = None
+		for attempt in range(max_attempts):
+			number = explicit_number or await self.repository.generate_next_number(
 				owner_company_id=owner_company_id,
 				carrier_company_id=body.carrier_company_id,
 				doc_type=doc_type,
 				parent_id=body.parent_id,
 				year=doc_date.year,
 			)
-		try:
-			doc = await self.repository.create(
-				owner_company_id=owner_company_id,
-				carrier_company_id=body.carrier_company_id,
-				doc_type=doc_type,
-				number=number,
-				date=doc_date,
-				parent_id=body.parent_id,
-				deal_id=deal_id,
-				payload_json=None,
-			)
-			await self.session.commit()
-		except IntegrityError as exc:
-			await self.session.rollback()
+			try:
+				doc = await self.repository.create(
+					owner_company_id=owner_company_id,
+					carrier_company_id=body.carrier_company_id,
+					doc_type=doc_type,
+					number=number,
+					date=doc_date,
+					parent_id=body.parent_id,
+					deal_id=deal_id,
+					payload_json=None,
+				)
+				await self.session.commit()
+				break
+			except IntegrityError as exc:
+				await self.session.rollback()
+				last_exc = exc
+				if explicit_number:
+					raise TransportDocumentDuplicateError(
+						"Документ с таким номером уже существует"
+					) from exc
+				# иначе — ещё одна попытка с новым generate_next_number
+		if doc is None:
 			raise TransportDocumentDuplicateError(
-				"Документ с таким номером уже существует"
-			) from exc
+				"Не удалось подобрать свободный номер документа"
+			) from last_exc
 		await self.session.refresh(doc)
 		names = await self._names_for([doc])
 		return self._to_response(doc, names)

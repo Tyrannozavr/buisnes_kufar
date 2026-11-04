@@ -44,8 +44,7 @@ class ProductUpdate(BaseModel):
     type: Optional[ProductType] = None
     price: Optional[float] = Field(None, gt=0)
     unit_of_measurement: Optional[str] = Field(None, max_length=100)
-    is_hidden: Optional[bool] = False
-    is_deleted: Optional[bool] = False
+    is_hidden: Optional[bool] = None
     characteristics: Optional[List[dict]] = None
     net_weight: Optional[float] = Field(None, ge=0)
     gross_weight: Optional[float] = Field(None, ge=0)

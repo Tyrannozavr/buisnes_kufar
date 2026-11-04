@@ -43,17 +43,38 @@ class CompanyProductsRepository:
 
     async def get_by_article(self, article: str) -> Optional[Product]:
         """Получить продукт по article (только активные и не скрытые)"""
-        query = select(Product).options(
-            selectinload(Product.company)
-        ).where(
+        by_article = await self.get_by_articles([article])
+        return by_article.get(article)
+
+    async def get_by_articles(self, articles: List[str]) -> dict[str, Product]:
+        """Пакетная загрузка продуктов по article (активные, не скрытые)."""
+        cleaned = [a.strip() for a in articles if a and str(a).strip()]
+        if not cleaned:
+            return {}
+        query = select(Product).options(selectinload(Product.company)).where(
             and_(
-                Product.article == article,
+                Product.article.in_(cleaned),
                 Product.is_deleted == False,
-                Product.is_hidden == False
+                Product.is_hidden == False,
             )
         )
         result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        return {p.article: p for p in result.scalars().all() if p.article}
+
+    async def get_by_slugs(self, slugs: List[str]) -> dict[str, Product]:
+        """Пакетная загрузка продуктов по slug (активные, не скрытые)."""
+        cleaned = [s.strip() for s in slugs if s and str(s).strip()]
+        if not cleaned:
+            return {}
+        query = select(Product).options(selectinload(Product.company)).where(
+            and_(
+                Product.slug.in_(cleaned),
+                Product.is_deleted == False,
+                Product.is_hidden == False,
+            )
+        )
+        result = await self.session.execute(query)
+        return {p.slug: p for p in result.scalars().all() if p.slug}
 
     async def get_by_company_id_and_slug(
         self, company_id: int, slug: str

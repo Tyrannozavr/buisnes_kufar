@@ -237,17 +237,20 @@ class ChatRepository:
         self, chat_id: int, reader_company_id: int
     ) -> list[int]:
         """Пометить прочитанными все входящие сообщения чата для компании."""
-        stmt = select(Message).where(
-            Message.chat_id == chat_id,
-            Message.sender_company_id != reader_company_id,
-            Message.is_read.is_(False),
+        from sqlalchemy import update as sa_update
+
+        stmt = (
+            sa_update(Message)
+            .where(
+                Message.chat_id == chat_id,
+                Message.sender_company_id != reader_company_id,
+                Message.is_read.is_(False),
+            )
+            .values(is_read=True)
+            .returning(Message.id)
         )
         result = await self.db.execute(stmt)
-        messages = result.scalars().all()
-        message_ids: list[int] = []
-        for message in messages:
-            message.is_read = True
-            message_ids.append(message.id)
+        message_ids = [row[0] for row in result.all()]
         if message_ids:
             await self.db.commit()
         return message_ids

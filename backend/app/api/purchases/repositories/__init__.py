@@ -96,6 +96,9 @@ class DealRepository:
 
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
             products_repo = CompanyProductsRepository(self.session)
+            products_by_article = await products_repo.get_by_articles(
+                [item.article for item in order_data.items if item.article]
+            )
 
             for i, item_data in enumerate(order_data.items, 1):
                 position = item_data.position if item_data.position else i
@@ -103,7 +106,7 @@ class DealRepository:
                 # Если article указан, получаем данные из БД
                 product_id = None
                 if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
+                    product = products_by_article.get(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
 
@@ -208,7 +211,12 @@ class DealRepository:
         """Получение конкретной версии заказа по deal ID и version с проверкой доступа."""
         query = (
             select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.order_history),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
             .where(
                 and_(
                     Order.id == order_id,
@@ -829,6 +837,9 @@ class DealRepository:
         if order_data.items is not None:
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
             products_repo = CompanyProductsRepository(self.session)
+            products_by_article = await products_repo.get_by_articles(
+                [item.article for item in order_data.items if item.article]
+            )
 
             # Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
             order.order_items.clear()
@@ -839,7 +850,7 @@ class DealRepository:
                 # Если article указан, получаем данные из БД
                 product_id = None
                 if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
+                    product = products_by_article.get(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
 

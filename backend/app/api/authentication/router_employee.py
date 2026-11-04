@@ -22,10 +22,6 @@ async def create_employee(
     current_user_id: get_current_user_id_dep
 ):
     """Создать нового сотрудника"""
-    logger.info(f"🔍 POST /employees called")
-    logger.info(f"📝 Employee data: {employee_data}")
-    logger.info(f"📝 Current user ID: {current_user_id}")
-    
     try:
         # Создаем сервисы напрямую
         from app.api.company.repositories.company_repository import CompanyRepository
@@ -41,27 +37,24 @@ async def create_employee(
         user_repository = UserRepository(session=db)
         employee_service = EmployeeService(employee_repository, user_repository)
         
-        # Получаем компанию текущего пользователя
-        logger.info(f"📝 Getting company for user {current_user_id}")
         company_profile = await company_service.get_company_by_user_id(current_user_id)
         if not company_profile.id:
-            logger.error(f"❌ Company not found for user {current_user_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
-        
-        logger.info(f"📝 Creating employee for company {company_profile.id}")
+
         employee = await employee_service.create_employee(employee_data, company_profile.id, current_user_id)
-        logger.info(f"✅ Successfully created employee: {employee}")
         return employee
-        
-    except Exception as e:
-        logger.error(f"❌ Error creating employee: {str(e)}")
-        logger.error(f"❌ Error type: {type(e)}")
-        import traceback
-        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+
+    except HTTPException:
         raise
+    except Exception as e:
+        logger.exception("Error creating employee for user %s", current_user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create employee",
+        ) from e
 
 
 @router.get("/company-employees", response_model=EmployeeListResponse)
@@ -153,11 +146,7 @@ async def update_employee_permissions(
     db: async_db_dep,
     current_user_id: get_current_user_id_dep,
 ):
-    # print("Request ", request)
     """Обновить права сотрудника"""
-    print(f"Updating permissions for employee {employee_id}")
-    print(f"Permissions data: {permissions_data}")
-    print(f"Db is {db}")
     # Создаем сервис внутри функции
     from app.api.authentication.repositories.employee_repository import EmployeeRepository
     from app.api.authentication.repositories.user_repository import UserRepository

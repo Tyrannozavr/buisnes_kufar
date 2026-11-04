@@ -171,14 +171,16 @@ class MyProductsRepository:
         if not existing_product:
             return None
 
-        # Подготавливаем данные для обновления
-        update_data = product_data.model_dump(exclude_unset=False)
+        # Только явно переданные поля; is_deleted меняется только через delete()
+        update_data = product_data.model_dump(exclude_unset=True)
+        update_data.pop("is_deleted", None)
+        if not update_data:
+            return existing_product
 
         # Если изменяется название, генерируем новый slug
         if 'name' in update_data:
             update_data['slug'] = await self.create_product_slug(update_data['name'], company.id)
-        print(update_data, "D")
-        # Обновляем продукт
+
         await self.session.execute(
             update(Product)
             .where(Product.id == product_id)

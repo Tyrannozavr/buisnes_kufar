@@ -171,6 +171,8 @@ class TransportDocumentService:
 			docs.extend(
 				d for d in extras if d.owner_company_id == owner_company_id
 			)
+		# Heal: документы с deal_id есть, а orders.transport_contract пуст (create без sync / wipe)
+		await self._heal_order_payload_if_empty(order, owner_company_id, docs)
 		names = await self._names_for(docs)
 		return TransportDocumentListResponse(
 			documents=[self._to_response(d, names) for d in docs]
@@ -324,6 +326,14 @@ class TransportDocumentService:
 			) from last_exc
 		await self.session.refresh(doc)
 		names = await self._names_for([doc])
+		# Dual-write сразу при create с deal_id (не только на bind) —
+		# иначе ячейка Продаж пустая, если bind пропущен/упал.
+		if deal_id is not None:
+			order = await self.deals.get_order_transport_context(deal_id, owner_company_id)
+			if order:
+				await self._sync_order_payload(order, owner_company_id, doc, names)
+				await self.session.commit()
+				await self.session.refresh(doc)
 		return self._to_response(doc, names)
 
 	def _document_snapshot(
@@ -341,6 +351,51 @@ class TransportDocumentService:
 			"carrier_name": names.get(doc.carrier_company_id, ""),
 			"parent_id": doc.parent_id,
 		}
+
+	def _primary_from_documents(self, documents: list[dict]) -> dict:
+		primary = documents[0] if documents else {}
+		for item in documents:
+			if isinstance(item, dict) and item.get("type") in {
+				TransportDocumentType.CARRIAGE_CONTRACT.value,
+				TransportDocumentType.EXPEDITION_CONTRACT.value,
+				TransportDocumentType.CARRIAGE_ORDER.value,
+				"transport_expedition",
+			}:
+				return item
+		return primary if isinstance(primary, dict) else {}
+
+	async def _heal_order_payload_if_empty(
+		self,
+		order: Order,
+		owner_company_id: int,
+		docs: list[TransportDocument],
+	) -> None:
+		"""Восстановить orders.transport_contract, если JSON пуст, а документы с deal_id есть."""
+		payload = order.transport_contract if isinstance(order.transport_contract, dict) else None
+		existing = list((payload or {}).get("documents") or []) if payload else []
+		if existing or not docs:
+			return
+		names = await self._names_for(docs)
+		documents = [self._document_snapshot(d, names) for d in docs]
+		primary = self._primary_from_documents(documents)
+		order.transport_contract = {
+			"documents": documents,
+			"number": primary.get("number"),
+			"date": primary.get("date"),
+			"type": primary.get("type"),
+			"carrier_company_id": primary.get("carrier_company_id"),
+			"carrier_name": primary.get("carrier_name"),
+		}
+		order.updated_at = _utc_now_naive()
+		self.deals._add_order_history(
+			order.row_id,
+			owner_company_id,
+			"transport_document_healed",
+			f"Восстановлен снимок перевозки ({len(documents)} док.)",
+			None,
+			order.transport_contract,
+		)
+		await self.session.commit()
 
 	async def _sync_order_payload(
 		self,
@@ -361,17 +416,7 @@ class TransportDocumentService:
 				break
 		if not replaced:
 			documents.append(snap)
-		# Legacy-поля: рамочный или единственный документ
-		primary = snap
-		for item in documents:
-			if isinstance(item, dict) and item.get("type") in {
-				TransportDocumentType.CARRIAGE_CONTRACT.value,
-				TransportDocumentType.EXPEDITION_CONTRACT.value,
-				TransportDocumentType.CARRIAGE_ORDER.value,
-				"transport_expedition",
-			}:
-				primary = item
-				break
+		primary = self._primary_from_documents(documents) or snap
 		order.transport_contract = {
 			"documents": documents,
 			"number": primary.get("number"),

@@ -32,6 +32,25 @@ const loading = ref(false)
 const saving = ref(false)
 const dialogOpen = ref(false)
 
+/** Почтовый индекс РФ — 6 цифр; отсекаем склейки вроде «1010003323». */
+const normalizePostalIndex = (raw: unknown): string => {
+	const digits = String(raw ?? '').replace(/\D/g, '')
+	if (digits.length >= 6) return digits.slice(0, 6)
+	return String(raw ?? '').trim()
+}
+
+const officialFromCompany = (
+	c: Company | Record<string, any> | null | undefined,
+): { name: string; position: string } => {
+	const officials = ((c as any)?.officials ?? []) as Array<Record<string, any>>
+	const first = officials[0]
+	if (!first) return { name: '', position: '' }
+	return {
+		name: String(first.name || first.full_name || '').trim(),
+		position: String(first.position || first.job_title || '').trim(),
+	}
+}
+
 const partyFromCompany = (c: Company | Record<string, any> | null | undefined, source = ''): StrictPartyLine => {
 	if (!c) return emptyStrictParty()
 	const fullName =
@@ -39,14 +58,15 @@ const partyFromCompany = (c: Company | Record<string, any> | null | undefined, s
 		[String((c as any).companyType || (c as any).company_type || ''), String((c as any).companyName || (c as any).company_name || (c as any).name || '')]
 			.filter(Boolean)
 			.join(' ')
+	const official = officialFromCompany(c)
 	return {
 		fullName: fullName.trim(),
-		index: String((c as any).index || ''),
+		index: normalizePostalIndex((c as any).index),
 		legalAddress: String((c as any).legalAddress || (c as any).legal_address || ''),
 		inn: String((c as any).inn ?? ''),
 		source,
-		officialName: '',
-		officialPosition: '',
+		officialName: official.name,
+		officialPosition: official.position,
 	}
 }
 
@@ -85,14 +105,20 @@ export function useStrictExpeditionBlank() {
 		return match?.id ? Number(match.id) : null
 	}
 
+	const normalizeParty = (raw: Partial<StrictPartyLine> | null | undefined): StrictPartyLine => ({
+		...emptyStrictParty(),
+		...(raw || {}),
+		index: normalizePostalIndex(raw?.index),
+	})
+
 	const applyPayload = (raw: StrictExpeditionPayload | null | undefined) => {
 		payload.value = {
 			...emptyStrictExpeditionPayload(),
 			...(raw || {}),
-			shipper: { ...emptyStrictParty(), ...(raw?.shipper || {}) },
-			client: { ...emptyStrictParty(), ...(raw?.client || {}) },
-			consignee: { ...emptyStrictParty(), ...(raw?.consignee || {}) },
-			forwarder: { ...emptyStrictParty(), ...(raw?.forwarder || {}) },
+			shipper: normalizeParty(raw?.shipper),
+			client: normalizeParty(raw?.client),
+			consignee: normalizeParty(raw?.consignee),
+			forwarder: normalizeParty(raw?.forwarder),
 		}
 	}
 
@@ -234,21 +260,39 @@ export function useStrictExpeditionBlank() {
 				forwarderCompany = null
 			}
 
+			let sellerCompany: Record<string, any> | null = null
+			const sellerCompanyId = seller?.companyId
+			if (sellerCompanyId) {
+				try {
+					sellerCompany = (await getCompanyById(
+						sellerCompanyId,
+						false,
+					)) as Record<string, any>
+				} catch {
+					sellerCompany = null
+				}
+			}
+
 			const next = emptyStrictExpeditionPayload()
-			next.shipper = partyFromCompany(seller, 'seller')
-			next.client = partyFromCompany(seller, 'seller')
+			// Реквизиты сторон — из карточек компаний (с officials), fallback на снимок сделки
+			next.shipper = partyFromCompany(sellerCompany || seller, 'seller')
+			next.client = partyFromCompany(sellerCompany || seller, 'seller')
 			next.consignee = partyFromCompany(buyer, 'buyer')
 			next.forwarder = partyFromCompany(forwarderCompany, 'forwarder')
 
 			const officials = (forwarderCompany?.officials ?? []) as Array<Record<string, any>>
 			const firstFwd = officials[0]
+			const sellerOfficial = officialFromCompany(sellerCompany || seller)
 			if (docType.value === 'warehouse_receipt' && firstFwd) {
 				next.signatureName = String(firstFwd.name || firstFwd.full_name || '')
-				next.signaturePosition = String(firstFwd.position || firstFwd.job_title || '')
-			} else if (seller) {
+				next.signaturePosition = String(
+					firstFwd.position || firstFwd.job_title || 'Генеральный директор',
+				)
+			} else {
 				// подпись клиента — из ЛК продавца по умолчанию (клиент = поставщик)
-				next.signatureName = ''
-				next.signaturePosition = 'Генеральный директор'
+				next.signatureName = sellerOfficial.name
+				next.signaturePosition =
+					sellerOfficial.position || 'Генеральный директор'
 			}
 
 			const { weight, value } = await computeWeightsAndValue()

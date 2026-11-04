@@ -24,6 +24,7 @@ certbot certonly --webroot \
   --webroot-path=/var/www/html \
   --email "$DOMAIN_EMAIL" \
   -d "$DOMAIN_URL" \
+  -d "www.$DOMAIN_URL" \
   --cert-name=tradesynergy.ru \
   --key-type rsa \
   --agree-tos \

@@ -171,7 +171,7 @@ const {
 } = useCreateBillFromSales()
 const { openTypeSelect: openTransportDocumentTypeSelect } = useCreateTransportDocumentFromSales()
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
-const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
+const activeTab = useTypedState(Editor.ACTIVE_TAB, () => '0' as const)
 const PAGE_SIZE = 10
 const tableSorting = ref<{ id: string; desc: boolean }[]>([{ id: 'date', desc: true }])
 const tablePagination = ref({ pageIndex: 0, pageSize: PAGE_SIZE })

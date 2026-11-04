@@ -43,7 +43,7 @@ import { Editor } from "~/constants/keys"
 import { TemplateElement } from "~/constants/keys"
 import { usePdfGenerator } from "~/composables/usePdfGenerator"
 
-const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref("0"))
+const activeTab = useTypedState(Editor.ACTIVE_TAB, () => "0" as const)
 const htmlContent = ref([""])
 const slotContainerRef = ref<HTMLElement | null>(null)
 const previewDocumentRef = ref<HTMLElement | null>(null)

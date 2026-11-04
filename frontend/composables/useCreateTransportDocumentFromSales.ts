@@ -36,9 +36,9 @@ export function useCreateTransportDocumentFromSales() {
 	const router = useRouter()
 	const toast = useToast()
 	const purchasesApi = usePurchasesApi()
-	const { findDeal, findDealByDealNumber, updateDeal } = useDeals()
+	const { findDeal, findDealByDealNumber, refreshDealFromServer } = useDeals()
 	const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
-	const activeTab = useTypedState(Editor.ACTIVE_TAB, () => ref('0'))
+	const activeTab = useTypedState(Editor.ACTIVE_TAB, () => '0' as const)
 
 	const typeRadioItems = TRANSPORT_DOCUMENT_TYPES.map((value) => ({
 		value,
@@ -113,7 +113,9 @@ export function useCreateTransportDocumentFromSales() {
 	}
 
 	const refreshDealLocal = async (dealId: number) => {
-		updateDeal(dealId)
+		// Не вызывать updateDeal (PATCH) — он писал сделку без transport_contract
+		// и мог расходиться с dual-write. Читаем свежий снимок с сервера.
+		await refreshDealFromServer(dealId)
 		loadDealTrigger.value++
 		try {
 			const listed = await purchasesApi.listDealTransportDocuments(dealId)
@@ -128,6 +130,7 @@ export function useCreateTransportDocumentFromSales() {
 				carrier_name: d.carrier_name,
 				parent_id: d.parent_id ?? null,
 			}))
+			if (!documents.length) return
 			const primary =
 				documents.find((d) =>
 					['carriage_contract', 'expedition_contract', 'carriage_order'].includes(

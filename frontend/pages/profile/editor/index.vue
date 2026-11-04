@@ -200,10 +200,18 @@ const resolveLocationTab = (): EditorTabId => {
 		const win = HASH_TO_TAB[window.location.hash]
 		if (win) return win
 	}
+	// Документ перевозки всегда на вкладке «Договор», даже если hash ещё не подхватился.
+	if (route.query.transportDocType || route.query.transportDocId) {
+		return '5'
+	}
 	return tabFromRoute(route.hash, route.query.tab) ?? '0'
 }
 
 const activeTab = useTypedState(Editor.ACTIVE_TAB, () => resolveLocationTab())
+// Клиентская гидрация: SSR не видит hash → useState мог прийти как «0».
+if (import.meta.client) {
+	activeTab.value = resolveLocationTab()
+}
 
 const isDisabled = useTypedState(Editor.IS_DISABLED, () => ref(true))
 const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
@@ -356,7 +364,13 @@ const applyTabFromLocation = () => {
 }
 
 watch(
-	() => [route.hash, route.query.tab] as const,
+	() =>
+		[
+			route.hash,
+			route.query.tab,
+			route.query.transportDocType,
+			route.query.transportDocId,
+		] as const,
 	() => {
 		if (syncingTabToRoute.value) return
 		applyTabFromLocation()

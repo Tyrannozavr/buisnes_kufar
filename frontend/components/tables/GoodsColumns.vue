@@ -125,6 +125,7 @@ import { useCreateTransportDocumentFromSales } from "~/composables/useCreateTran
 import {
 	buildTransportCellLines,
 	buildTransportCellTooltip,
+	buildTransportDocEntries,
 } from "~/utils/transportDocumentLabels";
 import { HASH_TO_TAB } from "~/utils/editorNavigation";
 import type { SpecificationEntityResponse } from "~/types/supplyContractEntity";
@@ -233,12 +234,22 @@ const openEditor = (dealId: number | undefined, role: 'buyer' | 'seller', hash: 
 	})
 }
 
-const openTransportEditor = (dealId: number | undefined, role: 'buyer' | 'seller') => {
+const openTransportEditor = (
+	dealId: number | undefined,
+	role: 'buyer' | 'seller',
+	preferred?: { id?: number; type?: string } | null,
+) => {
 	if (!dealId) return
 	const deal = findDeal(dealId)
 	const snapshot = deal?.transportContract ?? null
 	const docs = snapshot?.documents ?? []
 	const primary =
+		(preferred?.id
+			? docs.find((d) => Number(d.id) === Number(preferred.id))
+			: null) ||
+		(preferred?.type
+			? docs.find((d) => d.type === preferred.type && d.id)
+			: null) ||
 		docs.find((d) => d.type === 'carriage_contract' && d.id) ||
 		docs.find((d) => d.id) ||
 		null
@@ -248,8 +259,16 @@ const openTransportEditor = (dealId: number | undefined, role: 'buyer' | 'seller
 		query: {
 			dealId: String(dealId),
 			role,
-			...(primary?.type ? { transportDocType: String(primary.type) } : { transportDocType: 'carriage_contract' }),
-			...(primary?.id ? { transportDocId: String(primary.id) } : {}),
+			...(primary?.type
+				? { transportDocType: String(primary.type) }
+				: preferred?.type
+					? { transportDocType: String(preferred.type) }
+					: { transportDocType: 'carriage_contract' }),
+			...(primary?.id
+				? { transportDocId: String(primary.id) }
+				: preferred?.id
+					? { transportDocId: String(preferred.id) }
+					: {}),
 		},
 		hash: '#contract',
 	})
@@ -643,19 +662,31 @@ const columnsPurchasesGoodsDeals: TableColumn<any>[] = [
       const dealNumber = String(row.getValue('dealNumber'))
       const dealId = getDealIdByDealNumber(dealNumber, 'buyer')
       const deal = dealId ? findDeal(dealId) : undefined
-      const labels = deal ? formatTransportDocLabels(deal) : []
-      const label = labels[0] ?? null
+      const entries = deal
+				? buildTransportDocEntries(deal.transportContract ?? null)
+				: []
       const title = deal ? formatTransportDocTitle(deal) : ''
+			const docLines = entries.map((entry) => ({
+				label: entry.label,
+				onClick: () =>
+					openTransportEditor(dealId, 'buyer', {
+						id: entry.id,
+						type: entry.type,
+					}),
+			}))
       return renderTz15Cell(
-        label,
+        null,
         () => openTransportEditor(dealId, 'buyer'),
         () => {},
-        [{
-					label: 'Найти транспорт',
-					tone: 'muted',
-					onClick: () => openTransportSearch(dealId),
-				}],
-        labels,
+        [
+					{
+						label: 'Найти транспорт',
+						tone: 'muted',
+						onClick: () => openTransportSearch(dealId),
+					},
+					...docLines,
+				],
+        undefined,
 				undefined,
 				title,
       )
@@ -1218,19 +1249,31 @@ const columnsSalesGoodsDeals: TableColumn<any>[] = [
       const dealNumber = String(row.getValue('dealNumber'))
       const dealId = getDealIdByDealNumber(dealNumber, 'seller')
       const deal = dealId ? findDeal(dealId) : undefined
-      const labels = deal ? formatTransportDocLabels(deal) : []
-      const label = labels[0] ?? null
+      const entries = deal
+				? buildTransportDocEntries(deal.transportContract ?? null)
+				: []
       const title = deal ? formatTransportDocTitle(deal) : ''
+			const docLines = entries.map((entry) => ({
+				label: entry.label,
+				onClick: () =>
+					openTransportEditor(dealId, 'seller', {
+						id: entry.id,
+						type: entry.type,
+					}),
+			}))
       return renderTz15Cell(
-        label,
+        null,
         () => openTransportEditor(dealId, 'seller'),
         () => { handleTransportDocumentCreateClick(dealNumber) },
-        [{
-					label: 'Найти транспорт',
-					tone: 'muted',
-					onClick: () => openTransportSearch(dealId),
-				}],
-        labels,
+        [
+					{
+						label: 'Найти транспорт',
+						tone: 'muted',
+						onClick: () => openTransportSearch(dealId),
+					},
+					...docLines,
+				],
+        undefined,
 				'Создать док. перевозки',
 				title,
       )

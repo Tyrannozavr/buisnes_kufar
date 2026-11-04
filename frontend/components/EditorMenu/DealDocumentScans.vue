@@ -182,7 +182,13 @@ const props = defineProps<{
 	dealId: number
 	documentType: Extract<
 		DocumentTypeResponse,
-		"order" | "bill" | "bill_contract" | "bill_offer" | "supply_contract" | "contract"
+		| "order"
+		| "bill"
+		| "bill_contract"
+		| "bill_offer"
+		| "supply_contract"
+		| "contract"
+		| "carriage_application"
 	>
 	readOnly: boolean
 	editEnabled: boolean
@@ -262,8 +268,13 @@ const pendingIsImage = computed(() => {
 })
 
 const scanLabel = (scan: DocumentApiItem): string => {
+	const original = scan.original_filename?.trim()
 	const path = scan.document_file_path ?? ""
-	const name = path.split("/").pop() ?? `Скан #${scan.document_id}`
+	const fromPath = path.split("/").pop() ?? ""
+	const name =
+		original
+		|| (fromPath && !/^[a-f0-9]{32}\./i.test(fromPath) ? fromPath : null)
+		|| `Скан #${scan.document_id}`
 	return scan.document_number?.trim() ? `${scan.document_number} (${name})` : name
 }
 
@@ -351,14 +362,27 @@ const savePendingAndNotify = async (): Promise<void> => {
 		return
 	}
 	try {
-		await sendScanToCounterpart(
+		const chatId = await sendScanToCounterpart(
 			dealId,
 			role,
 			counterpart,
 			props.documentType,
 			filename,
+			id,
 		)
-		toast.add({ title: "Скан сохранён и отправлен контрагенту", color: "success" })
+		toast.add({
+			title: "Скан сохранён и отправлен контрагенту",
+			color: "success",
+			actions: [
+				{
+					label: "Перейти в чат",
+					icon: "i-lucide-message-circle",
+					color: "success",
+					variant: "solid",
+					to: chatId ? `/profile/messages/${chatId}` : "/profile/messages",
+				},
+			],
+		})
 	} catch (error) {
 		toast.add({
 			title: "Скан сохранён, но сообщение в чат не отправлено",
@@ -431,14 +455,27 @@ const notifyCounterpart = async (scan: DocumentApiItem): Promise<void> => {
 	}
 	sendingId.value = scan.document_id
 	try {
-		await sendScanToCounterpart(
+		const chatId = await sendScanToCounterpart(
 			dealId,
 			role,
 			counterpart,
 			props.documentType,
 			scanLabel(scan),
+			scan.document_id,
 		)
-		toast.add({ title: "Скан отправлен контрагенту в чат", color: "success" })
+		toast.add({
+			title: "Скан отправлен контрагенту в чат",
+			color: "success",
+			actions: [
+				{
+					label: "Перейти в чат",
+					icon: "i-lucide-message-circle",
+					color: "success",
+					variant: "solid",
+					to: chatId ? `/profile/messages/${chatId}` : "/profile/messages",
+				},
+			],
+		})
 	} catch (error) {
 		toast.add({ title: "Не удалось отправить сообщение в чат", color: "error" })
 		if (import.meta.dev) console.error("notify scan:", error)

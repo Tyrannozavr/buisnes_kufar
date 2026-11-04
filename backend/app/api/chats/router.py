@@ -278,8 +278,16 @@ async def send_message(
         token_data: token_data_dep,
         content: str = Form(...),
         file: Optional[UploadFile] = File(None),
+        attach_deal_id: Optional[int] = Form(None),
+        attach_document_id: Optional[int] = Form(None),
+        attach_file_name: Optional[str] = Form(None),
 ):
-    """Отправляет сообщение в чат"""
+    """Отправляет сообщение в чат.
+
+    attach_deal_id + attach_document_id — скопировать скан сделки в chat_files
+    фоновой задачей (ответ не ждёт копирования).
+    attach_file_name — исходное имя файла для отображения/скачивания.
+    """
     # Проверяем, что пользователь участвует в чате
     chat = await check_user_in_chat(chat_id, token_data, db)
 
@@ -307,6 +315,45 @@ async def send_message(
         raise HTTPException(status_code=422, detail="Message content is required")
     if len(content) > _MAX_CHAT_CONTENT_LEN:
         raise HTTPException(status_code=422, detail="Message content is too long")
+
+    want_bg_attach = bool(attach_deal_id and attach_document_id)
+    if want_bg_attach and file is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot combine uploaded file with attach_deal_id/attach_document_id",
+        )
+    if (attach_deal_id is None) ^ (attach_document_id is None):
+        raise HTTPException(
+            status_code=422,
+            detail="attach_deal_id and attach_document_id must be sent together",
+        )
+
+    if want_bg_attach:
+        from app.api.purchases.repositories import DealRepository
+
+        deal_repo = DealRepository(db)
+        order = await deal_repo.get_order_by_id(int(attach_deal_id), current_company.id)
+        if not order:
+            raise HTTPException(
+                status_code=403,
+                detail="Нет доступа к сделке для вложения скана",
+            )
+        deal_party_ids = {order.buyer_company_id, order.seller_company_id}
+        other_companies = {
+            p.company_id
+            for p in chat.participants
+            if p.company_id is not None and p.company_id != current_company.id
+        }
+        if not other_companies or not other_companies.issubset(deal_party_ids):
+            raise HTTPException(
+                status_code=403,
+                detail="Скан сделки можно отправить только в чат с контрагентом по сделке",
+            )
+        doc = await deal_repo.get_document_by_id(
+            int(attach_deal_id), int(attach_document_id), current_company.id
+        )
+        if not doc or not doc.document_file_path:
+            raise HTTPException(status_code=404, detail="Документ сделки не найден")
 
     # Обрабатываем файл, если он есть
     file_path = None
@@ -380,6 +427,24 @@ async def send_message(
         )
     except Exception as exc:
         logger.warning("Email notify enqueue failed for chat %s: %s", chat_id, exc)
+
+    if want_bg_attach:
+        try:
+            from app.api.chats.tasks import enqueue_attach_deal_document
+
+            enqueue_attach_deal_document(
+                message_id=message.id,
+                deal_id=int(attach_deal_id),
+                document_id=int(attach_document_id),
+                company_id=current_company.id,
+                original_filename=(attach_file_name or "").strip() or None,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Attach deal document enqueue failed for message %s: %s",
+                message.id,
+                exc,
+            )
 
     return message_data
 

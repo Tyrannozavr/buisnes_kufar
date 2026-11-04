@@ -96,7 +96,10 @@
 
 				<template v-if="activeTab === '5'">
 					<A4Page>
-						<CarriageContract />
+						<CarriageApplication
+							v-if="String(route.query.transportDocType || '') === 'carriage_application'"
+						/>
+						<CarriageContract v-else />
 					</A4Page>
 				</template>
 
@@ -132,6 +135,7 @@
 import Bill from '~/components/templates/Bill/Bill.vue'
 import SupplyContract from '~/components/templates/SupplyContract/SupplyContract.vue'
 import CarriageContract from '~/components/templates/CarriageContract/CarriageContract.vue'
+import CarriageApplication from '~/components/templates/CarriageApplication/CarriageApplication.vue'
 import Order from '~/components/templates/Order.vue'
 import AccompanyingDocuments from '~/components/templates/AccompanyingDocuments.vue'
 import EditorMenu from '~/components/EditorMenu/index.vue'

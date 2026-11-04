@@ -61,6 +61,10 @@ const supplyContractOfficialsSeller = useTypedState(Editor.SUPPLY_CONTRACT_OFFIC
 const supplyContractSlotRevision = useTypedState(Editor.SUPPLY_CONTRACT_SLOT_REVISION, () => ref(0))
 const supplyContractPreviewElement = useTypedState(Editor.SUPPLY_CONTRACT_PREVIEW_ELEMENT, () => ref(null))
 const carriageContractSlotRevision = useTypedState(Editor.CARRIAGE_CONTRACT_SLOT_REVISION, () => ref(0))
+const carriageApplicationSlotRevision = useTypedState(
+	Editor.CARRIAGE_APPLICATION_SLOT_REVISION,
+	() => ref(0),
+)
 const isDisabled = useTypedState(Editor.IS_DISABLED)
 
 const fillHtmlContentFromSlot = () => {
@@ -84,6 +88,7 @@ watch(
 		supplyContractOfficialsSeller,
 		supplyContractSlotRevision,
 		carriageContractSlotRevision,
+		carriageApplicationSlotRevision,
 		isDisabled,
 	],
 	() => {

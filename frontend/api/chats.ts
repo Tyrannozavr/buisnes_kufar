@@ -34,12 +34,30 @@ export const useChatsApi = () => {
     }
   }
 
-  const sendMessage = async (chatId: number, data: { content: string; file?: File }): Promise<ChatMessage> => {
+  const sendMessage = async (
+    chatId: number,
+    data: {
+      content: string
+      file?: File
+      /** Фоновая копия скана сделки в chat_files (ответ не ждёт). */
+      attachDealId?: number
+      attachDocumentId?: number
+      /** Исходное имя файла для отображения/скачивания. */
+      attachFileName?: string
+    },
+  ): Promise<ChatMessage> => {
     const { $api } = useNuxtApp()
     const formData = new FormData()
     formData.append('content', data.content)
     if (data.file) {
       formData.append('file', data.file)
+    }
+    if (data.attachDealId && data.attachDocumentId) {
+      formData.append('attach_deal_id', String(data.attachDealId))
+      formData.append('attach_document_id', String(data.attachDocumentId))
+      if (data.attachFileName?.trim()) {
+        formData.append('attach_file_name', data.attachFileName.trim())
+      }
     }
     return await $api.post(`/v1/chats/${chatId}/send`, formData) as ChatMessage
   }

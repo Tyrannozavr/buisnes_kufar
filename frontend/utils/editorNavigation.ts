@@ -1,5 +1,5 @@
 export type EditorTabId = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7'
-export type EditorDocumentTab = 'order' | 'bill' | 'supply_contract'
+export type EditorDocumentTab = 'order' | 'bill' | 'supply_contract' | 'contract'
 
 export const EDITOR_PATH = '/profile/editor'
 
@@ -29,6 +29,7 @@ export const DOCUMENT_TAB_TO_EDITOR_TAB: Record<EditorDocumentTab, EditorTabId> 
 	order: '0',
 	bill: '1',
 	supply_contract: '2',
+	contract: '5',
 }
 
 export const tabFromQuery = (
@@ -62,14 +63,19 @@ export const buildEditorDealUrl = (
 	const params = new URLSearchParams({
 		dealId: String(dealId),
 		role,
-		tab: documentTab,
 	})
+	// ?tab= только для order/bill (см. tabFromQuery); остальное — hash
+	if (documentTab === 'order' || documentTab === 'bill') {
+		params.set('tab', documentTab)
+	}
 	const hash =
 		documentTab === 'order'
 			? '#order'
 			: documentTab === 'bill'
 				? '#bill'
-				: '#supplyContract'
+				: documentTab === 'contract'
+					? '#contract'
+					: '#supplyContract'
 	return `${EDITOR_PATH}?${params.toString()}${hash}`
 }
 

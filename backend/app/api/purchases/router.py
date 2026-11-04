@@ -827,6 +827,7 @@ async def upload_document(
         document_number=document_number if document_number and str(document_number).strip() else None,
         document_date=datetime.fromisoformat(document_date) if document_date else None,
         description=description,
+        original_filename=(file.filename or "").strip() or None,
     )
     try:
         document = await deal_service.add_document(deal_id, document_data, file_path, company.id)
@@ -873,6 +874,11 @@ async def get_documents(
             document_number=doc.document_number if doc.document_number != "-" else None,
             document_date=doc.document_date.isoformat() if doc.document_date else None,
             document_file_path=doc.document_file_path,
+            original_filename=(
+                (doc.document_content or {}).get("original_filename")
+                if isinstance(doc.document_content, dict)
+                else None
+            ),
             created_at=doc.created_at.isoformat() if doc.created_at else "",
             updated_at=doc.updated_at.isoformat() if doc.updated_at else "",
         )

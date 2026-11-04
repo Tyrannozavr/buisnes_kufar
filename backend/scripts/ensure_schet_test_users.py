@@ -685,7 +685,7 @@ async def ensure_transport_documents(
     owner_company_id: int,
     carrier_company_id: int,
 ) -> None:
-    """§1.2 — демо рамочный договор перевозки №999 для пикера / приёмки API."""
+    """§1.2 / §3 — демо договор №999 и заявка №1 к нему."""
     existing = (
         await session.execute(
             select(TransportDocument).where(
@@ -698,18 +698,46 @@ async def ensure_transport_documents(
     ).scalar_one_or_none()
     if existing:
         print(f"  transport_document carriage_contract №999 already exists id={existing.id}")
+        parent = existing
+    else:
+        parent = TransportDocument(
+            owner_company_id=owner_company_id,
+            carrier_company_id=carrier_company_id,
+            doc_type=TransportDocumentType.CARRIAGE_CONTRACT,
+            number="999",
+            date=datetime(2025, 4, 8),
+        )
+        session.add(parent)
+        await session.commit()
+        await session.refresh(parent)
+        print(f"  transport_document CREATED: carriage_contract №999 id={parent.id}")
+
+    app_existing = (
+        await session.execute(
+            select(TransportDocument).where(
+                TransportDocument.parent_id == parent.id,
+                TransportDocument.doc_type == TransportDocumentType.CARRIAGE_APPLICATION,
+                TransportDocument.number == "1",
+            )
+        )
+    ).scalar_one_or_none()
+    if app_existing:
+        print(
+            f"  transport_document carriage_application №1 already exists id={app_existing.id}"
+        )
         return
-    doc = TransportDocument(
+    app = TransportDocument(
         owner_company_id=owner_company_id,
         carrier_company_id=carrier_company_id,
-        doc_type=TransportDocumentType.CARRIAGE_CONTRACT,
-        number="999",
-        date=datetime(2025, 4, 8),
+        doc_type=TransportDocumentType.CARRIAGE_APPLICATION,
+        number="1",
+        date=datetime(2025, 4, 9),
+        parent_id=parent.id,
     )
-    session.add(doc)
+    session.add(app)
     await session.commit()
-    await session.refresh(doc)
-    print(f"  transport_document CREATED: carriage_contract №999 id={doc.id}")
+    await session.refresh(app)
+    print(f"  transport_document CREATED: carriage_application №1 id={app.id} parent={parent.id}")
 
 
 async def ensure_company_contracts(

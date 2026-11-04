@@ -830,9 +830,19 @@ class DocumentUpload(BaseModel):
     document_number: Optional[str] = Field(None, description="Номер документа")
     document_date: Optional[datetime] = Field(None, description="Дата документа")
     description: Optional[str] = Field(None, description="Описание документа")
+    original_filename: Optional[str] = Field(None, description="Исходное имя файла от пользователя")
 
     class Config:
         from_attributes = True
+
+
+def _original_filename_from_doc(obj) -> Optional[str]:
+    content = getattr(obj, "document_content", None) or {}
+    if isinstance(content, dict):
+        name = content.get("original_filename")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    return None
 
 
 class DocumentResponse(BaseModel):
@@ -843,6 +853,7 @@ class DocumentResponse(BaseModel):
     document_number: Optional[str] = None
     document_date: Optional[str] = None
     document_file_path: Optional[str] = None
+    original_filename: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -860,6 +871,7 @@ class DocumentResponse(BaseModel):
                     "document_number": doc_num,
                     "document_date": obj.document_date.isoformat() if obj.document_date else None,
                     "document_file_path": obj.document_file_path,
+                    "original_filename": _original_filename_from_doc(obj),
                     "created_at": obj.created_at.isoformat() if obj.created_at else "",
                     "updated_at": obj.updated_at.isoformat() if obj.updated_at else "",
                 },

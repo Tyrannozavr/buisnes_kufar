@@ -2,6 +2,7 @@
 import { normalizeDate } from '~/utils/normalize'
 import { formatLegalAddressForParty } from '~/utils/companyPartyLine'
 import { useCarriageContractBlank } from '~/composables/useCarriageContractBlank'
+import { sanitizeRichHtml } from '~/utils/sanitizeRichHtml'
 
 /**
  * А4 бланк «Договор перевозки грузов» (§2).
@@ -26,6 +27,7 @@ const {
 } = useCarriageContractBlank()
 
 const route = useRoute()
+const safeBodyHtml = computed(() => sanitizeRichHtml(bodyHtml.value))
 
 watch(
 	() => [
@@ -232,7 +234,7 @@ watch(
 			<div
 				class="carriage-contract-body border border-transparent mb-4"
 				:class="{ 'pointer-events-none opacity-90': isDisabled }"
-				v-html="bodyHtml"
+				v-html="safeBodyHtml"
 			/>
 
 			<!-- Реквизиты / подписи -->

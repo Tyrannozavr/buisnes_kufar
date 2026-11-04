@@ -63,28 +63,39 @@ function carrierFromSnapshot(snapshot: TransportContractSnapshot): string | null
 }
 
 /**
- * Одна ссылка для ячейки «Договор перевозки» (§1.4 / B.1).
- * Документы + перевозчик в одной кнопке (не отдельные кликабельные строки).
+ * Строки для ячейки «Договор перевозки» (§1.4 / B.1).
+ * Каждый документ — отдельная кликабельная строка.
  */
 export function buildTransportCellLines(
 	snapshot: TransportContractSnapshot,
 ): string[] {
-	if (!snapshot) return []
+	return buildTransportDocEntries(snapshot).map((e) => e.label)
+}
 
-	const parts: string[] = []
+export type TransportDocCellEntry = {
+	label: string
+	id?: number
+	type?: string
+}
+
+/** Документы snapshot по одному (для отдельных кнопок в таблице). */
+export function buildTransportDocEntries(
+	snapshot: TransportContractSnapshot,
+): TransportDocCellEntry[] {
+	if (!snapshot) return []
+	const entries: TransportDocCellEntry[] = []
 	const seen = new Set<string>()
 	for (const doc of snapshotDocs(snapshot)) {
 		const line = lineForDoc(doc)
-		if (line && !seen.has(line)) {
-			seen.add(line)
-			parts.push(line)
-		}
+		if (!line || seen.has(line)) continue
+		seen.add(line)
+		entries.push({
+			label: line,
+			id: doc.id ? Number(doc.id) : undefined,
+			type: doc.type,
+		})
 	}
-
-	const carrier = carrierFromSnapshot(snapshot)
-	if (carrier) parts.push(carrier)
-
-	return parts.length ? [parts.join(' · ')] : []
+	return entries
 }
 
 /** Полный текст для title/tooltip (каждая сущность с новой строки). */

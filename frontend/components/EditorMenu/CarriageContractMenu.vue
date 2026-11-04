@@ -17,13 +17,52 @@ const {
 	isDisabled,
 	loading,
 	saving,
+	dealId,
+	currentDeal,
 	fillFromLk,
 	applyDefaultBody,
 	bumpSlot,
 } = useCarriageContractBlank()
 
+const route = useRoute()
+const router = useRouter()
 const templateEditorOpen = ref(false)
 const editor = shallowRef<TiptapEditor | null>(null)
+
+/** Заявки-приложения к этому договору (из снимка сделки). */
+const childApplications = computed(() => {
+	const parentId = documentId.value
+	if (!parentId) return []
+	const docs = currentDeal.value?.transportContract?.documents ?? []
+	return docs
+		.filter(
+			(d) =>
+				d.type === 'carriage_application' &&
+				d.id &&
+				(d.parent_id == null || Number(d.parent_id) === parentId),
+		)
+		.map((d) => ({
+			id: Number(d.id),
+			number: String(d.number || ''),
+			date: d.date ? String(d.date).slice(0, 10) : '',
+		}))
+		.sort((a, b) => Number(a.number) - Number(b.number))
+})
+
+const openApplication = (app: { id: number }) => {
+	if (!dealId.value || !app.id) return
+	const role = String(route.query.role || 'seller')
+	void router.push({
+		path: '/profile/editor',
+		query: {
+			dealId: String(dealId.value),
+			role,
+			transportDocType: 'carriage_application',
+			transportDocId: String(app.id),
+		},
+		hash: '#contract',
+	})
+}
 
 const fillFromLkDisabledReason = computed(() => {
 	if (!documentId.value) return 'Документ перевозки не выбран'
@@ -100,6 +139,26 @@ const resetToDefaultTemplate = () => {
 <template>
 	<div class="flex flex-col gap-3">
 		<p class="text-sm font-semibold text-center">Договор перевозки грузов</p>
+
+		<div v-if="childApplications.length" class="flex flex-col gap-1.5">
+			<p class="text-xs text-neutral-500 text-center">Заявки к этому договору</p>
+			<UButton
+				v-for="app in childApplications"
+				:key="app.id"
+				:label="app.number ? `Открыть заявку № ${app.number}` : `Открыть заявку #${app.id}`"
+				icon="i-lucide-file-plus-2"
+				color="primary"
+				variant="soft"
+				class="w-full justify-center"
+				@click="openApplication(app)"
+			/>
+		</div>
+		<p
+			v-else-if="documentId"
+			class="text-xs text-neutral-500 text-center"
+		>
+			Заявок к договору пока нет — создайте в колонке «Договор перевозки»
+		</p>
 
 		<UTooltip
 			:text="fillFromLkDisabledReason"

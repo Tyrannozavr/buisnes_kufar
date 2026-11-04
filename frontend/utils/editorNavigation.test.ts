@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { tabFromRoute, tabFromQuery, HASH_TO_TAB } from './editorNavigation'
+import {
+	tabFromRoute,
+	tabFromQuery,
+	HASH_TO_TAB,
+	buildEditorDealUrl,
+} from './editorNavigation'
 
 describe('tabFromRoute', () => {
 	it('читает вкладку из hash', () => {
@@ -28,5 +33,14 @@ describe('tabFromRoute', () => {
 	it('HASH_TO_TAB покрывает все вкладки редактора', () => {
 		expect(HASH_TO_TAB['#order']).toBe('0')
 		expect(HASH_TO_TAB['#othersDocument']).toBe('7')
+	})
+
+	it('buildEditorDealUrl: договор перевозки → #contract', () => {
+		expect(buildEditorDealUrl(42, 'buyer', 'contract')).toBe(
+			'/profile/editor?dealId=42&role=buyer#contract',
+		)
+		expect(buildEditorDealUrl(7, 'seller', 'supply_contract')).toBe(
+			'/profile/editor?dealId=7&role=seller#supplyContract',
+		)
 	})
 })

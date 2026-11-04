@@ -1,10 +1,12 @@
+import { stripChatScanMarkers } from '~/utils/chatScanMarker'
+
 /** Превью последней строки в списке чатов. */
 export function chatLastMessagePreview(message?: {
 	content?: string | null
 	file_name?: string | null
 	file_type?: string | null
 } | null): string {
-	const content = (message?.content || '').trim()
+	const content = stripChatScanMarkers(message?.content || '').trim()
 	if (content) return content
 
 	const type = (message?.file_type || '').toLowerCase()

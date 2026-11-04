@@ -95,7 +95,10 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       GOTENBERG_URL: "http://gotenberg:3000"
-      # Все конфиги (DB/CORS/Celery/Keys) берём из корневого .env через env_file
+      # Broker внутри docker-сети (иначе kombu → localhost → 6с Connection refused на каждый send)
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
+      # Все конфиги (DB/CORS/Keys) берём из корневого .env через env_file
     restart: unless-stopped
     ports:
       - "${DEV_BACKEND_PORT:-8002}:8000"
@@ -181,7 +184,8 @@ services:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      # CELERY_BROKER_URL / CELERY_RESULT_BACKEND берём из корневого .env
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
     volumes:
       - ./backend:/app:cached
       - backend_poetry_cache:/root/.cache/pypoetry
@@ -208,7 +212,8 @@ services:
       PYTHONPATH: "/app"
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
-      # CELERY_BROKER_URL / CELERY_RESULT_BACKEND берём из корневого .env
+      CELERY_BROKER_URL: "amqp://admin:admin123@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "rpc://"
     volumes:
       - ./backend:/app:cached
       - backend_poetry_cache:/root/.cache/pypoetry

@@ -200,7 +200,13 @@ class TransportDocumentService:
 		if body.date is not None:
 			doc.date = _normalize_datetime(body.date)
 		if body.payload_json is not None:
-			doc.payload_json = body.payload_json
+			from app.core.html_sanitize import assert_payload_size, sanitize_payload_json
+
+			try:
+				assert_payload_size(body.payload_json)
+			except ValueError as exc:
+				raise TransportDocumentValidationError(str(exc)) from exc
+			doc.payload_json = sanitize_payload_json(body.payload_json)
 		try:
 			await self.session.commit()
 		except IntegrityError as exc:
@@ -267,6 +273,15 @@ class TransportDocumentService:
 			doc_type=doc_type,
 			parent_id=body.parent_id,
 		)
+		deal_id = body.deal_id
+		if deal_id is not None:
+			order = await self.deals.get_order_transport_context(deal_id, owner_company_id)
+			if not order:
+				raise TransportDocumentAccessError("Сделка не найдена или нет доступа")
+			if order.seller_company_id != owner_company_id:
+				raise TransportDocumentAccessError(
+					"Только продавец может привязывать документы перевозки к сделке"
+				)
 		doc_date = _normalize_datetime(body.date) if body.date else _utc_now_naive()
 		number = (body.number or "").strip()
 		if not number:
@@ -285,7 +300,7 @@ class TransportDocumentService:
 				number=number,
 				date=doc_date,
 				parent_id=body.parent_id,
-				deal_id=body.deal_id,
+				deal_id=deal_id,
 				payload_json=None,
 			)
 			await self.session.commit()

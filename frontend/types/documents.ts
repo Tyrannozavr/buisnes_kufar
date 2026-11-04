@@ -5,6 +5,7 @@ export type DocumentTypeResponse =
 	| "bill_offer"
 	| "supply_contract"
 	| "contract"
+	| "carriage_application"
 	| "other"
 	| "act"
 
@@ -42,6 +43,8 @@ export interface DocumentApiItem {
 	document_number: string | null
 	document_date: string | null
 	document_file_path: string | null
+	/** Исходное имя файла, как загрузил пользователь (не UUID в storage). */
+	original_filename?: string | null
 	created_at: string
 	updated_at: string
 	blob?: Blob

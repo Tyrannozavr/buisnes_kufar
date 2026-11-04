@@ -67,6 +67,8 @@ export const enum Editor {
 
 	/** Инкремент при правках бланка договора перевозки (§2) — обновление A4-превью */
 	CARRIAGE_CONTRACT_SLOT_REVISION = 'carriageContractSlotRevision',
+	/** Инкремент при правках бланка заявки к договору (§3) */
+	CARRIAGE_APPLICATION_SLOT_REVISION = 'carriageApplicationSlotRevision',
 }
 
 export const enum TemplateElement {

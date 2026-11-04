@@ -948,12 +948,21 @@ class DealRepository:
         if not order:
             return None
         
+        original_filename = (document_data.get("original_filename") or "").strip() or None
+        description = (document_data.get("description") or "").strip() or None
+        content: dict = {}
+        if original_filename:
+            content["original_filename"] = original_filename
+        if description:
+            content["description"] = description
+
         document = OrderDocument(
             order_row_id=order.row_id,
             document_type=document_data.get("document_type"),
             document_number=(document_data.get("document_number") or "").strip() or "-",
             document_date=document_data.get("document_date") or _utc_now(),
-            document_file_path=file_path
+            document_file_path=file_path,
+            document_content=content or None,
         )
         
         self.session.add(document)

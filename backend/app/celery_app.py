@@ -10,6 +10,7 @@ celery_app = Celery(
     include=[
         "app.api.shipments.tasks",
         "app.api.chats.tasks",
+        "app.api.authentication.tasks.email",
     ]
 )
 

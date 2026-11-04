@@ -1,6 +1,6 @@
 from typing import Annotated, List, Literal, Optional
 import asyncio
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, File, UploadFile, Form, Query, status, Path, Body
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
@@ -1287,7 +1287,7 @@ async def download_document(
 
     from app.core.s3 import get_presigned_download_url
 
-    url = get_presigned_download_url(doc.document_file_path)
+    url = await asyncio.to_thread(get_presigned_download_url, doc.document_file_path)
     if redirect:
         return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
     return {"url": url}
@@ -1303,6 +1303,7 @@ async def delete_document(
     document_id: int,
     current_user: Annotated[User, Depends(get_current_user)] = ...,
     deal_service: deal_service_dep_annotated = ...,
+    background_tasks: BackgroundTasks = ...,
 ):
     """Удалить документ (файл в S3 и запись в БД)."""
     company = await deal_service.get_company_by_user_id(current_user.id)
@@ -1316,19 +1317,23 @@ async def delete_document(
     doc = await deal_service.get_document(deal_id, document_id, company.id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if settings.S3_ENABLED and doc.document_file_path:
-        from app.core.s3 import delete_document as s3_delete_document
-
-        try:
-            s3_delete_document(doc.document_file_path)
-        except Exception:
-            pass
+    s3_key = doc.document_file_path if settings.S3_ENABLED else None
     try:
         deleted = await deal_service.delete_document(deal_id, document_id, company.id)
     except OnlySellerCanModifyDealError:
         raise HTTPException(status_code=403, detail="Only seller can modify deal documents")
     if not deleted:
         raise HTTPException(status_code=404, detail="Document not found")
+    if s3_key:
+        from app.core.s3 import delete_document as s3_delete_document
+
+        def _s3_delete_quiet(key: str) -> None:
+            try:
+                s3_delete_document(key)
+            except Exception:
+                logger.warning("S3 delete failed for key=%s", key, exc_info=True)
+
+        background_tasks.add_task(_s3_delete_quiet, s3_key)
 
 
 @router.post(
@@ -1889,13 +1894,15 @@ async def create_supply_contract(
 async def create_order_from_checkout(
     checkout_data: CheckoutRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    deal_service: deal_service_dep_annotated
+    deal_service: deal_service_dep_annotated,
+    background_tasks: BackgroundTasks,
 ):
     """
     Создание заказов из корзины
 
     Группирует позиции по продавцам и типу (товары / услуги),
     создаёт отдельный заказ на каждую группу.
+    Уведомление продавца в чате — в BackgroundTasks (не блокирует ответ).
     """
     company = await deal_service.get_company_by_user_id(current_user.id)
     if not company:
@@ -1907,7 +1914,7 @@ async def create_order_from_checkout(
     }
 
     try:
-        deals = await deal_service.create_deals_from_checkout(
+        deals, pending_notifies = await deal_service.create_deals_from_checkout(
             checkout_dict,
             company.id,
             buyer_user_id=current_user.id,
@@ -1919,6 +1926,16 @@ async def create_order_from_checkout(
         raise HTTPException(status_code=500, detail="Failed to create order from checkout") from e
     if not deals:
         raise HTTPException(status_code=400, detail="Failed to create order from checkout")
+
+    # Коммитим заказы до фона: BackgroundTasks открывают свою сессию.
+    if deal_service.session.is_active:
+        await deal_service.session.commit()
+
+    if pending_notifies:
+        from app.api.purchases.tasks import run_checkout_seller_notify
+
+        for payload in pending_notifies:
+            background_tasks.add_task(run_checkout_seller_notify, **payload)
 
     return CheckoutResponse(deals=deals)
 

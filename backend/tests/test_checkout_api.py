@@ -13,6 +13,8 @@ from app.api.authentication.dependencies import get_current_user
 from app.api.authentication.models.roles_positions import UserRole
 from app.api.authentication.models.user import User
 from app.api.company.models.company import Company, TradeActivity, BusinessType
+from app.api.chats.models.chat import Chat
+from app.api.chats.models.chat_participant import ChatParticipant
 from app.api.messages.models.message import Message
 from app.api.products.models.product import Product, ProductType
 from app.api.purchases.models import Order, OrderType
@@ -146,21 +148,32 @@ async def checkout_context():
     app.dependency_overrides.pop(get_current_user, None)
 
     async with AsyncSessionLocal() as session:
+        company_ids = [context["buyer_company_id"], context["seller_company_id"]]
+        chat_ids = (
+            await session.execute(
+                select(ChatParticipant.chat_id).where(
+                    ChatParticipant.company_id.in_(company_ids)
+                )
+            )
+        ).scalars().all()
+        if chat_ids:
+            await session.execute(delete(Message).where(Message.chat_id.in_(chat_ids)))
+            await session.execute(
+                delete(ChatParticipant).where(ChatParticipant.chat_id.in_(chat_ids))
+            )
+            await session.execute(delete(Chat).where(Chat.id.in_(chat_ids)))
         await session.execute(
             delete(Order).where(
                 (Order.buyer_company_id == context["buyer_company_id"])
                 | (Order.seller_company_id == context["seller_company_id"])
             )
         )
+        await session.execute(delete(Product).where(Product.company_id.in_(company_ids)))
         await session.execute(delete(User).where(User.id == context["user_id"]))
         await session.execute(
             delete(User).where(User.company_id == context["seller_company_id"])
         )
-        await session.execute(
-            delete(Company).where(
-                Company.id.in_([context["buyer_company_id"], context["seller_company_id"]])
-            )
-        )
+        await session.execute(delete(Company).where(Company.id.in_(company_ids)))
         await session.commit()
 
 

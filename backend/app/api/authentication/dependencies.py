@@ -81,7 +81,6 @@ async def get_current_user(
             email=cached.get("email") or f"user{uid}@cache.local",
             company_id=cached.get("company_id"),
             is_active=bool(cached.get("is_active", True)),
-            hashed_password="",
             phone=cached.get("phone") or "",
             first_name=cached.get("first_name"),
             last_name=cached.get("last_name"),

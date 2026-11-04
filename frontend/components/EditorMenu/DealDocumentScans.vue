@@ -64,12 +64,12 @@
 				@change="onFilePicked"
 			/>
 			<UTooltip
-				text="Перейдите в режим редактирования"
-				:disabled="editEnabled || uploading"
+				:text="uploadDisabledReason"
+				:disabled="!uploadDisabledReason"
 			>
 				<span
 					class="block w-full"
-					:class="{ 'cursor-not-allowed': !editEnabled || uploading }"
+					:class="{ 'cursor-not-allowed': Boolean(uploadDisabledReason) }"
 				>
 					<UButton
 						label="Выберите файл"
@@ -77,12 +77,24 @@
 						color="neutral"
 						variant="subtle"
 						size="xl"
-						class="justify-center w-full pointer-events-auto"
-						:disabled="!editEnabled || uploading"
-						@click="fileInputRef?.click()"
+						class="justify-center w-full"
+						:disabled="Boolean(uploadDisabledReason)"
+						@click.stop.prevent="onPickFileClick"
 					/>
 				</span>
 			</UTooltip>
+			<p
+				v-if="uploadDisabledReason"
+				class="text-xs text-amber-700 text-center mt-1"
+			>
+				{{ uploadDisabledReason }}
+			</p>
+			<p
+				v-else
+				class="text-xs text-neutral-500 text-center mt-1"
+			>
+				JPG, PNG или PDF — скан подписанного договора
+			</p>
 
 			<div
 				v-if="pendingPreviewUrl"
@@ -168,7 +180,21 @@ import {
 
 const props = defineProps<{
 	dealId: number
-	documentType: Extract<DocumentTypeResponse, "order" | "bill" | "bill_contract" | "bill_offer" | "supply_contract">
+	documentType: Extract<
+		DocumentTypeResponse,
+		| "order"
+		| "bill"
+		| "bill_contract"
+		| "bill_offer"
+		| "supply_contract"
+		| "contract"
+		| "carriage_application"
+		| "carriage_order"
+		| "expedition_contract"
+		| "forwarder_assignment"
+		| "forwarder_receipt"
+		| "warehouse_receipt"
+	>
 	readOnly: boolean
 	editEnabled: boolean
 }>()
@@ -204,6 +230,27 @@ const viewerType = ref("")
 
 const canModify = computed(() => !props.readOnly)
 
+/** Блокируем только реальные причины; режим просмотра бланка сканы не режет. */
+const uploadDisabledReason = computed(() => {
+	if (uploading.value) return "Идёт загрузка…"
+	if (!props.dealId) return "Сделка не выбрана"
+	if (props.readOnly) return "Покупатель не может загружать сканы"
+	return ""
+})
+
+const onPickFileClick = () => {
+	if (uploadDisabledReason.value) {
+		useToast().add({ title: uploadDisabledReason.value, color: "warning" })
+		return
+	}
+	const input = fileInputRef.value
+	if (!input) {
+		useToast().add({ title: "Не удалось открыть выбор файла", color: "error" })
+		return
+	}
+	input.click()
+}
+
 const { data: documents, asyncStatus, refetch } = useQuery({
 	key: () => [QueryKeys.GET_DOCUMENTS_BY_DEAL_ID, props.dealId],
 	query: () => useDocumentsApi().getDocumentsByDealId(props.dealId),
@@ -226,8 +273,13 @@ const pendingIsImage = computed(() => {
 })
 
 const scanLabel = (scan: DocumentApiItem): string => {
+	const original = scan.original_filename?.trim()
 	const path = scan.document_file_path ?? ""
-	const name = path.split("/").pop() ?? `Скан #${scan.document_id}`
+	const fromPath = path.split("/").pop() ?? ""
+	const name =
+		original
+		|| (fromPath && !/^[a-f0-9]{32}\./i.test(fromPath) ? fromPath : null)
+		|| `Скан #${scan.document_id}`
 	return scan.document_number?.trim() ? `${scan.document_number} (${name})` : name
 }
 
@@ -315,14 +367,27 @@ const savePendingAndNotify = async (): Promise<void> => {
 		return
 	}
 	try {
-		await sendScanToCounterpart(
+		const chatId = await sendScanToCounterpart(
 			dealId,
 			role,
 			counterpart,
 			props.documentType,
 			filename,
+			id,
 		)
-		toast.add({ title: "Скан сохранён и отправлен контрагенту", color: "success" })
+		toast.add({
+			title: "Скан сохранён и отправлен контрагенту",
+			color: "success",
+			actions: [
+				{
+					label: "Перейти в чат",
+					icon: "i-lucide-message-circle",
+					color: "success",
+					variant: "solid",
+					to: chatId ? `/profile/messages/${chatId}` : "/profile/messages",
+				},
+			],
+		})
 	} catch (error) {
 		toast.add({
 			title: "Скан сохранён, но сообщение в чат не отправлено",
@@ -395,14 +460,27 @@ const notifyCounterpart = async (scan: DocumentApiItem): Promise<void> => {
 	}
 	sendingId.value = scan.document_id
 	try {
-		await sendScanToCounterpart(
+		const chatId = await sendScanToCounterpart(
 			dealId,
 			role,
 			counterpart,
 			props.documentType,
 			scanLabel(scan),
+			scan.document_id,
 		)
-		toast.add({ title: "Скан отправлен контрагенту в чат", color: "success" })
+		toast.add({
+			title: "Скан отправлен контрагенту в чат",
+			color: "success",
+			actions: [
+				{
+					label: "Перейти в чат",
+					icon: "i-lucide-message-circle",
+					color: "success",
+					variant: "solid",
+					to: chatId ? `/profile/messages/${chatId}` : "/profile/messages",
+				},
+			],
+		})
 	} catch (error) {
 		toast.add({ title: "Не удалось отправить сообщение в чат", color: "error" })
 		if (import.meta.dev) console.error("notify scan:", error)

@@ -21,6 +21,12 @@ import type {
 	ContractConditionTemplateUpdate,
 } from "~/types/contractConditionTemplate"
 import type { CompanyContractListResponse } from "~/types/companyContract"
+import type {
+	TransportDocumentItem,
+	TransportDocumentListResponse,
+	TransportDocumentType,
+	TransportDocumentUpdatePayload,
+} from "~/types/transportDocument"
 import { normalizeApiPath } from "~/utils/normalize";
 
 export const usePurchasesApi = () => {
@@ -205,6 +211,96 @@ export const usePurchasesApi = () => {
 			console.error("ERROR createTransportContract:", error)
 			throw error
 		}
+	}
+
+	const listTransportDocuments = async (
+		carrierCompanyId: number,
+		docType: TransportDocumentType,
+	): Promise<TransportDocumentListResponse> => {
+		return await $api.get(normalizeApiPath(API_URLS.GET_TRANSPORT_DOCUMENTS), {
+			query: { carrier_company_id: carrierCompanyId, doc_type: docType },
+		})
+	}
+
+	const createTransportDocument = async (payload: {
+		doc_type: TransportDocumentType
+		carrier_company_id: number
+		number?: string
+		date?: string
+		parent_id?: number
+		deal_id?: number
+	}): Promise<TransportDocumentItem> => {
+		return await $api.post(
+			normalizeApiPath(API_URLS.CREATE_TRANSPORT_DOCUMENT),
+			payload,
+		)
+	}
+
+	const bindTransportDocument = async (
+		dealId: number,
+		documentId: number,
+	): Promise<TransportDocumentItem> => {
+		return await $api.post(
+			normalizeApiPath(API_URLS.BIND_TRANSPORT_DOCUMENT(dealId)),
+			{ document_id: documentId },
+		)
+	}
+
+	const listDealTransportDocuments = async (
+		dealId: number,
+	): Promise<TransportDocumentListResponse> => {
+		return await $api.get(
+			normalizeApiPath(API_URLS.GET_DEAL_TRANSPORT_DOCUMENTS(dealId)),
+		)
+	}
+
+	const listDealFillAddresses = async (
+		dealId: number,
+		params?: { party?: 'buyer' | 'seller'; kind?: 'loading' | 'receiving' },
+	): Promise<Array<{ id: number; company_id: number; kind: string; address: string; is_default: boolean }>> => {
+		return await $api.get(
+			normalizeApiPath(API_URLS.GET_DEAL_FILL_ADDRESSES(dealId)),
+			{
+				query: {
+					party: params?.party || 'buyer',
+					kind: params?.kind || 'receiving',
+				},
+			},
+		)
+	}
+
+	const getTransportDocument = async (
+		documentId: number,
+	): Promise<TransportDocumentItem> => {
+		return await $api.get(
+			normalizeApiPath(API_URLS.GET_TRANSPORT_DOCUMENT(documentId)),
+		)
+	}
+
+	const updateTransportDocument = async (
+		documentId: number,
+		payload: TransportDocumentUpdatePayload,
+	): Promise<TransportDocumentItem> => {
+		return await $api.patch(
+			normalizeApiPath(API_URLS.GET_TRANSPORT_DOCUMENT(documentId)),
+			payload,
+		)
+	}
+
+	const listMyCarriers = async (
+		page = 1,
+		perPage = 100,
+	): Promise<{ id: number; name: string }[]> => {
+		const response = await $api.get(normalizeApiPath(API_URLS.GET_MY_CARRIERS), {
+			query: { page, per_page: perPage },
+		})
+		const rows = (response?.data ?? response ?? []) as Record<string, unknown>[]
+		return rows.map((row) => ({
+			id: Number(row.id),
+			name: String(
+				row.full_name || row.fullName || row.name || `Организация #${row.id}`,
+			),
+		}))
 	}
 
 	const createClosingDocument = async (
@@ -593,6 +689,14 @@ export const usePurchasesApi = () => {
 		updateDealById,
 		createBill,
 		createTransportContract,
+		listTransportDocuments,
+		createTransportDocument,
+		bindTransportDocument,
+		listDealTransportDocuments,
+		listDealFillAddresses,
+		getTransportDocument,
+		updateTransportDocument,
+		listMyCarriers,
 		createClosingDocument,
 		getCompanyContracts,
 		getCompanyContractNextNumber,

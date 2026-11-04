@@ -1,6 +1,7 @@
 import hashlib
 import json
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy import delete, func, or_, select
@@ -536,18 +537,22 @@ async def list_shipments(
 	current_user: current_user_dep,
 	page: int = Query(1, ge=1),
 	per_page: int = Query(_LIST_DEFAULT, ge=1, le=_LIST_MAX),
+	deal_id: Optional[int] = Query(None, gt=0, description="Фильтр по заказу продажи"),
 ):
 	company_id = _company_id(current_user)
 	page, per_page = _page_clamp(page, per_page)
 	ClientCompany = aliased(Company)
 	CarrierCompany = aliased(Company)
+	filters = [
+		(Shipment.client_company_id == company_id) | (Shipment.carrier_company_id == company_id)
+	]
+	if deal_id is not None:
+		filters.append(Shipment.deal_id == deal_id)
 	rows = (await db.execute(
 		select(Shipment, ClientCompany, CarrierCompany)
 		.join(ClientCompany, ClientCompany.id == Shipment.client_company_id)
 		.join(CarrierCompany, CarrierCompany.id == Shipment.carrier_company_id)
-		.where(
-			(Shipment.client_company_id == company_id) | (Shipment.carrier_company_id == company_id)
-		)
+		.where(*filters)
 		.order_by(Shipment.created_at.desc())
 		.offset((page - 1) * per_page)
 		.limit(per_page)

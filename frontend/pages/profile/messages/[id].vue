@@ -9,7 +9,13 @@ import { useChatUnreadStore } from '~/stores/chatUnread'
 import { getActiveChatIdFromRoute } from '~/utils/chatUnread'
 import { companyAvatarUrl, onCompanyAvatarError } from '~/utils/companyAvatar'
 import { chatLastMessagePreview } from '~/utils/chatPreview'
-import { publicFileUrl } from '~/utils/publicFileUrl'
+import {
+	extractChatScanRefs,
+	stripChatScanMarkers,
+} from '~/utils/chatScanMarker'
+import { chatAttachmentDisplayName } from '~/utils/chatAttachmentName'
+import ChatDealScanPreview from '~/components/chat/ChatDealScanPreview.vue'
+import ChatMessageAttachment from '~/components/chat/ChatMessageAttachment.vue'
 
 // Define page meta with hideLastBreadcrumb flag
 definePageMeta({
@@ -158,6 +164,11 @@ const handleChatEvent = (message: Record<string, unknown>) => {
 		return
 	}
 
+	if (message.type === 'message_updated' && message.message) {
+		applyMessageUpdate(message.message as Record<string, unknown>)
+		return
+	}
+
 	if (message.type === 'messages_read' && Array.isArray(message.message_ids)) {
 		applyReadStatusToMessages(message.message_ids as number[])
 	}
@@ -172,6 +183,19 @@ const addNewMessage = (message: any) => {
       scrollToBottom()
     }
   }
+}
+
+/** Фоновое дописывание file_path к уже показанному сообщению. */
+const applyMessageUpdate = (message: Record<string, unknown>) => {
+  if (!messages.value) return
+  const id = Number(message.id)
+  if (!Number.isFinite(id)) return
+  const idx = messages.value.findIndex((m) => m.id === id)
+  if (idx === -1) {
+    addNewMessage(message)
+    return
+  }
+  messages.value[idx] = { ...messages.value[idx], ...message }
 }
 
 const { 
@@ -189,6 +213,8 @@ const {
       if (!message.message.is_temp) {
         handleIncomingChatMessage(message.message)
       }
+    } else if (message.type === 'message_updated' && message.message) {
+      applyMessageUpdate(message.message)
     } else if (message.type === 'typing_indicator') {
       // Обрабатываем индикатор печати
       if (message.user_id !== userStore.companyId) {
@@ -218,7 +244,11 @@ onMounted(() => {
   connectWs()
 
   const unsubscribePresence = onChatPresenceMessage((message) => {
-    if (message.type === 'new_message' || message.type === 'messages_read') {
+    if (
+      message.type === 'new_message'
+      || message.type === 'messages_read'
+      || message.type === 'message_updated'
+    ) {
       void refreshChats()
       void chatUnreadStore.refresh()
     }
@@ -401,32 +431,11 @@ const handleBackToChats = () => {
   router.push('/profile/messages')
 }
 
-const getFileIcon = (mimeType: string) => {
-  if (mimeType.startsWith('image/')) return 'i-heroicons-photo'
-  if (mimeType.startsWith('video/')) return 'i-heroicons-video-camera'
-  if (mimeType.startsWith('audio/')) return 'i-heroicons-musical-note'
-  if (mimeType.includes('pdf')) return 'i-heroicons-document-text'
-  if (mimeType.includes('word') || mimeType.includes('document')) return 'i-heroicons-document-text'
-  if (mimeType.includes('excel') || mimeType.includes('sheet')) return 'i-heroicons-table-cells'
-  if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'i-heroicons-presentation-chart-line'
-  if (mimeType.includes('zip') || mimeType.includes('archive')) return 'i-heroicons-archive-box'
-  return 'i-heroicons-document'
-}
-
-const isImageAttachment = (message: { file_type?: string | null, file_name?: string | null }) => {
-  const type = (message.file_type || '').toLowerCase()
-  if (type.startsWith('image/')) return true
-  const name = (message.file_name || '').toLowerCase()
-  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name)
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
-}
+/** Скан отправлен, фоновая копия в chat_files ещё не дописала file_path. */
+const messageHasPendingScanCopy = (message: {
+	content?: string | null
+	file_path?: string | null
+}) => Boolean(!message.file_path && scanRefsFromMessage(message.content).length)
 
 const escapeHtml = (value: string) => {
   return value
@@ -436,6 +445,45 @@ const escapeHtml = (value: string) => {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
 }
+
+const messageTextWithoutScanMarkers = (content?: string | null) =>
+  stripChatScanMarkers(content || '')
+
+const scanRefsFromMessage = (content?: string | null) =>
+  extractChatScanRefs(content || '')
+
+/** Пока фоновая копия не дописала file_path — периодически обновляем сообщения. */
+const pendingCopyPollTimer = ref<ReturnType<typeof setInterval> | null>(null)
+
+const hasPendingScanCopies = computed(() =>
+  (messages.value || []).some((m) => messageHasPendingScanCopy(m)),
+)
+
+watch(hasPendingScanCopies, (pending) => {
+  if (pendingCopyPollTimer.value) {
+    clearInterval(pendingCopyPollTimer.value)
+    pendingCopyPollTimer.value = null
+  }
+  if (!pending) return
+  let ticks = 0
+  pendingCopyPollTimer.value = setInterval(() => {
+    ticks += 1
+    void refreshMessages()
+    if (ticks >= 15 || !hasPendingScanCopies.value) {
+      if (pendingCopyPollTimer.value) {
+        clearInterval(pendingCopyPollTimer.value)
+        pendingCopyPollTimer.value = null
+      }
+    }
+  }, 1500)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (pendingCopyPollTimer.value) {
+    clearInterval(pendingCopyPollTimer.value)
+    pendingCopyPollTimer.value = null
+  }
+})
 
 const formatMessageContent = (content: string, isMine: boolean) => {
   const escaped = escapeHtml(content)
@@ -621,53 +669,38 @@ const formatMessageContent = (content: string, isMine: boolean) => {
                 :class="isOwnMessage(message) ? 'bg-blue-500 text-white' : 'bg-gray-100'"
             >
               <div
-                v-if="message.content"
+                v-if="messageTextWithoutScanMarkers(message.content)"
                 class="mb-1 text-sm break-words [overflow-wrap:anywhere]"
-                v-html="formatMessageContent(message.content, isOwnMessage(message))"
+                v-html="formatMessageContent(messageTextWithoutScanMarkers(message.content), isOwnMessage(message))"
               >
               </div>
-              <div v-if="message.file_path" class="mt-1">
-                <a
-                    v-if="isImageAttachment(message)"
-                    :href="publicFileUrl(message.file_path)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="block overflow-hidden rounded-lg max-w-[16rem]"
-                >
-                  <img
-                    :src="publicFileUrl(message.file_path)"
-                    :alt="message.file_name || 'Изображение'"
-                    class="max-h-52 w-auto max-w-full object-contain rounded-lg bg-black/10"
-                    loading="lazy"
-                  />
-                  <p
-                    class="mt-1 text-xs truncate opacity-80"
-                    :class="isOwnMessage(message) ? 'text-blue-100' : 'text-gray-500'"
-                  >
-                    {{ message.file_name }}
-                    <span v-if="message.file_size"> · {{ formatFileSize(message.file_size) }}</span>
-                  </p>
-                </a>
-                <a
-                    v-else
-                    :href="publicFileUrl(message.file_path)"
-                    target="_blank"
-                    class="flex items-center gap-2 p-2 rounded bg-white/10 hover:bg-white/20 transition-colors max-w-full"
-                    :class="isOwnMessage(message) ? 'text-blue-100' : 'text-blue-600'"
-                >
-                  <UIcon
-                      :name="getFileIcon(message.file_type || '')"
-                      class="w-5 h-5 flex-shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate">{{ message.file_name }}</p>
-                    <p class="text-xs opacity-75">
-                      {{ formatFileSize(message.file_size || 0) }}
-                    </p>
-                  </div>
-                  <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 flex-shrink-0"/>
-                </a>
-              </div>
+              <ChatDealScanPreview
+                v-for="scanRef in scanRefsFromMessage(message.content)"
+                v-show="!message.file_path"
+                :key="`${message.id}-${scanRef.documentId}`"
+                :deal-id="scanRef.dealId"
+                :document-id="scanRef.documentId"
+                :filename="scanRef.filename"
+                :is-mine="isOwnMessage(message)"
+              />
+              <ChatMessageAttachment
+                v-if="message.file_path"
+                :file-path="message.file_path"
+                :file-name="message.file_name"
+                :display-name="chatAttachmentDisplayName(message)"
+                :file-size="message.file_size"
+                :file-type="message.file_type"
+                :is-mine="isOwnMessage(message)"
+              />
+              <p
+                v-else-if="messageHasPendingScanCopy(message)"
+                class="mt-1 flex items-center gap-1.5 text-xs opacity-80"
+                :class="isOwnMessage(message) ? 'text-blue-100' : 'text-gray-500'"
+                role="status"
+              >
+                <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 animate-spin" />
+                Копируем вложение в чат…
+              </p>
               <div
                 class="flex items-center gap-1 mt-1.5"
                 :class="isOwnMessage(message) ? 'justify-end' : 'justify-start'"

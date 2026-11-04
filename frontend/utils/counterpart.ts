@@ -1,11 +1,26 @@
 import { useDeals } from "~/composables/useDeals"
 import { useChatsApi } from "~/api/chats"
 import { buildEditorDealAbsoluteUrl, type EditorDocumentTab } from "~/utils/editorNavigation"
+import { buildChatScanMarker } from "~/utils/chatScanMarker"
 
 export interface CounterpartData {
 	companyId: number
 	dealNumber: string
 }
+
+export type ScanDocumentType =
+	| "order"
+	| "bill"
+	| "bill_contract"
+	| "bill_offer"
+	| "supply_contract"
+	| "contract"
+	| "carriage_application"
+	| "carriage_order"
+	| "expedition_contract"
+	| "forwarder_assignment"
+	| "forwarder_receipt"
+	| "warehouse_receipt"
 
 /**
  * Получает id компании и номер заказа контрагента
@@ -42,17 +57,68 @@ export const getCounterpartData = (
 	return null
 }
 
+const scanDocLabel = (documentType: ScanDocumentType): string => {
+	switch (documentType) {
+		case "order":
+			return "заказа"
+		case "bill":
+			return "счёта на оплату"
+		case "bill_contract":
+			return "счёта-договора"
+		case "bill_offer":
+			return "счёта-оферты"
+		case "supply_contract":
+			return "договора поставки"
+		case "contract":
+			return "договора перевозки"
+		case "carriage_application":
+			return "заявки к договору перевозки"
+		case "carriage_order":
+			return "договора-заявки"
+		case "expedition_contract":
+			return "договора транспортной экспедиции"
+		case "forwarder_assignment":
+			return "поручения экспедитору"
+		case "forwarder_receipt":
+			return "экспедиторской расписки"
+		case "warehouse_receipt":
+			return "складской расписки"
+		default:
+			return "документа"
+	}
+}
+
+const scanEditorTab = (documentType: ScanDocumentType): EditorDocumentTab => {
+	if (documentType === "order") return "order"
+	if (documentType === "supply_contract") return "supply_contract"
+	if (
+		documentType === "contract" ||
+		documentType === "carriage_application" ||
+		documentType === "carriage_order" ||
+		documentType === "expedition_contract" ||
+		documentType === "forwarder_assignment" ||
+		documentType === "forwarder_receipt" ||
+		documentType === "warehouse_receipt"
+	) {
+		return "contract"
+	}
+	return "bill"
+}
+
 /**
- * Уведомление контрагента о загруженном скане документа (§2.6, §4.3 ТЗ).
+ * Уведомление контрагента о скане (§2.6 / §3.0).
+ * Сообщение уходит сразу (текст + маркер для мгновенного превью).
+ * Копия в chat_files — фоном на бэке (если удалят скан сделки, вложение в чате останется).
  */
 export const sendScanToCounterpart = async (
 	dealId: number,
 	role: "buyer" | "seller",
 	counterpartData: CounterpartData,
-	documentType: "order" | "bill" | "bill_contract" | "bill_offer" | "supply_contract",
+	documentType: ScanDocumentType,
 	filename: string,
-): Promise<void> => {
-	if (!counterpartData?.companyId) return
+	documentId?: number | null,
+): Promise<number | null> => {
+	if (!counterpartData?.companyId) return null
 
 	const { createChat, sendMessage } = useChatsApi()
 
@@ -61,30 +127,30 @@ export const sendScanToCounterpart = async (
 		participantId: counterpartData.companyId,
 	})
 
-	if (!chatData?.id) return
+	if (!chatData?.id) return null
 
 	const counterpartRole: "buyer" | "seller" = role === "buyer" ? "seller" : "buyer"
-	const chatDocumentTab: EditorDocumentTab =
-		documentType === "order"
-			? "order"
-			: documentType === "supply_contract"
-				? "supply_contract"
-				: "bill"
+	const chatDocumentTab = scanEditorTab(documentType)
 	const reviewUrl = buildEditorDealAbsoluteUrl(dealId, counterpartRole, chatDocumentTab)
 
-	const docLabel =
-		documentType === "order"
-			? "заказа"
-			: documentType === "bill"
-				? "счёта на оплату"
-				: documentType === "bill_contract"
-					? "счёта-договора"
-					: documentType === "bill_offer"
-						? "счёта-оферты"
-						: "договора поставки"
-	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). Это не изменение условий заказа — только файл. [Открыть сканы](${reviewUrl})`
+	const docLabel = scanDocLabel(documentType)
+	const hasDoc = Boolean(documentId && documentId > 0)
+	const marker = hasDoc
+		? `\n${buildChatScanMarker(dealId, documentId!, filename)}`
+		: ""
+	const content = `Добавлен скан документа ${docLabel} ${orderNumber} (${filename}). Это не изменение условий заказа — только файл. [Открыть сканы](${reviewUrl})${marker}`
 
-	await sendMessage(chatData.id, { content })
+	await sendMessage(chatData.id, {
+		content,
+		...(hasDoc
+			? {
+					attachDealId: dealId,
+					attachDocumentId: documentId!,
+					attachFileName: filename,
+				}
+			: {}),
+	})
+	return chatData.id
 }
 
 /**

@@ -76,6 +76,9 @@ export default defineNuxtConfig({
     baseURL: '/',
     head: {
       title: 'TradeSynergy',
+      htmlAttrs: {
+        lang: 'ru',
+      },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -115,7 +118,13 @@ export default defineNuxtConfig({
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path
-        }
+        },
+        // Вложения чата / логотипы: без nginx same-origin /uploads → 404 на Nuxt
+        '^/uploads': {
+          target: process.env.NUXT_DEV_API_PROXY_TARGET || `http://localhost:${process.env.DEV_BACKEND_PORT || 8012}`,
+          changeOrigin: true,
+          secure: false,
+        },
       }
     }
   },

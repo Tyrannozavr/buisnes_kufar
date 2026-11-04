@@ -96,6 +96,9 @@ class DealRepository:
 
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
             products_repo = CompanyProductsRepository(self.session)
+            products_by_article = await products_repo.get_by_articles(
+                [item.article for item in order_data.items if item.article]
+            )
 
             for i, item_data in enumerate(order_data.items, 1):
                 position = item_data.position if item_data.position else i
@@ -103,7 +106,7 @@ class DealRepository:
                 # Если article указан, получаем данные из БД
                 product_id = None
                 if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
+                    product = products_by_article.get(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
 
@@ -208,7 +211,12 @@ class DealRepository:
         """Получение конкретной версии заказа по deal ID и version с проверкой доступа."""
         query = (
             select(Order)
-            .options(selectinload(Order.order_items), selectinload(Order.order_history))
+            .options(
+                selectinload(Order.order_items),
+                selectinload(Order.order_history),
+                selectinload(Order.seller_company),
+                selectinload(Order.buyer_company),
+            )
             .where(
                 and_(
                     Order.id == order_id,
@@ -249,6 +257,39 @@ class DealRepository:
         result = await self.session.execute(query)
         order = result.scalar_one_or_none()
         return order
+
+    async def get_order_transport_context(
+        self, order_id: int, company_id: int
+    ) -> Optional[Order]:
+        """Лёгкая latest-версия заказа для bind/list документов перевозки (без items/history/companies)."""
+        from sqlalchemy.orm import load_only
+
+        query = (
+            select(Order)
+            .options(
+                load_only(
+                    Order.row_id,
+                    Order.id,
+                    Order.version,
+                    Order.seller_company_id,
+                    Order.buyer_company_id,
+                    Order.transport_contract,
+                )
+            )
+            .where(
+                and_(
+                    Order.id == order_id,
+                    or_(
+                        Order.buyer_company_id == company_id,
+                        Order.seller_company_id == company_id,
+                    ),
+                )
+            )
+            .order_by(desc(Order.version))
+            .limit(1)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
 
     async def get_orders_by_ids(self, order_ids: List[int], company_id: int) -> List[Order]:
         """Latest-версии заказов по списку ID — один запрос вместо N."""
@@ -796,6 +837,9 @@ class DealRepository:
         if order_data.items is not None:
             from app.api.products.repositories.company_products_repository import CompanyProductsRepository
             products_repo = CompanyProductsRepository(self.session)
+            products_by_article = await products_repo.get_by_articles(
+                [item.article for item in order_data.items if item.article]
+            )
 
             # Заменяем позиции: очищаем связь (delete-orphan удалит строки в БД), затем добавляем только новые
             order.order_items.clear()
@@ -806,7 +850,7 @@ class DealRepository:
                 # Если article указан, получаем данные из БД
                 product_id = None
                 if item_data.article:
-                    product = await products_repo.get_by_article(item_data.article)
+                    product = products_by_article.get(item_data.article)
                     if not product:
                         raise ValueError(f"Product with article '{item_data.article}' not found")
 
@@ -915,12 +959,21 @@ class DealRepository:
         if not order:
             return None
         
+        original_filename = (document_data.get("original_filename") or "").strip() or None
+        description = (document_data.get("description") or "").strip() or None
+        content: dict = {}
+        if original_filename:
+            content["original_filename"] = original_filename
+        if description:
+            content["description"] = description
+
         document = OrderDocument(
             order_row_id=order.row_id,
             document_type=document_data.get("document_type"),
             document_number=(document_data.get("document_number") or "").strip() or "-",
             document_date=document_data.get("document_date") or _utc_now(),
-            document_file_path=file_path
+            document_file_path=file_path,
+            document_content=content or None,
         )
         
         self.session.add(document)

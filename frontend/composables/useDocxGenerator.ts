@@ -112,11 +112,63 @@ export const useDocxGenerator = () => {
 		downloadBlob(blob, fileName ?? defaultName);
 	};
 
+	/** GET transport_document → .docx из payload_json */
+	const fetchTransportDocumentDocxBlob = async (
+		documentId: number
+	): Promise<Blob> => {
+		ensureClient();
+		const { $api } = useNuxtApp();
+		const path = normalizeApiPath(
+			API_URLS.DOWNLOAD_TRANSPORT_DOCUMENT_DOCX(documentId)
+		);
+		return (await $api.get(path, {
+			responseType: "blob",
+			headers: {
+				Accept:
+					"application/vnd.openxmlformats-officedocument.wordprocessingml.document, */*",
+			},
+		})) as Blob;
+	};
+
+	const downloadTransportDocumentDocx = async (
+		documentId: number,
+		fileName?: string
+	): Promise<void> => {
+		const blob = await fetchTransportDocumentDocxBlob(documentId);
+		downloadBlob(blob, fileName ?? `transport-document-${documentId}.docx`);
+	};
+
+	const fetchTransportDocumentPdfBlob = async (
+		documentId: number
+	): Promise<Blob> => {
+		ensureClient();
+		const { $api } = useNuxtApp();
+		const path = normalizeApiPath(
+			API_URLS.DOWNLOAD_TRANSPORT_DOCUMENT_PDF(documentId)
+		);
+		return (await $api.get(path, {
+			responseType: "blob",
+			headers: { Accept: "application/pdf, */*" },
+		})) as Blob;
+	};
+
+	const downloadTransportDocumentPdf = async (
+		documentId: number,
+		fileName?: string
+	): Promise<void> => {
+		const blob = await fetchTransportDocumentPdfBlob(documentId);
+		downloadBlob(blob, fileName ?? `transport-document-${documentId}.pdf`);
+	};
+
 	return {
 		fetchDealGeneratedDocxBlob,
 		downloadDealGeneratedDocx,
 		fetchDealGeneratedPdfBlob,
 		downloadDealGeneratedPdf,
+		fetchTransportDocumentDocxBlob,
+		downloadTransportDocumentDocx,
+		fetchTransportDocumentPdfBlob,
+		downloadTransportDocumentPdf,
 		downloadBlob,
 	};
 };

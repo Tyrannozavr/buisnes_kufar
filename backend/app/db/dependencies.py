@@ -11,9 +11,12 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with db_base.AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
+            # Сессию могли закрыть до долгого I/O (Gotenberg и т.п.)
+            if session.is_active:
+                await session.commit()
         except Exception:
-            await session.rollback()
+            if session.is_active:
+                await session.rollback()
             raise
 
 

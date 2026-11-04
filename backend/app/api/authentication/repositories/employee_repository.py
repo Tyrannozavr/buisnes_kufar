@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
-from sqlalchemy import select, update, delete, and_, or_
+from sqlalchemy import select, update, delete, and_, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.authentication.models.employee import Employee, EmployeePermission, EmployeeRole, EmployeeStatus
@@ -70,9 +70,9 @@ class EmployeeRepository:
         """Получить список сотрудников компании с пагинацией"""
         # Общее количество
         count_result = await self.session.execute(
-            select(Employee).where(Employee.company_id == company_id)
+            select(func.count()).select_from(Employee).where(Employee.company_id == company_id)
         )
-        total = len(count_result.scalars().all())
+        total = int(count_result.scalar() or 0)
         
         # Список с пагинацией
         offset = (page - 1) * per_page
@@ -218,7 +218,7 @@ class EmployeeRepository:
     async def count_admins_in_company(self, company_id: int) -> int:
         """Подсчитать количество активных администраторов в компании"""
         result = await self.session.execute(
-            select(Employee).where(
+            select(func.count()).select_from(Employee).where(
                 and_(
                     Employee.company_id == company_id,
                     Employee.role == EmployeeRole.ADMIN,
@@ -226,7 +226,7 @@ class EmployeeRepository:
                 )
             )
         )
-        return len(result.scalars().all())
+        return int(result.scalar() or 0)
 
     async def get_pending_deletions(self) -> List[Employee]:
         """Получить список администраторов, ожидающих удаления"""

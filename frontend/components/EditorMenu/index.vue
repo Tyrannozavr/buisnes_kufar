@@ -64,7 +64,7 @@
 				>
 					Изменения отправлены контрагенту. Ожидайте ответа.
 				</p>
-				<InsertButtons v-if="!isHiddenForBuyer" />
+				<InsertButtons v-if="!isHiddenForBuyer && activeTab !== '5'" />
 
 				<div v-if="activeTab === '0' && !isBuyerRole">
 					<OrderMenu :inDevelopment />
@@ -76,6 +76,34 @@
 
 				<div v-if="activeTab === '2' && !isHiddenForBuyer">
 					<SupplyContractMenu />
+				</div>
+
+				<div v-if="activeTab === '5' && !isHiddenForBuyer">
+					<CarriageApplicationMenu
+						v-if="String(route.query.transportDocType || '') === 'carriage_application'"
+					/>
+					<CarriageOrderMenu
+						v-else-if="String(route.query.transportDocType || '') === 'carriage_order'"
+					/>
+					<ExpeditionContractMenu
+						v-else-if="
+							String(route.query.transportDocType || '') === 'expedition_contract' ||
+							String(route.query.transportDocType || '') === 'transport_expedition'
+						"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'forwarder_assignment'"
+						doc-type="forwarder_assignment"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'forwarder_receipt'"
+						doc-type="forwarder_receipt"
+					/>
+					<StrictExpeditionMenu
+						v-else-if="String(route.query.transportDocType || '') === 'warehouse_receipt'"
+						doc-type="warehouse_receipt"
+					/>
+					<CarriageContractMenu v-else />
 				</div>
 
 				<div class="flex flex-row justify-between gap-1 w-full">
@@ -183,10 +211,16 @@
 				</p>
 
 				<div v-if="!isHiddenForBuyer" class="flex flex-col gap-2">
-					<UTooltip :text="tooltipEdit" :disabled="!tooltipEdit">
-						<span class="block w-full" :class="{ 'cursor-not-allowed': tooltipEdit }">
+					<UTooltip
+						:text="tooltipEdit"
+						:disabled="!tooltipEdit || isStrictExpeditionTab"
+					>
+						<span
+							class="block w-full"
+							:class="{ 'cursor-not-allowed': tooltipEdit && !isStrictExpeditionTab }"
+						>
 							<UButton
-								:disabled="!isDisabled"
+								:disabled="isStrictExpeditionTab ? false : !isDisabled"
 								@click="editButton()"
 								label="Редактировать"
 								icon="i-lucide-file-pen"
@@ -275,11 +309,11 @@
 
 			<!-- Сканы видны всегда (в т.ч. при согласовании изменений заказа у контрагента) -->
 			<DealDocumentScans
-				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2'"
+				v-if="activeTab === '0' || activeTab === '1' || activeTab === '2' || activeTab === '5'"
 				:deal-id="dealIdForReview"
 				:document-type="scansDocumentType"
-				:read-only="isHiddenForBuyer"
-				:edit-enabled="!isDisabled && !canRespondToChanges"
+				:read-only="isBuyerRole || canRespondToChanges"
+				:edit-enabled="true"
 			/>
 			</div>
 		</UCard>
@@ -303,10 +337,21 @@
 
 <script setup lang="ts">
 import SupplyContractMenu from "./SupplyContractMenu.vue"
+import CarriageContractMenu from "./CarriageContractMenu.vue"
+import CarriageApplicationMenu from "./CarriageApplicationMenu.vue"
+import CarriageOrderMenu from "./CarriageOrderMenu.vue"
+import ExpeditionContractMenu from "./ExpeditionContractMenu.vue"
+import StrictExpeditionMenu from "./StrictExpeditionMenu.vue"
 import InsertButtons from "./InsertButtons.vue"
 import OrderMenu from "./OrderMenu.vue"
 import BillMenu from "./BillMenu.vue"
 import DealDocumentScans from "./DealDocumentScans.vue"
+import { useCarriageContractBlank } from "~/composables/useCarriageContractBlank"
+import { useCarriageApplicationBlank } from "~/composables/useCarriageApplicationBlank"
+import { useCarriageOrderBlank } from "~/composables/useCarriageOrderBlank"
+import { useExpeditionContractBlank } from "~/composables/useExpeditionContractBlank"
+import { useStrictExpeditionBlank } from "~/composables/useStrictExpeditionBlank"
+import { isStrictExpeditionType } from "~/utils/strictExpeditionDefaults"
 import { useDocxGenerator } from "~/composables/useDocxGenerator"
 import { usePdfGenerator } from "~/composables/usePdfGenerator"
 import { useSearch } from "~/composables/useSearch"
@@ -345,15 +390,77 @@ const loadDealTrigger = useTypedState(Editor.LOAD_DEAL_TRIGGER, () => ref(0))
 const orderChangeDiff = useTypedState(Editor.ORDER_CHANGE_DIFF, () => ref(null))
 const { createNewDealVersion, refreshDealFromServer } = useDeals()
 
+const transportDocType = computed(() => String(route.query.transportDocType || ""))
+
 const scansDocumentType = computed(() => {
 	if (activeTab.value === "0") return "order" as const
 	if (activeTab.value === "2") return "supply_contract" as const
+	if (activeTab.value === "5") {
+		if (transportDocType.value === "carriage_application") {
+			return "carriage_application" as const
+		}
+		if (transportDocType.value === "carriage_order") {
+			return "carriage_order" as const
+		}
+		if (
+			transportDocType.value === "expedition_contract" ||
+			transportDocType.value === "transport_expedition"
+		) {
+			return "expedition_contract" as const
+		}
+		if (isStrictExpeditionType(transportDocType.value)) {
+			return transportDocType.value
+		}
+		return "contract" as const
+	}
 	const selected = billType.value as { value?: string } | null | undefined
 	const sub = selected?.value ?? "bill"
 	if (sub === "bill-contract") return "bill_contract" as const
 	if (sub === "bill-offer") return "bill_offer" as const
 	return "bill" as const
 })
+
+const isCarriageApplicationTab = computed(
+	() => activeTab.value === "5" && transportDocType.value === "carriage_application",
+)
+const isCarriageOrderTab = computed(
+	() => activeTab.value === "5" && transportDocType.value === "carriage_order",
+)
+const isExpeditionContractTab = computed(
+	() =>
+		activeTab.value === "5" &&
+		(transportDocType.value === "expedition_contract" ||
+			transportDocType.value === "transport_expedition"),
+)
+const isStrictExpeditionTab = computed(
+	() => activeTab.value === "5" && isStrictExpeditionType(transportDocType.value),
+)
+
+const {
+	saveDocument: saveCarriageContract,
+	resetBlank: resetCarriageContract,
+} = useCarriageContractBlank()
+
+const {
+	saveDocument: saveCarriageApplication,
+	resetBlank: resetCarriageApplication,
+} = useCarriageApplicationBlank()
+
+const {
+	saveDocument: saveCarriageOrder,
+	resetBlank: resetCarriageOrder,
+} = useCarriageOrderBlank()
+
+const {
+	saveDocument: saveExpeditionContract,
+	resetBlank: resetExpeditionContract,
+} = useExpeditionContractBlank()
+
+const {
+	saveDocument: saveStrictExpedition,
+	resetBlank: resetStrictExpedition,
+	openDialog: openStrictExpeditionDialog,
+} = useStrictExpeditionBlank()
 
 const inDevelopment = () => {
 	const toast = useToast()
@@ -368,6 +475,9 @@ const isBuyerRole = computed(() => route.query.role === "buyer")
 
 const tooltipEdit = computed(() => {
 	if (isBuyerRole.value && activeTab.value !== "0") return ""
+	if (isStrictExpeditionTab.value) {
+		return "Откроет форму полей бланка (строгий бланк без жёлтых полей на А4)"
+	}
 	if (!isDisabled.value) return "Режим редактирования уже включён — поля формы активны"
 	return ""
 })
@@ -386,20 +496,55 @@ const tooltipSave = computed(() => {
 	return ""
 })
 
-//DOCX / PDF — с бэкенда (docxtpl + Gotenberg), см. docs/DOCX_TEMPLATES_BACKEND.md
-const { downloadDealGeneratedDocx, downloadDealGeneratedPdf } = useDocxGenerator()
+//DOCX / PDF — сделка: docxtpl; бланки перевозки: payload_json → python-docx (+ Gotenberg)
+const {
+	downloadDealGeneratedDocx,
+	downloadDealGeneratedPdf,
+	downloadTransportDocumentDocx,
+	downloadTransportDocumentPdf,
+} = useDocxGenerator()
 const isDocxDownloading = ref(false)
 const isPdfDownloading = ref(false)
 
-const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
-	const dealId = Number(route.query.dealId)
-	if (!dealId || Number.isNaN(dealId)) {
-		useToast().add({ title: "Не выбрана сделка", color: "error" })
-		return
+/** Сохранить бланк перевозки перед DOC/PDF — экспорт читает payload с API. */
+const persistTransportBlankBeforeExport = async (): Promise<number | null> => {
+	const documentId = Number(route.query.transportDocId)
+	if (!documentId || Number.isNaN(documentId)) {
+		useToast().add({ title: "Документ перевозки не выбран", color: "error" })
+		return null
 	}
+	const silent = { silent: true as const }
+	const ok = isCarriageApplicationTab.value
+		? await saveCarriageApplication(silent)
+		: isCarriageOrderTab.value
+			? await saveCarriageOrder(silent)
+			: isExpeditionContractTab.value
+				? await saveExpeditionContract(silent)
+				: isStrictExpeditionTab.value
+					? await saveStrictExpedition(silent)
+					: await saveCarriageContract(silent)
+	return ok ? documentId : null
+}
+
+const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 	if (isDocxDownloading.value) return
 	isDocxDownloading.value = true
 	try {
+		if (tab === "5") {
+			const documentId = await persistTransportBlankBeforeExport()
+			if (!documentId) return
+			const type = String(route.query.transportDocType || "carriage_contract")
+			await downloadTransportDocumentDocx(
+				documentId,
+				`${type}-${documentId}.docx`,
+			)
+			return
+		}
+		const dealId = Number(route.query.dealId)
+		if (!dealId || Number.isNaN(dealId)) {
+			useToast().add({ title: "Не выбрана сделка", color: "error" })
+			return
+		}
 		if (tab === "0") {
 			await downloadDealGeneratedDocx(dealId, "order")
 			return
@@ -432,14 +577,24 @@ const handleDownloadCurrentDocx = async (tab: string): Promise<void> => {
 }
 
 const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
-	const dealId = Number(route.query.dealId)
-	if (!dealId || Number.isNaN(dealId)) {
-		useToast().add({ title: "Не выбрана сделка", color: "error" })
-		return
-	}
 	if (isPdfDownloading.value) return
 	isPdfDownloading.value = true
 	try {
+		if (tab === "5") {
+			const documentId = await persistTransportBlankBeforeExport()
+			if (!documentId) return
+			const type = String(route.query.transportDocType || "carriage_contract")
+			await downloadTransportDocumentPdf(
+				documentId,
+				`${type}-${documentId}.pdf`,
+			)
+			return
+		}
+		const dealId = Number(route.query.dealId)
+		if (!dealId || Number.isNaN(dealId)) {
+			useToast().add({ title: "Не выбрана сделка", color: "error" })
+			return
+		}
 		if (tab === "0") {
 			await downloadDealGeneratedPdf(dealId, "order")
 			return
@@ -474,22 +629,40 @@ const handleDownloadCurrentPdf = async (tab: string): Promise<void> => {
 // Print: innerHTML не содержит .value у input/textarea — без replaceTextareasAndInputs в печати пустые поля и placeholder
 const { printDocument, replaceTextareasAndInputs } = usePdfGenerator()
 
-const printCurrentDocument = (activeTab: string) => {
-	const root =
-		activeTab === "0"
-			? orderElement.value
-			: activeTab === "1"
-				? billElement.value
-				: activeTab === "2"
-					? supplyContractPreviewElement.value
-					: null
+const resolvePrintRoot = (tab: string): HTMLElement | null => {
+	if (tab === "0") return orderElement.value
+	if (tab === "1") return billElement.value
+	if (tab === "2") return supplyContractPreviewElement.value
+	if (tab === "5") {
+		// Живой бланк §2 / §3 / §4 — не через useState(HTMLElement), а напрямую из DOM
+		return (
+			(document.getElementById("carriageApplication") as HTMLElement | null) ||
+			(document.getElementById("carriageOrder") as HTMLElement | null) ||
+			(document.getElementById("expeditionContract") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-forwarder_assignment") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-forwarder_receipt") as HTMLElement | null) ||
+			(document.getElementById("strictExpedition-warehouse_receipt") as HTMLElement | null) ||
+			(document.getElementById("carriageContract") as HTMLElement | null) ||
+			supplyContractPreviewElement.value
+		)
+	}
+	return null
+}
+
+const printCurrentDocument = (tab: string) => {
+	const root = resolvePrintRoot(String(tab ?? ""))
 	if (!root) {
+		useToast().add({
+			title: "Нечего печатать",
+			description: "Бланк договора ещё не загружен",
+			color: "warning",
+		})
 		return
 	}
 	const cloneWithText = replaceTextareasAndInputs(root)
-	const isA4Document = activeTab === "0" || activeTab === "1"
+	const isA4Document = tab === "0" || tab === "1" || tab === "5"
 	printDocument(cloneWithText, {
-		hidePageChrome: activeTab === "2",
+		hidePageChrome: tab === "2" || tab === "5",
 		pageMargins: isA4Document ? "10mm" : undefined,
 	})
 }
@@ -509,15 +682,8 @@ const clearInput = () => {
 	inputValue.value = ""
 }
 
-const searchInCurrentDocument = (activeTab: string) => {
-	const root =
-		activeTab === "0"
-			? orderElement.value
-			: activeTab === "1"
-				? billElement.value
-				: activeTab === "2"
-					? supplyContractPreviewElement.value
-					: null
+const searchInCurrentDocument = (tab: string) => {
+	const root = resolvePrintRoot(String(tab ?? ""))
 	if (!root) {
 		return
 	}
@@ -536,13 +702,27 @@ watch(
 //Button edit
 const editButton = () => {
 	if (isHiddenForBuyer.value) return
+	// Строгие бланки: на А4 нет жёлтых input — правим через диалог полей
+	if (isStrictExpeditionTab.value) {
+		isDisabled.value = true
+		openStrictExpeditionDialog()
+		return
+	}
 	isDisabled.value = !isDisabled.value
 }
 
 //Button clearForm
 const { applyClearState } = useClearState()
 
-const clearCurrentForm = (activeTab: string) => {
+const clearCurrentForm = (tab: string) => {
+	if (tab === "5") {
+		if (isCarriageApplicationTab.value) resetCarriageApplication()
+		else if (isCarriageOrderTab.value) resetCarriageOrder()
+		else if (isExpeditionContractTab.value) resetExpeditionContract()
+		else if (isStrictExpeditionTab.value) resetStrictExpedition()
+		else resetCarriageContract()
+		return
+	}
 	applyClearState()
 }
 
@@ -606,6 +786,20 @@ const confirmSaveAndNotify = async (): Promise<void> => {
 	const role = route.query.role as "buyer" | "seller"
 
 	try {
+		if (activeTab.value === "5") {
+			const ok = isCarriageApplicationTab.value
+				? await saveCarriageApplication()
+				: isCarriageOrderTab.value
+					? await saveCarriageOrder()
+					: isExpeditionContractTab.value
+						? await saveExpeditionContract()
+						: isStrictExpeditionTab.value
+							? await saveStrictExpedition()
+							: await saveCarriageContract()
+			if (!ok) return
+			isDisabled.value = true
+			return
+		}
 		await saveDealVersion()
 	} catch (err) {
 		console.error("Ошибка при сохранении версии сделки:", err)

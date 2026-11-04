@@ -26,7 +26,10 @@ export const useTransportApi = () => {
 		activateRequest: (id: number) => $api.post(`${BASE}/requests/${id}/activate`) as Promise<ShipmentRequest>,
 		acceptRequest: (id: number) => $api.post(`${BASE}/requests/${id}/accept`) as Promise<Shipment>,
 		sendVehicleRequest: (id: number) => $api.post(`${BASE}/vehicles/${id}/send-request`) as Promise<ShipmentRequest>,
-		listShipments: () => $api.get(`${BASE}/shipments`) as Promise<Shipment[]>,
+		listShipments: (params?: { deal_id?: number }) =>
+			$api.get(`${BASE}/shipments`, {
+				query: params?.deal_id ? { deal_id: params.deal_id } : undefined,
+			}) as Promise<Shipment[]>,
 		getCargo: (id: number) =>
 			$api.get(`${BASE}/shipments/${id}/cargo`) as Promise<CargoDetail>,
 		getTransport: (id: number) =>

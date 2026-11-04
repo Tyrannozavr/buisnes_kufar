@@ -58,7 +58,8 @@ interface StateMap {
 	}
 	supplyContractSlotRevision: number
 	supplyContractPreviewElement: HTMLElement | null
-	
+	carriageContractSlotRevision: number
+
 	//TemplateElement
 	htmlOrder: HTMLElement | null
 	htmlBill: HTMLElement | null
@@ -68,8 +69,8 @@ interface StateMap {
 }
 
 export function useTypedState<T extends keyof StateMap>(
-	key: T, 
-	defaultValue?: () => Ref<StateMap[T]>
+	key: T,
+	defaultValue?: () => StateMap[T] | Ref<StateMap[T]>,
 ) {
-	return useState<StateMap[T]>(key, defaultValue)
+	return useState<StateMap[T]>(key, defaultValue as (() => StateMap[T]) | undefined)
 }

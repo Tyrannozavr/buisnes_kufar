@@ -14,6 +14,7 @@ from app.api.purchases.services.contract_condition_template import (
 	ContractConditionTemplateService,
 	ContractConditionTemplateAlreadyExistsError,
 )
+from app.api.purchases.services.transport_document import TransportDocumentService
 
 
 def deal_repository_dep(session: async_db_dep) -> DealRepository:
@@ -40,6 +41,10 @@ def contract_condition_template_service_dep(session: async_db_dep) -> ContractCo
 	return ContractConditionTemplateService(session)
 
 
+def transport_document_service_dep(session: async_db_dep) -> TransportDocumentService:
+	return TransportDocumentService(session)
+
+
 # Аннотированные зависимости для использования в эндпоинтах
 deal_repository_dep_annotated = Annotated[DealRepository, Depends(deal_repository_dep)]
 deal_service_dep_annotated = Annotated[DealService, Depends(deal_service_dep)]
@@ -52,4 +57,8 @@ supply_contract_template_service_dep_annotated = Annotated[
 contract_condition_template_service_dep_annotated = Annotated[
 	ContractConditionTemplateService,
 	Depends(contract_condition_template_service_dep),
+]
+transport_document_service_dep_annotated = Annotated[
+	TransportDocumentService,
+	Depends(transport_document_service_dep),
 ]

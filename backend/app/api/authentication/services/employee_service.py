@@ -7,9 +7,10 @@ from app.api.authentication.repositories.user_repository import UserRepository
 from app.api.authentication.schemas.employee import (
     EmployeeCreate, EmployeeUpdate, EmployeeResponse, EmployeeListResponse,
     PermissionUpdateRequest, AdminDeletionRequest, AdminDeletionRejectRequest,
-    AVAILABLE_PERMISSIONS
+    AVAILABLE_PERMISSIONS, EmployeeRoleEnum,
 )
 from app.api.authentication.models.employee import EmployeeRole, EmployeeStatus, Employee
+from app.api.authentication.models.user import UserRole
 from app_logging.logger import logger
 import json
 
@@ -19,8 +20,46 @@ class EmployeeService:
         self.employee_repository = employee_repository
         self.user_repository = user_repository
 
+    async def _creator_roles(
+        self, created_by: int, company_id: int
+    ) -> tuple[Optional[EmployeeRole], Optional[UserRole]]:
+        creator_employee = await self.get_employee_by_user_id(created_by, company_id)
+        creator_user = await self.user_repository.get_user_by_id(created_by)
+        emp_role = creator_employee.role if creator_employee else None
+        user_role = getattr(creator_user, "role", None) if creator_user else None
+        return emp_role, user_role
+
+    def _is_owner(self, emp_role: Optional[EmployeeRole], user_role: Optional[UserRole]) -> bool:
+        return emp_role == EmployeeRole.OWNER or user_role == UserRole.OWNER
+
+    def _can_manage_employees(
+        self, emp_role: Optional[EmployeeRole], user_role: Optional[UserRole]
+    ) -> bool:
+        return (
+            emp_role in (EmployeeRole.OWNER, EmployeeRole.ADMIN)
+            or user_role in (UserRole.OWNER, UserRole.ADMIN)
+        )
+
     async def create_employee(self, employee_data: EmployeeCreate, company_id: int, created_by: int) -> EmployeeResponse:
         """Создать нового сотрудника"""
+        emp_role, user_role = await self._creator_roles(created_by, company_id)
+        if not self._can_manage_employees(emp_role, user_role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to create employees",
+            )
+
+        if employee_data.role == EmployeeRoleEnum.OWNER:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot assign owner role via API",
+            )
+        if employee_data.role == EmployeeRoleEnum.ADMIN and not self._is_owner(emp_role, user_role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only owner can create administrators",
+            )
+
         # Проверяем, что сотрудник с таким email еще не существует в компании
         existing_employee = await self.employee_repository.get_employee_by_email_and_company(
             employee_data.email, company_id
@@ -83,13 +122,29 @@ class EmployeeService:
                 detail="Employee not found"
             )
         
-        # Проверяем права доступа
-        current_user_employee = await self.get_employee_by_user_id(current_user_id, employee.company_id)
-        if not current_user_employee or current_user_employee.role not in [EmployeeRole.OWNER, EmployeeRole.ADMIN]:
+        emp_role, user_role = await self._creator_roles(current_user_id, employee.company_id)
+        if not self._can_manage_employees(emp_role, user_role):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"
             )
+
+        if employee_data.role is not None:
+            if employee_data.role == EmployeeRoleEnum.OWNER:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot assign owner role via API",
+                )
+            if employee_data.role == EmployeeRoleEnum.ADMIN and not self._is_owner(emp_role, user_role):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only owner can promote to administrator",
+                )
+            if employee.role == EmployeeRole.OWNER:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Cannot change owner role via API",
+                )
         
         updated_employee = await self.employee_repository.update_employee(employee_id, employee_data)
         if not updated_employee:
